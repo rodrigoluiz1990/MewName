@@ -12,6 +12,14 @@ val autoVersionCode = ((buildMoment.year - 2000) * 10_000_000) +
     (buildMoment.hour * 3_600) +
     (buildMoment.minute * 60) +
     buildMoment.second
+val releaseStoreFilePath = System.getenv("MEWNAME_UPLOAD_STORE_FILE")?.takeIf { it.isNotBlank() }
+val releaseStorePassword = System.getenv("MEWNAME_UPLOAD_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
+val releaseKeyAlias = System.getenv("MEWNAME_UPLOAD_KEY_ALIAS")?.takeIf { it.isNotBlank() }
+val releaseKeyPassword = System.getenv("MEWNAME_UPLOAD_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+val hasReleaseSigning = releaseStoreFilePath != null &&
+    releaseStorePassword != null &&
+    releaseKeyAlias != null &&
+    releaseKeyPassword != null
 
 android {
     namespace = "com.mewname.app"
@@ -30,6 +38,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -37,6 +56,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
