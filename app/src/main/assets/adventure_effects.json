@@ -1,0 +1,90 @@
+[
+  {
+    "pokemon": "Origin Forme Dialga",
+    "aliases": ["ORIGIN FORME DIALGA", "DIALGA ORIGIN", "DIALGA"],
+    "move": "Roar of Time",
+    "movePt": "Rugido do Tempo",
+    "moveAliases": ["ROAR OF TIME", "RUGIDO DO TEMPO"],
+    "effectName": "Roar of Time",
+    "effectNamePt": "Rugido do Tempo",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "ROAR OF TIME", "RUGIDO DO TEMPO"],
+    "description": "Pausa a contagem de tempo de itens como Incenso, Ovo da Sorte e Peda\u00e7o Estrela."
+  },
+  {
+    "pokemon": "Origin Forme Palkia",
+    "aliases": ["ORIGIN FORME PALKIA", "PALKIA ORIGIN", "PALKIA"],
+    "move": "Spacial Rend",
+    "movePt": "Fenda Espacial",
+    "moveAliases": ["SPACIAL REND", "FENDA ESPACIAL"],
+    "effectName": "Spacial Rend",
+    "effectNamePt": "Fenda Espacial",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "SPACIAL REND", "FENDA ESPACIAL"],
+    "description": "Aumenta a dist\u00e2ncia de encontro de Pok\u00e9mon ao redor do treinador por tempo limitado."
+  },
+  {
+    "pokemon": "Dusk Mane Necrozma",
+    "aliases": ["DUSK MANE NECROZMA", "NECROZMA"],
+    "move": "Sunsteel Strike",
+    "movePt": "Golpe Solar de A\u00e7o",
+    "moveAliases": ["SUNSTEEL STRIKE", "GOLPE SOLSTEEL", "GOLPE SOLF\u00c9RREO"],
+    "effectName": "Sunsteel Strike",
+    "effectNamePt": "Golpe Solar de A\u00e7o",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "SUNSTEEL STRIKE"],
+    "description": "Atrai Pok\u00e9mon durante o dia e altera o ciclo para o per\u00edodo diurno por tempo limitado."
+  },
+  {
+    "pokemon": "Dawn Wings Necrozma",
+    "aliases": ["DAWN WINGS NECROZMA", "NECROZMA"],
+    "move": "Moongeist Beam",
+    "movePt": "Raio Lunar Fantasma",
+    "moveAliases": ["MOONGEIST BEAM", "RAIO LUNARGEOIST", "RAIO LUNARGEIST"],
+    "effectName": "Moongeist Beam",
+    "effectNamePt": "Raio Lunar Fantasma",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "MOONGEIST BEAM"],
+    "description": "Atrai Pok\u00e9mon durante a noite e altera o ciclo para o per\u00edodo noturno por tempo limitado."
+  },
+  {
+    "pokemon": "Black Kyurem",
+    "aliases": ["BLACK KYUREM", "KYUREM"],
+    "move": "Freeze Shock",
+    "movePt": "Choque Congelante",
+    "moveAliases": ["FREEZE SHOCK", "CHOQUE CONGELANTE"],
+    "effectName": "Freeze Shock",
+    "effectNamePt": "Choque Congelante",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "FREEZE SHOCK", "CHOQUE CONGELANTE"],
+    "description": "Fortalece encontros ligados a clima frio e eletricidade por tempo limitado."
+  },
+  {
+    "pokemon": "White Kyurem",
+    "aliases": ["WHITE KYUREM", "KYUREM"],
+    "move": "Ice Burn",
+    "movePt": "Queimadura Gelada",
+    "moveAliases": ["ICE BURN", "QUEIMADURA GELADA"],
+    "effectName": "Ice Burn",
+    "effectNamePt": "Queimadura Gelada",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "ICE BURN", "QUEIMADURA GELADA"],
+    "description": "Fortalece encontros ligados a gelo e fogo por tempo limitado."
+  },
+  {
+    "pokemon": "Crowned Sword Zacian",
+    "aliases": ["CROWNED SWORD ZACIAN", "ZACIAN CROWNED SWORD", "ZACIAN"],
+    "move": "Behemoth Blade",
+    "movePt": "Espada Behemoth",
+    "moveAliases": ["BEHEMOTH BLADE", "ESPADA BEHEMOTH"],
+    "effectName": "Behemoth Blade",
+    "effectNamePt": "Espada Behemoth",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "BEHEMOTH BLADE"],
+    "description": "Concede b\u00f4nus ofensivo em encontros e batalhas por tempo limitado."
+  },
+  {
+    "pokemon": "Crowned Shield Zamazenta",
+    "aliases": ["CROWNED SHIELD ZAMAZENTA", "ZAMAZENTA CROWNED SHIELD", "ZAMAZENTA"],
+    "move": "Behemoth Bash",
+    "movePt": "Impacto Behemoth",
+    "moveAliases": ["BEHEMOTH BASH", "IMPACTO BEHEMOTH"],
+    "effectName": "Behemoth Bash",
+    "effectNamePt": "Impacto Behemoth",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "BEHEMOTH BASH"],
+    "description": "Concede b\u00f4nus defensivo em encontros e batalhas por tempo limitado."
+  }
+]

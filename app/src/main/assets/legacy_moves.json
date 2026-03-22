@@ -1,0 +1,961 @@
+﻿{
+    "BUTTERFREE":  [
+                       "BUG BITE",
+                       "PICADA",
+                       "PICADURA"
+                   ],
+    "PIDGEOT":  [
+                    "GUST",
+                    "VENTANIA",
+                    "TORNADO",
+                    "AIR CUTTER",
+                    "GOLPE DE AR",
+                    "TAJO AEREO"
+                ],
+    "FEAROW":  [
+                   "TWISTER",
+                   "CICLONE",
+                   "CICLÃ“N"
+               ],
+    "PIKACHU":  [
+                    "SURF",
+                    "SURF",
+                    "SURF",
+                    "FLY",
+                    "VOAR",
+                    "VUELO",
+                    "PRESENT",
+                    "PRESENTE",
+                    "PRESENTE"
+                ],
+    "NIDOKING":  [
+                     "FURY CUTTER",
+                     "CORTE FURIA",
+                     "CORTE FURIA"
+                 ],
+    "CLEFABLE":  [
+                     "POUND",
+                     "PANCADA",
+                     "DESTRUCTOR"
+                 ],
+    "NINETALES":  [
+                      "EMBER",
+                      "BRASAS",
+                      "ASCUAS",
+                      "FIRE PERSONA",
+                      "FEITIÃ‡O DE FOGO",
+                      "PIROTECNIA"
+                  ],
+    "POLIWRATH":  [
+                      "COUNTER",
+                      "CONTRA-ATACAR",
+                      "CONTRAATAQUE",
+                      "SCALD",
+                      "ESCALDAR",
+                      "ESCALDAR"
+                  ],
+    "GRAVELER":  [
+                     "ROCK THROW",
+                     "LANÃ‡AMENTO DE ROCHA",
+                     "LANZARROCAS"
+                 ],
+    "GOLEM":  [
+                  "ANCIENT POWER",
+                  "PODER ANCIÃƒO",
+                  "PODER PASADO",
+                  "MUD SHOT",
+                  "TIRO DE LAMA",
+                  "DISPARO LODO"
+              ],
+    "FARFETCHD":  [
+                      "CUT",
+                      "CORTE",
+                      "CORTE"
+                  ],
+    "CLOYSTER":  [
+                     "BLIZZARD",
+                     "NEVASCA",
+                     "VENTISCA"
+                 ],
+    "EXEGGUTOR":  [
+                      "ZEN HEADBUTT",
+                      "CABEÃ‡ADA ZEN",
+                      "CABEZAZO ZEN"
+                  ],
+    "STARMIE":  [
+                    "QUICK ATTACK",
+                    "ATAQUE RÃPIDO",
+                    "ATAQUE RÃPIDO",
+                    "TACKLE",
+                    "INVESTIDA",
+                    "PLACAJE"
+                ],
+    "PINSIR":  [
+                   "SUBMISSION",
+                   "SUBMISSÃƒO",
+                   "SUMISIÃ“N"
+               ],
+    "LAPRAS":  [
+                   "ICE SHARD",
+                   "CACO DE GELOS",
+                   "CANTO HELADO",
+                   "ICE BEAM",
+                   "RAIO DE GELO",
+                   "RAYO HIELO",
+                   "DRAGON PULSE",
+                   "PULSO DO DRAGÃƒO",
+                   "PULSO DRAGÃ“N"
+               ],
+    "OMASTAR":  [
+                    "ROCK SLIDE",
+                    "DESLIZE DE ROCHA",
+                    "AVALANCHA",
+                    "WATER GUN",
+                    "REVOLVER D\u0027ÃGUA",
+                    "PISTOLA AGUA"
+                ],
+    "KABUTOPS":  [
+                     "FURY CUTTER",
+                     "CORTE FURIA",
+                     "CORTE FURIA"
+                 ],
+    "MOLTRES":  [
+                    "SKY ATTACK",
+                    "ATAQUE DO CÃ‰U",
+                    "ATAQUE AÃ‰REO",
+                    "BURN UP",
+                    "SUPERARQUECIMENTO",
+                    "SOFOCO"
+                ],
+    "ZAPDOS":  [
+                   "THUNDER SHOCK",
+                   "TROVOADA DE CHOQUE",
+                   "IMPACTRUENO"
+               ],
+    "ARTICUNO":  [
+                     "HURRICANE",
+                     "FURACÃƒO",
+                     "VENDAVAL"
+                 ],
+    "MEGANIUM":  [
+                     "FRENZY PLANT",
+                     "PLANTA FRENETICA",
+                     "PLANTA FEROZ"
+                 ],
+    "TYPHLOSION":  [
+                       "BLAST BURN",
+                       "QUEIMADURA EXPLOSIVA",
+                       "ANILLO IGNEO"
+                   ],
+    "FERALIGATR":  [
+                       "HYDRO CANNON",
+                       "HIDRO CANHAO",
+                       "HIDROCANON"
+                   ],
+    "AMPHAROS":  [
+                     "DRAGON PULSE",
+                     "PULSO DO DRAGAO",
+                     "PULSO DRAGON"
+                 ],
+    "AZUMARILL":  [
+                      "BODY SLAM",
+                      "PANCADA DE CORPO",
+                      "GOLPE CUERPO"
+                  ],
+    "POLITOED":  [
+                     "EARTHQUAKE",
+                     "TERREMOTO",
+                     "TERREMOTO",
+                     "ICE BEAM",
+                     "RAIO DE GELO",
+                     "RAYO HIELO"
+                 ],
+    "JUMPLUFF":  [
+                     "ACROBATICS",
+                     "ACROBACIA",
+                     "ACROBACIA"
+                 ],
+    "QUAGSIRE":  [
+                     "ACID",
+                     "ACIDO",
+                     "ACIDO",
+                     "MUD SHOT",
+                     "TIRO DE LAMA",
+                     "DISPARO LODO"
+                 ],
+    "ESPEON":  [
+                   "LAST RESORT",
+                   "ULTIMO RECURSO",
+                   "ULTIMA BAZA",
+                   "SHADOW BALL",
+                   "BOLA SOMBRIA",
+                   "BOLA SOMBRA"
+               ],
+    "UMBREON":  [
+                    "LAST RESORT",
+                    "ULTIMO RECURSO",
+                    "ULTIMA BAZA",
+                    "PSYCHIC",
+                    "PSIQUICO",
+                    "PSICQUICO"
+                ],
+    "SLOWKING":  [
+                     "SURF",
+                     "SURF",
+                     "SURF"
+                 ],
+    "STEELIX":  [
+                    "PSYCHIC FANGS",
+                    "PRESAS PSIQUICAS",
+                    "PSICOCOLMILLO"
+                ],
+    "GRANBULL":  [
+                     "QUICK ATTACK",
+                     "ATAQUE RAPIDO",
+                     "ATAQUE RAPIDO"
+                 ],
+    "SCIZOR":  [
+                   "IRON HEAD",
+                   "CABEÃ‡A DE FERRO",
+                   "CABEZA DE HIERRO"
+               ],
+    "HERACROSS":  [
+                      "ROCK TOMB",
+                      "TUMULO DE ROCHAS",
+                      "TUMBA ROCAS"
+                  ],
+    "URSARING":  [
+                     "SHADOW CLAW",
+                     "GARRA SOMBRIA",
+                     "GARRA UMBRIA"
+                 ],
+    "PORYGON2":  [
+                     "HYPER BEAM",
+                     "HIPER RAIO",
+                     "HIPERRAYO"
+                 ],
+    "SMEARGLE":  [
+                     "LOCK-ON",
+                     "TRAVAR MIRA",
+                     "FIJAR BLANCO"
+                 ],
+    "HITMONTOP":  [
+                      "STONE EDGE",
+                      "GUME DE PEDRA",
+                      "ROCA AFILADA"
+                  ],
+    "BLISSEY":  [
+                    "WILDBOLT",
+                    "RELAMPAGO SELVAGEM",
+                    "VOLTIO CRUEL"
+                ],
+    "TYRANITAR":  [
+                      "SMACK DOWN",
+                      "DERRUBADA",
+                      "ANTIAEREO"
+                  ],
+    "LUGIA":  [
+                  "AEROBLAST",
+                  "AEROEXPLOSAO",
+                  "AEROCHORRO"
+              ],
+    "HO-OH":  [
+                  "SACRED FIRE",
+                  "FOGO SAGRADO",
+                  "FUEGO SAGRADO",
+                  "EARTHQUAKE",
+                  "TERREMOTO",
+                  "TERREMOTO"
+              ],
+    "SUICUNE":  [
+                    "HIDDEN POWER",
+                    "PODER OCULTO",
+                    "PODER OCULTO"
+                ],
+    "ENTEI":  [
+                  "FLAMETHROWER",
+                  "LANÃ‡A-CHAMAS",
+                  "LANZALLAMAS"
+              ],
+    "RAIKOU":  [
+                   "BALL LIGHTNING",
+                   "BOLA ELETRICA",
+                   "BOLA VOLTIOS"
+               ],
+    "SCEPTILE":  [
+                     "FRENZY PLANT",
+                     "PLANTA FRENETICA",
+                     "PLANTA FEROZ"
+                 ],
+    "BLAZIKEN":  [
+                     "BLAST BURN",
+                     "QUEIMADURA EXPLOSIVA",
+                     "ANILLO IGNEO",
+                     "STONE EDGE",
+                     "GUME DE PEDRA",
+                     "ROCA AFILADA"
+                 ],
+    "SWAMPERT":  [
+                     "HYDRO CANNON",
+                     "HIDRO CANHAO",
+                     "HIDROCANON"
+                 ],
+    "GARDEVOIR":  [
+                      "SYNCHRONOISE",
+                      "SINCRORRUIDO",
+                      "SINCRORRUIDO"
+                  ],
+    "GALLADE":  [
+                    "SYNCHRONOISE",
+                    "SINCRORRUIDO",
+                    "SINCRORRUIDO"
+                ],
+    "EXPLOUD":  [
+                    "BITE",
+                    "MORDIDA",
+                    "MORDISCO"
+                ],
+    "BRELOOM":  [
+                    "GRASS KNOT",
+                    "NO DE ERVA",
+                    "HIERBA LAZO"
+                ],
+    "SLAKING":  [
+                    "BODY SLAM",
+                    "PANCADA DE CORPO",
+                    "GOLPE CUERPO"
+                ],
+    "NINJASK":  [
+                    "BUG BITE",
+                    "PICADA",
+                    "PICADURA"
+                ],
+    "MAWHILE":  [
+                    "ASTONISH",
+                    "ESPANTAR",
+                    "IMPRESIONAR"
+                ],
+    "AGGRON":  [
+                   "METEOR MASH",
+                   "METEORO ESMAGADOR",
+                   "PUÃ‘O METEORO"
+               ],
+    "FLYGON":  [
+                   "EARTH POWER",
+                   "PODER DA TERRA",
+                   "TIERRA VIVA"
+               ],
+    "ALTARIA":  [
+                    "MOONBLAST",
+                    "CLARAO LUNAR",
+                    "FUERZA LUNAR"
+                ],
+    "ZANGOOSE":  [
+                     "SHADOW CLAW",
+                     "GARRA SOMBRIA",
+                     "GARRA UMBRIA"
+                 ],
+    "CLAYDOL":  [
+                    "ICE BEAM",
+                    "RAIO DE GELO",
+                    "RAYO HIELO"
+                ],
+    "MILOTIC":  [
+                    "WATERFALL",
+                    "CACHOEIRA",
+                    "CASCADA"
+                ],
+    "WALREIN":  [
+                    "ICICLE SPEAR",
+                    "LANCA DE GELO",
+                    "CARÃMBANO",
+                    "POWDER SNOW",
+                    "NEVE EM PO",
+                    "NIEVE POLVO"
+                ],
+    "SALAMENCE":  [
+                      "OUTRAGE",
+                      "ULTRAJE",
+                      "ENFADO"
+                  ],
+    "METAGROSS":  [
+                      "METEOR MASH",
+                      "METEORO ESMAGADOR",
+                      "PUÃ‘O METEORO"
+                  ],
+    "REGIROCK":  [
+                     "EARTHQUAKE",
+                     "TERREMOTO",
+                     "TERREMOTO"
+                 ],
+    "REGICE":  [
+                   "THUNDER",
+                   "TROVAO",
+                   "TRUENO"
+               ],
+    "REGISTEEL":  [
+                      "ZAP CANNON",
+                      "CANHAO ELETRICO",
+                      "ELECTROCAÃ‘ON"
+                  ],
+    "LATIAS":  [
+                   "MIST BALL",
+                   "BOLA DE NEVOA",
+                   "BOLA NEBLINA"
+               ],
+    "LATIOS":  [
+                   "LUSTER PURGE",
+                   "PURGA DE LUZ",
+                   "RESPLANDOR"
+               ],
+    "KYOGRE":  [
+                   "ORIGIN PULSE",
+                   "PULSO ORIGINAL",
+                   "PULSO PRIMIGENIO"
+               ],
+    "GROUDON":  [
+                    "PRECIPICE BLADES",
+                    "LAMINAS DO ABISMO",
+                    "FILO DEL ABISMO",
+                    "FIRE PUNCH",
+                    "SOCO DE FOGO",
+                    "PUÃ‘O FUEGO"
+                ],
+    "RAYQUAZA":  [
+                     "DRAGON ASCENT",
+                     "ASCENSAO DO DRAGAO",
+                     "ASCENSO DRACO",
+                     "BREAKING SWIPE",
+                     "VAREJO DRACONICO",
+                     "VASTO IMPACTO",
+                     "HURRICANE",
+                     "FURACÃƒO",
+                     "VENDAVAL"
+                 ],
+    "TORTERRA":  [
+                     "FRENZY PLANT",
+                     "PLANTA FRENETICA",
+                     "PLANTA FEROZ"
+                 ],
+    "INFERNAPE":  [
+                      "BLAST BURN",
+                      "QUEIMADURA EXPLOSIVA",
+                      "ANILLO IGNEO"
+                  ],
+    "EMPOLEON":  [
+                     "HYDRO CANNON",
+                     "HIDRO CANHAO",
+                     "HIDROCANON"
+                 ],
+    "STARAPTOR":  [
+                      "GUST",
+                      "VENTANIA",
+                      "TORNADO"
+                  ],
+    "LUXRAY":  [
+                   "PSYCHIC FANGS",
+                   "PRESAS PSIQUICAS",
+                   "PSICOCOLMILLO"
+               ],
+    "ROSERADE":  [
+                     "BULLET SEED",
+                     "SEMENTE METRALHADORA",
+                     "RECURRENTE",
+                     "WEATHER BALL",
+                     "METEOROBOLA",
+                     "METEOROBOLA"
+                 ],
+    "GARCHOMP":  [
+                     "EARTH POWER",
+                     "PODER DA TERRA",
+                     "TIERRA VIVA"
+                 ],
+    "LUCARIO":  [
+                    "FORCE PALM",
+                    "PALMA DE FORCA",
+                    "PALMADA FUERZA"
+                ],
+    "HIPPOWDON":  [
+                      "WEATHER BALL",
+                      "METEOROBOLA",
+                      "METEOROBOLA"
+                  ],
+    "MAGMORTAR":  [
+                      "THUNDERBOLT",
+                      "CHOQUE DO TROVAO",
+                      "RAYO"
+                  ],
+    "ELECTIVIRE":  [
+                       "FLAMETHROWER",
+                       "LANCA-CHAMAS",
+                       "LANZALLAMAS"
+                   ],
+    "TOGEKISS":  [
+                     "AURA SPHERE",
+                     "AURA NA ESFERA",
+                     "ESFERA AURAL"
+                 ],
+    "LEAFEON":  [
+                    "LAST RESORT",
+                    "ULTIMO RECURSO",
+                    "ULTIMA BAZA",
+                    "BULLET SEED",
+                    "SEMENTE METRALHADORA",
+                    "RECURRENTE"
+                ],
+    "GLACEON":  [
+                    "LAST RESORT",
+                    "ULTIMO RECURSO",
+                    "ULTIMA BAZA",
+                    "WATER PULSE",
+                    "PULSO DAGUA",
+                    "PULSO AGUA"
+                ],
+    "MAMOSWINE":  [
+                      "ANCIENT POWER",
+                      "PODER ANCIAO",
+                      "PODER PASADO"
+                  ],
+    "PORYGON-Z":  [
+                      "TRI ATTACK",
+                      "TRIATAQUE",
+                      "TRIATAQUE"
+                  ],
+    "DIALGA":  [
+                   "ROAR OF TIME",
+                   "RUGIDO DO TEMPO",
+                   "DISTORSION"
+               ],
+    "PALKIA":  [
+                   "SPACIAL REND",
+                   "FENDA DO ESPACO",
+                   "CORTE VACIO"
+               ],
+    "GIRATINA":  [
+                     "SHADOW FORCE",
+                     "FORCA SOMBRIA",
+                     "GOLPE UMBRIO"
+                 ],
+    "CRESSELIA":  [
+                      "GRASS KNOT",
+                      "NO DE ERVA",
+                      "HIERBA LAZO"
+                  ],
+    "DARKRAI":  [
+                    "SLUDGE BOMB",
+                    "BOMBA DE LODO",
+                    "BOMBA LODO"
+                ],
+    "SHAYMIN":  [
+                    "MAGICAL LEAF",
+                    "FOLHA MAGICA",
+                    "HOJA MÃGICA"
+                ],
+    "HEATRAN":  [
+                    "MAGMA STORM",
+                    "TEMPESTADE DE MAGMA",
+                    "LLUVIA ÃGNEA"
+                ],
+    "SERPERIOR":  [
+                      "FRENZY PLANT",
+                      "PLANTA FRENETICA",
+                      "PLANTA FEROZ"
+                  ],
+    "EMBOAR":  [
+                   "BLAST BURN",
+                   "QUEIMADURA EXPLOSIVA",
+                   "ANILLO IGNEO"
+               ],
+    "SAMUROTT":  [
+                     "HYDRO CANNON",
+                     "HIDRO CANHAO",
+                     "HIDROCANON"
+                 ],
+    "STOUTLAND":  [
+                      "PSYCHIC FANGS",
+                      "PRESAS PSIQUICAS",
+                      "PSICOCOLMILLO"
+                  ],
+    "MUSHARNA":  [
+                     "PSYCHIC",
+                     "PSIQUICO",
+                     "PSÃQUICO"
+                 ],
+    "GIGALITH":  [
+                     "METEOR BEAM",
+                     "FEIXE METEORICO",
+                     "METEOROCARGA"
+                 ],
+    "CONKELDURR":  [
+                       "BRUTAL SWING",
+                       "BALANCO BRUTAL",
+                       "GIRO VIL"
+                   ],
+    "CHANDELURE":  [
+                       "POLTERGEIST",
+                       "POLTERGEIST",
+                       "POLTERGEIST"
+                   ],
+    "HAXORUS":  [
+                    "BREAKING SWIPE",
+                    "VAREJO DRACONICO",
+                    "VASTO IMPACTO"
+                ],
+    "HYDREIGON":  [
+                      "BRUTAL SWING",
+                      "BALANCO BRUTAL",
+                      "GIRO VIL"
+                  ],
+    "COBALION":  [
+                     "SACRED SWORD",
+                     "ESPADA SAGRADA",
+                     "ESPADA SANTA"
+                 ],
+    "TERRAKION":  [
+                      "SACRED SWORD",
+                      "ESPADA SAGRADA",
+                      "ESPADA SANTA"
+                  ],
+    "VIRIZION":  [
+                     "SACRED SWORD",
+                     "ESPADA SAGRADA",
+                     "ESPADA SANTA"
+                 ],
+    "TORNADUS":  [
+                     "BLEAKWIND STORM",
+                     "TEMPESTADE DE VENTO FRIO",
+                     "VENDAVAL GÃ‰LIDO"
+                 ],
+    "THUNDURUS":  [
+                      "WILDBOLT STORM",
+                      "TEMPESTADE DE RAIOS SELVAGENS",
+                      "ELEXTORMENTA"
+                  ],
+    "RESHIRAM":  [
+                     "FUSION FLARE",
+                     "CHAMA DE FUSAO",
+                     "Llama FusiÃ³n"
+                 ],
+    "ZEKROM":  [
+                   "FUSION BOLT",
+                   "ATAQUE DE FUSAO",
+                   "Ataque Fulgor"
+               ],
+    "LANDORUS":  [
+                     "SANDSEAR STORM",
+                     "TEMPESTADE DE AREIA ESCALDANTE",
+                     "SIMÃšN DE ARENA"
+                 ],
+    "KYUREM":  [
+                   "GLACIATE",
+                   "GLACIACAO",
+                   "MUNDO GÃ‰LIDO"
+               ],
+    "KELDEO":  [
+                   "SACRED SWORD",
+                   "ESPADA SAGRADA",
+                   "ESPADA SANTA"
+               ],
+    "MELOETTA":  [
+                     "RELIC SONG",
+                     "CANCAO DA RELIQUIA",
+                     "CANTO ARCAICO"
+                 ],
+    "GENESECT":  [
+                     "TECHNO BLAST",
+                     "TECNO CHOQUE",
+                     "TECNO SHOCK"
+                 ],
+    "CHESNAUGHT":  [
+                       "FRENZY PLANT",
+                       "PLANTA FRENETICA",
+                       "PLANTA FEROZ"
+                   ],
+    "DELPHOX":  [
+                    "BLAST BURN",
+                    "QUEIMADURA EXPLOSIVA",
+                    "ANILLO IGNEO"
+                ],
+    "GRENINJA":  [
+                     "HYDRO CANNON",
+                     "HIDRO CANHAO",
+                     "HIDROCANON"
+                 ],
+    "TALONFLAME":  [
+                       "INCINERATE",
+                       "INCINERAR",
+                       "CALCINACIÃ“N"
+                   ],
+    "PANGORO":  [
+                    "NIGHT SLASH",
+                    "CORTE NOTURNO",
+                    "TAJO UMBRÃO"
+                ],
+    "SYLVEON":  [
+                    "LAST RESORT",
+                    "ULTIMO RECURSO",
+                    "ULTIMA BAZA",
+                    "PSYSHOCK",
+                    "CHOQUE PSIQUICO",
+                    "PSICOCARGA"
+                ],
+    "GOODRA":  [
+                   "THUNDER PUNCH",
+                   "SOCO TROVAO",
+                   "PUÃ‘O TRUENO"
+               ],
+    "AURORUS":  [
+                    "METEOR BEAM",
+                    "FEIXE METEORICO",
+                    "METEOROCARGA"
+                ],
+    "XERNEAS":  [
+                    "GEOMANCY",
+                    "GEOMANCIA",
+                    "GEOMANCIA"
+                ],
+    "YVELTAL":  [
+                    "OBLIVION WING",
+                    "ASA DO ESQUECIMENTO",
+                    "ALA MORTÃFERA"
+                ],
+    "DECIDUEYE":  [
+                      "FRENZY PLANT",
+                      "PLANTA FRENETICA",
+                      "PLANTA FEROZ",
+                      "SPIRIT SHACKLE",
+                      "AGUILHAO ESPIRITUAL",
+                      "PUNTADA SOMBRÃA"
+                  ],
+    "INCINEROAR":  [
+                       "BLAST BURN",
+                       "QUEIMADURA EXPLOSIVA",
+                       "ANILLO IGNEO",
+                       "DARKEST LARIAT",
+                       "LAÃ‡O SOMBRIO",
+                       "LARIAT OSCURO"
+                   ],
+    "PRIMARINA":  [
+                      "HYDRO CANNON",
+                      "HIDRO CANHAO",
+                      "HIDROCANON",
+                      "SPARKLING ARIA",
+                      "ARIA CINTILANTE",
+                      "ARIA BURBUJA"
+                  ],
+    "VIKAVOLT":  [
+                     "VOLT SWITCH",
+                     "TROCA VOLT",
+                     "VOLTIO CAMBIO"
+                 ],
+    "BEWEAR":  [
+                   "DRAIN PUNCH",
+                   "SOCO DRENANTE",
+                   "PUÃ‘O DRENAJE"
+               ],
+    "KOMMO-O":  [
+                    "BOOMBURST",
+                    "ESTRONDO",
+                    "ESTRÃ‰PITO"
+                ],
+    "TAPU KOKO":  [
+                      "NATURE\u0027S MADNESS",
+                      "FURIA DA NATUREZA",
+                      "FURIA NATURAL"
+                  ],
+    "TAPU LELE":  [
+                      "NATURE\u0027S MADNESS",
+                      "FURIA DA NATUREZA",
+                      "FURIA NATURAL"
+                  ],
+    "TAPU BULU":  [
+                      "NATURE\u0027S MADNESS",
+                      "FURIA DA NATUREZA",
+                      "FURIA NATURAL"
+                  ],
+    "TAPU FINI":  [
+                      "NATURE\u0027S MADNESS",
+                      "FURIA DA NATUREZA",
+                      "FURIA NATURAL"
+                  ],
+    "SOLGALEO":  [
+                     "SUNSTEEL STRIKE",
+                     "METEORO DE ACO",
+                     "METEOROCARGA ACERO"
+                 ],
+    "LUNALA":  [
+                   "MOONGEIST BEAM",
+                   "FEIXE ASSOMBRADO",
+                   "RAYO UMBRÃO"
+               ],
+    "NIHILEGO":  [
+                     "METEOR BEAM",
+                     "FEIXE METEORICO",
+                     "METEOROCARGA"
+                 ],
+    "NECROZMA":  [
+                     "SUNSTEEL STRIKE",
+                     "METEORO DE ACO",
+                     "METEOROCARGA ACERO",
+                     "MOONGEIST BEAM",
+                     "FEIXE ASSOMBRADO",
+                     "RAYO UMBRÃO"
+                 ],
+    "ALOLAN-EXEGGUTOR":  [
+                             "DRACONIC EVOLUTION",
+                             "EVOLUCAO DRACONICA",
+                             "EVOLUCIÃ“N DRACÃ“NICA"
+                         ],
+    "ALOLAN-SANDSLASH":  [
+                             "SHADOW CLAW",
+                             "GARRA SOMBRIA",
+                             "GARRA UMBRÃA"
+                         ],
+    "ALOLAN-MAROWAK":  [
+                           "SHADOW BONE",
+                           "OSSO SOMBRIO",
+                           "HUESO SOMBRÃO"
+                       ],
+    "OBSTAGOON":  [
+                      "OBSTRUCT",
+                      "OBSTRUIR",
+                      "OBSTRUCCIÃ“N"
+                  ],
+    "SIRFETCHD":  [
+                      "FURY CUTTER",
+                      "CORTE FURIA",
+                      "CORTE FURIA"
+                  ],
+    "MR-RIME":  [
+                    "ICE PUNCH",
+                    "SOCO DE GELO",
+                    "PUÃ‘O HIELO"
+                ],
+    "ZACIAN":  [
+                   "BEHEMOTH BLADE",
+                   "GUME BEHEMOTH",
+                   "TAJO SUPREMO"
+               ],
+    "ZAMAZENTA":  [
+                      "BEHEMOTH BASH",
+                      "IMPACTO BEHEMOTH",
+                      "EMBATE SUPREMO"
+                  ],
+    "ZARUDE":  [
+                   "MAGICAL LEAF",
+                   "FOLHA MAGICA",
+                   "HOJA MÃGICA"
+               ],
+    "URSALUNA":  [
+                     "HIGH HORSEPOWER",
+                     "FORCA EQUINA",
+                     "FUERZA EQUINA"
+                 ],
+    "KLEAVOR":  [
+                    "STONE EDGE",
+                    "GUME DE PEDRA",
+                    "ROCA AFILADA"
+                ],
+    "OVERQWIL":  [
+                     "SHADOW CLAW",
+                     "GARRA SOMBRIA",
+                     "GARRA UMBRÃA"
+                 ],
+    "PAW MOT":  [
+                    "DOUBLE SHOCK",
+                    "CHOQUE DUPLO",
+                    "ELECTROINTERCAMBIO"
+                ],
+    "MEOWSCARADA":  [
+                        "FRENZY PLANT",
+                        "PLANTA FRENETICA",
+                        "PLANTA FEROZ"
+                    ],
+    "SKELEDIRGE":  [
+                       "BLAST BURN",
+                       "QUEIMADURA EXPLOSIVA",
+                       "ANILLO IGNEO"
+                   ],
+    "QUAQUAVAL":  [
+                      "HYDRO CANNON",
+                      "HIDRO CANHAO",
+                      "HIDROCANON"
+                  ],
+    "BAXCALIBUR":  [
+                       "BREAKING SWIPE",
+                       "VAREJO DRACONICO",
+                       "VASTO IMPACTO"
+                   ],
+    "VENUSAUR":  [
+                     "FRENZY PLANT",
+                     "PLANTA FRENETICA",
+                     "PLANTA FEROZ"
+                 ],
+    "CHARIZARD":  [
+                      "BLAST BURN",
+                      "QUEIMADURA EXPLOSIVA",
+                      "ANILLO IGNEO"
+                  ],
+    "BLASTOISE":  [
+                      "HYDRO CANNON",
+                      "HIDRO CANHAO",
+                      "HIDROCANON"
+                  ],
+    "RAICHU":  [
+                   "SURF",
+                   "SURF",
+                   "SURF"
+               ],
+    "ALAKAZAM":  [
+                     "PSYCHIC",
+                     "PSIQUICO",
+                     "PSIQUICO"
+                 ],
+    "GENGAR":  [
+                   "PSYCHIC",
+                   "PSIQUICO",
+                   "PSIQUICO"
+               ],
+    "DRAGONITE":  [
+                      "DRACO METEOR",
+                      "COMETA DRACO",
+                      "COMETA DRACO"
+                  ],
+    "MEWTWO":  [
+                   "PSYSTRIKE",
+                   "PSYSTRIKE",
+                   "PSYSTRIKE",
+                   "SHADOW BALL",
+                   "BOLA SOMBRIA",
+                   "BOLA SOMBRA"
+               ],
+    "EEVEE":  [
+                  "LAST RESORT",
+                  "ULTIMO RECURSO",
+                  "ULTIMA BAZA"
+              ],
+    "VAPOREON":  [
+                     "LAST RESORT",
+                     "ULTIMO RECURSO",
+                     "ULTIMA BAZA",
+                     "SCALD",
+                     "ESCALDAR",
+                     "ESCALDAR"
+                 ],
+    "JOLTEON":  [
+                    "LAST RESORT",
+                    "ULTIMO RECURSO",
+                    "ULTIMA BAZA",
+                    "ZAP CANNON",
+                    "CANHAO ELETRICO",
+                    "ELECTROCANON"
+                ],
+    "FLAREON":  [
+                    "LAST RESORT",
+                    "ULTIMO RECURSO",
+                    "ULTIMA BAZA",
+                    "SUPERPOWER",
+                    "SUPERPODER",
+                    "FUERZA BRUTA"
+                ]
+}
