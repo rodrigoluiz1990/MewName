@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: write
 
@@ -14,17 +17,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v3.2.2
+        with:
+          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
 
       - name: Make Gradle wrapper executable
         shell: bash
@@ -50,7 +55,7 @@ jobs:
 
       - name: Build release APK
         shell: bash
-        run: ./gradlew assembleRelease
+        run: ./gradlew --no-daemon assembleRelease --stacktrace
 
       - name: Prepare release asset
         id: asset
