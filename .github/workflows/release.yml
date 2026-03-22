@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,15 +26,27 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Make Gradle wrapper executable
+        shell: bash
+        run: chmod +x ./gradlew
+
       - name: Prepare release keystore
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/mewname-release.jks"
-          echo "MEWNAME_UPLOAD_STORE_FILE=$RUNNER_TEMP/mewname-release.jks" >> "$GITHUB_ENV"
-          echo "MEWNAME_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
-          echo "MEWNAME_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_ENV"
-          echo "MEWNAME_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mewname-release.jks"
+            echo "MEWNAME_UPLOAD_STORE_FILE=$RUNNER_TEMP/mewname-release.jks" >> "$GITHUB_ENV"
+            echo "MEWNAME_UPLOAD_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "MEWNAME_UPLOAD_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "MEWNAME_UPLOAD_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+          else
+            echo "Nenhum keystore configurado; a build release seguira sem assinatura de producao."
+          fi
 
       - name: Build release APK
         shell: bash
@@ -51,7 +62,7 @@ jobs:
             echo "Nenhuma APK release foi encontrada." >&2
             exit 1
           fi
-          tag_name="${GITHUB_REF_NAME:-manual}"
+          tag_name="${GITHUB_REF_NAME}"
           asset_name="MewName-${tag_name}.apk"
           cp "$apk_path" "dist/$asset_name"
           echo "apk_path=dist/$asset_name" >> "$GITHUB_OUTPUT"
