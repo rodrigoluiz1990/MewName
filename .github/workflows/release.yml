@@ -26,7 +26,7 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - name: Locate Android SDK tools
+      - name: Locate Android SDK
         shell: bash
         run: |
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
@@ -44,30 +44,17 @@ jobs:
           fi
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          for dir in \
-            "$SDK_ROOT/cmdline-tools/latest/bin" \
-            "$SDK_ROOT/cmdline-tools/bin" \
-            "$SDK_ROOT/tools/bin" \
-            "$SDK_ROOT/platform-tools"; do
-            if [ -d "$dir" ]; then
-              echo "$dir" >> "$GITHUB_PATH"
-            fi
-          done
+          if [ -d "$SDK_ROOT/platform-tools" ]; then
+            echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          fi
           echo "SDK localizado em: $SDK_ROOT"
 
-      - name: Verify Android SDK and install packages
+      - name: Inspect Android SDK contents
         shell: bash
         run: |
           echo "ANDROID_HOME=${ANDROID_HOME:-<vazio>}"
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<vazio>}"
-          command -v sdkmanager || {
-            echo "sdkmanager nao encontrado. Conteudo do SDK:" >&2
-            find "$ANDROID_SDK_ROOT" -maxdepth 3 -type f | head -n 200 >&2
-            exit 127
-          }
-          sdkmanager --version
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          find "$ANDROID_SDK_ROOT" -maxdepth 2 -type d | sort | head -n 200
 
       - name: Make Gradle wrapper executable
         shell: bash
