@@ -69,6 +69,7 @@ import com.mewname.app.model.BackgroundDebugInfo
 import com.mewname.app.model.CandyDebugInfo
 import com.mewname.app.model.IvDebugInfo
 import com.mewname.app.model.LegacyDebugInfo
+import com.mewname.app.model.NamingConfig
 import com.mewname.app.model.NamingField
 import com.mewname.app.model.NormalizedDebugRect
 import com.mewname.app.model.PokemonScreenData
@@ -76,6 +77,8 @@ import com.mewname.app.model.PokemonSize
 import com.mewname.app.model.PvpLeague
 import com.mewname.app.model.PvpLeagueRankInfo
 import com.mewname.app.model.VivillonPattern
+import com.mewname.app.model.hasVisibleSizeSymbol
+import com.mewname.app.model.visibleEvolutionFlags
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -83,6 +86,7 @@ import kotlin.math.roundToInt
 fun ReviewEditorCard(
     initialData: PokemonScreenData,
     fields: List<NamingField>,
+    configs: List<NamingConfig> = listOf(NamingConfig()),
     bitmap: Bitmap? = null,
     onConfirm: (PokemonScreenData) -> Unit,
     onExportLog: (() -> Unit)? = null,
@@ -107,6 +111,16 @@ fun ReviewEditorCard(
     var showBackgroundHelp by remember { mutableStateOf(false) }
     var showPvpHelp by remember { mutableStateOf(false) }
     val familySuggester = remember { PokemonFamilySuggester() }
+    val visibleSizeOptions = remember(configs) {
+        listOf(
+            PokemonSize.XXS,
+            PokemonSize.XS,
+            PokemonSize.NORMAL,
+            PokemonSize.XL,
+            PokemonSize.XXL
+        ).filter { it == PokemonSize.NORMAL || configs.hasVisibleSizeSymbol(it) }
+    }
+    val visibleEvolutionFlags = remember(configs) { configs.visibleEvolutionFlags() }
     val pokemonSuggestions = remember(initialData.candyFamilyName, initialData.pokemonName) {
         familySuggester.suggestionsFor(context, initialData.candyFamilyName, initialData.pokemonName)
     }
@@ -140,7 +154,7 @@ fun ReviewEditorCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            ReviewSectionTitle("Pokémon")
+                            ReviewSectionTitle("PokÃ©mon")
                             IconButton(onClick = { showCandyHelp = !showCandyHelp }, modifier = Modifier.size(20.dp)) {
                                 UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda doces")
                             }
@@ -173,7 +187,7 @@ fun ReviewEditorCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            ReviewSectionTitle("Pokémon")
+                            ReviewSectionTitle("PokÃ©mon")
                             IconButton(onClick = { showCandyHelp = !showCandyHelp }, modifier = Modifier.size(20.dp)) {
                                 UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda doces")
                             }
@@ -252,7 +266,7 @@ fun ReviewEditorCard(
 
             if (NamingField.LEVEL in fields) {
                 CompactField(
-                    label = "Nível",
+                    label = "NÃ­vel",
                     value = draft.level?.toString().orEmpty(),
                     onValueChange = { draft = draft.copy(level = it.replace(",", ".").toDoubleOrNull()) },
                     modifier = Modifier.fillMaxWidth()
@@ -261,11 +275,11 @@ fun ReviewEditorCard(
 
             if (NamingField.GENDER in fields) {
                 ReviewChipSection(
-                    label = "Gênero",
+                    label = "GÃªnero",
                     options = listOf(
                         "Desconhecido" to (draft.gender == Gender.UNKNOWN),
                         "Macho" to (draft.gender == Gender.MALE),
-                        "Fêmea" to (draft.gender == Gender.FEMALE)
+                        "FÃªmea" to (draft.gender == Gender.FEMALE)
                     ),
                     onSelect = { index ->
                         draft = draft.copy(
@@ -282,23 +296,18 @@ fun ReviewEditorCard(
             if (NamingField.SIZE in fields) {
                 ReviewChipSection(
                     label = "Tamanho",
-                    options = listOf(
-                        "XXS" to (draft.size == PokemonSize.XXS),
-                        "XS" to (draft.size == PokemonSize.XS),
-                        "Normal" to (draft.size == PokemonSize.NORMAL),
-                        "XL" to (draft.size == PokemonSize.XL),
-                        "XXL" to (draft.size == PokemonSize.XXL),
-                    ),
+                    options = visibleSizeOptions.map { size ->
+                        when (size) {
+                            PokemonSize.XXS -> "XXS" to (draft.size == PokemonSize.XXS)
+                            PokemonSize.XS -> "XS" to (draft.size == PokemonSize.XS)
+                            PokemonSize.NORMAL -> "Normal" to (draft.size == PokemonSize.NORMAL)
+                            PokemonSize.XL -> "XL" to (draft.size == PokemonSize.XL)
+                            PokemonSize.XXL -> "XXL" to (draft.size == PokemonSize.XXL)
+                        }
+                    },
                     onSelect = { index ->
                         draft = draft.copy(
-                            size = when (index) {
-                                0 -> PokemonSize.XXS
-                                1 -> PokemonSize.XS
-                                2 -> PokemonSize.NORMAL
-                                3 -> PokemonSize.XL
-                                4 -> PokemonSize.XXL
-                                else -> PokemonSize.NORMAL
-                            }
+                            size = visibleSizeOptions.getOrNull(index) ?: PokemonSize.NORMAL
                         )
                     }
                 )
@@ -353,10 +362,10 @@ fun ReviewEditorCard(
 
             if (NamingField.VIVILLON_PATTERN in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ReviewSectionTitle("Padrão Vivillon")
+                    ReviewSectionTitle("PadrÃ£o Vivillon")
                     Box {
                         CompactTextInput(
-                            value = draft.vivillonPattern?.label ?: "Não identificado",
+                            value = draft.vivillonPattern?.label ?: "NÃ£o identificado",
                             onValueChange = {},
                             readOnly = true,
                             modifier = Modifier
@@ -365,7 +374,7 @@ fun ReviewEditorCard(
                             trailing = {
                                 Icon(
                                     Icons.Default.ArrowDropDown,
-                                    contentDescription = "Abrir padrão Vivillon",
+                                    contentDescription = "Abrir padrÃ£o Vivillon",
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -377,7 +386,7 @@ fun ReviewEditorCard(
                             modifier = Modifier.fillMaxWidth(0.92f)
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Não identificado", style = MaterialTheme.typography.bodySmall) },
+                                text = { Text("NÃ£o identificado", style = MaterialTheme.typography.bodySmall) },
                                 onClick = {
                                     draft = draft.copy(vivillonPattern = null)
                                     vivillonExpanded = false
@@ -456,26 +465,26 @@ fun ReviewEditorCard(
                 }
             }
 
-            if (NamingField.EVOLUTION_TYPE in fields) {
+            if (NamingField.EVOLUTION_TYPE in fields && visibleEvolutionFlags.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ReviewSectionTitle("Evolução")
+                    ReviewSectionTitle("EvoluÃ§Ã£o")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ToggleChip("Baby", EvolutionFlag.BABY in draft.evolutionFlags) {
+                        if (EvolutionFlag.BABY in visibleEvolutionFlags) if (EvolutionFlag.BABY in visibleEvolutionFlags) ToggleChip("Baby", EvolutionFlag.BABY in draft.evolutionFlags) {
                             draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.BABY))
                         }
-                        ToggleChip("Estágio 1", EvolutionFlag.STAGE1 in draft.evolutionFlags) {
+                        if (EvolutionFlag.STAGE1 in visibleEvolutionFlags) ToggleChip("Est??gio 1", EvolutionFlag.STAGE1 in draft.evolutionFlags) {
                             draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.STAGE1))
                         }
-                        ToggleChip("Estágio 2", EvolutionFlag.STAGE2 in draft.evolutionFlags) {
+                        if (EvolutionFlag.STAGE2 in visibleEvolutionFlags) ToggleChip("Est??gio 2", EvolutionFlag.STAGE2 in draft.evolutionFlags) {
                             draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.STAGE2))
                         }
-                        ToggleChip("Mega", EvolutionFlag.MEGA in draft.evolutionFlags) {
+                        if (EvolutionFlag.MEGA in visibleEvolutionFlags) ToggleChip("Mega", EvolutionFlag.MEGA in draft.evolutionFlags) {
                             draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.MEGA))
                         }
-                        ToggleChip("Gigantamax", EvolutionFlag.GIGANTAMAX in draft.evolutionFlags) {
+                        if (EvolutionFlag.GIGANTAMAX in visibleEvolutionFlags) ToggleChip("Gigantamax", EvolutionFlag.GIGANTAMAX in draft.evolutionFlags) {
                             draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.GIGANTAMAX))
                         }
-                        ToggleChip("Dynamax", EvolutionFlag.DYNAMAX in draft.evolutionFlags) {
+                        if (EvolutionFlag.DYNAMAX in visibleEvolutionFlags) ToggleChip("Dynamax", EvolutionFlag.DYNAMAX in draft.evolutionFlags) {
                             draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.DYNAMAX))
                         }
                     }
@@ -496,24 +505,20 @@ fun ReviewEditorCard(
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        if (onExportLog != null) {
-                            TextButton(
-                                onClick = onExportLog,
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
-                            ) {
-                                Text("Exportar log")
-                            }
-                        }
-
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                                Text("Cancelar")
+                            if (onExportLog != null) {
+                                TextButton(onClick = onExportLog, modifier = Modifier.weight(1f)) {
+                                    Text("Exportar log")
+                                }
                             }
                             Button(
                                 onClick = { onConfirm(draft.recalculateIvPercent().normalizeReviewData()) },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Continuar")
+                            }
+                            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
+                                Text("Cancelar")
                             }
                         }
                     }
@@ -592,24 +597,24 @@ private fun AdventureEffectHelpPanel(info: AdventureEffectDebugInfo?) {
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text("Leitura do efeito de aventura", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Text("Pokémon base: ${info?.matchedPokemon ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("PokÃ©mon base: ${info?.matchedPokemon ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Keyword encontrada: ${info?.matchedKeyword ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Golpe encontrado: ${info?.matchedMove ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Efeito encontrado: ${info?.matchedEffectName ?: "-"}", style = MaterialTheme.typography.bodySmall)
             if (!info?.extractedMoves.isNullOrEmpty()) {
-                Text("Golpes extraídos:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                Text("Golpes extraÃ­dos:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                 info?.extractedMoves?.forEach { move ->
                     Text("- $move", style = MaterialTheme.typography.bodySmall)
                 }
             }
             if (!info?.moveRegionLines.isNullOrEmpty()) {
-                Text("Linhas da área de movimentos:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                Text("Linhas da Ã¡rea de movimentos:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                 info?.moveRegionLines?.forEach { line ->
                     Text("- $line", style = MaterialTheme.typography.bodySmall)
                 }
             }
             if (!info?.upperBadgeLines.isNullOrEmpty()) {
-                Text("Linhas da área superior:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                Text("Linhas da Ã¡rea superior:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                 info?.upperBadgeLines?.forEach { line ->
                     Text("- $line", style = MaterialTheme.typography.bodySmall)
                 }
@@ -631,7 +636,7 @@ private fun LegacyHelpPanel(info: LegacyDebugInfo?) {
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text("Leitura do ataque legado", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Text("Pokémon base: ${info?.matchedAgainstPokemon ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("PokÃ©mon base: ${info?.matchedAgainstPokemon ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Keyword encontrada: ${info?.matchedKeyword ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Golpe legado encontrado: ${info?.matchedLegacyMove ?: "-"}", style = MaterialTheme.typography.bodySmall)
             if (!info?.extractedMoves.isNullOrEmpty()) {
@@ -1061,17 +1066,17 @@ private fun PvpHelpPanel(leagueRanks: List<PvpLeagueRankInfo>) {
         ) {
             Text("Log do ranking PvP", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             if (orderedRanks.isEmpty()) {
-                Text("Nenhum ranking por liga foi calculado para este Pokémon.", style = MaterialTheme.typography.bodySmall)
+                Text("Nenhum ranking por liga foi calculado para este PokÃ©mon.", style = MaterialTheme.typography.bodySmall)
             } else {
                 orderedRanks.forEach { info ->
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(leagueDisplayName(info.league), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                         info.pokemonName?.let { pokemonName ->
-                            Text("Melhor opção: $pokemonName", style = MaterialTheme.typography.bodySmall)
+                            Text("Melhor opÃ§Ã£o: $pokemonName", style = MaterialTheme.typography.bodySmall)
                         }
                         if (info.eligible) {
                             Text(
-                                "Rank ${info.rank ?: "-"} | Melhor CP ${info.bestCp ?: "-"} | Nível ${info.bestLevel?.formatLevelDebug() ?: "-"}",
+                                "Rank ${info.rank ?: "-"} | Melhor CP ${info.bestCp ?: "-"} | NÃ­vel ${info.bestLevel?.formatLevelDebug() ?: "-"}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }

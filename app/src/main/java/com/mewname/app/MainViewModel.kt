@@ -278,12 +278,15 @@ class MainViewModel : ViewModel() {
     }
 
     private fun generateAll(data: PokemonScreenData, configs: List<NamingConfig>): List<GeneratedNameResult> {
-        return configs.map { config ->
-            GeneratedNameResult(
-                configId = config.id,
-                configName = config.name,
-                generatedName = generator.generate(data, config)
-            )
+        return configs.mapNotNull { config ->
+            val generatedName = generator.generate(data, config).trim()
+            generatedName.takeIf { it.isNotEmpty() }?.let {
+                GeneratedNameResult(
+                    configId = config.id,
+                    configName = config.name,
+                    generatedName = it
+                )
+            }
         }
     }
 

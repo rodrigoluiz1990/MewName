@@ -117,3 +117,34 @@ fun NamingConfig.effectiveBlocks(): List<NamingBlock> {
     }
     return emptyList()
 }
+
+fun NamingConfig.hasVisibleSizeSymbol(size: PokemonSize): Boolean {
+    val key = when (size) {
+        PokemonSize.XXL -> "XXL"
+        PokemonSize.XL -> "XL"
+        PokemonSize.XS -> "XS"
+        PokemonSize.XXS -> "XXS"
+        PokemonSize.NORMAL -> return false
+    }
+    return !symbols[key].isNullOrBlank()
+}
+
+fun NamingConfig.hasVisibleEvolutionSymbol(flag: EvolutionFlag): Boolean {
+    val key = when (flag) {
+        EvolutionFlag.BABY -> "BABY"
+        EvolutionFlag.STAGE1 -> "STAGE1"
+        EvolutionFlag.STAGE2 -> "STAGE2"
+        EvolutionFlag.MEGA -> "MEGA"
+        EvolutionFlag.GIGANTAMAX -> "GIGANTAMAX"
+        EvolutionFlag.DYNAMAX -> "DYNAMAX"
+    }
+    return !symbols[key].isNullOrBlank()
+}
+
+fun List<NamingConfig>.hasVisibleSizeSymbol(size: PokemonSize): Boolean =
+    any { it.hasVisibleSizeSymbol(size) }
+
+fun List<NamingConfig>.visibleEvolutionFlags(): Set<EvolutionFlag> =
+    EvolutionFlag.entries.filterTo(linkedSetOf()) { flag ->
+        any { it.hasVisibleEvolutionSymbol(flag) }
+    }

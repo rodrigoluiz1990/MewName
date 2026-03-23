@@ -256,6 +256,7 @@ fun HomeScreen(
     onBubbleOptionVisibleChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
+    val releaseLabel = BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" } ?: "local"
     val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             onBubbleOptionVisibleChange(true)
@@ -295,7 +296,7 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = "v${BuildConfig.VERSION_NAME}",
+                                text = releaseLabel,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
                             )
@@ -379,15 +380,20 @@ fun HomeScreen(
                     onClick = onGoToAppUpdate,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
-                if (BuildConfig.DEBUG) {
-                    HomeActionSquare(
-                        title = "Validar amostras",
-                        iconRes = null,
-                        assetIconPath = "icon-validar-amostras.png",
-                        onClick = onGoToIvValidation,
-                        modifier = Modifier.fillMaxWidth(0.31f)
-                    )
-                }
+                HomeActionSquare(
+                    title = "Validar amostras",
+                    iconRes = null,
+                    assetIconPath = "icon-validar-amostras.png",
+                    onClick = onGoToIvValidation,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = "Calendário",
+                    iconRes = null,
+                    customIcon = { HomeBrowserGlyph() },
+                    onClick = { openExternalUrl(context, "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Calendario/calendario.html") },
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
                 HomeActionSquare(
                     title = "Doação",
                     iconRes = null,
@@ -452,6 +458,7 @@ fun HomeScreen(
         ReviewDialog(
             initialData = review.data,
             fields = review.fields,
+            configs = uiState.configs,
             bitmap = review.bitmap,
             onDismiss = onDismissReview,
             onConfirm = onApplyReview
@@ -823,6 +830,37 @@ private fun HomeAssetIcon(assetPath: String, contentDescription: String) {
         modifier = Modifier.size(28.dp),
         fallbackSize = 28.dp
     )
+}
+
+@Composable
+private fun HomeBrowserGlyph() {
+    Box(
+        modifier = Modifier
+            .size(30.dp)
+            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(7.dp))
+            .padding(3.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(width = 2.dp, height = 16.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+        )
+    }
 }
 
 @Composable
@@ -1598,10 +1636,16 @@ fun SymbolPickerDialog(title: String, onDismiss: () -> Unit, onSymbolSelected: (
                     label = { Text("Texto customizado") }
                 )
                 Button(
-                    onClick = { if (customText.isNotEmpty()) onSymbolSelected(customText) },
+                    onClick = { onSymbolSelected(customText) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Aplicar")
+                }
+                TextButton(
+                    onClick = { onSymbolSelected("") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Salvar em branco")
                 }
                 HorizontalDivider()
                 LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(200.dp)) {
@@ -1630,6 +1674,7 @@ fun SymbolPickerDialog(title: String, onDismiss: () -> Unit, onSymbolSelected: (
 private fun ReviewDialog(
     initialData: PokemonScreenData,
     fields: List<NamingField>,
+    configs: List<NamingConfig>,
     bitmap: Bitmap?,
     onDismiss: () -> Unit,
     onConfirm: (PokemonScreenData) -> Unit
@@ -1638,6 +1683,7 @@ private fun ReviewDialog(
         ReviewEditorCard(
             initialData = initialData,
             fields = fields,
+            configs = configs,
             bitmap = bitmap,
             onConfirm = onConfirm,
             onCancel = onDismiss

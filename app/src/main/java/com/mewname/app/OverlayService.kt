@@ -240,7 +240,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             val label = info.loadLabel(packageManager)?.toString().orEmpty()
             val packageName = info.activityInfo?.packageName.orEmpty()
             label.contains("Pokemon GO", ignoreCase = true) ||
-                label.contains("Pokémon GO", ignoreCase = true) ||
+                label.contains("PokÃ©mon GO", ignoreCase = true) ||
                 packageName.contains("pokemongo", ignoreCase = true)
         }
 
@@ -361,8 +361,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 )
                 lastCapturedData = parsed
                 val savedConfigs = loadSavedConfigs()
-                val generatedResults = savedConfigs.map { config ->
-                    config.name to generator.generate(parsed, config)
+                val generatedResults = savedConfigs.mapNotNull { config ->
+                    val generatedName = generator.generate(parsed, config).trim()
+                    generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
                 }
 
                 val reviewFields = reviewableFields(savedConfigs)
@@ -466,7 +467,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun loadSavedConfigs(): List<NamingConfig> {
         val prefs = getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
-        val jsonString = prefs.getString("saved_presets", null) ?: return listOf(NamingConfig(name = "Padrão"))
+        val jsonString = prefs.getString("saved_presets", null) ?: return listOf(NamingConfig(name = "PadrÃ£o"))
         
         return try {
             val jsonArray = JSONArray(jsonString)
@@ -476,7 +477,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
             list
         } catch (e: Exception) {
-            listOf(NamingConfig(name = "Padrão"))
+            listOf(NamingConfig(name = "PadrÃ£o"))
         }
     }
 
@@ -503,7 +504,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 34f
-                setColor(Color.argb(234, 255, 255, 255))
+                setColor(Color.argb(208, 255, 255, 255))
             }
             setPadding(60, 60, 60, 60)
             elevation = 40f
@@ -531,8 +532,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
             scaleType = ImageView.ScaleType.FIT_CENTER
             adjustViewBounds = true
-            setPadding(6, 6, 6, 6)
-            layoutParams = LinearLayout.LayoutParams(44, 44)
+            setPadding(4, 4, 4, 4)
+            layoutParams = LinearLayout.LayoutParams(58, 58)
             contentDescription = "Ajuda"
         }
         titleRow.addView(title)
@@ -544,10 +545,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 append(if (results.isEmpty()) {
                     "Nenhum nome foi gerado para esta captura."
                 } else {
-                    "Toque em uma opção para copiar o nome."
+                    "Toque em uma opÃ§Ã£o para copiar o nome."
                 })
                 if (reviewRecommended) {
-                    append("\n\nAlguns dados merecem revisão antes de usar o nome.")
+                    append("\n\nAlguns dados merecem revisÃ£o antes de usar o nome.")
                 }
             }
             textSize = 13f
@@ -689,12 +690,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         ReviewEditorCard(
                             initialData = parsed,
                             fields = fields,
+                            configs = configs,
                             bitmap = bitmap,
                             onExportLog = { exportBubbleLog() },
                             onCancel = { removeResultsOverlay() },
                             onConfirm = { reviewed ->
-                                val results = configs.map { config ->
-                                    config.name to generator.generate(reviewed, config)
+                                val results = configs.mapNotNull { config ->
+                                    val generatedName = generator.generate(reviewed, config).trim()
+                                    generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
                                 }
                                 val reviewRecommended = shouldOpenReview(reviewed, fields)
                                 lastBubbleLogSnapshot = lastBubbleLogSnapshot?.copy(
