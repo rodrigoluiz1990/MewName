@@ -41,6 +41,15 @@ class PokemonFamilySuggester {
             }
     }
 
+    fun familyMembersFor(context: Context, candyFamilyName: String?, currentName: String?): List<String> {
+        val mappedFamily = listOfNotNull(candyFamilyName, currentName)
+            .map(::normalize)
+            .firstNotNullOfOrNull { loadFamilyMap(context)[it] }
+        return mappedFamily
+            ?: listOfNotNull(currentName?.takeIf { it.isNotBlank() }, candyFamilyName?.takeIf { it.isNotBlank() })
+                .distinct()
+    }
+
     private fun loadFamilyMap(context: Context): Map<String, List<String>> {
         familyMap?.let { return it }
         synchronized(this) {

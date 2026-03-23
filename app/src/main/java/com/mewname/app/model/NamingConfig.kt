@@ -4,7 +4,7 @@ import java.util.UUID
 
 data class NamingConfig(
     val id: String = UUID.randomUUID().toString(),
-    val name: String = "Padrao",
+    val name: String = "Padrão",
     val maxLength: Int = 12,
     val blocks: List<NamingBlock> = defaultPatternBlocks(),
     val fields: List<NamingField> = emptyList(),
@@ -31,13 +31,13 @@ enum class NamingBlockType {
 
 enum class NamingField(val label: String) {
     POKEMON_NAME("Coloque o Nome"),
-    VIVILLON_PATTERN("Padrao Vivillon"),
-    POKEDEX_NUMBER("N Pokedex"),
+    VIVILLON_PATTERN("Padrão Vivillon"),
+    POKEDEX_NUMBER("Nº Pokédex"),
     CP("CP"),
-    IV_PERCENT("IV Medio"),
+    IV_PERCENT("IV Médio"),
     IV_COMBINATION("IV A/D/S"),
-    LEVEL("Nivel"),
-    GENDER("Genero"),
+    LEVEL("Nível"),
+    GENDER("Gênero"),
     TYPE("Tipo"),
     FAVORITE("Favorito"),
     LUCKY("Sortudo"),
@@ -46,10 +46,10 @@ enum class NamingField(val label: String) {
     SPECIAL_BACKGROUND("Fundo Especial"),
     ADVENTURE_EFFECT("Efeito Aventura"),
     SIZE("Tamanho"),
-    PVP_LEAGUE("Liga PVP"),
-    PVP_RANK("Ranking PVP"),
+    PVP_LEAGUE("Liga PvP"),
+    PVP_RANK("Ranking PvP"),
     LEGACY_MOVE("Antigo"),
-    EVOLUTION_TYPE("Evolucao")
+    EVOLUTION_TYPE("Evolução")
 }
 
 fun defaultPatternBlocks() = listOf(
@@ -72,11 +72,17 @@ fun defaultSymbols() = mapOf(
     "SPECIAL_BACKGROUND" to "\u2605FE",
     "ADVENTURE_EFFECT" to "\u2605AV",
     "XXL" to "\u2605XXL",
+    "XL" to "\u2605XL",
+    "XS" to "\u2605XS",
     "XXS" to "\u2605XXS",
     "GREAT_LEAGUE" to "GL",
     "ULTRA_LEAGUE" to "UL",
     "LITTLE_LEAGUE" to "CP",
+    "MASTER_LEAGUE" to "ML",
     "LEGACY" to "\u24C1",
+    "BABY" to "BY",
+    "STAGE1" to "¹",
+    "STAGE2" to "²",
     "MEGA" to "\u24C2",
     "GIGANTAMAX" to "\u24BC",
     "DYNAMAX" to "\u24B9",

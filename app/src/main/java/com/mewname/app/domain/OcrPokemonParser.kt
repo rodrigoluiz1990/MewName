@@ -154,6 +154,7 @@ class OcrPokemonParser {
     private var pokemonNamesCache: List<PokemonNameEntry>? = null
     private val fuzzyMatcher = LevenshteinDistance()
     private val rankCalculator = PvpRankCalculator()
+    private val familySuggester = PokemonFamilySuggester()
     private val backgroundReferenceMatcher = BackgroundReferenceMatcher()
     private val vivillonIconMatcher = VivillonIconMatcher()
 
@@ -245,7 +246,8 @@ class OcrPokemonParser {
         val (candyFamilyName, candyDebugInfo) = extractCandyFamilyName(context, orderedLines, referenceBounds)
 
         val leagueRanks = if (name != null && att != null && def != null && sta != null) {
-            rankCalculator.calculateLeagueRanks(context, name, att, def, sta)
+            val familyMembers = familySuggester.familyMembersFor(context, candyFamilyName, name)
+            rankCalculator.calculateBestFamilyLeagueRanks(context, familyMembers, att, def, sta)
         } else {
             emptyList()
         }

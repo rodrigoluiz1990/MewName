@@ -11,18 +11,21 @@ import kotlin.math.sqrt
 
 class PvpRankCalculator {
 
-    // CP Multipliers for levels 1 to 50 (steps of 0.5)
+    // CP multipliers from level 1 to 51 in 0.5 steps.
     private val cpmTable = listOf(
-        0.094, 0.135137432, 0.16639787, 0.192650919, 0.21573247, 0.236572661, 0.25572005, 0.273530381, 0.29024988, 
-        0.306057377, 0.3210876, 0.335445036, 0.34921268, 0.362457751, 0.37523559, 0.387592406, 0.39956728, 
-        0.411193551, 0.42250001, 0.43351174, 0.44424921, 0.454730751, 0.465, 0.47505952, 0.4848845, 0.49449069, 
-        0.5038925, 0.51309967, 0.52212024, 0.53096376, 0.53963599, 0.54814354, 0.5564908, 0.56468311, 0.5727256, 
-        0.5806247, 0.58838587, 0.59601444, 0.603515, 0.6108924, 0.6181511, 0.62529505, 0.63232714, 0.639252, 
-        0.64607405, 0.6527975, 0.65942605, 0.665963, 0.6724123, 0.6787772, 0.6850605, 0.691265, 0.6974, 
-        0.703449, 0.70945728, 0.7153905, 0.721279, 0.727113, 0.73286, 0.73858, 0.744208, 0.74976104, 0.755249, 
-        0.760657, 0.765987, 0.7712361, 0.776415, 0.781525, 0.78657, 0.791557, 0.7965, 0.80135, 0.80618, 
-        0.81096, 0.81571, 0.8204, 0.82508, 0.8296, 0.8341, 0.8386, 0.843, 0.8474, 0.8517, 0.856, 0.8603, 
-        0.8645, 0.8687, 0.8728, 0.8769, 0.881, 0.885, 0.889, 0.893, 0.897, 0.901, 0.905, 0.909, 0.913, 0.917, 0.921
+        0.094, 0.135137432, 0.16639787, 0.192650919, 0.21573247, 0.236572661, 0.25572005, 0.273530381,
+        0.29024988, 0.306057377, 0.3210876, 0.33425569, 0.34921268, 0.362457751, 0.37523559, 0.387592406,
+        0.39956728, 0.411193551, 0.42250001, 0.432926419, 0.44310755, 0.453059958, 0.46279839, 0.472336083,
+        0.48168495, 0.4908558, 0.49985844, 0.508701765, 0.51739395, 0.525942511, 0.53435433, 0.542635767,
+        0.55079269, 0.558830576, 0.56675452, 0.574569153, 0.58227891, 0.589887917, 0.59740001, 0.604818814,
+        0.61215729, 0.619399365, 0.62656713, 0.633644533, 0.64065295, 0.647576426, 0.65443563, 0.661214806,
+        0.667934, 0.674577537, 0.68116492, 0.687680648, 0.69414365, 0.700538673, 0.70688421, 0.713164996,
+        0.71939909, 0.725571552, 0.7317, 0.734741009, 0.73776948, 0.740785574, 0.74378943, 0.746781211,
+        0.74976104, 0.752729087, 0.75568551, 0.758630378, 0.76156384, 0.764486065, 0.76739717, 0.770297266,
+        0.7731865, 0.776064962, 0.77893275, 0.781790055, 0.78463697, 0.787473578, 0.79030001, 0.792803968,
+        0.79530001, 0.797803921, 0.8003, 0.802803892, 0.8053, 0.807803863, 0.81029999, 0.812803834,
+        0.81529999, 0.817803806, 0.82029999, 0.822803778, 0.82529999, 0.82780375, 0.83029999, 0.832803722,
+        0.83529999, 0.837803694, 0.84029999, 0.842803667, 0.84529999
     )
 
     data class StatProduct(val atk: Int, val def: Int, val sta: Int, val product: Double, val cp: Int, val level: Double)
@@ -38,9 +41,26 @@ class PvpRankCalculator {
         def: Int,
         sta: Int
     ): List<PvpLeagueRankInfo> {
-        val baseStats = loadBaseStats(context, pokemonName) ?: return emptyList()
-        return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER)
-            .map { league -> calculateLeagueRankInfo(baseStats, pokemonName, atk, def, sta, league) }
+        return calculateBestFamilyLeagueRanks(context, listOf(pokemonName), atk, def, sta)
+    }
+
+    fun calculateBestFamilyLeagueRanks(
+        context: Context,
+        pokemonNames: List<String>,
+        atk: Int,
+        def: Int,
+        sta: Int
+    ): List<PvpLeagueRankInfo> {
+        val familyCandidates = pokemonNames.distinct().filter { it.isNotBlank() }
+        if (familyCandidates.isEmpty()) return emptyList()
+
+        return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).mapNotNull { league ->
+            val infos = familyCandidates.mapNotNull speciesLoop@{ name ->
+                val baseStats = loadBaseStats(context, name) ?: return@speciesLoop null
+                calculateLeagueRankInfo(baseStats, name, atk, def, sta, league)
+            }
+            selectBestFamilyOption(infos)
+        }
     }
 
     fun calculateLeagueRankInfo(
@@ -71,7 +91,7 @@ class PvpRankCalculator {
         for (a in 0..15) {
             for (d in 0..15) {
                 for (s in 0..15) {
-                    val best = getBestStatProduct(baseStats, a, d, s, cap)
+                    val best = getBestStatProduct(baseStats, a, d, s, cap, maxLevelForLeague(league))
                     if (best != null) {
                         eligibleProducts += best.product
                         if (a == atk && d == def && s == sta) {
@@ -86,12 +106,14 @@ class PvpRankCalculator {
             val minCp = minimumCpAtLowestLevel(baseStats, atk, def, sta)
             return PvpLeagueRankInfo(
                 league = league,
-                eligible = false,
-                stadiumUrl = stadiumUrl,
+                pokemonName = pokemonName,
+            eligible = false,
+            bestStatProduct = null,
+            stadiumUrl = stadiumUrl,
                 description = if (minCp > cap) {
-                    "Acima do limite da ${leagueLabel(league)}: mesmo no nivel 1 esse Pokemon fica com CP minimo $minCp, acima de $cap."
+                    "Acima do limite da ${leagueLabel(league)}: mesmo no nível 1 esse Pokémon fica com CP mínimo $minCp, acima de $cap."
                 } else {
-                    "Nao foi possivel encontrar um nivel elegivel para a ${leagueLabel(league)} com essa combinacao de IV."
+                    "Não foi possível encontrar um nível elegível para a ${leagueLabel(league)} com essa combinação de IV."
                 }
             )
         }
@@ -100,22 +122,31 @@ class PvpRankCalculator {
         val rank = eligibleProducts.indexOf(currentBest.product) + 1
         return PvpLeagueRankInfo(
             league = league,
+            pokemonName = pokemonName,
             eligible = true,
             rank = if (rank > 0) rank else null,
             bestCp = currentBest.cp,
             bestLevel = currentBest.level,
+            bestStatProduct = currentBest.product,
             stadiumUrl = stadiumUrl,
             description = buildString {
                 append("Rank ${if (rank > 0) rank else "-"} na ${leagueLabel(league)}.")
                 if (league != PvpLeague.MASTER) {
                     append(" Melhor CP ${currentBest.cp}")
                 }
-                append(" no nivel ${formatLevel(currentBest.level)}.")
+                append(" no nível ${formatLevel(currentBest.level)}.")
             }
         )
     }
 
-    private fun getBestStatProduct(base: JSONObject, ivAtk: Int, ivDef: Int, ivSta: Int, cap: Int): StatProduct? {
+    private fun getBestStatProduct(
+        base: JSONObject,
+        ivAtk: Int,
+        ivDef: Int,
+        ivSta: Int,
+        cap: Int,
+        maxLevel: Double
+    ): StatProduct? {
         val bAtk = base.getInt("attack")
         val bDef = base.getInt("defense")
         val bSta = base.getInt("stamina")
@@ -125,10 +156,14 @@ class PvpRankCalculator {
         for (i in cpmTable.indices) {
             val cpm = cpmTable[i]
             val level = 1.0 + (i * 0.5)
+            if (level > maxLevel) break
             val cp = calculateCp(bAtk + ivAtk, bDef + ivDef, bSta + ivSta, cpm)
             
             if (cp <= cap) {
-                val product = (bAtk + ivAtk) * cpm * (bDef + ivDef) * cpm * (bSta + ivSta) * cpm
+                val effectiveAttack = (bAtk + ivAtk) * cpm
+                val effectiveDefense = (bDef + ivDef) * cpm
+                val effectiveHp = floor((bSta + ivSta) * cpm).toInt().coerceAtLeast(10)
+                val product = effectiveAttack * effectiveDefense * effectiveHp
                 if (bestProduct == null || product > bestProduct.product) {
                     bestProduct = StatProduct(ivAtk, ivDef, ivSta, product, cp, level)
                 }
@@ -183,6 +218,8 @@ class PvpRankCalculator {
         sta: Int,
         league: PvpLeague
     ): String {
+        val includeBestBuddy = league == PvpLeague.MASTER
+        val levelCap = if (includeBestBuddy) "51" else "50"
         return Uri.Builder()
             .scheme("https")
             .authority("www.stadiumgaming.gg")
@@ -192,11 +229,31 @@ class PvpRankCalculator {
             .appendQueryParameter("def_iv", def.toString())
             .appendQueryParameter("hp_iv", sta.toString())
             .appendQueryParameter("league", leagueCap(league).toString())
-            .appendQueryParameter("levelCap", "50")
+            .appendQueryParameter("levelCap", levelCap)
             .appendQueryParameter("min_iv", "0")
-            .appendQueryParameter("include_best_buddy", "false")
+            .appendQueryParameter("include_best_buddy", includeBestBuddy.toString())
             .build()
             .toString()
+    }
+
+    private fun maxLevelForLeague(league: PvpLeague): Double {
+        return when (league) {
+            PvpLeague.MASTER -> 51.0
+            else -> 50.0
+        }
+    }
+
+    private fun selectBestFamilyOption(options: List<PvpLeagueRankInfo>): PvpLeagueRankInfo? {
+        if (options.isEmpty()) return null
+        val eligible = options.filter { it.eligible && it.bestStatProduct != null }
+        if (eligible.isNotEmpty()) {
+            return eligible.maxWithOrNull(
+                compareBy<PvpLeagueRankInfo> { it.bestStatProduct ?: Double.NEGATIVE_INFINITY }
+                    .thenByDescending { it.bestLevel ?: 0.0 }
+                    .thenByDescending { it.bestCp ?: 0 }
+            )
+        }
+        return options.firstOrNull()
     }
 
     private fun formatLevel(level: Double): String {

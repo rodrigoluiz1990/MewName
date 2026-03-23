@@ -35,10 +35,12 @@ data class PokemonScreenData(
 
 data class PvpLeagueRankInfo(
     val league: PvpLeague,
+    val pokemonName: String? = null,
     val eligible: Boolean = false,
     val rank: Int? = null,
     val bestCp: Int? = null,
     val bestLevel: Double? = null,
+    val bestStatProduct: Double? = null,
     val stadiumUrl: String? = null,
     val description: String = ""
 )
@@ -122,9 +124,9 @@ enum class PvpLeague {
 }
 
 enum class EvolutionFlag {
-    MEGA, GIGANTAMAX, DYNAMAX
+    BABY, STAGE1, STAGE2, MEGA, GIGANTAMAX, DYNAMAX
 }
 
 enum class PokemonSize {
-    XXS, NORMAL, XXL
+    XXS, XS, NORMAL, XL, XXL
 }

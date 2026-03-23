@@ -5,6 +5,9 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mewname.app.BuildConfig
+import com.mewname.app.domain.AppUpdateInfo
+import com.mewname.app.domain.AppUpdateRepository
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
@@ -16,11 +19,13 @@ import com.mewname.app.model.PokemonSize
 import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.effectiveBlocks
 import com.mewname.app.ocr.OcrEngine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,6 +35,8 @@ enum class AppScreen {
     PRESET_EDIT,
     LEGACY_MOVES,
     ADVENTURE_EFFECTS,
+    DONATION,
+    APP_UPDATE,
     IV_VALIDATION
 }
 
@@ -38,6 +45,7 @@ class MainViewModel : ViewModel() {
     private val generator = NameGenerator()
     private val ocrEngine = OcrEngine()
     private val sessionMerger = PokemonReadSessionMerger()
+    private val appUpdateRepository = AppUpdateRepository()
     private var lastCapturedData: PokemonScreenData? = null
 
     private val _uiState = MutableStateFlow(UiState())
@@ -63,6 +71,53 @@ class MainViewModel : ViewModel() {
                 generatedResults = state.parsedData?.let { generateAll(it, loadedConfigs) } ?: emptyList()
             )
         }
+    }
+
+    fun checkForAppUpdate(forceFeedback: Boolean = false) {
+        if (_uiState.value.isCheckingForUpdate) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isCheckingForUpdate = true,
+                    appUpdateError = null,
+                    appUpdateStatusMessage = if (forceFeedback) null else it.appUpdateStatusMessage
+                )
+            }
+
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    appUpdateRepository.fetchLatestRelease(BuildConfig.GITHUB_REPOSITORY)
+                }
+            }.onSuccess { latest ->
+                val currentTag = BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" }
+                val hasUpdate = currentTag == null || !sameReleaseTag(currentTag, latest.tagName)
+                _uiState.update {
+                    it.copy(
+                        isCheckingForUpdate = false,
+                        latestAppUpdate = if (hasUpdate) latest else null,
+                        appUpdateStatusMessage = when {
+                            hasUpdate && forceFeedback -> "Atualização disponível: ${latest.tagName}"
+                            !hasUpdate && forceFeedback -> "Seu app já está na versão mais recente."
+                            else -> null
+                        },
+                        appUpdateError = null
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isCheckingForUpdate = false,
+                        appUpdateError = error.message ?: "Falha ao verificar atualização.",
+                        appUpdateStatusMessage = null
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearAppUpdateStatus() {
+        _uiState.update { it.copy(appUpdateStatusMessage = null, appUpdateError = null) }
     }
 
     fun processImage(context: Context, uri: Uri) {
@@ -358,14 +413,18 @@ data class UiState(
     val showBubbleOption: Boolean = true,
     val rawText: String? = null,
     val parsedData: PokemonScreenData? = null,
-    val configs: List<NamingConfig> = listOf(NamingConfig(name = "Padrao")),
+    val configs: List<NamingConfig> = listOf(NamingConfig(name = "Padrão")),
     val generatedResults: List<GeneratedNameResult> = emptyList(),
     val error: String? = null,
     val pendingReview: ReviewState? = null,
     val isProcessing: Boolean = false,
     val debugIvValidationRunning: Boolean = false,
     val debugIvValidationResults: List<DebugIvSampleResult> = emptyList(),
-    val debugIvValidationError: String? = null
+    val debugIvValidationError: String? = null,
+    val isCheckingForUpdate: Boolean = false,
+    val latestAppUpdate: AppUpdateInfo? = null,
+    val appUpdateStatusMessage: String? = null,
+    val appUpdateError: String? = null
 )
 
 data class GeneratedNameResult(
@@ -440,6 +499,13 @@ private fun parseExpectedIvFromFileName(fileName: String): Triple<Int, Int, Int>
         values[1].coerceIn(0, 15),
         values[2].coerceIn(0, 15)
     )
+}
+
+private fun sameReleaseTag(currentTag: String, latestTag: String): Boolean {
+    fun normalize(tag: String): String {
+        return tag.trim().removePrefix("refs/tags/").removePrefix("v").uppercase()
+    }
+    return normalize(currentTag) == normalize(latestTag)
 }
 
 fun jsonToNamingConfig(obj: JSONObject): NamingConfig {

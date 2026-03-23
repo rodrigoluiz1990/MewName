@@ -19,6 +19,7 @@ import android.view.*
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -465,7 +466,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun loadSavedConfigs(): List<NamingConfig> {
         val prefs = getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
-        val jsonString = prefs.getString("saved_presets", null) ?: return listOf(NamingConfig(name = "Padrao"))
+        val jsonString = prefs.getString("saved_presets", null) ?: return listOf(NamingConfig(name = "Padrão"))
         
         return try {
             val jsonArray = JSONArray(jsonString)
@@ -475,7 +476,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
             list
         } catch (e: Exception) {
-            listOf(NamingConfig(name = "Padrao"))
+            listOf(NamingConfig(name = "Padrão"))
         }
     }
 
@@ -499,7 +500,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 34f
+                setColor(Color.argb(234, 255, 255, 255))
+            }
             setPadding(60, 60, 60, 60)
             elevation = 40f
         }
@@ -516,17 +521,17 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             setTextColor(Color.BLACK)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-        val helpBtn = TextView(this).apply {
-            text = "?"
-            gravity = Gravity.CENTER
-            textSize = 11f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.rgb(33, 99, 235))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.TRANSPARENT)
-                setStroke(3, Color.rgb(33, 99, 235))
+        val helpBtn = ImageView(this).apply {
+            runCatching {
+                assets.open("Unown_Qu.png").use { stream ->
+                    setImageBitmap(BitmapFactory.decodeStream(stream))
+                }
+            }.onFailure {
+                setImageResource(android.R.drawable.ic_menu_help)
             }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            adjustViewBounds = true
+            setPadding(6, 6, 6, 6)
             layoutParams = LinearLayout.LayoutParams(44, 44)
             contentDescription = "Ajuda"
         }
@@ -539,10 +544,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 append(if (results.isEmpty()) {
                     "Nenhum nome foi gerado para esta captura."
                 } else {
-                    "Toque em uma opcao para copiar o nome."
+                    "Toque em uma opção para copiar o nome."
                 })
                 if (reviewRecommended) {
-                    append("\n\nAlguns dados merecem revisao antes de usar o nome.")
+                    append("\n\nAlguns dados merecem revisão antes de usar o nome.")
                 }
             }
             textSize = 13f
@@ -612,12 +617,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 minHeight = 0
                 minimumHeight = 0
                 minimumWidth = 0
-                setPadding(12, 18, 12, 18)
+                setPadding(14, 22, 14, 22)
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    cornerRadius = 22f
-                    setColor(Color.rgb(243, 246, 251))
-                    setStroke(2, Color.rgb(217, 223, 232))
+                    cornerRadius = 28f
+                    setColor(Color.argb(245, 248, 250, 255))
+                    setStroke(2, Color.rgb(205, 214, 226))
                 }
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                     marginEnd = if (isLast) 0 else 8
@@ -853,7 +858,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             appendLine("PvP por liga:")
             data.pvpLeagueRanks.forEach { info ->
                 appendLine(
-                    "- ${info.league.name}: ${if (info.eligible) "rank=${info.rank ?: "-"} cp=${info.bestCp ?: "-"} nivel=${info.bestLevel ?: "-"}" else info.description}"
+                    "- ${info.league.name}: pokemon=${info.pokemonName ?: "-"} ${if (info.eligible) "rank=${info.rank ?: "-"} cp=${info.bestCp ?: "-"} nivel=${info.bestLevel ?: "-"}" else info.description}"
                 )
                 info.stadiumUrl?.let { url ->
                     appendLine("  Stadium: $url")

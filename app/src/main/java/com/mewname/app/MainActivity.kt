@@ -1,6 +1,7 @@
 ﻿package com.mewname.app
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -144,6 +145,7 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     viewModel.loadConfigs(appContext)
+                    viewModel.checkForAppUpdate()
                 }
 
                 BackHandler(enabled = uiState.currentScreen != AppScreen.HOME) {
@@ -152,6 +154,8 @@ class MainActivity : ComponentActivity() {
                         AppScreen.PRESET_LIST,
                         AppScreen.LEGACY_MOVES,
                         AppScreen.ADVENTURE_EFFECTS,
+                        AppScreen.DONATION,
+                        AppScreen.APP_UPDATE,
                         AppScreen.IV_VALIDATION -> viewModel.navigateTo(AppScreen.HOME)
                         else -> Unit
                     }
@@ -165,6 +169,8 @@ class MainActivity : ComponentActivity() {
                         onGoToPresets = { viewModel.navigateTo(AppScreen.PRESET_LIST) },
                         onGoToLegacyMoves = { viewModel.navigateTo(AppScreen.LEGACY_MOVES) },
                         onGoToAdventureEffects = { viewModel.navigateTo(AppScreen.ADVENTURE_EFFECTS) },
+                        onGoToDonation = { viewModel.navigateTo(AppScreen.DONATION) },
+                        onGoToAppUpdate = { viewModel.navigateTo(AppScreen.APP_UPDATE) },
                         onGoToIvValidation = { viewModel.navigateTo(AppScreen.IV_VALIDATION) },
                         onDismissReview = viewModel::dismissReview,
                         onApplyReview = viewModel::applyReview,
@@ -202,6 +208,18 @@ class MainActivity : ComponentActivity() {
                         AdventureEffectsScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
                     }
 
+                    AppScreen.DONATION -> {
+                        DonationScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    }
+
+                    AppScreen.APP_UPDATE -> {
+                        AppUpdateScreen(
+                            uiState = uiState,
+                            onBack = { viewModel.navigateTo(AppScreen.HOME) },
+                            onRefresh = { viewModel.checkForAppUpdate(forceFeedback = true) }
+                        )
+                    }
+
                     AppScreen.IV_VALIDATION -> {
                         IvValidationScreen(
                             uiState = uiState,
@@ -230,6 +248,8 @@ fun HomeScreen(
     onGoToPresets: () -> Unit,
     onGoToLegacyMoves: () -> Unit,
     onGoToAdventureEffects: () -> Unit,
+    onGoToDonation: () -> Unit,
+    onGoToAppUpdate: () -> Unit,
     onGoToIvValidation: () -> Unit,
     onDismissReview: () -> Unit,
     onApplyReview: (PokemonScreenData) -> Unit,
@@ -308,7 +328,7 @@ fun HomeScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Text(if (uiState.showBubbleOption) "Iniciar sobreposicao" else "Solicitar Permissao de Captura")
+                Text(if (uiState.showBubbleOption) "Iniciar sobreposição" else "Solicitar Permissão de Captura")
             }
         }
     ) { padding ->
@@ -326,36 +346,55 @@ fun HomeScreen(
             ) {
                 HomeActionSquare(
                     title = "Gerar nome por imagem",
-                    iconRes = android.R.drawable.ic_menu_gallery,
+                    iconRes = null,
+                    assetIconPath = "icon-gerar-nome-imagem.png",
                     onClick = onPickImage,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
-                    title = "Gerador de Nomes",
+                    title = "Definir Nomes",
                     iconRes = null,
+                    assetIconPath = "icon-definir-nome.png",
                     onClick = onGoToPresets,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
                     title = "Ataques Legados",
-                    iconRes = android.R.drawable.ic_menu_info_details,
+                    iconRes = null,
+                    assetIconPath = "icon-legacy.png",
                     onClick = onGoToLegacyMoves,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
                     title = "Efeitos de Aventura",
-                    iconRes = android.R.drawable.ic_menu_compass,
+                    iconRes = null,
+                    assetIconPath = "icon-fieldmove.png",
                     onClick = onGoToAdventureEffects,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = if (uiState.isCheckingForUpdate) "Verificando..." else "Atualizar app",
+                    iconRes = null,
+                    assetIconPath = "icon-update.png",
+                    onClick = onGoToAppUpdate,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 if (BuildConfig.DEBUG) {
                     HomeActionSquare(
                         title = "Validar amostras",
-                        iconRes = android.R.drawable.ic_menu_manage,
+                        iconRes = null,
+                        assetIconPath = "icon-validar-amostras.png",
                         onClick = onGoToIvValidation,
                         modifier = Modifier.fillMaxWidth(0.31f)
                     )
                 }
+                HomeActionSquare(
+                    title = "Doação",
+                    iconRes = null,
+                    assetIconPath = "icon-doacao.png",
+                    onClick = onGoToDonation,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
             }
 
             if (uiState.generatedResults.isNotEmpty()) {
@@ -417,6 +456,163 @@ fun HomeScreen(
             onDismiss = onDismissReview,
             onConfirm = onApplyReview
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppUpdateScreen(
+    uiState: UiState,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        if (!uiState.isCheckingForUpdate && uiState.latestAppUpdate == null && uiState.appUpdateError == null) {
+            onRefresh()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Atualização do App") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("Versão instalada", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("Nome: v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Release: ${BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" } ?: "build local"}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            when {
+                uiState.isCheckingForUpdate -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CircularProgressIndicator()
+                            Text("Verificando nova release...", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
+                uiState.latestAppUpdate != null -> {
+                    val update = uiState.latestAppUpdate
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text("Nova release disponível", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Versão: ${update.tagName}", style = MaterialTheme.typography.bodyMedium)
+                            if (update.releaseName.isNotBlank()) {
+                                Text("Título: ${update.releaseName}", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            if (update.publishedAt.isNotBlank()) {
+                                Text("Publicada em: ${update.publishedAt}", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("O que mudou", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                update.releaseNotes.ifBlank { "Sem descrição cadastrada para esta release." },
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    TextButton(
+                        onClick = { openExternalUrl(context, update.releasePageUrl) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Ver página da release")
+                    }
+
+                    Button(
+                        onClick = {
+                            openExternalUrl(context, update.apkDownloadUrl ?: update.releasePageUrl)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (update.apkDownloadUrl != null) "Baixar atualização" else "Abrir release")
+                    }
+                }
+
+                uiState.appUpdateError != null -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("Falha ao verificar atualização", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                uiState.appUpdateError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+
+                    Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+                        Text("Tentar novamente")
+                    }
+                }
+
+                else -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("Seu app já está atualizado", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                uiState.appUpdateStatusMessage ?: "Nenhuma atualização mais nova foi encontrada no GitHub.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+                        Text("Verificar novamente")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -516,6 +712,44 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DonationScreen(onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Doação") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Apoie o MewName", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Esta tela já está pronta para receber sua chave Pix, link de doação ou outra forma de apoio em uma próxima atualização.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AdventureEffectCard(entry: AdventureEffectCatalogEntry) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -535,6 +769,8 @@ private fun AdventureEffectCard(entry: AdventureEffectCatalogEntry) {
 private fun HomeActionSquare(
     title: String,
     @DrawableRes iconRes: Int?,
+    assetIconPath: String? = null,
+    customIcon: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -552,15 +788,18 @@ private fun HomeActionSquare(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (iconRes != null) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = title,
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            } else {
-                HomeKeyboardGlyph()
+            when {
+                assetIconPath != null -> HomeAssetIcon(assetIconPath, title)
+                customIcon != null -> customIcon()
+                iconRes != null -> {
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = title,
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                else -> HomeKeyboardGlyph()
             }
             Spacer(Modifier.height(10.dp))
             Text(
@@ -574,6 +813,100 @@ private fun HomeActionSquare(
             )
         }
     }
+}
+
+@Composable
+private fun HomeAssetIcon(assetPath: String, contentDescription: String) {
+    AssetImageIcon(
+        assetPath = assetPath,
+        contentDescription = contentDescription,
+        modifier = Modifier.size(28.dp),
+        fallbackSize = 28.dp
+    )
+}
+
+@Composable
+private fun HomePhotoGlyph() {
+    Box(
+        modifier = Modifier
+            .size(30.dp)
+            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+            .padding(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(6.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+    }
+}
+
+@Composable
+private fun HomeUpdateGlyph() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(18.dp)
+                .height(16.dp)
+                .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 3.dp, bottomEnd = 3.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "↓",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Box(
+            modifier = Modifier
+                .width(20.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+    }
+}
+
+@Composable
+private fun HomeValidateGlyph() {
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
+        listOf(8.dp, 14.dp, 20.dp).forEach { barHeight ->
+            Box(
+                modifier = Modifier
+                    .width(5.dp)
+                    .height(barHeight)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
+    }
+}
+
+private fun openExternalUrl(context: Context, url: String) {
+    if (url.isBlank()) return
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching { context.startActivity(intent) }
+        .recoverCatching {
+            if (it is ActivityNotFoundException) return
+            throw it
+        }
 }
 
 @Composable
@@ -761,7 +1094,7 @@ private fun buildDebugIvValidationExport(
             appendLine("Detectado: ${result.detectedAttack ?: "-"}/${result.detectedDefense ?: "-"}/${result.detectedStamina ?: "-"}")
             appendLine(
                 "IV %: ${result.detectedPercent ?: "-"} | ${when {
-                    !result.comparable -> "Sem referencia"
+                                !result.comparable -> "Sem referência"
                     result.matched -> "OK"
                     else -> "Erro"
                 }}"
@@ -1119,19 +1452,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
 
 @Composable
 private fun QuestionCircleIcon() {
-    Box(
-        modifier = Modifier
-            .size(16.dp)
-            .border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(999.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            "?",
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold
-        )
-    }
+    UnownQuestionIcon(modifier = Modifier.size(16.dp))
 }
 
 @Composable
@@ -1199,19 +1520,19 @@ private fun fieldDescription(field: NamingField): String {
         NamingField.LEVEL -> "Mostrar o nível atual do Pokémon."
         NamingField.CP -> "Mostrar o CP atual."
         NamingField.GENDER -> "Exibir M ou F conforme o gênero detectado."
-        NamingField.SIZE -> "Mostrar XXL ou XXS usando um símbolo para cada tamanho."
+        NamingField.SIZE -> "Mostrar XXS, XS, Normal, XL ou XXL usando um símbolo para cada tamanho."
         NamingField.SPECIAL_BACKGROUND -> "Exibir o símbolo se houver fundo especial."
-        NamingField.PVP_LEAGUE -> "Mostrar Copinha, Great League ou Ultra League conforme a liga estimada."
-        NamingField.PVP_RANK -> "Mostrar o ranking PVP calculado."
+        NamingField.PVP_LEAGUE -> "Mostrar Copinha, Great League, Ultra League ou Master League conforme a liga estimada."
+        NamingField.PVP_RANK -> "Mostrar o ranking PvP calculado."
         NamingField.LEGACY_MOVE -> "Exibir o símbolo se o Pokémon tiver movimento legado."
         NamingField.TYPE -> "Adicionar o tipo principal do Pokémon."
         NamingField.ADVENTURE_EFFECT -> "Exibir o marcador de efeito aventura."
-        NamingField.EVOLUTION_TYPE -> "Mostrar Mega, Gigantamax e Dynamax, cada um com seu símbolo."
+        NamingField.EVOLUTION_TYPE -> "Mostrar Baby, Estágio 1, Estágio 2, Mega, Gigantamax e Dynamax, cada um com seu símbolo."
         NamingField.SHADOW -> "Exibir o símbolo se o Pokémon for sombrio."
         NamingField.PURIFIED -> "Exibir o símbolo se o Pokémon for purificado."
         NamingField.FAVORITE -> "Exibir o símbolo de favorito."
         NamingField.LUCKY -> "Exibir o símbolo de sortudo."
-        NamingField.POKEDEX_NUMBER -> "Mostrar o numero da Pokedex."
+        NamingField.POKEDEX_NUMBER -> "Mostrar o número da Pokédex."
         NamingField.IV_COMBINATION -> "Mostrar os IVs em formato A/D/S."
     }
 }
@@ -1232,15 +1553,21 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
         NamingField.ADVENTURE_EFFECT -> listOf(option("ADVENTURE_EFFECT", "Efeito aventura"))
         NamingField.SIZE -> listOf(
             option("XXL", "XXL"),
+            option("XL", "XL"),
+            option("XS", "XS"),
             option("XXS", "XXS")
         )
         NamingField.PVP_LEAGUE -> listOf(
             option("LITTLE_LEAGUE", "Copinha"),
             option("GREAT_LEAGUE", "Great League"),
-            option("ULTRA_LEAGUE", "Ultra League")
+            option("ULTRA_LEAGUE", "Ultra League"),
+            option("MASTER_LEAGUE", "Master League")
         )
         NamingField.LEGACY_MOVE -> listOf(option("LEGACY", "Antigo"))
         NamingField.EVOLUTION_TYPE -> listOf(
+            option("BABY", "Baby"),
+            option("STAGE1", "Estágio 1"),
+            option("STAGE2", "Estágio 2"),
             option("MEGA", "Mega"),
             option("GIGANTAMAX", "Gigantamax"),
             option("DYNAMAX", "Dynamax")
@@ -1256,7 +1583,7 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
 fun SymbolPickerDialog(title: String, onDismiss: () -> Unit, onSymbolSelected: (String) -> Unit) {
     val commonSymbols = listOf(
         "\u2642", "\u2640", "M", "F", "*", "+", "SH", "PU", "FE", "AV", "XXL", "XXS",
-        "GL", "UL", "CP", "L", "G", "D", "#", "!", "1", "2", "3"
+        "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY"
     )
 
     AlertDialog(

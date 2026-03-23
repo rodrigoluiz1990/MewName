@@ -16,6 +16,7 @@ val releaseStoreFilePath = System.getenv("MEWNAME_UPLOAD_STORE_FILE")?.takeIf { 
 val releaseStorePassword = System.getenv("MEWNAME_UPLOAD_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
 val releaseKeyAlias = System.getenv("MEWNAME_UPLOAD_KEY_ALIAS")?.takeIf { it.isNotBlank() }
 val releaseKeyPassword = System.getenv("MEWNAME_UPLOAD_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+val releaseTag = System.getenv("MEWNAME_RELEASE_TAG")?.takeIf { it.isNotBlank() } ?: "dev"
 val hasReleaseSigning = releaseStoreFilePath != null &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
@@ -31,6 +32,8 @@ android {
         targetSdk = 34
         versionCode = autoVersionCode
         versionName = "1.0.$autoVersionCode"
+        buildConfigField("String", "RELEASE_TAG", "\"$releaseTag\"")
+        buildConfigField("String", "GITHUB_REPOSITORY", "\"rodrigoluiz1990/MewName\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

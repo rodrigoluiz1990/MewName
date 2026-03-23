@@ -79,6 +79,8 @@ jobs:
           fi
 
       - name: Build release APK
+        env:
+          MEWNAME_RELEASE_TAG: ${{ github.ref_name }}
         shell: bash
         run: ./gradlew --no-daemon assembleRelease --stacktrace
 

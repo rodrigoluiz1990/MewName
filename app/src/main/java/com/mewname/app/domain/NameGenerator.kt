@@ -102,6 +102,8 @@ class NameGenerator {
             NamingField.ADVENTURE_EFFECT -> if (data.hasAdventureEffect) config.symbols["ADVENTURE_EFFECT"] else null
             NamingField.SIZE -> when (data.size) {
                 PokemonSize.XXL -> config.symbols["XXL"]
+                PokemonSize.XL -> config.symbols["XL"]
+                PokemonSize.XS -> config.symbols["XS"]
                 PokemonSize.XXS -> config.symbols["XXS"]
                 else -> null
             }
@@ -109,6 +111,7 @@ class NameGenerator {
                 PvpLeague.GREAT -> config.symbols["GREAT_LEAGUE"]
                 PvpLeague.ULTRA -> config.symbols["ULTRA_LEAGUE"]
                 PvpLeague.LITTLE -> config.symbols["LITTLE_LEAGUE"]
+                PvpLeague.MASTER -> config.symbols["MASTER_LEAGUE"]
                 else -> null
             }
             NamingField.PVP_RANK -> data.pvpRank?.toString()
@@ -120,6 +123,9 @@ class NameGenerator {
 
     private fun evolutionSymbols(data: PokemonScreenData, config: NamingConfig): String? {
         val parts = buildList {
+            if (EvolutionFlag.BABY in data.evolutionFlags) add(config.symbols["BABY"].orEmpty())
+            if (EvolutionFlag.STAGE1 in data.evolutionFlags) add(config.symbols["STAGE1"].orEmpty())
+            if (EvolutionFlag.STAGE2 in data.evolutionFlags) add(config.symbols["STAGE2"].orEmpty())
             if (EvolutionFlag.MEGA in data.evolutionFlags) add(config.symbols["MEGA"].orEmpty())
             if (EvolutionFlag.GIGANTAMAX in data.evolutionFlags) add(config.symbols["GIGANTAMAX"].orEmpty())
             if (EvolutionFlag.DYNAMAX in data.evolutionFlags) add(config.symbols["DYNAMAX"].orEmpty())
