@@ -222,6 +222,7 @@
   "SNEASEL": { "attack": 189, "defense": 146, "stamina": 146 },
   "TEDDIURSA": { "attack": 142, "defense": 93, "stamina": 155 },
   "URSARING": { "attack": 236, "defense": 144, "stamina": 207 },
+  "URSALUNA": { "attack": 243, "defense": 181, "stamina": 277 },
   "SLUGMA": { "attack": 118, "defense": 71, "stamina": 120 },
   "MAGCARGO": { "attack": 139, "defense": 191, "stamina": 137 },
   "SWINUB": { "attack": 90, "defense": 69, "stamina": 137 },

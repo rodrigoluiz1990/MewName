@@ -214,6 +214,7 @@ Heracross
 Sneasel
 Teddiursa
 Ursaring
+Ursaluna
 Slugma
 Magcargo
 Swinub

@@ -2,6 +2,7 @@ package com.mewname.app
 
 import android.app.*
 import android.content.*
+import android.content.pm.ServiceInfo
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.hardware.display.DisplayManager
@@ -100,7 +101,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private var projectionCallbackRegistered = false
     private var isCaptureInProgress = false
     private var loadingView: View? = null
+    private var dismissTargetView: View? = null
+    private var bubbleDismissMode = false
     private val serviceScope = CoroutineScope(Dispatchers.Main)
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateController = SavedStateRegistryController.create(this)
     private val overlayViewModelStore = ViewModelStore()
@@ -111,6 +115,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private val sessionMerger = PokemonReadSessionMerger()
     private var lastCapturedData: PokemonScreenData? = null
     private var lastBubbleLogSnapshot: BubbleLogSnapshot? = null
+    private val bubbleLongPressTimeoutMillis = 3000L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -138,7 +143,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "STOP_SERVICE") {
             stopSelf()
-            return START_NOT_STICKY
+            return START_STICKY
         }
         
         val newProjectionData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -153,7 +158,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             launchPokemonGo()
         }
         
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     private fun startForegroundService() {
@@ -165,9 +170,15 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             .setContentTitle("MewName Modo Jogo")
             .setContentText("Bolinha ativa. Clique para capturar.")
             .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setOngoing(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
 
-        startForeground(1, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        } else {
+            startForeground(1, notification)
+        }
     }
 
     private fun showFloatingButton() {
@@ -192,6 +203,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             private var initialY = 0
             private var initialTouchX = 0f
             private var initialTouchY = 0f
+            private var longPressTriggered = false
+            private val longPressRunnable = Runnable {
+                longPressTriggered = true
+                bubbleDismissMode = true
+                showDismissTarget()
+            }
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
@@ -200,19 +217,45 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
+                        longPressTriggered = false
+                        mainHandler.postDelayed(longPressRunnable, bubbleLongPressTimeoutMillis)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        val diffX = abs(event.rawX - initialTouchX)
+                        val diffY = abs(event.rawY - initialTouchY)
+                        if (!longPressTriggered && (diffX > 20 || diffY > 20)) {
+                            mainHandler.removeCallbacks(longPressRunnable)
+                        }
                         params.x = initialX + (event.rawX - initialTouchX).toInt()
                         params.y = initialY + (event.rawY - initialTouchY).toInt()
                         windowManager.updateViewLayout(floatingButton, params)
+                        if (bubbleDismissMode) {
+                            updateDismissTargetHighlight(isBubbleOverDismissTarget(params, v))
+                        }
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
+                        mainHandler.removeCallbacks(longPressRunnable)
                         val diffX = abs(event.rawX - initialTouchX)
                         val diffY = abs(event.rawY - initialTouchY)
-                        if (diffX < 15 && diffY < 15) {
+                        if (bubbleDismissMode) {
+                            val shouldDismiss = isBubbleOverDismissTarget(params, v)
+                            hideDismissTarget()
+                            bubbleDismissMode = false
+                            if (shouldDismiss) {
+                                stopSelf()
+                            }
+                        } else if (!longPressTriggered && diffX < 15 && diffY < 15) {
                             captureAndProcess()
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        mainHandler.removeCallbacks(longPressRunnable)
+                        if (bubbleDismissMode) {
+                            hideDismissTarget()
+                            bubbleDismissMode = false
                         }
                         return true
                     }
@@ -222,6 +265,87 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         })
 
         windowManager.addView(floatingButton, params)
+    }
+
+    private fun showDismissTarget() {
+        if (dismissTargetView != null) return
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = 36
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(0, 24, 0, 24)
+            setBackgroundColor(Color.argb(80, 0, 0, 0))
+        }
+
+        val target = TextView(this).apply {
+            text = "X"
+            textSize = 24f
+            setTypeface(typeface, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.argb(220, 210, 48, 48))
+                setStroke(4, Color.WHITE)
+            }
+            layoutParams = LinearLayout.LayoutParams(124, 124)
+        }
+
+        container.addView(target)
+        dismissTargetView = container
+        windowManager.addView(container, params)
+        updateDismissTargetHighlight(false)
+    }
+
+    private fun hideDismissTarget() {
+        dismissTargetView?.let {
+            try {
+                windowManager.removeView(it)
+            } catch (_: Exception) {
+            }
+        }
+        dismissTargetView = null
+    }
+
+    private fun updateDismissTargetHighlight(isActive: Boolean) {
+        val container = dismissTargetView as? LinearLayout ?: return
+        val target = container.getChildAt(0) as? TextView ?: return
+        target.scaleX = if (isActive) 1.18f else 1f
+        target.scaleY = if (isActive) 1.18f else 1f
+        target.alpha = if (isActive) 1f else 0.92f
+        (target.background as? GradientDrawable)?.apply {
+            setColor(if (isActive) Color.argb(235, 235, 58, 58) else Color.argb(220, 210, 48, 48))
+        }
+    }
+
+    private fun isBubbleOverDismissTarget(
+        bubbleParams: WindowManager.LayoutParams,
+        bubbleView: View
+    ): Boolean {
+        val targetView = dismissTargetView ?: return false
+        val location = IntArray(2)
+        targetView.getLocationOnScreen(location)
+        val targetRect = Rect(
+            location[0],
+            location[1],
+            location[0] + targetView.width,
+            location[1] + targetView.height
+        )
+
+        val bubbleCenterX = bubbleParams.x + (bubbleView.width / 2)
+        val bubbleCenterY = bubbleParams.y + (bubbleView.height / 2)
+        return targetRect.contains(bubbleCenterX, bubbleCenterY)
     }
 
     private fun launchPokemonGo() {
@@ -240,7 +364,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             val label = info.loadLabel(packageManager)?.toString().orEmpty()
             val packageName = info.activityInfo?.packageName.orEmpty()
             label.contains("Pokemon GO", ignoreCase = true) ||
-                label.contains("PokÃ©mon GO", ignoreCase = true) ||
+                label.contains("Pokémon GO", ignoreCase = true) ||
                 packageName.contains("pokemongo", ignoreCase = true)
         }
 
@@ -276,7 +400,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
             if (image == null) {
                 isCaptureInProgress = false
-                Toast.makeText(this, "Falha ao capturar a tela. Reative a bolha.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Falha momentânea na captura. Tente novamente.", Toast.LENGTH_SHORT).show()
                 return@postDelayed
             }
 
@@ -467,7 +591,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun loadSavedConfigs(): List<NamingConfig> {
         val prefs = getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
-        val jsonString = prefs.getString("saved_presets", null) ?: return listOf(NamingConfig(name = "PadrÃ£o"))
+        val jsonString = prefs.getString("saved_presets", null) ?: return listOf(NamingConfig(name = "Padrão"))
         
         return try {
             val jsonArray = JSONArray(jsonString)
@@ -477,7 +601,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
             list
         } catch (e: Exception) {
-            listOf(NamingConfig(name = "PadrÃ£o"))
+            listOf(NamingConfig(name = "Padrão"))
         }
     }
 
@@ -545,10 +669,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 append(if (results.isEmpty()) {
                     "Nenhum nome foi gerado para esta captura."
                 } else {
-                    "Toque em uma opÃ§Ã£o para copiar o nome."
+                    "Toque em uma opção para copiar o nome."
                 })
                 if (reviewRecommended) {
-                    append("\n\nAlguns dados merecem revisÃ£o antes de usar o nome.")
+                    append("\n\nAlguns dados merecem revisão antes de usar o nome.")
                 }
             }
             textSize = 13f
@@ -988,6 +1112,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         floatingButton?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
         resultsView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
         loadingView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
+        dismissTargetView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
         cleanupCaptureResources()
     }
 }
