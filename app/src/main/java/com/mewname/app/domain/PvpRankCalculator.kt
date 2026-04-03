@@ -4,6 +4,7 @@ import android.net.Uri
 import android.content.Context
 import com.mewname.app.model.PvpLeague
 import com.mewname.app.model.PvpLeagueRankInfo
+import com.mewname.app.model.PvpSpeciesRankInfo
 import org.json.JSONObject
 import kotlin.math.floor
 import kotlin.math.pow
@@ -29,6 +30,18 @@ class PvpRankCalculator {
     )
 
     data class StatProduct(val atk: Int, val def: Int, val sta: Int, val product: Double, val cp: Int, val level: Double)
+
+    fun estimateLevel(
+        context: Context,
+        pokemonName: String,
+        cp: Int,
+        atk: Int,
+        def: Int,
+        sta: Int
+    ): Double? {
+        val baseStats = loadBaseStats(context, pokemonName) ?: return null
+        return estimateLevel(baseStats, cp, atk, def, sta)
+    }
 
     fun calculateRank(context: Context, pokemonName: String, atk: Int, def: Int, sta: Int, league: PvpLeague): Int? {
         return calculateLeagueRankInfo(context, pokemonName, atk, def, sta, league)?.rank
@@ -60,6 +73,24 @@ class PvpRankCalculator {
                 calculateLeagueRankInfo(baseStats, name, atk, def, sta, league)
             }
             selectBestFamilyOption(infos)
+        }
+    }
+
+    fun calculateFamilySpeciesLeagueRanks(
+        context: Context,
+        pokemonNames: List<String>,
+        atk: Int,
+        def: Int,
+        sta: Int
+    ): List<PvpSpeciesRankInfo> {
+        val familyCandidates = pokemonNames.distinct().filter { it.isNotBlank() }
+        if (familyCandidates.isEmpty()) return emptyList()
+
+        return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).flatMap { league ->
+            familyCandidates.mapNotNull { name ->
+                val baseStats = loadBaseStats(context, name) ?: return@mapNotNull null
+                calculateSpeciesLeagueRankInfo(baseStats, name, atk, def, sta, league)
+            }
         }
     }
 
@@ -137,6 +168,57 @@ class PvpRankCalculator {
                 append(" no nível ${formatLevel(currentBest.level)}.")
             }
         )
+    }
+
+    private fun calculateSpeciesLeagueRankInfo(
+        baseStats: JSONObject,
+        pokemonName: String,
+        atk: Int,
+        def: Int,
+        sta: Int,
+        league: PvpLeague
+    ): PvpSpeciesRankInfo {
+        val info = calculateLeagueRankInfo(baseStats, pokemonName, atk, def, sta, league)
+        return PvpSpeciesRankInfo(
+            pokemonName = pokemonName,
+            league = info.league,
+            eligible = info.eligible,
+            rank = info.rank,
+            bestCp = info.bestCp,
+            bestLevel = info.bestLevel,
+            bestStatProduct = info.bestStatProduct,
+            stadiumUrl = info.stadiumUrl,
+            description = info.description
+        )
+    }
+
+    private fun estimateLevel(
+        baseStats: JSONObject,
+        observedCp: Int,
+        atk: Int,
+        def: Int,
+        sta: Int
+    ): Double? {
+        val bAtk = baseStats.getInt("attack")
+        val bDef = baseStats.getInt("defense")
+        val bSta = baseStats.getInt("stamina")
+
+        var bestLevel: Double? = null
+        var bestDistance = Int.MAX_VALUE
+
+        for (i in cpmTable.indices) {
+            val cpm = cpmTable[i]
+            val level = 1.0 + (i * 0.5)
+            val cp = calculateCp(bAtk + atk, bDef + def, bSta + sta, cpm)
+            val distance = kotlin.math.abs(cp - observedCp)
+
+            if (distance < bestDistance || (distance == bestDistance && level > (bestLevel ?: 0.0))) {
+                bestDistance = distance
+                bestLevel = level
+            }
+        }
+
+        return bestLevel?.takeIf { bestDistance <= 1 }
     }
 
     private fun getBestStatProduct(

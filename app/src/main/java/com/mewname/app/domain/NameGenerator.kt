@@ -80,6 +80,30 @@ class NameGenerator {
     private fun resolveField(field: NamingField?, data: PokemonScreenData, config: NamingConfig): String? {
         return when (field) {
             NamingField.POKEMON_NAME -> data.pokemonName?.take(14)
+            NamingField.UNOWN_LETTER -> data.unownLetter?.takeIf { it.isNotBlank() }?.uppercase()
+            NamingField.UNIQUE_FORM -> {
+                when {
+                    data.pokemonName.equals("Unown", ignoreCase = true) -> {
+                        val letter = data.unownLetter?.trim()?.uppercase()
+                        val symbolKey = letter?.let { "UNOWN_$it" }
+                        when {
+                            symbolKey != null && config.symbols.containsKey(symbolKey) -> {
+                                config.symbols[symbolKey].takeIf { !it.isNullOrBlank() }
+                            }
+                            else -> letter
+                        }
+                    }
+                    else -> {
+                        val symbolKey = UniquePokemonCatalog.symbolKeyFor(data.pokemonName, data.uniqueForm)
+                        when {
+                            symbolKey != null && config.symbols.containsKey(symbolKey) -> {
+                                config.symbols[symbolKey].takeIf { !it.isNullOrBlank() }
+                            }
+                            else -> UniquePokemonCatalog.compactCodeFor(data.pokemonName, data.uniqueForm)
+                        }
+                    }
+                }
+            }
             NamingField.VIVILLON_PATTERN -> vivillonPatternSymbol(data.vivillonPattern, config)
             NamingField.POKEDEX_NUMBER -> data.pokedexNumber?.let { "#$it" }
             NamingField.CP -> data.cp?.toString()
@@ -93,7 +117,9 @@ class NameGenerator {
                 Gender.FEMALE -> config.symbols["FEMALE"]
                 else -> null
             }
-            NamingField.TYPE -> data.type1?.take(3)
+            NamingField.TYPE -> data.type1?.trim()?.uppercase()?.let { type ->
+                config.symbols["TYPE_$type"]?.takeIf { symbol -> symbol.isNotBlank() } ?: type.take(3)
+            }
             NamingField.FAVORITE -> if (data.isFavorite) config.symbols["FAVORITE"] else null
             NamingField.LUCKY -> if (data.isLucky) config.symbols["LUCKY"] else null
             NamingField.SHADOW -> if (data.isShadow) config.symbols["SHADOW"] else null
@@ -129,6 +155,7 @@ class NameGenerator {
             if (EvolutionFlag.MEGA in data.evolutionFlags) add(config.symbols["MEGA"].orEmpty())
             if (EvolutionFlag.GIGANTAMAX in data.evolutionFlags) add(config.symbols["GIGANTAMAX"].orEmpty())
             if (EvolutionFlag.DYNAMAX in data.evolutionFlags) add(config.symbols["DYNAMAX"].orEmpty())
+            if (EvolutionFlag.TERASTRAL in data.evolutionFlags) add(config.symbols["TERASTRAL"].orEmpty())
         }.filter { it.isNotBlank() }
 
         return parts.joinToString("")

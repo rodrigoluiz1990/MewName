@@ -30,7 +30,9 @@ enum class NamingBlockType {
 }
 
 enum class NamingField(val label: String) {
-    POKEMON_NAME("Coloque o Nome"),
+    POKEMON_NAME("Nome"),
+    UNOWN_LETTER("Letra Unown"),
+    UNIQUE_FORM("Forma Única"),
     VIVILLON_PATTERN("Padrão Vivillon"),
     POKEDEX_NUMBER("Nº Pokédex"),
     CP("CP"),
@@ -48,7 +50,7 @@ enum class NamingField(val label: String) {
     SIZE("Tamanho"),
     PVP_LEAGUE("Liga PvP"),
     PVP_RANK("Ranking PvP"),
-    LEGACY_MOVE("Antigo"),
+    LEGACY_MOVE("Ataque Legado"),
     EVOLUTION_TYPE("Evolução")
 }
 
@@ -65,6 +67,24 @@ fun defaultPatternBlocks() = listOf(
 fun defaultSymbols() = mapOf(
     "MALE" to "\u2642",
     "FEMALE" to "\u2640",
+    "TYPE_NORMAL" to "NOR",
+    "TYPE_FIRE" to "FOG",
+    "TYPE_WATER" to "AGU",
+    "TYPE_GRASS" to "PLA",
+    "TYPE_ELECTRIC" to "ELE",
+    "TYPE_ICE" to "GEL",
+    "TYPE_FIGHTING" to "LUT",
+    "TYPE_POISON" to "VEN",
+    "TYPE_GROUND" to "TER",
+    "TYPE_FLYING" to "VOA",
+    "TYPE_PSYCHIC" to "PSI",
+    "TYPE_BUG" to "INS",
+    "TYPE_ROCK" to "ROC",
+    "TYPE_GHOST" to "FAN",
+    "TYPE_DRAGON" to "DRA",
+    "TYPE_DARK" to "SOM",
+    "TYPE_STEEL" to "ACO",
+    "TYPE_FAIRY" to "FAD",
     "FAVORITE" to "*",
     "LUCKY" to "+",
     "SHADOW" to "SH",
@@ -137,6 +157,7 @@ fun NamingConfig.hasVisibleEvolutionSymbol(flag: EvolutionFlag): Boolean {
         EvolutionFlag.MEGA -> "MEGA"
         EvolutionFlag.GIGANTAMAX -> "GIGANTAMAX"
         EvolutionFlag.DYNAMAX -> "DYNAMAX"
+        EvolutionFlag.TERASTRAL -> "TERASTAL"
     }
     return !symbols[key].isNullOrBlank()
 }

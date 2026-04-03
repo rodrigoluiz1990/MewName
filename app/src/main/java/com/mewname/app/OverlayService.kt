@@ -50,6 +50,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
+import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.EvolutionFlag
 import com.mewname.app.model.Gender
 import com.mewname.app.model.IvDebugInfo
@@ -103,6 +104,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private var loadingView: View? = null
     private var dismissTargetView: View? = null
     private var bubbleDismissMode = false
+    private var loadingTitleView: TextView? = null
+    private var loadingDetailView: TextView? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -115,7 +118,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private val sessionMerger = PokemonReadSessionMerger()
     private var lastCapturedData: PokemonScreenData? = null
     private var lastBubbleLogSnapshot: BubbleLogSnapshot? = null
-    private val bubbleLongPressTimeoutMillis = 3000L
+    private val bubbleLongPressTimeoutMillis = 1500L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -445,6 +448,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         cleanupCaptureResources()
                         isCaptureInProgress = false
                         notifyCapturePermissionUnavailable()
+                        stopSelf()
                     }
                 }, Handler(Looper.getMainLooper()))
                 projectionCallbackRegistered = true
@@ -475,18 +479,22 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun processCapturedBitmap(bitmap: Bitmap) {
         showLoadingOverlay()
+        updateLoadingStatus(detail = "Extraindo texto da imagem")
         serviceScope.launch {
             runCatching {
                 ocrEngine.extract(bitmap)
             }.onSuccess { ocrResult ->
-                val parsed = sessionMerger.mergeIfSamePokemon(
-                    parser.parse(this@OverlayService, ocrResult),
-                    lastCapturedData
-                )
-                lastCapturedData = parsed
+                val parsed = kotlinx.coroutines.withContext(Dispatchers.Default) {
+                    parser.parse(this@OverlayService, ocrResult) { step ->
+                        updateLoadingStatus(detail = step)
+                    }
+                }
+                updateLoadingStatus(detail = "Montando nomes sugeridos")
+                val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
+                lastCapturedData = merged
                 val savedConfigs = loadSavedConfigs()
                 val generatedResults = savedConfigs.mapNotNull { config ->
-                    val generatedName = generator.generate(parsed, config).trim()
+                    val generatedName = generator.generate(merged, config).trim()
                     generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
                 }
 
@@ -497,16 +505,16 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     bitmapHeight = bitmap.height,
                     rawText = ocrResult.fullText,
                     ocrLineLogs = buildOcrLineLogs(ocrResult),
-                    parsedData = parsed,
+                    parsedData = merged,
                     reviewableFields = reviewFields,
                     generatedResults = generatedResults
                 )
-                val reviewRecommended = shouldOpenReview(parsed, reviewFields)
+                val reviewRecommended = shouldOpenReview(merged, reviewFields)
                 showResultsOverlay(
                     results = generatedResults,
                     reviewRecommended = reviewRecommended,
                     onOpenReview = {
-                        showReviewOverlay(parsed, reviewFields, savedConfigs, bitmap)
+                        showReviewOverlay(merged, reviewFields, savedConfigs, bitmap)
                     }
                 )
 
@@ -545,12 +553,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 setTypeface(typeface, Typeface.BOLD)
                 setPadding(0, 24, 0, 8)
                 gravity = Gravity.CENTER
+                loadingTitleView = this
             })
             addView(TextView(this@OverlayService).apply {
-                text = "Lendo os dados detectados para gerar o nome sugerido."
+                text = "Preparando análise"
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 gravity = Gravity.CENTER
+                loadingDetailView = this
             })
         }
 
@@ -563,6 +573,15 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             try { windowManager.removeView(it) } catch (_: Exception) {}
         }
         loadingView = null
+        loadingTitleView = null
+        loadingDetailView = null
+    }
+
+    private fun updateLoadingStatus(title: String? = null, detail: String) {
+        mainHandler.post {
+            title?.let { loadingTitleView?.text = it }
+            loadingDetailView?.text = detail
+        }
     }
 
     private fun cleanupCaptureResources(stopProjection: Boolean = true) {
@@ -816,7 +835,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                             fields = fields,
                             configs = configs,
                             bitmap = bitmap,
-                            onExportLog = { exportBubbleLog() },
+                            onExportLog = { selectedFields -> exportBubbleLog(selectedFields) },
                             onCancel = { removeResultsOverlay() },
                             onConfirm = { reviewed ->
                                 val results = configs.mapNotNull { config ->
@@ -870,6 +889,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         return fields.any { field ->
             when (field) {
                 NamingField.POKEMON_NAME -> data.pokemonName.isNullOrBlank()
+                NamingField.UNOWN_LETTER -> data.pokemonName.equals("Unown", ignoreCase = true) && data.unownLetter.isNullOrBlank()
+                NamingField.UNIQUE_FORM -> UniquePokemonCatalog.optionsFor(data.pokemonName).isNotEmpty() && data.uniqueForm.isNullOrBlank()
                 NamingField.VIVILLON_PATTERN -> isVivillonFamily(data.pokemonName) && data.vivillonPattern == null
                 NamingField.CP -> data.cp == null
                 NamingField.IV_PERCENT -> data.ivPercent == null
@@ -898,14 +919,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         clipboard.setPrimaryClip(clip)
     }
 
-    private fun exportBubbleLog() {
+    private fun exportBubbleLog(selectedFields: Set<NamingField>? = null) {
         val snapshot = lastBubbleLogSnapshot
         if (snapshot == null) {
             Toast.makeText(this, "Nenhum log da bolha disponivel ainda.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val exportText = buildBubbleLogExport(snapshot)
+        val exportText = buildBubbleLogExport(snapshot, selectedFields)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, "MewName - Log do modo bolha")
@@ -917,20 +938,29 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         startActivity(chooser)
     }
 
-    private fun buildBubbleLogExport(snapshot: BubbleLogSnapshot): String {
+    private fun buildBubbleLogExport(
+        snapshot: BubbleLogSnapshot,
+        selectedFields: Set<NamingField>? = null
+    ): String {
+        val relevantFields = selectedFields?.toList() ?: snapshot.reviewableFields
+        val filteredExport = !selectedFields.isNullOrEmpty()
         return buildString {
             val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
             appendLine("MewName - Log do modo bolha")
             appendLine("Capturado em: ${formatter.format(Date(snapshot.capturedAtMillis))}")
             appendLine("Bitmap: ${snapshot.bitmapWidth}x${snapshot.bitmapHeight}")
             appendLine("Campos revisaveis: ${snapshot.reviewableFields.joinToString { it.name }}")
+            if (filteredExport) {
+                appendLine("Blocos exportados: ${relevantFields.joinToString { it.name }}")
+            }
             appendLine()
 
             appendPokemonSection(
                 title = "Dados detectados",
                 data = snapshot.parsedData,
                 bitmapWidth = snapshot.bitmapWidth,
-                bitmapHeight = snapshot.bitmapHeight
+                bitmapHeight = snapshot.bitmapHeight,
+                reviewableFields = relevantFields
             )
 
             snapshot.reviewedData?.let { reviewed ->
@@ -939,11 +969,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     title = "Dados revisados",
                     data = reviewed,
                     bitmapWidth = snapshot.bitmapWidth,
-                    bitmapHeight = snapshot.bitmapHeight
+                    bitmapHeight = snapshot.bitmapHeight,
+                    reviewableFields = relevantFields
                 )
             }
 
-            if (snapshot.generatedResults.isNotEmpty()) {
+            if (!filteredExport && snapshot.generatedResults.isNotEmpty()) {
                 appendLine()
                 appendLine("Sugestoes de nome")
                 snapshot.generatedResults.forEach { (configName, generatedName) ->
@@ -951,15 +982,17 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
 
-            appendLine()
-            appendLine("OCR bruto")
-            appendLine(snapshot.rawText.ifBlank { "-" })
-
-            if (snapshot.ocrLineLogs.isNotEmpty()) {
+            if (!filteredExport) {
                 appendLine()
-                appendLine("Linhas OCR")
-                snapshot.ocrLineLogs.forEach { line ->
-                    appendLine(line)
+                appendLine("OCR bruto")
+                appendLine(snapshot.rawText.ifBlank { "-" })
+
+                if (snapshot.ocrLineLogs.isNotEmpty()) {
+                    appendLine()
+                    appendLine("Linhas OCR")
+                    snapshot.ocrLineLogs.forEach { line ->
+                        appendLine(line)
+                    }
                 }
             }
         }
@@ -969,19 +1002,36 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         title: String,
         data: PokemonScreenData,
         bitmapWidth: Int,
-        bitmapHeight: Int
+        bitmapHeight: Int,
+        reviewableFields: List<NamingField>
     ) {
+        val includeAll = reviewableFields.isEmpty()
+        fun wants(vararg fields: NamingField): Boolean = includeAll || fields.any { it in reviewableFields }
+
         appendLine(title)
-        appendLine("Pokemon: ${data.pokemonName ?: "-"}")
-        appendLine("Familia doce: ${data.candyFamilyName ?: "-"}")
-        appendLine("CP: ${data.cp ?: "-"}")
-        appendLine("IV: ${data.attIv ?: "-"}/${data.defIv ?: "-"}/${data.staIv ?: "-"}")
-        appendLine("IV %: ${data.ivPercent ?: "-"}")
-        appendLine("Nivel: ${data.level ?: "-"}")
-        appendLine("Genero: ${data.gender.name}")
-        appendLine("Tipo: ${listOfNotNull(data.type1, data.type2).joinToString("/").ifBlank { "-" }}")
-        appendLine("PvP: ${data.pvpLeague?.name ?: "-"} | Rank: ${data.pvpRank ?: "-"}")
-        if (data.pvpLeagueRanks.isNotEmpty()) {
+        if (wants(NamingField.POKEMON_NAME, NamingField.CP, NamingField.LEVEL, NamingField.GENDER, NamingField.UNOWN_LETTER, NamingField.UNIQUE_FORM, NamingField.VIVILLON_PATTERN)) {
+            if (wants(NamingField.POKEMON_NAME)) {
+                appendLine("Pokemon: ${data.pokemonName ?: "-"}")
+                appendLine("Familia doce: ${data.candyFamilyName ?: "-"}")
+            }
+            if (wants(NamingField.UNOWN_LETTER)) appendLine("Unown: ${data.unownLetter ?: "-"}")
+            if (wants(NamingField.UNIQUE_FORM)) appendLine("Forma unica: ${data.uniqueForm ?: "-"}")
+            if (wants(NamingField.VIVILLON_PATTERN)) appendLine("Padrão Vivillon: ${data.vivillonPattern?.label ?: "-"}")
+            if (wants(NamingField.CP)) appendLine("CP: ${data.cp ?: "-"}")
+            if (wants(NamingField.LEVEL)) appendLine("Nivel: ${data.level ?: "-"}")
+            if (wants(NamingField.GENDER)) appendLine("Genero: ${formatGenderForLog(data.gender)}")
+            if (wants(NamingField.POKEMON_NAME)) {
+                appendLine("Tipo: ${listOfNotNull(data.type1, data.type2).joinToString("/").ifBlank { "-" }}")
+            }
+        }
+        if (wants(NamingField.IV_PERCENT, NamingField.IV_COMBINATION)) {
+            appendLine("IV: ${data.attIv ?: "-"}/${data.defIv ?: "-"}/${data.staIv ?: "-"}")
+            appendLine("IV %: ${data.ivPercent ?: "-"}")
+        }
+        if (wants(NamingField.PVP_LEAGUE, NamingField.PVP_RANK)) {
+            appendLine("PvP: ${data.pvpLeague?.name ?: "-"} | Rank: ${data.pvpRank ?: "-"}")
+        }
+        if (wants(NamingField.PVP_LEAGUE, NamingField.PVP_RANK) && data.pvpLeagueRanks.isNotEmpty()) {
             appendLine("PvP por liga:")
             data.pvpLeagueRanks.forEach { info ->
                 appendLine(
@@ -992,10 +1042,21 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
         }
-        appendLine("Tamanho: ${data.size.name}")
-        appendLine("Flags: ${buildFlagSummary(data)}")
-        appendIvSection(data.ivDebugInfo, bitmapWidth, bitmapHeight)
-        appendAuxiliaryDebugSection(data)
+        if (wants(NamingField.SIZE)) {
+            appendLine("Tamanho: ${data.size.name}")
+        }
+        if (wants(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE, NamingField.EVOLUTION_TYPE)) {
+            appendLine("Flags: ${buildFlagSummary(data)}")
+        }
+        if (wants(NamingField.IV_PERCENT, NamingField.IV_COMBINATION)) {
+            appendIvSection(data.ivDebugInfo, bitmapWidth, bitmapHeight)
+        }
+        appendAuxiliaryDebugSection(
+            data = data,
+            snapshotReviewFields = reviewableFields,
+            bitmapWidth = bitmapWidth,
+            bitmapHeight = bitmapHeight
+        )
     }
 
     private fun StringBuilder.appendIvSection(
@@ -1027,28 +1088,116 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         if (info.notes.isNotBlank()) appendLine("Obs IV: ${info.notes}")
     }
 
-    private fun StringBuilder.appendAuxiliaryDebugSection(data: PokemonScreenData) {
+    private fun StringBuilder.appendAuxiliaryDebugSection(
+        data: PokemonScreenData,
+        snapshotReviewFields: List<NamingField>,
+        bitmapWidth: Int,
+        bitmapHeight: Int
+    ) {
+        val includeAll = snapshotReviewFields.isEmpty()
+        fun wants(field: NamingField) = includeAll || field in snapshotReviewFields
+        data.levelDebugInfo?.let { info ->
+            if (wants(NamingField.LEVEL)) {
+                appendLine(
+                    "Level dbg: fonte=${info.source.ifBlank { "-" }} ocr=${info.ocrLevel ?: "-"} curva=${info.curveLevel ?: "-"} final=${info.finalLevel ?: "-"} pokemon=${info.pokemonName ?: "-"} cp=${info.cp ?: "-"} iv=${info.attackIv ?: "-"}/${info.defenseIv ?: "-"}/${info.staminaIv ?: "-"}"
+                )
+                if (info.notes.isNotBlank()) appendLine("Level obs: ${info.notes}")
+            }
+        }
+        if (wants(NamingField.SIZE)) {
+            appendLine("Size dbg: detectado=${data.size.name} normalQuandoNenhumMarcado=${data.size == PokemonSize.NORMAL}")
+        }
         data.candyDebugInfo?.let { info ->
-            appendLine("Candy dbg: linhas=${info.regionLineCount} familia=${info.resolvedFamilyName ?: "-"} raw=${info.extractedFamilyRaw ?: "-"}")
-            if (info.notes.isNotBlank()) appendLine("Candy obs: ${info.notes}")
+            if (wants(NamingField.POKEMON_NAME)) {
+                appendLine("Candy dbg: linhas=${info.regionLineCount} familia=${info.resolvedFamilyName ?: "-"} raw=${info.extractedFamilyRaw ?: "-"}")
+                if (info.notes.isNotBlank()) appendLine("Candy obs: ${info.notes}")
+            }
+        }
+        if (wants(NamingField.PVP_LEAGUE)) {
+            val summary = data.pvpLeagueRanks.joinToString(" | ") { info ->
+                "${info.league.name}:${info.pokemonName ?: "-"}#${info.rank ?: "-"}"
+            }.ifBlank { "-" }
+            appendLine("Liga PvP dbg: atual=${data.pvpLeague?.name ?: "-"} resumo=$summary")
+        }
+        if (wants(NamingField.PVP_RANK) && data.familyPvpRanks.isNotEmpty()) {
+            val bestSpecies = data.familyPvpRanks
+                .groupBy { it.pokemonName }
+                .values
+                .mapNotNull { ranks ->
+                    ranks.filter { it.eligible && it.rank != null }
+                        .minByOrNull { it.rank ?: Int.MAX_VALUE }
+                        ?: ranks.firstOrNull()
+                }
+            if (bestSpecies.isNotEmpty()) {
+                appendLine(
+                    "Ranking PvP dbg: " + bestSpecies.joinToString(" | ") { info ->
+                        "${info.pokemonName}:${info.league.name}#${info.rank ?: "-"}"
+                    }
+                )
+            }
         }
         data.backgroundDebugInfo?.let { info ->
-            appendLine(
-                "Background dbg: texto=${info.textMatch} topo=${info.topRegionMatch} ref=${info.referenceDecision ?: "-"} nome=${info.referenceName ?: "-"} distancia=${info.referenceDistance?.formatDebugValue() ?: "-"} fallbackCor=${info.colorFallbackMatch}"
-            )
-            if (info.notes.isNotBlank()) appendLine("Background obs: ${info.notes}")
+            if (wants(NamingField.SPECIAL_BACKGROUND) || data.hasSpecialBackground) {
+                appendLine(
+                    "Background dbg: texto=${info.textMatch} topo=${info.topRegionMatch} ref=${info.referenceDecision ?: "-"} nome=${info.referenceName ?: "-"} distancia=${info.referenceDistance?.formatDebugValue() ?: "-"} specialNome=${info.specialReferenceName ?: "-"} specialDist=${info.specialReferenceDistance?.formatDebugValue() ?: "-"} fallbackCor=${info.colorFallbackMatch}"
+                )
+                if (info.notes.isNotBlank()) appendLine("Background obs: ${info.notes}")
+            }
+        }
+        data.uniqueFormDebugInfo?.let { info ->
+            if (wants(NamingField.UNIQUE_FORM) || !data.uniqueForm.isNullOrBlank()) {
+                appendLine("Forma unica dbg: categoria=${info.category ?: "-"} melhor=${info.bestLabel ?: "-"} arquivo=${info.bestReferenceName ?: "-"} distancia=${info.bestDistance?.formatDebugValue() ?: "-"} aceita=${info.accepted}")
+                if (info.notes.isNotBlank()) appendLine("Forma unica obs: ${info.notes}")
+            }
+        }
+        data.vivillonDebugInfo?.let { info ->
+            if (wants(NamingField.VIVILLON_PATTERN)) {
+                appendLine(
+                    "Vivillon dbg: detectado=${data.vivillonPattern?.label ?: "-"} melhor=${info.bestReferenceName ?: "-"} dist=${info.bestDistance?.formatDebugValue() ?: "-"} segunda=${info.secondReferenceName ?: "-"} dist2=${info.secondDistance?.formatDebugValue() ?: "-"} aceita=${info.accepted} refsDir=unique_pokemon_refs/vivillon"
+                )
+                debugRectSummary("Vivillon", info.bestCandidateRect, bitmapWidth, bitmapHeight)?.let(::appendLine)
+                info.candidateRects.take(4).forEachIndexed { index, rect ->
+                    debugRectSummary("Vivillon cand${index + 1}", rect, bitmapWidth, bitmapHeight)?.let(::appendLine)
+                }
+                if (info.notes.isNotBlank()) appendLine("Vivillon obs: ${info.notes}")
+            }
         }
         data.adventureEffectDebugInfo?.let { info ->
-            appendLine(
-                "Adventure dbg: pokemon=${info.matchedPokemon ?: "-"} keyword=${info.matchedKeyword ?: "-"} golpe=${info.matchedMove ?: "-"} efeito=${info.matchedEffectName ?: "-"}"
-            )
-            if (info.notes.isNotBlank()) appendLine("Adventure obs: ${info.notes}")
+            if (wants(NamingField.ADVENTURE_EFFECT) || data.hasAdventureEffect) {
+                appendLine(
+                    "Adventure dbg: pokemon=${info.matchedPokemon ?: "-"} keyword=${info.matchedKeyword ?: "-"} golpe=${info.matchedMove ?: "-"} efeito=${info.matchedEffectName ?: "-"}"
+                )
+                if (info.notes.isNotBlank()) appendLine("Adventure obs: ${info.notes}")
+            }
         }
         data.legacyDebugInfo?.let { info ->
-            appendLine(
-                "Legacy dbg: pokemon=${info.matchedAgainstPokemon ?: "-"} keyword=${info.matchedKeyword ?: "-"} golpe=${info.matchedLegacyMove ?: "-"}"
-            )
-            if (info.notes.isNotBlank()) appendLine("Legacy obs: ${info.notes}")
+            if (wants(NamingField.LEGACY_MOVE) || data.hasLegacyMove) {
+                appendLine(
+                    "Legacy dbg: pokemon=${info.matchedAgainstPokemon ?: "-"} keyword=${info.matchedKeyword ?: "-"} golpe=${info.matchedLegacyMove ?: "-"}"
+                )
+                if (info.notes.isNotBlank()) appendLine("Legacy obs: ${info.notes}")
+            }
+        }
+        data.evolutionIconDebugInfo?.let { info ->
+            if (wants(NamingField.EVOLUTION_TYPE) || info.detectedFlags.isNotEmpty()) {
+                appendLine(
+                    "Icons dbg: mega=${info.megaKeyword ?: "-"} giga=${info.gigantamaxKeyword ?: "-"} dyna=${info.dynamaxKeyword ?: "-"} flags=${info.detectedFlags.joinToString(", ").ifBlank { "-" }}"
+                )
+                val hasIconSignal = info.megaKeyword != null || info.gigantamaxKeyword != null || info.dynamaxKeyword != null || info.detectedFlags.isNotEmpty()
+                if (hasIconSignal && info.titleLines.isNotEmpty()) appendLine("Icons topo: ${info.titleLines.joinToString(" | ")}")
+                if (hasIconSignal && info.badgeLines.isNotEmpty()) appendLine("Icons badge: ${info.badgeLines.joinToString(" | ")}")
+                if (hasIconSignal && info.centerLines.isNotEmpty()) appendLine("Icons centro: ${info.centerLines.joinToString(" | ")}")
+                if (hasIconSignal && info.actionLines.isNotEmpty()) appendLine("Icons acao: ${info.actionLines.joinToString(" | ")}")
+                if (info.notes.isNotBlank()) appendLine("Icons obs: ${info.notes}")
+            }
+        }
+    }
+
+    private fun formatGenderForLog(gender: Gender): String {
+        return when (gender) {
+            Gender.MALE -> "♂"
+            Gender.FEMALE -> "♀"
+            Gender.GENDERLESS, Gender.UNKNOWN -> "-"
         }
     }
 

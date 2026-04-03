@@ -2,11 +2,17 @@ package com.mewname.app.model
 
 data class PokemonScreenData(
     val pokemonName: String? = null,
+    val unownLetter: String? = null,
+    val uniqueForm: String? = null,
     val candyFamilyName: String? = null,
     val candyDebugInfo: CandyDebugInfo? = null,
+    val levelDebugInfo: LevelDebugInfo? = null,
     val legacyDebugInfo: LegacyDebugInfo? = null,
     val adventureEffectDebugInfo: AdventureEffectDebugInfo? = null,
     val backgroundDebugInfo: BackgroundDebugInfo? = null,
+    val uniqueFormDebugInfo: UniqueFormDebugInfo? = null,
+    val evolutionIconDebugInfo: EvolutionIconDebugInfo? = null,
+    val vivillonDebugInfo: VivillonDebugInfo? = null,
     val vivillonPattern: VivillonPattern? = null,
     val pokedexNumber: Int? = null,
     val cp: Int? = null,
@@ -29,6 +35,7 @@ data class PokemonScreenData(
     val pvpLeague: PvpLeague? = null,
     val pvpRank: Int? = null,
     val pvpLeagueRanks: List<PvpLeagueRankInfo> = emptyList(),
+    val familyPvpRanks: List<PvpSpeciesRankInfo> = emptyList(),
     val hasLegacyMove: Boolean = false,
     val evolutionFlags: Set<EvolutionFlag> = emptySet()
 )
@@ -45,12 +52,37 @@ data class PvpLeagueRankInfo(
     val description: String = ""
 )
 
+data class PvpSpeciesRankInfo(
+    val pokemonName: String,
+    val league: PvpLeague,
+    val eligible: Boolean = false,
+    val rank: Int? = null,
+    val bestCp: Int? = null,
+    val bestLevel: Double? = null,
+    val bestStatProduct: Double? = null,
+    val stadiumUrl: String? = null,
+    val description: String = ""
+)
+
 data class CandyDebugInfo(
     val regionLineCount: Int = 0,
     val regionLines: List<String> = emptyList(),
     val matchedLine: String? = null,
     val extractedFamilyRaw: String? = null,
     val resolvedFamilyName: String? = null,
+    val notes: String = ""
+)
+
+data class LevelDebugInfo(
+    val source: String = "",
+    val ocrLevel: Double? = null,
+    val curveLevel: Double? = null,
+    val finalLevel: Double? = null,
+    val pokemonName: String? = null,
+    val cp: Int? = null,
+    val attackIv: Int? = null,
+    val defenseIv: Int? = null,
+    val staminaIv: Int? = null,
     val notes: String = ""
 )
 
@@ -109,9 +141,44 @@ data class BackgroundDebugInfo(
     val referenceDecision: Boolean? = null,
     val referenceName: String? = null,
     val referenceDistance: Double? = null,
+    val specialReferenceName: String? = null,
+    val specialReferenceDistance: Double? = null,
     val colorFallbackMatch: Boolean = false,
     val topRegionLines: List<String> = emptyList(),
     val bottomRegionLines: List<String> = emptyList(),
+    val notes: String = ""
+)
+
+data class UniqueFormDebugInfo(
+    val category: String? = null,
+    val bestReferenceName: String? = null,
+    val bestLabel: String? = null,
+    val bestDistance: Double? = null,
+    val accepted: Boolean = false,
+    val notes: String = ""
+)
+
+data class VivillonDebugInfo(
+    val detectedPattern: VivillonPattern? = null,
+    val bestReferenceName: String? = null,
+    val bestDistance: Double? = null,
+    val secondReferenceName: String? = null,
+    val secondDistance: Double? = null,
+    val accepted: Boolean = false,
+    val bestCandidateRect: NormalizedDebugRect? = null,
+    val candidateRects: List<NormalizedDebugRect> = emptyList(),
+    val notes: String = ""
+)
+
+data class EvolutionIconDebugInfo(
+    val badgeLines: List<String> = emptyList(),
+    val titleLines: List<String> = emptyList(),
+    val centerLines: List<String> = emptyList(),
+    val actionLines: List<String> = emptyList(),
+    val megaKeyword: String? = null,
+    val gigantamaxKeyword: String? = null,
+    val dynamaxKeyword: String? = null,
+    val detectedFlags: List<String> = emptyList(),
     val notes: String = ""
 )
 
@@ -124,7 +191,7 @@ enum class PvpLeague {
 }
 
 enum class EvolutionFlag {
-    BABY, STAGE1, STAGE2, MEGA, GIGANTAMAX, DYNAMAX
+    BABY, STAGE1, STAGE2, MEGA, GIGANTAMAX, DYNAMAX, TERASTRAL
 }
 
 enum class PokemonSize {

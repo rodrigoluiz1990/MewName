@@ -75,6 +75,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -104,6 +106,7 @@ import com.mewname.app.domain.AdventureEffectCatalogEntry
 import com.mewname.app.domain.GameCatalogRepository
 import com.mewname.app.domain.LegacyMoveCatalogEntry
 import com.mewname.app.domain.NameGenerator
+import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.*
 import java.util.Collections
 
@@ -444,7 +447,7 @@ fun HomeScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "Lendo os dados detectados para gerar o nome sugerido.",
+                            uiState.processingStatusMessage ?: "Lendo os dados detectados para gerar o nome sugerido.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1234,17 +1237,75 @@ fun PresetListScreen(
 @Composable
 fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (NamingConfig) -> Unit) {
     var draftConfig by remember(config.id, config) { mutableStateOf(config) }
-    var showSymbolPickerFor by remember { mutableStateOf<String?>(null) }
+    var showSymbolPickerFor by remember { mutableStateOf<FieldSymbolOption?>(null) }
     var selectedField by remember { mutableStateOf<NamingField?>(null) }
     var showFixedTextDialog by remember { mutableStateOf(false) }
     var selectedIndexForMove by remember { mutableStateOf<Int?>(null) }
     var showPatternHelp by remember { mutableStateOf(false) }
 
     val generator = remember { NameGenerator() }
+    val availableVariableFields = remember {
+        listOf(
+            NamingField.POKEMON_NAME,
+            NamingField.UNIQUE_FORM,
+            NamingField.IV_PERCENT,
+            NamingField.IV_COMBINATION,
+            NamingField.LEVEL,
+            NamingField.CP,
+            NamingField.GENDER,
+            NamingField.SIZE,
+            NamingField.PVP_LEAGUE,
+            NamingField.PVP_RANK,
+            NamingField.TYPE,
+            NamingField.SPECIAL_BACKGROUND,
+            NamingField.ADVENTURE_EFFECT,
+            NamingField.LEGACY_MOVE,
+            NamingField.EVOLUTION_TYPE,
+            NamingField.SHADOW,
+            NamingField.PURIFIED,
+            NamingField.FAVORITE,
+            NamingField.LUCKY,
+            NamingField.POKEDEX_NUMBER
+        )
+    }
+    val variableFieldGroups = remember {
+        listOf(
+            "Principal" to listOf(
+                NamingField.POKEMON_NAME,
+                NamingField.GENDER,
+                NamingField.LEVEL
+            ),
+            "Status" to listOf(
+                NamingField.IV_PERCENT,
+                NamingField.IV_COMBINATION,
+                NamingField.CP
+            ),
+            "PvP" to listOf(
+                NamingField.PVP_LEAGUE,
+                NamingField.PVP_RANK
+            ),
+            "Coleção" to listOf(
+                NamingField.POKEDEX_NUMBER,
+                NamingField.TYPE,
+                NamingField.SIZE,
+                NamingField.EVOLUTION_TYPE,
+                NamingField.FAVORITE,
+                NamingField.LUCKY,
+                NamingField.SHADOW,
+                NamingField.PURIFIED
+            ),
+            "Especial" to listOf(
+                NamingField.SPECIAL_BACKGROUND,
+                NamingField.ADVENTURE_EFFECT,
+                NamingField.LEGACY_MOVE,
+                NamingField.UNIQUE_FORM
+            )
+        )
+    }
     val exampleData = remember {
         PokemonScreenData(
             pokemonName = "Beedrill",
-            vivillonPattern = VivillonPattern.MARINE,
+            uniqueForm = "Heart",
             pokedexNumber = 15,
             cp = 2806,
             ivPercent = 97,
@@ -1303,6 +1364,13 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            OutlinedTextField(
+                value = draftConfig.name,
+                onValueChange = { draftConfig = draftConfig.copy(name = it) },
+                label = { Text("Nome do formato") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Text(
                 "Preview do Apelido",
                 style = sectionTitleStyle,
@@ -1325,13 +1393,6 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 }
             }
 
-            OutlinedTextField(
-                value = draftConfig.name,
-                onValueChange = { draftConfig = draftConfig.copy(name = it) },
-                label = { Text("Nome do Formato") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1350,70 +1411,79 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .heightIn(min = 48.dp)
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                draftConfig.effectiveBlocks().forEachIndexed { index, block ->
-                    val isSelected = selectedIndexForMove == index
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary)
-                            .border(if (isSelected) 2.dp else 0.dp, Color.White, RoundedCornerShape(8.dp))
-                            .clickable {
-                                if (selectedIndexForMove == null) {
-                                    selectedIndexForMove = index
-                                } else {
-                                    val selected = selectedIndexForMove!!
-                                    val reordered = draftConfig.effectiveBlocks().toMutableList()
-                                    Collections.swap(reordered, selected, index)
-                                    draftConfig = draftConfig.copy(blocks = reordered)
-                                    selectedIndexForMove = null
+                val effectiveBlocks = draftConfig.effectiveBlocks()
+                if (effectiveBlocks.isEmpty()) {
+                    Text(
+                        "Nenhum campo adicionado ainda",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                } else {
+                    effectiveBlocks.forEachIndexed { index, block ->
+                        val isSelected = selectedIndexForMove == index
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary)
+                                .border(if (isSelected) 2.dp else 0.dp, Color.White, RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (selectedIndexForMove == null) {
+                                        selectedIndexForMove = index
+                                    } else {
+                                        val selected = selectedIndexForMove!!
+                                        val reordered = effectiveBlocks.toMutableList()
+                                        Collections.swap(reordered, selected, index)
+                                        draftConfig = draftConfig.copy(blocks = reordered)
+                                        selectedIndexForMove = null
+                                    }
                                 }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    block.label(),
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Icon(
+                                    Icons.Default.Clear,
+                                    null,
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .padding(start = 4.dp)
+                                        .clickable {
+                                            val updated = effectiveBlocks.toMutableList()
+                                            updated.removeAt(index)
+                                            draftConfig = draftConfig.copy(blocks = updated)
+                                        },
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary
+                                )
                             }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                block.label(),
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Icon(
-                                Icons.Default.Clear,
-                                null,
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .padding(start = 4.dp)
-                                    .clickable {
-                                        val updated = draftConfig.effectiveBlocks().toMutableList()
-                                        updated.removeAt(index)
-                                        draftConfig = draftConfig.copy(blocks = updated)
-                                    },
-                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary
-                            )
                         }
                     }
                 }
             }
 
-            Text("Adicionar Campo Variável", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                NamingField.entries.forEach { field ->
-                    AssistChip(
-                        onClick = { selectedField = field },
-                        label = { Text(field.label) },
-                        leadingIcon = { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) }
-                    )
-                }
+            Text("Campos variáveis", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
+            variableFieldGroups.forEach { (groupTitle, groupFields) ->
+                VariableFieldGroupCard(
+                    title = groupTitle,
+                    fields = groupFields.filter { it in availableVariableFields },
+                    onFieldClick = { selectedField = it },
+                    extraActionLabel = if (groupTitle == "Especial") "Texto Livre" else null,
+                    onExtraActionClick = if (groupTitle == "Especial") {
+                        { showFixedTextDialog = true }
+                    } else {
+                        null
+                    }
+                )
             }
-
-            AssistChip(
-                onClick = { showFixedTextDialog = true },
-                label = { Text("Texto Livre") },
-                leadingIcon = { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) }
-            )
 
             Text("Limite de Caracteres: ${draftConfig.maxLength}", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
             Slider(
@@ -1445,8 +1515,9 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
         FieldConfigDialog(
             field = field,
             symbolOptions = symbolOptionsForField(field, draftConfig),
+            currentSymbols = draftConfig.symbols,
             onDismiss = { selectedField = null },
-            onPickSymbol = { option -> showSymbolPickerFor = option.key },
+            onPickSymbol = { option -> showSymbolPickerFor = option },
             onAdd = {
                 draftConfig = draftConfig.copy(
                     blocks = draftConfig.effectiveBlocks() + NamingBlock(
@@ -1459,13 +1530,14 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
         )
     }
 
-    showSymbolPickerFor?.let { key ->
+    showSymbolPickerFor?.let { option ->
         SymbolPickerDialog(
-            title = "Escolher símbolo",
+            title = option.label,
+            initialValue = option.value,
             onDismiss = { showSymbolPickerFor = null },
             onSymbolSelected = { newSymbol ->
                 val updatedSymbols = draftConfig.symbols.toMutableMap()
-                updatedSymbols[key] = newSymbol
+                updatedSymbols[option.key] = newSymbol
                 draftConfig = draftConfig.copy(symbols = updatedSymbols)
                 showSymbolPickerFor = null
             }
@@ -1497,6 +1569,7 @@ private fun QuestionCircleIcon() {
 private fun FieldConfigDialog(
     field: NamingField,
     symbolOptions: List<FieldSymbolOption>,
+    currentSymbols: Map<String, String>,
     onDismiss: () -> Unit,
     onPickSymbol: (FieldSymbolOption) -> Unit,
     onAdd: () -> Unit
@@ -1507,7 +1580,12 @@ private fun FieldConfigDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(fieldDescription(field), color = Color(0xFF555555))
-                if (symbolOptions.isNotEmpty()) {
+                if (field == NamingField.UNIQUE_FORM) {
+                    UniqueFormFieldConfigContent(
+                        onPickSymbol = onPickSymbol,
+                        currentSymbols = currentSymbols
+                    )
+                } else if (symbolOptions.isNotEmpty()) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier
@@ -1532,16 +1610,110 @@ private fun FieldConfigDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onAdd) {
-                Text("ADICIONAR")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Fechar")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(onClick = onAdd) {
+                    Text("ADICIONAR")
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                TextButton(onClick = onDismiss) {
+                    Text("Cancelar")
+                }
             }
         }
     )
+}
+
+@Composable
+private fun UniqueFormFieldConfigContent(
+    onPickSymbol: (FieldSymbolOption) -> Unit,
+    currentSymbols: Map<String, String>
+) {
+    val specs = remember {
+        buildList {
+            addAll(UniquePokemonCatalog.allSpecs())
+            add(
+                com.mewname.app.domain.UniquePokemonSpec(
+                    assetFolder = "unown",
+                    pokemonNames = setOf("UNOWN"),
+                    options = buildList {
+                        ('A'..'Z').forEach { letter ->
+                            add(com.mewname.app.domain.UniquePokemonFormOption(letter.toString(), letter.toString()))
+                        }
+                        add(com.mewname.app.domain.UniquePokemonFormOption("!", "!"))
+                        add(com.mewname.app.domain.UniquePokemonFormOption("?", "?"))
+                    }
+                )
+            )
+        }
+    }
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    val currentSpec = specs.getOrNull(selectedTabIndex) ?: return
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ScrollableTabRow(selectedTabIndex = selectedTabIndex) {
+            specs.forEachIndexed { index, spec ->
+                val tabTitle = spec.pokemonNames.first().lowercase().replaceFirstChar { it.titlecase() }
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { Text(tabTitle) }
+                )
+            }
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 320.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            currentSpec.options.forEachIndexed { index, option ->
+                val symbolKey = if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
+                    "UNOWN_${option.code}"
+                } else {
+                    UniquePokemonCatalog.symbolKeyForAsset(currentSpec.assetFolder, option.code)
+                }
+                val pokemonLabel = currentSpec.pokemonNames.first().lowercase().replaceFirstChar { it.titlecase() }
+                val displayLabel = if (currentSpec.assetFolder.equals("spinda", ignoreCase = true)) {
+                    "Spinda #${index + 1}: ${currentSymbols[symbolKey] ?: option.code}"
+                } else if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
+                    "Unown ${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
+                } else {
+                    "${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(displayLabel)
+                    TextButton(
+                        onClick = {
+                            onPickSymbol(
+                                FieldSymbolOption(
+                                    key = symbolKey,
+                                    label = if (currentSpec.assetFolder.equals("spinda", ignoreCase = true)) {
+                                        "Spinda #${index + 1}"
+                                    } else if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
+                                        "Unown ${option.label}"
+                                    } else {
+                                        "$pokemonLabel ${option.label}"
+                                    },
+                                    value = currentSymbols[symbolKey] ?: option.code
+                                )
+                            )
+                        }
+                    ) {
+                        Text("EDITAR")
+                    }
+                }
+            }
+        }
+    }
 }
 
 private data class FieldSymbolOption(
@@ -1550,28 +1722,112 @@ private data class FieldSymbolOption(
     val value: String
 )
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun VariableFieldGroupCard(
+    title: String,
+    fields: List<NamingField>,
+    onFieldClick: (NamingField) -> Unit,
+    extraActionLabel: String? = null,
+    onExtraActionClick: (() -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            val rows = fields.chunked(3)
+            rows.forEachIndexed { rowIndex, rowFields ->
+                val shouldAppendExtraAction =
+                    rowIndex == rows.lastIndex &&
+                        rowFields.size < 3 &&
+                        !extraActionLabel.isNullOrBlank() &&
+                        onExtraActionClick != null
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rowFields.forEach { field ->
+                        VariableActionCard(
+                            label = field.label,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onFieldClick(field) }
+                        )
+                    }
+                    if (shouldAppendExtraAction) {
+                        VariableActionCard(
+                            label = extraActionLabel!!,
+                            modifier = Modifier.weight(1f),
+                            onClick = onExtraActionClick!!
+                        )
+                    }
+                    repeat(3 - rowFields.size - if (shouldAppendExtraAction) 1 else 0) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VariableActionCard(
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 private fun fieldDescription(field: NamingField): String {
     return when (field) {
         NamingField.IV_PERCENT -> "Exibir o IV médio do Pokémon no apelido."
         NamingField.POKEMON_NAME -> "Adicionar o nome do Pokémon reconhecido pelo app."
-        NamingField.VIVILLON_PATTERN -> "Detectar o padrão de Vivillon pelo ícone do botão Evoluir em Scatterbug, Spewpa e Vivillon."
+        NamingField.UNOWN_LETTER -> "Campo legado do Unown. A tela de definição usa agora Forma única para variantes especiais."
+        NamingField.UNIQUE_FORM -> "Mostrar o código curto da forma detectada para Pokémon com variantes especiais, como Furfrou, Genesect, Rotom, Spinda e Unown."
+        NamingField.VIVILLON_PATTERN -> "Campo legado do Vivillon. Essa opção não aparece mais na tela de definição."
         NamingField.LEVEL -> "Mostrar o nível atual do Pokémon."
-        NamingField.CP -> "Mostrar o CP atual."
-        NamingField.GENDER -> "Exibir M ou F conforme o gênero detectado."
-        NamingField.SIZE -> "Mostrar XXS, XS, Normal, XL ou XXL usando um símbolo para cada tamanho."
+        NamingField.CP -> "Mostrar os pontos de combate atuais do Pokémon."
+        NamingField.GENDER -> "Exibir um símbolo configurável para macho ou fêmea conforme o gênero detectado."
+        NamingField.SIZE -> "Mostrar XXS, XS, XL ou XXL usando um símbolo para cada tamanho."
         NamingField.SPECIAL_BACKGROUND -> "Exibir o símbolo se houver fundo especial."
         NamingField.PVP_LEAGUE -> "Mostrar Copinha, Great League, Ultra League ou Master League conforme a liga estimada."
         NamingField.PVP_RANK -> "Mostrar o ranking PvP calculado."
         NamingField.LEGACY_MOVE -> "Exibir o símbolo se o Pokémon tiver movimento legado."
-        NamingField.TYPE -> "Adicionar o tipo principal do Pokémon."
+        NamingField.TYPE -> "Adicionar o tipo principal do Pokémon usando uma sigla configurável para cada tipo."
         NamingField.ADVENTURE_EFFECT -> "Exibir o marcador de efeito aventura."
-        NamingField.EVOLUTION_TYPE -> "Mostrar Baby, Estágio 1, Estágio 2, Mega, Gigantamax e Dynamax, cada um com seu símbolo."
+        NamingField.EVOLUTION_TYPE -> "Mostrar Baby, Estágio 1, Estágio 2, Mega, Dynamax e Gigantamax, cada um com seu símbolo."
         NamingField.SHADOW -> "Exibir o símbolo se o Pokémon for sombrio."
         NamingField.PURIFIED -> "Exibir o símbolo se o Pokémon for purificado."
         NamingField.FAVORITE -> "Exibir o símbolo de favorito."
         NamingField.LUCKY -> "Exibir o símbolo de sortudo."
         NamingField.POKEDEX_NUMBER -> "Mostrar o número da Pokédex."
-        NamingField.IV_COMBINATION -> "Mostrar os IVs em formato A/D/S."
+        NamingField.IV_COMBINATION -> "Mostrar os IVs em formato Ataque/Defesa/Stamina."
     }
 }
 
@@ -1589,6 +1845,26 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
         NamingField.PURIFIED -> listOf(option("PURIFIED", "Purificado"))
         NamingField.SPECIAL_BACKGROUND -> listOf(option("SPECIAL_BACKGROUND", "Fundo especial"))
         NamingField.ADVENTURE_EFFECT -> listOf(option("ADVENTURE_EFFECT", "Efeito aventura"))
+        NamingField.TYPE -> listOf(
+            option("TYPE_NORMAL", "Normal"),
+            option("TYPE_FIRE", "Fogo"),
+            option("TYPE_WATER", "Água"),
+            option("TYPE_GRASS", "Planta"),
+            option("TYPE_ELECTRIC", "Elétrico"),
+            option("TYPE_ICE", "Gelo"),
+            option("TYPE_FIGHTING", "Lutador"),
+            option("TYPE_POISON", "Venenoso"),
+            option("TYPE_GROUND", "Terrestre"),
+            option("TYPE_FLYING", "Voador"),
+            option("TYPE_PSYCHIC", "Psíquico"),
+            option("TYPE_BUG", "Inseto"),
+            option("TYPE_ROCK", "Pedra"),
+            option("TYPE_GHOST", "Fantasma"),
+            option("TYPE_DRAGON", "Dragão"),
+            option("TYPE_DARK", "Sombrio"),
+            option("TYPE_STEEL", "Aço"),
+            option("TYPE_FAIRY", "Fada")
+        )
         NamingField.SIZE -> listOf(
             option("XXL", "XXL"),
             option("XL", "XL"),
@@ -1601,35 +1877,38 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
             option("ULTRA_LEAGUE", "Ultra League"),
             option("MASTER_LEAGUE", "Master League")
         )
-        NamingField.LEGACY_MOVE -> listOf(option("LEGACY", "Antigo"))
+        NamingField.LEGACY_MOVE -> listOf(option("LEGACY", "Ataque legado"))
         NamingField.EVOLUTION_TYPE -> listOf(
             option("BABY", "Baby"),
             option("STAGE1", "Estágio 1"),
             option("STAGE2", "Estágio 2"),
             option("MEGA", "Mega"),
-            option("GIGANTAMAX", "Gigantamax"),
-            option("DYNAMAX", "Dynamax")
+            option("DYNAMAX", "Dynamax"),
+            option("GIGANTAMAX", "Gigantamax")
         )
-        NamingField.VIVILLON_PATTERN -> VivillonPattern.entries.map { pattern ->
-            option(pattern.symbolKey, pattern.label)
-        }
+        NamingField.VIVILLON_PATTERN -> emptyList()
         else -> emptyList()
     }
 }
 
 @Composable
-fun SymbolPickerDialog(title: String, onDismiss: () -> Unit, onSymbolSelected: (String) -> Unit) {
+fun SymbolPickerDialog(
+    title: String,
+    initialValue: String,
+    onDismiss: () -> Unit,
+    onSymbolSelected: (String) -> Unit
+) {
     val commonSymbols = listOf(
         "\u2642", "\u2640", "M", "F", "*", "+", "SH", "PU", "FE", "AV", "XXL", "XXS",
         "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY"
     )
+    var customText by remember(title, initialValue) { mutableStateOf(initialValue) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                var customText by remember { mutableStateOf("") }
                 OutlinedTextField(
                     value = customText,
                     onValueChange = { customText = it },
@@ -1640,12 +1919,6 @@ fun SymbolPickerDialog(title: String, onDismiss: () -> Unit, onSymbolSelected: (
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Aplicar")
-                }
-                TextButton(
-                    onClick = { onSymbolSelected("") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Salvar em branco")
                 }
                 HorizontalDivider()
                 LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(200.dp)) {
@@ -1710,19 +1983,24 @@ private fun FixedTextDialog(
             )
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    if (customText.text.isNotBlank()) {
-                        onAdd(customText.text)
-                    }
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Adicionar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Button(
+                    onClick = {
+                        if (customText.text.isNotBlank()) {
+                            onAdd(customText.text)
+                        }
+                    }
+                ) {
+                    Text("Adicionar")
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                TextButton(onClick = onDismiss) {
+                    Text("Cancelar")
+                }
             }
         }
     )

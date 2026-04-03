@@ -12,7 +12,11 @@ class BackgroundReferenceMatcher {
         val isSpecial: Boolean?,
         val bestReferenceName: String?,
         val bestDistance: Double?,
-        val referenceCount: Int
+        val referenceCount: Int,
+        val bestNormalReferenceName: String? = null,
+        val bestNormalDistance: Double? = null,
+        val bestSpecialReferenceName: String? = null,
+        val bestSpecialDistance: Double? = null
     )
 
     private data class ReferenceSignature(
@@ -20,22 +24,20 @@ class BackgroundReferenceMatcher {
         val signature: IntArray
     )
 
-    private data class MatchResult(
-        val isNormal: Boolean,
-        val distance: Double?
-    )
-
     @Volatile
     private var cachedNormalReferences: List<ReferenceSignature>? = null
+    @Volatile
+    private var cachedSpecialReferences: List<ReferenceSignature>? = null
 
     fun isSpecialBackground(context: Context, bitmap: Bitmap): Boolean? {
         return debugSpecialBackground(context, bitmap).isSpecial
     }
 
     fun debugSpecialBackground(context: Context, bitmap: Bitmap): DebugResult {
-        val references = loadNormalReferences(context)
+        val normalReferences = loadNormalReferences(context)
+        val specialReferences = loadSpecialReferences(context)
 
-        if (references.isEmpty()) {
+        if (normalReferences.isEmpty() && specialReferences.isEmpty()) {
             return DebugResult(
                 isSpecial = null,
                 bestReferenceName = null,
@@ -47,24 +49,47 @@ class BackgroundReferenceMatcher {
         val candidateSignatures = cropBackgroundCandidates(bitmap).map { crop ->
             createSignature(crop)
         }
-        val ranked = references.map { reference ->
+        val rankedNormal = normalReferences.map { reference ->
             reference to (candidateSignatures.minOfOrNull { signature ->
                 signatureDistance(signature, reference.signature)
             } ?: Double.MAX_VALUE)
         }.sortedBy { it.second }
-        val bestDistance = ranked.firstOrNull()?.second
-        val secondDistance = ranked.getOrNull(1)?.second
-        val clearlyNormal = bestDistance != null && (
-            bestDistance <= NORMAL_MATCH_THRESHOLD ||
-                (secondDistance != null && bestDistance <= secondDistance * DISTINCT_FACTOR)
-            )
+        val rankedSpecial = specialReferences.map { reference ->
+            reference to (candidateSignatures.minOfOrNull { signature ->
+                signatureDistance(signature, reference.signature)
+            } ?: Double.MAX_VALUE)
+        }.sortedBy { it.second }
+        val bestNormal = rankedNormal.firstOrNull()
+        val bestSpecial = rankedSpecial.firstOrNull()
+        val bestNormalDistance = bestNormal?.second
+        val bestSpecialDistance = bestSpecial?.second
+        val clearlyNormal = bestNormalDistance != null &&
+            bestNormalDistance <= NORMAL_MATCH_THRESHOLD &&
+            (bestSpecialDistance == null || bestNormalDistance <= bestSpecialDistance + 0.18)
+        val clearlySpecial = bestSpecialDistance != null &&
+            bestSpecialDistance <= SPECIAL_MATCH_THRESHOLD &&
+            (bestNormalDistance == null || bestSpecialDistance + 0.18 < bestNormalDistance)
 
-        val bestReference = ranked.firstOrNull()?.first?.name
+        val isSpecial = when {
+            clearlySpecial -> true
+            clearlyNormal -> false
+            bestSpecialDistance != null && bestNormalDistance != null -> bestSpecialDistance + 0.10 < bestNormalDistance
+            bestSpecialDistance != null -> bestSpecialDistance <= SPECIAL_MATCH_THRESHOLD
+            bestNormalDistance != null -> !(bestNormalDistance <= NORMAL_MATCH_THRESHOLD)
+            else -> null
+        }
+
+        val bestReference = if (isSpecial == true) bestSpecial?.first?.name else bestNormal?.first?.name
+        val bestDistance = if (isSpecial == true) bestSpecialDistance else bestNormalDistance
         return DebugResult(
-            isSpecial = !clearlyNormal,
+            isSpecial = isSpecial,
             bestReferenceName = bestReference,
             bestDistance = bestDistance,
-            referenceCount = references.size
+            referenceCount = normalReferences.size + specialReferences.size,
+            bestNormalReferenceName = bestNormal?.first?.name,
+            bestNormalDistance = bestNormalDistance,
+            bestSpecialReferenceName = bestSpecial?.first?.name,
+            bestSpecialDistance = bestSpecialDistance
         )
     }
 
@@ -94,6 +119,36 @@ class BackgroundReferenceMatcher {
             }.getOrElse { emptyList() }
 
             cachedNormalReferences = loaded
+            return loaded
+        }
+    }
+
+    private fun loadSpecialReferences(context: Context): List<ReferenceSignature> {
+        cachedSpecialReferences?.let { return it }
+        synchronized(this) {
+            cachedSpecialReferences?.let { return it }
+
+            val loaded = runCatching {
+                context.assets.list(SPECIAL_REFS_PATH)
+                    ?.filter { fileName ->
+                        fileName.endsWith(".png", ignoreCase = true) ||
+                            fileName.endsWith(".jpg", ignoreCase = true) ||
+                            fileName.endsWith(".jpeg", ignoreCase = true) ||
+                            fileName.endsWith(".webp", ignoreCase = true)
+                    }
+                    ?.mapNotNull { fileName ->
+                        context.assets.open("$SPECIAL_REFS_PATH/$fileName").use { input ->
+                            val bitmap = BitmapFactory.decodeStream(input) ?: return@mapNotNull null
+                            ReferenceSignature(
+                                name = fileName,
+                                signature = createSignature(bitmap)
+                            )
+                        }
+                    }
+                    ?: emptyList()
+            }.getOrElse { emptyList() }
+
+            cachedSpecialReferences = loaded
             return loaded
         }
     }
@@ -153,8 +208,9 @@ class BackgroundReferenceMatcher {
 
     private companion object {
         const val NORMAL_REFS_PATH = "background_refs/normal"
+        const val SPECIAL_REFS_PATH = "background_refs/location_cards"
         const val SIGNATURE_SIZE = 8
         const val NORMAL_MATCH_THRESHOLD = 4.8
-        const val DISTINCT_FACTOR = 0.93
+        const val SPECIAL_MATCH_THRESHOLD = 4.9
     }
 }

@@ -11,6 +11,7 @@ import com.mewname.app.domain.AppUpdateRepository
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
+import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.NamingBlock
 import com.mewname.app.model.NamingBlockType
 import com.mewname.app.model.NamingConfig
@@ -122,28 +123,44 @@ class MainViewModel : ViewModel() {
 
     fun processImage(context: Context, uri: Uri) {
         viewModelScope.launch {
-            _uiState.update { it.copy(error = null, isProcessing = true) }
+            _uiState.update {
+                it.copy(
+                    error = null,
+                    isProcessing = true,
+                    processingStatusMessage = "Extraindo texto da imagem"
+                )
+            }
             runCatching {
                 ocrEngine.extract(context, uri)
             }.onSuccess { ocrResult ->
-                val parsed = sessionMerger.mergeIfSamePokemon(
-                    parser.parse(context, ocrResult),
-                    lastCapturedData
-                )
-                lastCapturedData = parsed
+                val parsed = withContext(Dispatchers.Default) {
+                    parser.parse(context, ocrResult) { step ->
+                        _uiState.update { state -> state.copy(processingStatusMessage = step) }
+                    }
+                }
+                val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
+                _uiState.update { state -> state.copy(processingStatusMessage = "Montando nomes sugeridos") }
+                lastCapturedData = merged
                 val reviewFields = reviewableFields(_uiState.value.configs)
                 _uiState.update {
-                    val needsReview = shouldOpenReview(parsed, reviewFields)
+                    val needsReview = shouldOpenReview(merged, reviewFields)
                     it.copy(
                         rawText = ocrResult.fullText,
-                        parsedData = parsed,
-                        generatedResults = if (needsReview) emptyList() else generateAll(parsed, it.configs),
-                        pendingReview = if (needsReview) ReviewState(parsed, reviewFields, ocrResult.bitmap) else null,
-                        isProcessing = false
+                        parsedData = merged,
+                        generatedResults = if (needsReview) emptyList() else generateAll(merged, it.configs),
+                        pendingReview = if (needsReview) ReviewState(merged, reviewFields, ocrResult.bitmap) else null,
+                        isProcessing = false,
+                        processingStatusMessage = null
                     )
                 }
             }.onFailure { throwable ->
-                _uiState.update { it.copy(error = throwable.message ?: "Falha no OCR", isProcessing = false) }
+                _uiState.update {
+                    it.copy(
+                        error = throwable.message ?: "Falha no OCR",
+                        isProcessing = false,
+                        processingStatusMessage = null
+                    )
+                }
             }
         }
     }
@@ -421,6 +438,7 @@ data class UiState(
     val error: String? = null,
     val pendingReview: ReviewState? = null,
     val isProcessing: Boolean = false,
+    val processingStatusMessage: String? = null,
     val debugIvValidationRunning: Boolean = false,
     val debugIvValidationResults: List<DebugIvSampleResult> = emptyList(),
     val debugIvValidationError: String? = null,
@@ -471,6 +489,8 @@ private fun shouldOpenReview(data: PokemonScreenData, fields: List<NamingField>)
     return fields.any { field ->
         when (field) {
             NamingField.POKEMON_NAME -> data.pokemonName.isNullOrBlank()
+            NamingField.UNOWN_LETTER -> data.pokemonName.equals("Unown", ignoreCase = true) && data.unownLetter.isNullOrBlank()
+            NamingField.UNIQUE_FORM -> UniquePokemonCatalog.optionsFor(data.pokemonName).isNotEmpty() && data.uniqueForm.isNullOrBlank()
             NamingField.VIVILLON_PATTERN -> isVivillonFamily(data.pokemonName) && data.vivillonPattern == null
             NamingField.CP -> data.cp == null
             NamingField.IV_PERCENT -> data.ivPercent == null

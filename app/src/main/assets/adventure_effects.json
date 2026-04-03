@@ -14,11 +14,11 @@
     "pokemon": "Origin Forme Palkia",
     "aliases": ["ORIGIN FORME PALKIA", "PALKIA ORIGIN", "PALKIA"],
     "move": "Spacial Rend",
-    "movePt": "Fenda Espacial",
-    "moveAliases": ["SPACIAL REND", "FENDA ESPACIAL"],
+    "movePt": "Laceração Espacial",
+    "moveAliases": ["SPACIAL REND", "LACERACAO ESPACIAL", "FENDA ESPACIAL"],
     "effectName": "Spacial Rend",
-    "effectNamePt": "Fenda Espacial",
-    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "SPACIAL REND", "FENDA ESPACIAL"],
+    "effectNamePt": "Laceração Espacial",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "SPACIAL REND", "LACERACAO ESPACIAL", "FENDA ESPACIAL"],
     "description": "Aumenta a dist\u00e2ncia de encontro de Pok\u00e9mon ao redor do treinador por tempo limitado."
   },
   {
@@ -36,11 +36,11 @@
     "pokemon": "Dawn Wings Necrozma",
     "aliases": ["DAWN WINGS NECROZMA", "NECROZMA"],
     "move": "Moongeist Beam",
-    "movePt": "Raio Lunar Fantasma",
-    "moveAliases": ["MOONGEIST BEAM", "RAIO LUNARGEOIST", "RAIO LUNARGEIST"],
+    "movePt": "Feixe Espectral",
+    "moveAliases": ["MOONGEIST BEAM", "FEIXE ESPECTRAL", "RAIO LUNARGEOIST", "RAIO LUNARGEIST", "RAIO LUNAR FANTASMA"],
     "effectName": "Moongeist Beam",
-    "effectNamePt": "Raio Lunar Fantasma",
-    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "MOONGEIST BEAM"],
+    "effectNamePt": "Feixe Espectral",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "MOONGEIST BEAM", "FEIXE ESPECTRAL", "RAIO LUNAR FANTASMA"],
     "description": "Atrai Pok\u00e9mon durante a noite e altera o ciclo para o per\u00edodo noturno por tempo limitado."
   },
   {
@@ -69,22 +69,33 @@
     "pokemon": "Crowned Sword Zacian",
     "aliases": ["CROWNED SWORD ZACIAN", "ZACIAN CROWNED SWORD", "ZACIAN"],
     "move": "Behemoth Blade",
-    "movePt": "Espada Behemoth",
-    "moveAliases": ["BEHEMOTH BLADE", "ESPADA BEHEMOTH"],
+    "movePt": "Espada Colossal",
+    "moveAliases": ["BEHEMOTH BLADE", "ESPADA COLOSSAL", "ESPADA BEHEMOTH"],
     "effectName": "Behemoth Blade",
-    "effectNamePt": "Espada Behemoth",
-    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "BEHEMOTH BLADE"],
+    "effectNamePt": "Espada Colossal",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "BEHEMOTH BLADE", "ESPADA COLOSSAL", "ESPADA BEHEMOTH"],
     "description": "Concede b\u00f4nus ofensivo em encontros e batalhas por tempo limitado."
   },
   {
     "pokemon": "Crowned Shield Zamazenta",
     "aliases": ["CROWNED SHIELD ZAMAZENTA", "ZAMAZENTA CROWNED SHIELD", "ZAMAZENTA"],
     "move": "Behemoth Bash",
-    "movePt": "Impacto Behemoth",
-    "moveAliases": ["BEHEMOTH BASH", "IMPACTO BEHEMOTH"],
+    "movePt": "Pancada Colossal",
+    "moveAliases": ["BEHEMOTH BASH", "PANCADA COLOSSAL", "IMPACTO BEHEMOTH"],
     "effectName": "Behemoth Bash",
-    "effectNamePt": "Impacto Behemoth",
-    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "BEHEMOTH BASH"],
+    "effectNamePt": "Pancada Colossal",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "BEHEMOTH BASH", "PANCADA COLOSSAL", "IMPACTO BEHEMOTH"],
     "description": "Concede b\u00f4nus defensivo em encontros e batalhas por tempo limitado."
+  },
+  {
+    "pokemon": "Eternatus",
+    "aliases": ["ETERNATUS"],
+    "move": "Dynamax Cannon",
+    "movePt": "Canhao Dynamax",
+    "moveAliases": ["DYNAMAX CANNON", "CANHAO DYNAMAX"],
+    "effectName": "Dynamax Cannon",
+    "effectNamePt": "Canhao Dynamax",
+    "effectAliases": ["ADVENTURE EFFECT", "EFEITO AVENTURA", "DYNAMAX CANNON", "CANHAO DYNAMAX"],
+    "description": "Canaliza energia Dynamax em batalhas e encontros por tempo limitado."
   }
 ]

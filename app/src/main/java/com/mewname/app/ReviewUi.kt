@@ -1,4 +1,4 @@
-package com.mewname.app
+﻿package com.mewname.app
 
 import android.content.Intent
 import android.graphics.Bitmap
@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
@@ -62,13 +63,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.mewname.app.domain.PokemonFamilySuggester
+import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.EvolutionFlag
 import com.mewname.app.model.Gender
 import com.mewname.app.model.AdventureEffectDebugInfo
 import com.mewname.app.model.BackgroundDebugInfo
 import com.mewname.app.model.CandyDebugInfo
+import com.mewname.app.model.EvolutionIconDebugInfo
 import com.mewname.app.model.IvDebugInfo
 import com.mewname.app.model.LegacyDebugInfo
+import com.mewname.app.model.LevelDebugInfo
 import com.mewname.app.model.NamingConfig
 import com.mewname.app.model.NamingField
 import com.mewname.app.model.NormalizedDebugRect
@@ -76,9 +80,9 @@ import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.PokemonSize
 import com.mewname.app.model.PvpLeague
 import com.mewname.app.model.PvpLeagueRankInfo
+import com.mewname.app.model.PvpSpeciesRankInfo
 import com.mewname.app.model.VivillonPattern
 import com.mewname.app.model.hasVisibleSizeSymbol
-import com.mewname.app.model.visibleEvolutionFlags
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -89,7 +93,7 @@ fun ReviewEditorCard(
     configs: List<NamingConfig> = listOf(NamingConfig()),
     bitmap: Bitmap? = null,
     onConfirm: (PokemonScreenData) -> Unit,
-    onExportLog: (() -> Unit)? = null,
+    onExportLog: ((Set<NamingField>) -> Unit)? = null,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -101,28 +105,31 @@ fun ReviewEditorCard(
             ).recalculateIvPercent()
         )
     }
-    var vivillonExpanded by remember { mutableStateOf(false) }
     var pokemonExpanded by remember { mutableStateOf(false) }
     var activeIvPicker by remember { mutableStateOf<String?>(null) }
     var showIvHelp by remember { mutableStateOf(false) }
-    var showCandyHelp by remember { mutableStateOf(false) }
+    var showPokemonHelp by remember { mutableStateOf(false) }
     var showAdventureHelp by remember { mutableStateOf(false) }
     var showLegacyHelp by remember { mutableStateOf(false) }
     var showBackgroundHelp by remember { mutableStateOf(false) }
+    var showSizeHelp by remember { mutableStateOf(false) }
+    var showLeagueHelp by remember { mutableStateOf(false) }
     var showPvpHelp by remember { mutableStateOf(false) }
+    var showVivillonHelp by remember { mutableStateOf(false) }
+    var showEvolutionHelp by remember { mutableStateOf(false) }
+    var selectedDebugFields by remember { mutableStateOf<Set<NamingField>>(emptySet()) }
     val familySuggester = remember { PokemonFamilySuggester() }
-    val visibleSizeOptions = remember(configs) {
-        listOf(
-            PokemonSize.XXS,
-            PokemonSize.XS,
-            PokemonSize.NORMAL,
-            PokemonSize.XL,
-            PokemonSize.XXL
-        ).filter { it == PokemonSize.NORMAL || configs.hasVisibleSizeSymbol(it) }
+    val visibleSizeOptions = remember(configs, draft.size) {
+        listOf(PokemonSize.XXS, PokemonSize.XS, PokemonSize.XL, PokemonSize.XXL)
+            .filter { configs.hasVisibleSizeSymbol(it) || it == draft.size }
+            .ifEmpty { listOf(PokemonSize.XXS, PokemonSize.XS, PokemonSize.XL, PokemonSize.XXL) }
     }
-    val visibleEvolutionFlags = remember(configs) { configs.visibleEvolutionFlags() }
     val pokemonSuggestions = remember(initialData.candyFamilyName, initialData.pokemonName) {
         familySuggester.suggestionsFor(context, initialData.candyFamilyName, initialData.pokemonName)
+    }
+    val uniqueFormOptions = remember(draft.pokemonName) { UniquePokemonCatalog.optionsFor(draft.pokemonName) }
+    val familyRankCards = remember(draft.familyPvpRanks, draft.pvpLeague) {
+        speciesRankCardsForLeague(draft.familyPvpRanks, draft.pvpLeague)
     }
 
     Box(modifier = modifier.widthIn(max = 560.dp)) {
@@ -133,107 +140,117 @@ fun ReviewEditorCard(
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
             Column(
                 modifier = Modifier
-                    .weight(1f, fill = false)
-                    .fillMaxHeight()
+                    .heightIn(max = 620.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Dados Detectados", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 }
 
-            when {
-                NamingField.POKEMON_NAME in fields && NamingField.CP in fields -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            ReviewSectionTitle("Pokémon")
-                            IconButton(onClick = { showCandyHelp = !showCandyHelp }, modifier = Modifier.size(20.dp)) {
-                                UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda doces")
-                            }
-                        }
-                        ReviewTextRow {
-                            PokemonSuggestionField(
-                                label = "",
-                                value = draft.pokemonName.orEmpty(),
-                                suggestions = pokemonSuggestions,
-                                expanded = pokemonExpanded,
-                                onExpandedChange = { pokemonExpanded = it },
-                                onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
-                                modifier = Modifier.weight(1f)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                ReviewTextRow {
+                    PokemonSuggestionField(
+                        label = "Nome",
+                        value = draft.pokemonName.orEmpty(),
+                        suggestions = pokemonSuggestions,
+                        expanded = pokemonExpanded,
+                        onExpandedChange = { pokemonExpanded = it },
+                        onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
+                        modifier = Modifier.weight(2f)
+                    )
+                    SelectionDropdownField(
+                        label = "Sexo",
+                        value = when (draft.gender) {
+                            Gender.MALE -> "♂"
+                            Gender.FEMALE -> "♀"
+                            else -> "-"
+                        },
+                        options = listOf("-", "♂", "♀"),
+                        onSelected = { value ->
+                            draft = draft.copy(
+                                gender = when (value) {
+                                    "♂" -> Gender.MALE
+                                    "♀" -> Gender.FEMALE
+                                    else -> Gender.GENDERLESS
+                                }
                             )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    CompactField(
+                        label = "Nível",
+                        value = draft.level?.formatLevelDebug().orEmpty(),
+                        onValueChange = { draft = draft.copy(level = it.replace(",", ".").toDoubleOrNull()) },
+                        headerTrailing = {
+                            UnownHeaderIcon(
+                                selected = selectedDebugFields.any { it in pokemonDebugFields() },
+                                onClick = {
+                                    selectedDebugFields = selectedDebugFields.toggleAll(pokemonDebugFields())
+                                    showPokemonHelp = !showPokemonHelp
+                                },
+                                contentDescription = "Log do Pokémon"
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (NamingField.CP in fields || draft.pokemonName.equals("Unown", ignoreCase = true)) {
+                    ReviewTextRow {
+                        if (NamingField.CP in fields) {
                             CompactField(
                                 label = "CP",
                                 value = draft.cp?.toString().orEmpty(),
                                 onValueChange = { draft = draft.copy(cp = it.toIntOrNull()) },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(0.9f)
                             )
                         }
-                        if (showCandyHelp) {
-                            CandyHelpPanel(info = draft.candyDebugInfo)
+                        if (draft.pokemonName.equals("Unown", ignoreCase = true)) {
+                            SelectionDropdownField(
+                                label = "Letra Unown",
+                                value = draft.unownLetter ?: "-",
+                                options = listOf("-") + ('A'..'Z').map { it.toString() } + listOf("!", "?"),
+                                onSelected = { value ->
+                                    draft = draft.copy(unownLetter = value.takeUnless { it == "-" })
+                                },
+                                modifier = Modifier.weight(1.1f)
+                            )
                         }
                     }
                 }
-                NamingField.POKEMON_NAME in fields -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            ReviewSectionTitle("Pokémon")
-                            IconButton(onClick = { showCandyHelp = !showCandyHelp }, modifier = Modifier.size(20.dp)) {
-                                UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda doces")
-                            }
-                        }
-                        PokemonSuggestionField(
-                            label = "",
-                            value = draft.pokemonName.orEmpty(),
-                            suggestions = pokemonSuggestions,
-                            expanded = pokemonExpanded,
-                            onExpandedChange = { pokemonExpanded = it },
-                            onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (showCandyHelp) {
-                            CandyHelpPanel(info = draft.candyDebugInfo)
-                        }
-                    }
-                }
-                NamingField.CP in fields -> {
-                    CompactField(
-                        label = "CP",
-                        value = draft.cp?.toString().orEmpty(),
-                        onValueChange = { draft = draft.copy(cp = it.toIntOrNull()) },
+                if (uniqueFormOptions.isNotEmpty()) {
+                    SelectionDropdownField(
+                        label = "Forma única",
+                        value = draft.uniqueForm ?: "-",
+                        options = buildList {
+                            add("-")
+                            addAll(uniqueFormOptions.map { it.label })
+                        },
+                        onSelected = { value ->
+                            draft = draft.copy(uniqueForm = value.takeUnless { it == "-" })
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                if (showPokemonHelp) {
+                    PokemonHelpPanel(candyInfo = draft.candyDebugInfo, levelInfo = draft.levelDebugInfo)
+                }
             }
-
+ 
             if (NamingField.IV_PERCENT in fields || NamingField.IV_COMBINATION in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        ReviewSectionTitle("IV")
-                        IconButton(onClick = { showIvHelp = !showIvHelp }, modifier = Modifier.size(20.dp)) {
-                            UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda IV")
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                         if (NamingField.IV_PERCENT in fields) {
                             CompactField(
                                 label = "IV %",
                                 value = draft.ivPercent?.toString().orEmpty(),
                                 onValueChange = { draft = draft.copy(ivPercent = it.toIntOrNull()?.coerceIn(0, 100)) },
-                                modifier = Modifier.weight(0.72f)
+                                modifier = Modifier.weight(1f)
                             )
                         }
                         IvValueButton(
@@ -241,21 +258,31 @@ fun ReviewEditorCard(
                             value = draft.attIv,
                             selected = activeIvPicker == "atk",
                             onClick = { activeIvPicker = if (activeIvPicker == "atk") null else "atk" },
-                            modifier = Modifier.weight(0.6f)
+                            modifier = Modifier.weight(1f)
                         )
                         IvValueButton(
                             label = "Def",
                             value = draft.defIv,
                             selected = activeIvPicker == "def",
                             onClick = { activeIvPicker = if (activeIvPicker == "def") null else "def" },
-                            modifier = Modifier.weight(0.6f)
+                            modifier = Modifier.weight(1f)
                         )
                         IvValueButton(
                             label = "HP",
                             value = draft.staIv,
                             selected = activeIvPicker == "hp",
                             onClick = { activeIvPicker = if (activeIvPicker == "hp") null else "hp" },
-                            modifier = Modifier.weight(0.6f)
+                            headerTrailing = {
+                                UnownHeaderIcon(
+                                    selected = selectedDebugFields.any { it in ivDebugFields() },
+                                    onClick = {
+                                        selectedDebugFields = selectedDebugFields.toggleAll(ivDebugFields())
+                                        showIvHelp = !showIvHelp
+                                    },
+                                    contentDescription = "Log de IV"
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                     if (showIvHelp) {
@@ -264,144 +291,149 @@ fun ReviewEditorCard(
                 }
             }
 
-            if (NamingField.LEVEL in fields) {
-                CompactField(
-                    label = "Nível",
-                    value = draft.level?.toString().orEmpty(),
-                    onValueChange = { draft = draft.copy(level = it.replace(",", ".").toDoubleOrNull()) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            if (NamingField.GENDER in fields) {
-                ReviewChipSection(
-                    label = "Gênero",
-                    options = listOf(
-                        "Desconhecido" to (draft.gender == Gender.UNKNOWN),
-                        "Macho" to (draft.gender == Gender.MALE),
-                        "Fêmea" to (draft.gender == Gender.FEMALE)
-                    ),
-                    onSelect = { index ->
-                        draft = draft.copy(
-                            gender = when (index) {
-                                1 -> Gender.MALE
-                                2 -> Gender.FEMALE
-                                else -> Gender.UNKNOWN
-                            }
-                        )
-                    }
-                )
-            }
-
             if (NamingField.SIZE in fields) {
-                ReviewChipSection(
-                    label = "Tamanho",
-                    options = visibleSizeOptions.map { size ->
-                        when (size) {
-                            PokemonSize.XXS -> "XXS" to (draft.size == PokemonSize.XXS)
-                            PokemonSize.XS -> "XS" to (draft.size == PokemonSize.XS)
-                            PokemonSize.NORMAL -> "Normal" to (draft.size == PokemonSize.NORMAL)
-                            PokemonSize.XL -> "XL" to (draft.size == PokemonSize.XL)
-                            PokemonSize.XXL -> "XXL" to (draft.size == PokemonSize.XXL)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    FieldHeaderRow(
+                        label = "Tamanho",
+                        selected = NamingField.SIZE in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.SIZE)
+                            showSizeHelp = !showSizeHelp
                         }
-                    },
-                    onSelect = { index ->
-                        draft = draft.copy(
-                            size = visibleSizeOptions.getOrNull(index) ?: PokemonSize.NORMAL
-                        )
-                    }
-                )
-            }
-
-            if (NamingField.PVP_LEAGUE in fields) {
-                ReviewChipSection(
-                    label = "Liga PvP",
-                    options = listOf(
-                        "Nenhuma" to (draft.pvpLeague == null),
-                        "Copinha" to (draft.pvpLeague == PvpLeague.LITTLE),
-                        "Great" to (draft.pvpLeague == PvpLeague.GREAT),
-                        "Ultra" to (draft.pvpLeague == PvpLeague.ULTRA),
-                        "Master" to (draft.pvpLeague == PvpLeague.MASTER)
-                    ),
-                    onSelect = { index ->
-                        draft = draft.copy(
-                            pvpLeague = when (index) {
-                                1 -> PvpLeague.LITTLE
-                                2 -> PvpLeague.GREAT
-                                3 -> PvpLeague.ULTRA
-                                4 -> PvpLeague.MASTER
-                                else -> null
-                            }
-                        )
-                    }
-                )
-            }
-
-            if (NamingField.PVP_RANK in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        ReviewSectionTitle("Ranking PvP")
-                        IconButton(onClick = { showPvpHelp = !showPvpHelp }, modifier = Modifier.size(20.dp)) {
-                            UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda PvP")
-                        }
-                    }
-                    CompactField(
-                        label = "Ranking PvP",
-                        value = draft.pvpRank?.toString().orEmpty(),
-                        onValueChange = { draft = draft.copy(pvpRank = it.toIntOrNull()) },
-                        modifier = Modifier.fillMaxWidth()
                     )
-                    if (showPvpHelp) {
-                        PvpHelpPanel(leagueRanks = draft.pvpLeagueRanks)
+                    WeightedToggleRow(
+                        items = visibleSizeOptions.map { size ->
+                            val label = when (size) {
+                                PokemonSize.XXS -> "XXS"
+                                PokemonSize.XS -> "XS"
+                                PokemonSize.XL -> "XL"
+                                PokemonSize.XXL -> "XXL"
+                                PokemonSize.NORMAL -> "Normal"
+                            }
+                            WeightedToggleItem(
+                                label = label,
+                                selected = draft.size == size,
+                                onClick = {
+                                    draft = draft.copy(size = if (draft.size == size) PokemonSize.NORMAL else size)
+                                }
+                            )
+                        }
+                    )
+                    if (showSizeHelp) {
+                        SizeHelpPanel(size = draft.size)
                     }
                 }
             }
 
-            if (NamingField.VIVILLON_PATTERN in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ReviewSectionTitle("Padrão Vivillon")
-                    Box {
-                        CompactTextInput(
-                            value = draft.vivillonPattern?.label ?: "Não identificado",
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { vivillonExpanded = !vivillonExpanded },
-                            trailing = {
-                                Icon(
-                                    Icons.Default.ArrowDropDown,
-                                    contentDescription = "Abrir padrão Vivillon",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+            if (NamingField.PVP_LEAGUE in fields) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    FieldHeaderRow(
+                        label = "Liga PvP",
+                        selected = NamingField.PVP_LEAGUE in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_LEAGUE)
+                            showLeagueHelp = !showLeagueHelp
+                        }
+                    )
+                    WeightedToggleRow(
+                        items = listOf(
+                            WeightedToggleItem("Copinha", draft.pvpLeague == PvpLeague.LITTLE) {
+                                draft = draft.copy(pvpLeague = if (draft.pvpLeague == PvpLeague.LITTLE) null else PvpLeague.LITTLE)
+                            },
+                            WeightedToggleItem("Great", draft.pvpLeague == PvpLeague.GREAT) {
+                                draft = draft.copy(pvpLeague = if (draft.pvpLeague == PvpLeague.GREAT) null else PvpLeague.GREAT)
+                            },
+                            WeightedToggleItem("Ultra", draft.pvpLeague == PvpLeague.ULTRA) {
+                                draft = draft.copy(pvpLeague = if (draft.pvpLeague == PvpLeague.ULTRA) null else PvpLeague.ULTRA)
+                            },
+                            WeightedToggleItem("Master", draft.pvpLeague == PvpLeague.MASTER) {
+                                draft = draft.copy(pvpLeague = if (draft.pvpLeague == PvpLeague.MASTER) null else PvpLeague.MASTER)
                             }
                         )
-                        DropdownMenu(
-                            expanded = vivillonExpanded,
-                            onDismissRequest = { vivillonExpanded = false },
-                            modifier = Modifier.fillMaxWidth(0.92f)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Não identificado", style = MaterialTheme.typography.bodySmall) },
-                                onClick = {
-                                    draft = draft.copy(vivillonPattern = null)
-                                    vivillonExpanded = false
-                                }
-                            )
-                            VivillonPattern.entries.forEach { pattern ->
-                                DropdownMenuItem(
-                                    text = { Text(pattern.label, style = MaterialTheme.typography.bodySmall) },
+                    )
+                    if (showLeagueHelp) {
+                        PvpHelpPanel(leagueRanks = draft.pvpLeagueRanks, speciesRanks = draft.familyPvpRanks)
+                    }
+                }
+            }
+
+            if (NamingField.PVP_RANK in fields) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    FieldHeaderRow(
+                        label = "Ranking PvP",
+                        selected = NamingField.PVP_RANK in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_RANK)
+                            showPvpHelp = !showPvpHelp
+                        }
+                    )
+                    if (familyRankCards.isEmpty()) {
+                        CompactField(
+                            label = "",
+                            value = draft.pvpRank?.toString().orEmpty(),
+                            onValueChange = { draft = draft.copy(pvpRank = it.toIntOrNull()) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        ReviewTextRow {
+                            familyRankCards.take(3).forEach { rankCard ->
+                                CompactField(
+                                    label = rankCard.label,
+                                    value = rankCard.value,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    active = draft.pvpLeague == rankCard.league && draft.pvpRank == rankCard.rank,
                                     onClick = {
-                                        draft = draft.copy(vivillonPattern = pattern)
-                                        vivillonExpanded = false
-                                    }
+                                        if (rankCard.eligible) {
+                                            draft = draft.copy(
+                                                pvpLeague = rankCard.league,
+                                                pvpRank = rankCard.rank
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            repeat((3 - familyRankCards.take(3).size).coerceAtLeast(0)) {
+                                CompactField(
+                                    label = "",
+                                    value = "",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
                         }
+                    }
+                    if (showPvpHelp) {
+                        PvpHelpPanel(leagueRanks = draft.pvpLeagueRanks, speciesRanks = draft.familyPvpRanks)
+                    }
+                }
+            }
+
+            if (isVivillonReviewFamily(draft.pokemonName)) {
+                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    FieldHeaderRow(
+                        label = "Padrão Vivillon",
+                        selected = NamingField.VIVILLON_PATTERN in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.VIVILLON_PATTERN)
+                            showVivillonHelp = !showVivillonHelp
+                        }
+                    )
+                    SelectionDropdownField(
+                        label = "",
+                        value = draft.vivillonPattern?.label ?: "Não identificado",
+                        options = listOf("Não identificado") + VivillonPattern.entries.map { it.label },
+                        onSelected = { value ->
+                            draft = draft.copy(
+                                vivillonPattern = VivillonPattern.entries.firstOrNull { it.label == value }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (showVivillonHelp) {
+                        VivillonHelpPanel(pattern = draft.vivillonPattern, info = draft.vivillonDebugInfo, bitmap = bitmap)
                     }
                 }
             }
@@ -412,81 +444,105 @@ fun ReviewEditorCard(
                 NamingField.LEGACY_MOVE
             ).any { it in fields }
             if (hasBooleanSection) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        ReviewSectionTitle("Marcadores")
-                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            if (NamingField.SPECIAL_BACKGROUND in fields) {
-                                IconButton(onClick = { showBackgroundHelp = !showBackgroundHelp }, modifier = Modifier.size(20.dp)) {
-                                    UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda background")
-                                }
-                            }
-                            if (NamingField.ADVENTURE_EFFECT in fields) {
-                                IconButton(onClick = { showAdventureHelp = !showAdventureHelp }, modifier = Modifier.size(20.dp)) {
-                                    UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda efeito aventura")
-                                }
-                            }
-                            if (NamingField.LEGACY_MOVE in fields) {
-                                IconButton(onClick = { showLegacyHelp = !showLegacyHelp }, modifier = Modifier.size(20.dp)) {
-                                    UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "Ajuda legado")
-                                }
-                            }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    FieldHeaderRow(
+                        label = "Marcadores",
+                        selected = selectedDebugFields.any {
+                            it in setOf(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE)
+                        },
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleAll(
+                                linkedSetOf(
+                                    NamingField.SPECIAL_BACKGROUND,
+                                    NamingField.ADVENTURE_EFFECT,
+                                    NamingField.LEGACY_MOVE
+                                ).intersect(fields.toSet())
+                            )
+                            showBackgroundHelp = !showBackgroundHelp
                         }
-                    }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
                         if (NamingField.SPECIAL_BACKGROUND in fields) {
-                            ToggleChip("Fundo especial", draft.hasSpecialBackground) {
-                                draft = draft.copy(hasSpecialBackground = !draft.hasSpecialBackground)
-                            }
+                            ToggleChip(
+                                label = "Fundo Especial",
+                                selected = draft.hasSpecialBackground,
+                                onClick = { draft = draft.copy(hasSpecialBackground = !draft.hasSpecialBackground) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                         if (NamingField.ADVENTURE_EFFECT in fields) {
-                            ToggleChip("Efeito aventura", draft.hasAdventureEffect) {
-                                draft = draft.copy(hasAdventureEffect = !draft.hasAdventureEffect)
-                            }
+                            ToggleChip(
+                                label = "Efeito Aventura",
+                                selected = draft.hasAdventureEffect,
+                                onClick = { draft = draft.copy(hasAdventureEffect = !draft.hasAdventureEffect) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                         if (NamingField.LEGACY_MOVE in fields) {
-                            ToggleChip("Ataque legado", draft.hasLegacyMove) {
-                                draft = draft.copy(hasLegacyMove = !draft.hasLegacyMove)
-                            }
+                            ToggleChip(
+                                label = "Ataque Legado",
+                                selected = draft.hasLegacyMove,
+                                onClick = { draft = draft.copy(hasLegacyMove = !draft.hasLegacyMove) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                     if (showBackgroundHelp) {
                         BackgroundHelpPanel(info = draft.backgroundDebugInfo)
                     }
-                    if (showAdventureHelp) {
+                    if (showAdventureHelp || showBackgroundHelp) {
                         AdventureEffectHelpPanel(info = draft.adventureEffectDebugInfo)
                     }
-                    if (showLegacyHelp) {
+                    if (showLegacyHelp || showBackgroundHelp) {
                         LegacyHelpPanel(info = draft.legacyDebugInfo)
                     }
                 }
             }
 
-            if (NamingField.EVOLUTION_TYPE in fields && visibleEvolutionFlags.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ReviewSectionTitle("Evolução")
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (EvolutionFlag.BABY in visibleEvolutionFlags) if (EvolutionFlag.BABY in visibleEvolutionFlags) ToggleChip("Baby", EvolutionFlag.BABY in draft.evolutionFlags) {
-                            draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.BABY))
+            if (NamingField.EVOLUTION_TYPE in fields) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FieldHeaderRow(
+                        label = "Evolução",
+                        selected = NamingField.EVOLUTION_TYPE in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.EVOLUTION_TYPE)
+                            showEvolutionHelp = !showEvolutionHelp
                         }
-                        if (EvolutionFlag.STAGE1 in visibleEvolutionFlags) ToggleChip("Estágio 1", EvolutionFlag.STAGE1 in draft.evolutionFlags) {
-                            draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.STAGE1))
-                        }
-                        if (EvolutionFlag.STAGE2 in visibleEvolutionFlags) ToggleChip("Estágio 2", EvolutionFlag.STAGE2 in draft.evolutionFlags) {
-                            draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.STAGE2))
-                        }
-                        if (EvolutionFlag.MEGA in visibleEvolutionFlags) ToggleChip("Mega", EvolutionFlag.MEGA in draft.evolutionFlags) {
-                            draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.MEGA))
-                        }
-                        if (EvolutionFlag.GIGANTAMAX in visibleEvolutionFlags) ToggleChip("Gigantamax", EvolutionFlag.GIGANTAMAX in draft.evolutionFlags) {
-                            draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.GIGANTAMAX))
-                        }
-                        if (EvolutionFlag.DYNAMAX in visibleEvolutionFlags) ToggleChip("Dynamax", EvolutionFlag.DYNAMAX in draft.evolutionFlags) {
-                            draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.DYNAMAX))
-                        }
+                    )
+                    WeightedToggleRow(
+                        items = listOf(
+                            WeightedToggleItem("Baby", EvolutionFlag.BABY in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.BABY))
+                            },
+                            WeightedToggleItem("Estágio 1", EvolutionFlag.STAGE1 in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE1))
+                            },
+                            WeightedToggleItem("Estágio 2", EvolutionFlag.STAGE2 in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE2))
+                            },
+                            WeightedToggleItem("Mega", EvolutionFlag.MEGA in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.MEGA))
+                            }
+                        )
+                    )
+                    WeightedToggleRow(
+                        items = listOf(
+                            WeightedToggleItem("Dynamax", EvolutionFlag.DYNAMAX in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.DYNAMAX))
+                            },
+                            WeightedToggleItem("Gigantamax", EvolutionFlag.GIGANTAMAX in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.GIGANTAMAX))
+                            },
+                            WeightedToggleItem("Terastal", EvolutionFlag.TERASTRAL in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.TERASTRAL))
+                            }
+                        )
+                    )
+                    if (showEvolutionHelp) {
+                        EvolutionIconHelpPanel(info = draft.evolutionIconDebugInfo)
                     }
                 }
             }
@@ -505,20 +561,20 @@ fun ReviewEditorCard(
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                             if (onExportLog != null) {
-                                TextButton(onClick = onExportLog, modifier = Modifier.weight(1f)) {
-                                    Text("Exportar log", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                TextButton(onClick = { onExportLog(selectedDebugFields) }, modifier = Modifier.weight(0.9f)) {
+                                    Text("Exportar log", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                             Button(
                                 onClick = { onConfirm(draft.recalculateIvPercent().normalizeReviewData()) },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1.2f)
                             ) {
-                                Text("Continuar", fontSize = 13.sp, maxLines = 1)
+                                Text("Continuar", fontSize = 14.sp, maxLines = 1)
                             }
-                            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                                Text("Cancelar", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            TextButton(onClick = onCancel, modifier = Modifier.weight(0.9f)) {
+                                Text("Cancelar", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -561,7 +617,10 @@ fun ReviewEditorCard(
 }
 
 @Composable
-private fun CandyHelpPanel(info: CandyDebugInfo?) {
+private fun PokemonHelpPanel(
+    candyInfo: CandyDebugInfo?,
+    levelInfo: LevelDebugInfo?
+) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
         Column(
             modifier = Modifier
@@ -569,19 +628,29 @@ private fun CandyHelpPanel(info: CandyDebugInfo?) {
                 .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text("Leitura dos doces", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Text("Linhas na regiao: ${info?.regionLineCount ?: 0}", style = MaterialTheme.typography.bodySmall)
-            Text("Linha encontrada: ${info?.matchedLine ?: "-"}", style = MaterialTheme.typography.bodySmall)
-            Text("Familia extraida: ${info?.extractedFamilyRaw ?: "-"}", style = MaterialTheme.typography.bodySmall)
-            Text("Familia resolvida: ${info?.resolvedFamilyName ?: "-"}", style = MaterialTheme.typography.bodySmall)
-            if (!info?.regionLines.isNullOrEmpty()) {
+            Text("Leitura do Pokémon", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text("Nível final: ${levelInfo?.finalLevel?.formatLevelDebug() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Fonte do nível: ${levelInfo?.source ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Nível OCR: ${levelInfo?.ocrLevel?.formatLevelDebug() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Nível curva CP: ${levelInfo?.curveLevel?.formatLevelDebug() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Pokémon base: ${levelInfo?.pokemonName ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("CP usado: ${levelInfo?.cp ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("IVs usados: ${levelInfo?.attackIv ?: "-"}/${levelInfo?.defenseIv ?: "-"}/${levelInfo?.staminaIv ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Linhas na região de doces: ${candyInfo?.regionLineCount ?: 0}", style = MaterialTheme.typography.bodySmall)
+            Text("Linha encontrada: ${candyInfo?.matchedLine ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Família extraída: ${candyInfo?.extractedFamilyRaw ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Família resolvida: ${candyInfo?.resolvedFamilyName ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            if (!candyInfo?.regionLines.isNullOrEmpty()) {
                 Text("Linhas lidas:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
-                info?.regionLines?.forEach { line ->
+                candyInfo?.regionLines?.forEach { line ->
                     Text("- $line", style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (!info?.notes.isNullOrBlank()) {
-                Text("Obs: ${info?.notes}", style = MaterialTheme.typography.bodySmall)
+            if (!levelInfo?.notes.isNullOrBlank()) {
+                Text("Obs nível: ${levelInfo?.notes}", style = MaterialTheme.typography.bodySmall)
+            }
+            if (!candyInfo?.notes.isNullOrBlank()) {
+                Text("Obs doces: ${candyInfo?.notes}", style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -646,7 +715,7 @@ private fun LegacyHelpPanel(info: LegacyDebugInfo?) {
                 }
             }
             if (!info?.moveRegionLines.isNullOrEmpty()) {
-                Text("Linhas da area de movimentos:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                Text("Linhas da área de movimentos:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                 info?.moveRegionLines?.forEach { line ->
                     Text("- $line", style = MaterialTheme.typography.bodySmall)
                 }
@@ -673,6 +742,8 @@ private fun BackgroundHelpPanel(info: BackgroundDebugInfo?) {
             Text("Matcher referencia: ${info?.referenceDecision?.toString() ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Melhor referencia: ${info?.referenceName ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Distancia: ${info?.referenceDistance?.formatDebugDouble() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Melhor special: ${info?.specialReferenceName ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Distancia special: ${info?.specialReferenceDistance?.formatDebugDouble() ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Fallback por cor: ${info?.colorFallbackMatch ?: false}", style = MaterialTheme.typography.bodySmall)
             if (!info?.topRegionLines.isNullOrEmpty()) {
                 Text("Linhas do topo:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
@@ -694,10 +765,59 @@ private fun BackgroundHelpPanel(info: BackgroundDebugInfo?) {
 }
 
 @Composable
+private fun EvolutionIconHelpPanel(info: EvolutionIconDebugInfo?) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text("Leitura dos ícones", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text("Mega: ${info?.megaKeyword ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Gigantamax: ${info?.gigantamaxKeyword ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Dynamax: ${info?.dynamaxKeyword ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Flags detectadas: ${info?.detectedFlags?.joinToString(", ").orEmpty().ifBlank { "-" }}", style = MaterialTheme.typography.bodySmall)
+            if (!info?.titleLines.isNullOrEmpty()) {
+                Text("Linhas do topo:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                info?.titleLines?.forEach { line ->
+                    Text("- $line", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (!info?.badgeLines.isNullOrEmpty()) {
+                Text("Linhas do badge:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                info?.badgeLines?.forEach { line ->
+                    Text("- $line", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (!info?.centerLines.isNullOrEmpty()) {
+                Text("Linhas centrais:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                info?.centerLines?.forEach { line ->
+                    Text("- $line", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (!info?.actionLines.isNullOrEmpty()) {
+                Text("Linhas de ação:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                info?.actionLines?.forEach { line ->
+                    Text("- $line", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (!info?.notes.isNullOrBlank()) {
+                Text("Obs: ${info?.notes}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ReviewTextRow(
     content: @Composable RowScope.() -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         content()
     }
 }
@@ -707,16 +827,23 @@ private fun CompactField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
+    readOnly: Boolean = false,
+    active: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    headerTrailing: (@Composable (() -> Unit))? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier) {
-        Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = modifier) {
+        FieldLabelRow(label = label, trailing = headerTrailing)
         CompactTextInput(
             value = value,
             onValueChange = onValueChange,
+            readOnly = readOnly,
+            active = active,
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(min = 0.dp)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
         )
     }
 }
@@ -727,10 +854,11 @@ private fun IvValueButton(
     value: Int?,
     selected: Boolean,
     onClick: () -> Unit,
+    headerTrailing: (@Composable (() -> Unit))? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier) {
-        Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+        FieldLabelRow(label = label, trailing = headerTrailing)
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -747,7 +875,7 @@ private fun IvValueButton(
                 modifier = Modifier
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = 34.dp)
-                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -814,19 +942,27 @@ private fun CompactTextInput(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
+    active: Boolean = false,
     trailing: @Composable (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        color = if (active) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+        } else {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+        },
         tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.outline
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 30.dp)
+                .defaultMinSize(minHeight = 34.dp)
                 .padding(horizontal = 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -856,17 +992,17 @@ private fun PokemonSuggestionField(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onValueChange: (String) -> Unit,
+    headerTrailing: (@Composable (() -> Unit))? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier) {
-        if (label.isNotBlank()) {
-            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+        FieldLabelRow(label = label, trailing = headerTrailing)
         Box {
             CompactTextInput(
                 value = value,
                 onValueChange = onValueChange,
                 readOnly = suggestions.isNotEmpty(),
+                active = expanded,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(enabled = suggestions.isNotEmpty()) { onExpandedChange(!expanded) },
@@ -885,7 +1021,10 @@ private fun PokemonSuggestionField(
                 DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { onExpandedChange(false) },
-                    modifier = Modifier.fillMaxWidth(0.92f)
+                    modifier = Modifier
+                        .widthIn(min = 180.dp, max = 280.dp)
+                        .heightIn(max = 220.dp)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
                 ) {
                     suggestions.forEach { suggestion ->
                         DropdownMenuItem(
@@ -896,6 +1035,58 @@ private fun PokemonSuggestionField(
                             }
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectionDropdownField(
+    label: String,
+    value: String,
+    options: List<String>,
+    onSelected: (String) -> Unit,
+    headerTrailing: (@Composable (() -> Unit))? = null,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+        FieldLabelRow(label = label, trailing = headerTrailing)
+        Box {
+            CompactTextInput(
+                value = value,
+                onValueChange = {},
+                readOnly = true,
+                active = expanded,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                trailing = {
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = "Abrir opções",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .widthIn(min = 120.dp, max = 220.dp)
+                    .heightIn(max = 220.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option, style = MaterialTheme.typography.bodySmall) },
+                        onClick = {
+                            onSelected(option)
+                            expanded = false
+                        }
+                    )
                 }
             }
         }
@@ -1051,12 +1242,16 @@ private fun DebugLegendChip(label: String, color: Color) {
 }
 
 @Composable
-private fun PvpHelpPanel(leagueRanks: List<PvpLeagueRankInfo>) {
+private fun PvpHelpPanel(
+    leagueRanks: List<PvpLeagueRankInfo>,
+    speciesRanks: List<PvpSpeciesRankInfo> = emptyList()
+) {
     val context = LocalContext.current
     val orderedLeagues = listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER)
     val orderedRanks = orderedLeagues.mapNotNull { league ->
         leagueRanks.firstOrNull { it.league == league }
     }
+    val bestBySpecies = speciesRankCardsForLeague(speciesRanks, selectedLeague = null)
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
         Column(
             modifier = Modifier
@@ -1068,6 +1263,14 @@ private fun PvpHelpPanel(leagueRanks: List<PvpLeagueRankInfo>) {
             if (orderedRanks.isEmpty()) {
                 Text("Nenhum ranking por liga foi calculado para este Pokémon.", style = MaterialTheme.typography.bodySmall)
             } else {
+                if (bestBySpecies.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Melhor ranking por espécie", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                        bestBySpecies.take(3).forEach { rankCard ->
+                            Text("${rankCard.pokemonName}: ${rankCard.value}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
                 orderedRanks.forEach { info ->
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(leagueDisplayName(info.league), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -1102,6 +1305,99 @@ private fun PvpHelpPanel(leagueRanks: List<PvpLeagueRankInfo>) {
 }
 
 @Composable
+private fun VivillonHelpPanel(
+    pattern: VivillonPattern?,
+    info: com.mewname.app.model.VivillonDebugInfo?,
+    bitmap: Bitmap?
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text("Log do padrão Vivillon", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text("Padrão detectado: ${pattern?.label ?: "Não identificado"}", style = MaterialTheme.typography.bodySmall)
+            Text("Melhor referência: ${info?.bestReferenceName ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Distância: ${info?.bestDistance?.formatDebugDouble() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Segunda referência: ${info?.secondReferenceName ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Distância 2: ${info?.secondDistance?.formatDebugDouble() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Aceita: ${info?.accepted ?: false}", style = MaterialTheme.typography.bodySmall)
+            if (bitmap != null) {
+                debugRectSummary("Vivillon", info?.bestCandidateRect, bitmap)?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Text("Refs usadas: unique_pokemon_refs/vivillon", style = MaterialTheme.typography.bodySmall)
+            info?.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                Text("Obs: $notes", style = MaterialTheme.typography.bodySmall)
+            }
+            if (bitmap != null && info != null && info.candidateRects.isNotEmpty()) {
+                VivillonDebugOverlay(bitmap = bitmap, info = info)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun VivillonDebugOverlay(
+    bitmap: Bitmap,
+    info: com.mewname.app.model.VivillonDebugInfo
+) {
+    val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
+    val aspectRatio = remember(bitmap) { bitmap.width.toFloat() / bitmap.height.toFloat() }
+    val shape = RoundedCornerShape(12.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+        Text("Mapa da leitura", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f), shape)
+                .heightIn(min = 160.dp)
+                .aspectRatio(aspectRatio)
+        ) {
+            Image(
+                bitmap = imageBitmap,
+                contentDescription = "Debug da leitura do Vivillon",
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.FillBounds
+            )
+            Canvas(modifier = Modifier.matchParentSize()) {
+                info.candidateRects.forEach { rect ->
+                    drawDebugRect(rect, Color(0xFFFFC107))
+                }
+                drawDebugRect(info.bestCandidateRect, Color.Magenta)
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            DebugLegendChip("Candidatos", Color(0xFFFFC107))
+            DebugLegendChip("Melhor área", Color.Magenta)
+        }
+    }
+}
+
+@Composable
+private fun SizeHelpPanel(size: PokemonSize) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text("Log do tamanho", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text("Tamanho detectado: ${sizeDisplayName(size)}", style = MaterialTheme.typography.bodySmall)
+            if (size == PokemonSize.NORMAL) {
+                Text("Normal é usado quando nenhum dos tamanhos especiais está marcado.", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ReviewSectionTitle(text: String) {
     Text(
         text,
@@ -1109,6 +1405,62 @@ private fun ReviewSectionTitle(text: String) {
         fontWeight = FontWeight.SemiBold
     )
 }
+
+@Composable
+private fun FieldLabelRow(
+    label: String,
+    trailing: (@Composable (() -> Unit))? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (label.isNotBlank()) {
+            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+        }
+        trailing?.invoke()
+    }
+}
+
+@Composable
+private fun FieldHeaderRow(
+    label: String,
+    selected: Boolean,
+    onMarkerClick: () -> Unit
+) {
+    FieldLabelRow(
+        label = label,
+        trailing = {
+            UnownHeaderIcon(
+                selected = selected,
+                onClick = onMarkerClick,
+                contentDescription = "Selecionar log de $label"
+            )
+        }
+    )
+}
+
+@Composable
+private fun UnownHeaderIcon(
+    selected: Boolean,
+    onClick: () -> Unit,
+    contentDescription: String
+) {
+    IconButton(onClick = onClick, modifier = Modifier.size(20.dp)) {
+        UnownQuestionIcon(
+            selected = selected,
+            modifier = Modifier.size(16.dp),
+            contentDescription = contentDescription
+        )
+    }
+}
+
+private data class WeightedToggleItem(
+    val label: String,
+    val selected: Boolean,
+    val onClick: () -> Unit
+)
 
 private fun Float.formatDebug(): String = String.format("%.3f", this)
 private fun Double.formatDebugDouble(): String = String.format("%.3f", this)
@@ -1121,6 +1473,70 @@ private fun leagueDisplayName(league: PvpLeague): String {
         PvpLeague.ULTRA -> "Ultra League"
         PvpLeague.MASTER -> "Master League"
     }
+}
+
+private fun leagueShortName(league: PvpLeague): String {
+    return when (league) {
+        PvpLeague.LITTLE -> "CP"
+        PvpLeague.GREAT -> "GL"
+        PvpLeague.ULTRA -> "UL"
+        PvpLeague.MASTER -> "ML"
+    }
+}
+
+private fun sizeDisplayName(size: PokemonSize): String {
+    return when (size) {
+        PokemonSize.XXS -> "XXS"
+        PokemonSize.XS -> "XS"
+        PokemonSize.NORMAL -> "Normal"
+        PokemonSize.XL -> "XL"
+        PokemonSize.XXL -> "XXL"
+    }
+}
+
+private data class PvpRankCard(
+    val pokemonName: String,
+    val league: PvpLeague,
+    val rank: Int?,
+    val eligible: Boolean,
+    val value: String,
+    val label: String
+)
+
+private fun speciesRankCardsForLeague(
+    speciesRanks: List<PvpSpeciesRankInfo>,
+    selectedLeague: PvpLeague?
+): List<PvpRankCard> {
+    if (speciesRanks.isEmpty()) return emptyList()
+    val orderedSpecies = speciesRanks.map { it.pokemonName }.distinct()
+    return orderedSpecies.mapNotNull { pokemonName ->
+        val ranksForSpecies = speciesRanks.filter { it.pokemonName == pokemonName }
+        val best = if (selectedLeague != null) {
+            ranksForSpecies.firstOrNull { it.league == selectedLeague }
+        } else {
+            ranksForSpecies
+                .filter { it.eligible && it.rank != null }
+                .minWithOrNull(compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.league.ordinal })
+                ?: ranksForSpecies.firstOrNull()
+        } ?: return@mapNotNull null
+        PvpRankCard(
+            pokemonName = pokemonName,
+            league = best.league,
+            rank = best.rank,
+            eligible = best.eligible,
+            label = pokemonName,
+            value = if (best.eligible && best.rank != null) {
+                if (selectedLeague != null) "Rank ${best.rank}" else "${leagueShortName(best.league)} • ${best.rank}"
+            } else {
+                "Não elegível"
+            }
+        )
+    }
+}
+
+private fun isVivillonReviewFamily(name: String?): Boolean {
+    val normalized = name?.trim()?.uppercase() ?: return false
+    return normalized in setOf("SCATTERBUG", "SPEWPA", "VIVILLON")
 }
 
 private fun debugRectSummary(
@@ -1145,11 +1561,12 @@ private fun ReviewChipSection(
     options: List<Pair<String, Boolean>>,
     onSelect: (Int) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         ReviewSectionTitle(label)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             options.forEachIndexed { index, option ->
                 FilterChip(
+                    modifier = Modifier.heightIn(min = 27.dp),
                     selected = option.second,
                     onClick = { onSelect(index) },
                     label = { Text(option.first, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
@@ -1160,21 +1577,102 @@ private fun ReviewChipSection(
 }
 
 @Composable
+private fun WeightedToggleRow(items: List<WeightedToggleItem>) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        items.forEach { item ->
+            ToggleChip(
+                label = item.label,
+                selected = item.selected,
+                onClick = item.onClick,
+                compact = true,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
 private fun ToggleChip(
     label: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    compact: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, style = MaterialTheme.typography.labelSmall) }
-    )
+    val shape = RoundedCornerShape(10.dp)
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+    }
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)
+    }
+    Surface(
+        modifier = modifier
+            .heightIn(min = 34.dp)
+            .clickable(onClick = onClick),
+        shape = shape,
+        color = containerColor,
+        tonalElevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 34.dp)
+                .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                label,
+                style = if (compact) MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp) else MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
 }
 
 private fun Set<EvolutionFlag>.toggle(flag: EvolutionFlag): Set<EvolutionFlag> {
     return if (flag in this) this - flag else this + flag
 }
+
+private fun Set<EvolutionFlag>.toggleEvolutionStage(flag: EvolutionFlag): Set<EvolutionFlag> {
+    val stageFlags = setOf(EvolutionFlag.BABY, EvolutionFlag.STAGE1, EvolutionFlag.STAGE2)
+    return if (flag in this) {
+        this - flag
+    } else {
+        (this - stageFlags) + flag
+    }
+}
+
+private fun Set<NamingField>.toggleField(field: NamingField): Set<NamingField> {
+    return if (field in this) this - field else this + field
+}
+
+private fun Set<NamingField>.toggleAll(fields: Set<NamingField>): Set<NamingField> {
+    return if (fields.all { it in this }) this - fields else this + fields
+}
+
+private fun pokemonDebugFields(): Set<NamingField> = linkedSetOf(
+    NamingField.POKEMON_NAME,
+    NamingField.CP,
+    NamingField.LEVEL,
+    NamingField.GENDER,
+    NamingField.UNOWN_LETTER,
+    NamingField.UNIQUE_FORM
+)
+
+private fun ivDebugFields(): Set<NamingField> = linkedSetOf(
+    NamingField.IV_PERCENT,
+    NamingField.IV_COMBINATION
+)
 
 private fun PokemonScreenData.normalizeReviewData(): PokemonScreenData {
     val att = attIv
@@ -1197,3 +1695,5 @@ private fun PokemonScreenData.recalculateIvPercent(): PokemonScreenData {
         this
     }
 }
+
+

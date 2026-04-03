@@ -54,7 +54,7 @@ object GameCatalogRepository {
                         val array = jsonObject.getJSONArray(pokemon)
                         val rawMoves = buildList(array.length()) {
                             for (index in 0 until array.length()) {
-                                val value = array.optString(index).trim()
+                                val value = repairMojibake(array.optString(index)).trim()
                                 if (value.isNotEmpty()) add(value)
                             }
                         }
@@ -74,7 +74,7 @@ object GameCatalogRepository {
                         }.distinct()
                         add(
                             LegacyMoveCatalogEntry(
-                                pokemon = pokemon,
+                                pokemon = repairMojibake(pokemon),
                                 moves = displayMoves,
                                 searchTerms = searchTerms
                             )
@@ -127,6 +127,13 @@ object GameCatalogRepository {
             }
         }
     }
+}
+
+private fun repairMojibake(text: String): String {
+    if (!text.any { it == '\u00C3' || it == '\u00C2' || it == '\u00E2' }) return text
+    return runCatching {
+        String(text.toByteArray(Charsets.ISO_8859_1), Charsets.UTF_8)
+    }.getOrDefault(text)
 }
 
 private fun normalizeCatalogText(text: String): String {
