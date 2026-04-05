@@ -140,7 +140,7 @@ object IvCombinationTable {
 
     private fun loadFromAsset(context: Context): List<IvCombination>? {
         return try {
-            val jsonString = context.assets.open("iv_combinations.json")
+            val jsonString = context.assets.open(AssetPaths.PVP_IV_COMBINATIONS)
                 .bufferedReader()
                 .use { it.readText() }
             val jsonArray = JSONArray(jsonString)

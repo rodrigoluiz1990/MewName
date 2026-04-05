@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.defaultMinSize
@@ -67,9 +68,11 @@ import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.EvolutionFlag
 import com.mewname.app.model.Gender
 import com.mewname.app.model.AdventureEffectDebugInfo
+import com.mewname.app.model.AttributeDebugInfo
 import com.mewname.app.model.BackgroundDebugInfo
 import com.mewname.app.model.CandyDebugInfo
 import com.mewname.app.model.EvolutionIconDebugInfo
+import com.mewname.app.model.GenderDebugInfo
 import com.mewname.app.model.IvDebugInfo
 import com.mewname.app.model.LegacyDebugInfo
 import com.mewname.app.model.LevelDebugInfo
@@ -117,6 +120,7 @@ fun ReviewEditorCard(
     var showPvpHelp by remember { mutableStateOf(false) }
     var showVivillonHelp by remember { mutableStateOf(false) }
     var showEvolutionHelp by remember { mutableStateOf(false) }
+    var showAttributeHelp by remember { mutableStateOf(false) }
     var selectedDebugFields by remember { mutableStateOf<Set<NamingField>>(emptySet()) }
     val familySuggester = remember { PokemonFamilySuggester() }
     val visibleSizeOptions = remember(configs, draft.size) {
@@ -200,7 +204,7 @@ fun ReviewEditorCard(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                if (NamingField.CP in fields || draft.pokemonName.equals("Unown", ignoreCase = true)) {
+                if (NamingField.CP in fields) {
                     ReviewTextRow {
                         if (NamingField.CP in fields) {
                             CompactField(
@@ -208,17 +212,6 @@ fun ReviewEditorCard(
                                 value = draft.cp?.toString().orEmpty(),
                                 onValueChange = { draft = draft.copy(cp = it.toIntOrNull()) },
                                 modifier = Modifier.weight(0.9f)
-                            )
-                        }
-                        if (draft.pokemonName.equals("Unown", ignoreCase = true)) {
-                            SelectionDropdownField(
-                                label = "Letra Unown",
-                                value = draft.unownLetter ?: "-",
-                                options = listOf("-") + ('A'..'Z').map { it.toString() } + listOf("!", "?"),
-                                onSelected = { value ->
-                                    draft = draft.copy(unownLetter = value.takeUnless { it == "-" })
-                                },
-                                modifier = Modifier.weight(1.1f)
                             )
                         }
                     }
@@ -232,16 +225,30 @@ fun ReviewEditorCard(
                             addAll(uniqueFormOptions.map { it.label })
                         },
                         onSelected = { value ->
-                            draft = draft.copy(uniqueForm = value.takeUnless { it == "-" })
+                            val selected = value.takeUnless { it == "-" }
+                            draft = if (draft.pokemonName.equals("Unown", ignoreCase = true)) {
+                                draft.copy(
+                                    uniqueForm = selected,
+                                    unownLetter = selected
+                                )
+                            } else {
+                                draft.copy(uniqueForm = selected)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
                 if (showPokemonHelp) {
-                    PokemonHelpPanel(candyInfo = draft.candyDebugInfo, levelInfo = draft.levelDebugInfo)
+                    PokemonHelpPanel(
+                        candyInfo = draft.candyDebugInfo,
+                        levelInfo = draft.levelDebugInfo,
+                        genderInfo = draft.genderDebugInfo,
+                        uniqueFormInfo = draft.uniqueFormDebugInfo,
+                        bitmap = bitmap
+                    )
                 }
             }
- 
+
             if (NamingField.IV_PERCENT in fields || NamingField.IV_COMBINATION in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
@@ -287,6 +294,150 @@ fun ReviewEditorCard(
                     }
                     if (showIvHelp) {
                         IvHelpPanel(info = draft.ivDebugInfo, bitmap = bitmap)
+                    }
+                }
+            }
+            if (NamingField.MASTER_IV_BADGE in fields) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SelectionDropdownField(
+                        label = "IV Master",
+                        value = when (draft.masterIvBadgeMatch) {
+                            true -> "Melhor combinação"
+                            false -> "Outra combinação"
+                            null -> "-"
+                        },
+                        options = listOf("-", "Melhor combinação", "Outra combinação"),
+                        onSelected = { value ->
+                            draft = draft.copy(
+                                masterIvBadgeMatch = when (value) {
+                                    "Melhor combinação" -> true
+                                    "Outra combinação" -> false
+                                    else -> null
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    draft.masterIvBadgeDebugInfo?.let { info ->
+                        Text(
+                            text = buildString {
+                                append("Detectado: ")
+                                append(
+                                    when (info.isBestMatch) {
+                                        true -> "Melhor combinação"
+                                        false -> "Outra combinação"
+                                        null -> "-"
+                                    }
+                                )
+                                if (info.expectedAttack != null && info.expectedDefense != null && info.expectedStamina != null) {
+                                    append(" | Esperado: ${info.expectedAttack}/${info.expectedDefense}/${info.expectedStamina}")
+                                }
+                                if (info.notes.isNotBlank()) {
+                                    append(" | ${info.notes}")
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            val hasAttributeSection = listOf(
+                NamingField.TYPE,
+                NamingField.FAVORITE,
+                NamingField.LUCKY,
+                NamingField.SHADOW,
+                NamingField.PURIFIED
+            ).any { it in fields }
+            if (hasAttributeSection) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    FieldHeaderRow(
+                        label = "Atributos",
+                        selected = selectedDebugFields.any { it in attributeDebugFields() },
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleAll(attributeDebugFields().intersect(fields.toSet()))
+                            showAttributeHelp = !showAttributeHelp
+                        }
+                    )
+                    ReviewTextRow {
+                        var cellsInFirstRow = 0
+                        if (NamingField.TYPE in fields) {
+                            CompactField(
+                                label = "",
+                                value = draft.displayTypes(),
+                                onValueChange = { value ->
+                                    val parsed = parseTypesForReview(value)
+                                    draft = draft.copy(
+                                        type1 = parsed.firstOrNull(),
+                                        type2 = parsed.getOrNull(1)
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            cellsInFirstRow++
+                        }
+                        if (NamingField.FAVORITE in fields) {
+                            ToggleChip(
+                                label = "Favorito",
+                                selected = draft.isFavorite,
+                                onClick = { draft = draft.copy(isFavorite = !draft.isFavorite) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            cellsInFirstRow++
+                        }
+                        if (NamingField.LUCKY in fields) {
+                            ToggleChip(
+                                label = "Sortudo",
+                                selected = draft.isLucky,
+                                onClick = { draft = draft.copy(isLucky = !draft.isLucky) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            cellsInFirstRow++
+                        }
+                        repeat((3 - cellsInFirstRow).coerceAtLeast(0)) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                    ReviewTextRow {
+                        var cellsInSecondRow = 0
+                        if (NamingField.SHADOW in fields) {
+                            ToggleChip(
+                                label = "Sombrio",
+                                selected = draft.isShadow,
+                                onClick = { draft = draft.copy(isShadow = !draft.isShadow) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            cellsInSecondRow++
+                        }
+                        if (NamingField.PURIFIED in fields) {
+                            ToggleChip(
+                                label = "Purificado",
+                                selected = draft.isPurified,
+                                onClick = { draft = draft.copy(isPurified = !draft.isPurified) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            cellsInSecondRow++
+                        }
+                        repeat((3 - cellsInSecondRow).coerceAtLeast(0)) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                    if (showAttributeHelp) {
+                        AttributeHelpPanel(
+                            info = draft.attributeDebugInfo,
+                            backgroundInfo = draft.backgroundDebugInfo,
+                            type1 = draft.type1,
+                            type2 = draft.type2,
+                            isFavorite = draft.isFavorite,
+                            isLucky = draft.isLucky,
+                            isShadow = draft.isShadow,
+                            isPurified = draft.isPurified
+                        )
                     }
                 }
             }
@@ -619,7 +770,10 @@ fun ReviewEditorCard(
 @Composable
 private fun PokemonHelpPanel(
     candyInfo: CandyDebugInfo?,
-    levelInfo: LevelDebugInfo?
+    levelInfo: LevelDebugInfo?,
+    genderInfo: GenderDebugInfo?,
+    uniqueFormInfo: com.mewname.app.model.UniqueFormDebugInfo?,
+    bitmap: Bitmap?
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
         Column(
@@ -636,10 +790,29 @@ private fun PokemonHelpPanel(
             Text("Pokémon base: ${levelInfo?.pokemonName ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("CP usado: ${levelInfo?.cp ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("IVs usados: ${levelInfo?.attackIv ?: "-"}/${levelInfo?.defenseIv ?: "-"}/${levelInfo?.staminaIv ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Gênero detectado: ${when (genderInfo?.detectedGender) {
+                Gender.MALE -> "♂"
+                Gender.FEMALE -> "♀"
+                Gender.GENDERLESS -> "-"
+                else -> "-"
+            }}", style = MaterialTheme.typography.bodySmall)
+            genderInfo?.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                Text("Obs gênero: $notes", style = MaterialTheme.typography.bodySmall)
+            }
             Text("Linhas na região de doces: ${candyInfo?.regionLineCount ?: 0}", style = MaterialTheme.typography.bodySmall)
             Text("Linha encontrada: ${candyInfo?.matchedLine ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Família extraída: ${candyInfo?.extractedFamilyRaw ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Família resolvida: ${candyInfo?.resolvedFamilyName ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            if (uniqueFormInfo != null) {
+                Text("Forma única: ${uniqueFormInfo.bestLabel ?: "-"}", style = MaterialTheme.typography.bodySmall)
+                Text("Categoria: ${uniqueFormInfo.category ?: "-"}", style = MaterialTheme.typography.bodySmall)
+                Text("Melhor arquivo: ${uniqueFormInfo.bestReferenceName ?: "-"}", style = MaterialTheme.typography.bodySmall)
+                Text("Distância: ${uniqueFormInfo.bestDistance?.formatDebugDouble() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+                Text("Aceita: ${uniqueFormInfo.accepted}", style = MaterialTheme.typography.bodySmall)
+                uniqueFormInfo.notes.takeIf { it.isNotBlank() }?.let { notes ->
+                    Text("Obs forma única: $notes", style = MaterialTheme.typography.bodySmall)
+                }
+            }
             if (!candyInfo?.regionLines.isNullOrEmpty()) {
                 Text("Linhas lidas:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                 candyInfo?.regionLines?.forEach { line ->
@@ -651,6 +824,9 @@ private fun PokemonHelpPanel(
             }
             if (!candyInfo?.notes.isNullOrBlank()) {
                 Text("Obs doces: ${candyInfo?.notes}", style = MaterialTheme.typography.bodySmall)
+            }
+            if (bitmap != null && (genderInfo?.iconRect != null || !uniqueFormInfo?.candidateRects.isNullOrEmpty())) {
+                PokemonVisualDebugOverlay(bitmap = bitmap, genderInfo = genderInfo, uniqueFormInfo = uniqueFormInfo)
             }
         }
     }
@@ -722,6 +898,93 @@ private fun LegacyHelpPanel(info: LegacyDebugInfo?) {
             }
             if (!info?.notes.isNullOrBlank()) {
                 Text("Obs: ${info?.notes}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttributeHelpPanel(
+    info: AttributeDebugInfo?,
+    backgroundInfo: BackgroundDebugInfo?,
+    type1: String?,
+    type2: String?,
+    isFavorite: Boolean,
+    isLucky: Boolean,
+    isShadow: Boolean,
+    isPurified: Boolean
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text("Log dos atributos", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text("Tipo final: ${listOfNotNull(type1, type2).joinToString("/").ifBlank { "-" }}", style = MaterialTheme.typography.bodySmall)
+            Text("Tipos detectados: ${info?.detectedTypes?.joinToString("/")?.ifBlank { "-" } ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Linhas do tipo: ${info?.typeRegionLines?.joinToString(" | ")?.ifBlank { "-" } ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Favorito: $isFavorite", style = MaterialTheme.typography.bodySmall)
+            Text("Estrela amarela: ${info?.favoriteFilledMatch ?: false}", style = MaterialTheme.typography.bodySmall)
+            Text("Razão amarela: ${info?.favoriteYellowRatio?.formatDebugDouble() ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Sortudo: $isLucky", style = MaterialTheme.typography.bodySmall)
+            Text("Sombrio: $isShadow", style = MaterialTheme.typography.bodySmall)
+            Text("Purificado: $isPurified", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "Sinais extra: sortudoTexto=${backgroundInfo?.luckyTextMatch ?: false} sortudoVisual=${backgroundInfo?.luckyVisualMatch ?: false} sombraTexto=${backgroundInfo?.shadowTextMatch ?: false} sombraParticulas=${backgroundInfo?.shadowParticleMatch ?: false} sombraTextura=${backgroundInfo?.shadowTextureMatch ?: false}",
+                style = MaterialTheme.typography.bodySmall
+            )
+            info?.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                Text("Obs: $notes", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PokemonVisualDebugOverlay(
+    bitmap: Bitmap,
+    genderInfo: GenderDebugInfo?,
+    uniqueFormInfo: com.mewname.app.model.UniqueFormDebugInfo?
+) {
+    val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
+    val aspectRatio = remember(bitmap) { bitmap.width.toFloat() / bitmap.height.toFloat() }
+    val shape = RoundedCornerShape(12.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+        Text("Mapa da leitura", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f), shape)
+                .heightIn(min = 160.dp)
+                .aspectRatio(aspectRatio)
+        ) {
+            Image(
+                bitmap = imageBitmap,
+                contentDescription = "Debug visual do Pokémon",
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.FillBounds
+            )
+            Canvas(modifier = Modifier.matchParentSize()) {
+                uniqueFormInfo?.candidateRects?.forEach { rect ->
+                    drawDebugRect(rect, Color(0xFFFFC107))
+                }
+                drawDebugRect(uniqueFormInfo?.bestCandidateRect, Color.Magenta)
+                drawDebugRect(genderInfo?.iconRect, Color(0xFF42A5F5))
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (!uniqueFormInfo?.candidateRects.isNullOrEmpty()) {
+                DebugLegendChip("Candidatos forma", Color(0xFFFFC107))
+            }
+            if (uniqueFormInfo?.bestCandidateRect != null) {
+                DebugLegendChip("Melhor forma", Color.Magenta)
+            }
+            if (genderInfo?.iconRect != null) {
+                DebugLegendChip("Ícone gênero", Color(0xFF42A5F5))
             }
         }
     }
@@ -1494,6 +1757,19 @@ private fun sizeDisplayName(size: PokemonSize): String {
     }
 }
 
+private fun PokemonScreenData.displayTypes(): String {
+    return listOfNotNull(type1, type2).joinToString("/").ifBlank { "" }
+}
+
+private fun parseTypesForReview(value: String): List<String> {
+    return value.split("/", ",")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .map { it.uppercase() }
+        .distinct()
+        .take(2)
+}
+
 private data class PvpRankCard(
     val pokemonName: String,
     val league: PvpLeague,
@@ -1665,13 +1941,20 @@ private fun pokemonDebugFields(): Set<NamingField> = linkedSetOf(
     NamingField.CP,
     NamingField.LEVEL,
     NamingField.GENDER,
-    NamingField.UNOWN_LETTER,
     NamingField.UNIQUE_FORM
 )
 
 private fun ivDebugFields(): Set<NamingField> = linkedSetOf(
     NamingField.IV_PERCENT,
     NamingField.IV_COMBINATION
+)
+
+private fun attributeDebugFields(): Set<NamingField> = linkedSetOf(
+    NamingField.TYPE,
+    NamingField.FAVORITE,
+    NamingField.LUCKY,
+    NamingField.SHADOW,
+    NamingField.PURIFIED
 )
 
 private fun PokemonScreenData.normalizeReviewData(): PokemonScreenData {

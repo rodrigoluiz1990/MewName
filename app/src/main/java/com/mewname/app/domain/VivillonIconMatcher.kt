@@ -32,6 +32,14 @@ class VivillonIconMatcher {
     private var cachedReferences: List<ReferenceSignature>? = null
 
     fun detectPattern(context: Context, bitmap: Bitmap): MatchResult {
+        return detectPattern(context, bitmap, null)
+    }
+
+    fun detectPattern(
+        context: Context,
+        bitmap: Bitmap,
+        pokemonName: String?
+    ): MatchResult {
         val references = loadReferences(context)
         if (references.isEmpty()) {
             return MatchResult(
@@ -42,7 +50,7 @@ class VivillonIconMatcher {
             )
         }
 
-        val candidateCrops = cropVivillonIconCandidates(bitmap)
+        val candidateCrops = cropVivillonIconCandidates(bitmap, pokemonName)
         val candidateSignatures = candidateCrops.map { crop ->
             createSignature(crop.bitmap) to crop.rect
         }
@@ -89,6 +97,8 @@ class VivillonIconMatcher {
                     append(MATCH_THRESHOLD)
                     append("; distinctlyBetter=")
                     append(clearlyBetter)
+                    append("; profile=")
+                    append(candidateProfileFor(pokemonName))
                 }
             )
         )
@@ -126,19 +136,44 @@ class VivillonIconMatcher {
         }
     }
 
-    private fun cropVivillonIconCandidates(bitmap: Bitmap): List<CandidateCrop> {
-        val rects = listOf(
-            normalizedRect(bitmap, 0.08f, 0.22f, 0.64f, 0.79f),
-            normalizedRect(bitmap, 0.09f, 0.21f, 0.66f, 0.81f),
-            normalizedRect(bitmap, 0.10f, 0.20f, 0.68f, 0.82f),
-            normalizedRect(bitmap, 0.11f, 0.21f, 0.69f, 0.83f),
-            normalizedRect(bitmap, 0.10f, 0.18f, 0.70f, 0.84f),
-            normalizedRect(bitmap, 0.12f, 0.23f, 0.67f, 0.80f),
-            normalizedRect(bitmap, 0.13f, 0.24f, 0.69f, 0.82f),
-            normalizedRect(bitmap, 0.14f, 0.25f, 0.71f, 0.84f)
-        )
+    private fun cropVivillonIconCandidates(bitmap: Bitmap, pokemonName: String?): List<CandidateCrop> {
+        val rects = candidateBoundsFor(pokemonName).map { bounds ->
+            normalizedRect(bitmap, bounds[0], bounds[1], bounds[2], bounds[3])
+        }
         return rects.distinctBy { listOf(it.left, it.top, it.right, it.bottom) }
             .map { rect -> CandidateCrop(Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height()), rect) }
+    }
+
+    private fun candidateBoundsFor(pokemonName: String?): List<FloatArray> {
+        return when (candidateProfileFor(pokemonName)) {
+            "pre_evo" -> listOf(
+                floatArrayOf(0.10f, 0.20f, 0.78f, 0.88f),
+                floatArrayOf(0.11f, 0.21f, 0.79f, 0.89f),
+                floatArrayOf(0.12f, 0.22f, 0.80f, 0.90f),
+                floatArrayOf(0.13f, 0.23f, 0.79f, 0.89f),
+                floatArrayOf(0.10f, 0.18f, 0.81f, 0.90f),
+                floatArrayOf(0.11f, 0.19f, 0.82f, 0.91f),
+                floatArrayOf(0.12f, 0.20f, 0.83f, 0.92f),
+                floatArrayOf(0.14f, 0.22f, 0.80f, 0.90f)
+            )
+            else -> listOf(
+                floatArrayOf(0.13f, 0.27f, 0.64f, 0.79f),
+                floatArrayOf(0.14f, 0.28f, 0.65f, 0.80f),
+                floatArrayOf(0.15f, 0.29f, 0.66f, 0.81f),
+                floatArrayOf(0.16f, 0.30f, 0.67f, 0.82f),
+                floatArrayOf(0.17f, 0.31f, 0.68f, 0.83f),
+                floatArrayOf(0.18f, 0.32f, 0.69f, 0.84f),
+                floatArrayOf(0.19f, 0.33f, 0.66f, 0.81f),
+                floatArrayOf(0.20f, 0.34f, 0.67f, 0.82f)
+            )
+        }
+    }
+
+    private fun candidateProfileFor(pokemonName: String?): String {
+        return when (pokemonName?.trim()?.uppercase()) {
+            "SCATTERBUG", "SPEWPA" -> "pre_evo"
+            else -> "vivillon"
+        }
     }
 
     private fun normalizeRect(bitmap: Bitmap, rect: Rect): NormalizedDebugRect {

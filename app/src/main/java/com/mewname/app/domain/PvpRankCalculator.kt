@@ -260,7 +260,7 @@ class PvpRankCalculator {
 
     private fun loadBaseStats(context: Context, name: String): JSONObject? {
         return try {
-            val jsonString = context.assets.open("pokemon_stats.json").bufferedReader().use { it.readText() }
+            val jsonString = context.assets.open(AssetPaths.POKEMON_STATS).bufferedReader().use { it.readText() }
             val jsonObject = JSONObject(jsonString)
             jsonObject.optJSONObject(name.uppercase())
         } catch (e: Exception) {

@@ -1,5 +1,7 @@
 .gradle/
+.gradle-user-home/
 .gradle-local/
+.android/
 .android-local/
 .idea/
 build/

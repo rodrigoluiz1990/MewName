@@ -7,6 +7,8 @@ data class PokemonScreenData(
     val candyFamilyName: String? = null,
     val candyDebugInfo: CandyDebugInfo? = null,
     val levelDebugInfo: LevelDebugInfo? = null,
+    val genderDebugInfo: GenderDebugInfo? = null,
+    val attributeDebugInfo: AttributeDebugInfo? = null,
     val legacyDebugInfo: LegacyDebugInfo? = null,
     val adventureEffectDebugInfo: AdventureEffectDebugInfo? = null,
     val backgroundDebugInfo: BackgroundDebugInfo? = null,
@@ -27,6 +29,7 @@ data class PokemonScreenData(
     val type2: String? = null,
     val isFavorite: Boolean = false,
     val isLucky: Boolean = false,
+    val isShiny: Boolean = false,
     val isShadow: Boolean = false,
     val isPurified: Boolean = false,
     val hasSpecialBackground: Boolean = false,
@@ -36,6 +39,8 @@ data class PokemonScreenData(
     val pvpRank: Int? = null,
     val pvpLeagueRanks: List<PvpLeagueRankInfo> = emptyList(),
     val familyPvpRanks: List<PvpSpeciesRankInfo> = emptyList(),
+    val masterIvBadgeMatch: Boolean? = null,
+    val masterIvBadgeDebugInfo: MasterIvBadgeDebugInfo? = null,
     val hasLegacyMove: Boolean = false,
     val evolutionFlags: Set<EvolutionFlag> = emptySet()
 )
@@ -83,6 +88,21 @@ data class LevelDebugInfo(
     val attackIv: Int? = null,
     val defenseIv: Int? = null,
     val staminaIv: Int? = null,
+    val notes: String = ""
+)
+
+data class GenderDebugInfo(
+    val detectedGender: Gender = Gender.UNKNOWN,
+    val iconRect: NormalizedDebugRect? = null,
+    val notes: String = ""
+)
+
+data class AttributeDebugInfo(
+    val typeRegionLines: List<String> = emptyList(),
+    val detectedTypes: List<String> = emptyList(),
+    val favoriteFilledMatch: Boolean = false,
+    val favoriteYellowRatio: Double? = null,
+    val purifiedTextMatch: Boolean = false,
     val notes: String = ""
 )
 
@@ -138,6 +158,13 @@ data class AdventureEffectDebugInfo(
 data class BackgroundDebugInfo(
     val textMatch: Boolean = false,
     val topRegionMatch: Boolean = false,
+    val eventBadgeVisualMatch: Boolean = false,
+    val luckyTextMatch: Boolean = false,
+    val luckyVisualMatch: Boolean = false,
+    val shinyParticleMatch: Boolean = false,
+    val shadowTextMatch: Boolean = false,
+    val shadowParticleMatch: Boolean = false,
+    val shadowTextureMatch: Boolean = false,
     val referenceDecision: Boolean? = null,
     val referenceName: String? = null,
     val referenceDistance: Double? = null,
@@ -155,6 +182,8 @@ data class UniqueFormDebugInfo(
     val bestLabel: String? = null,
     val bestDistance: Double? = null,
     val accepted: Boolean = false,
+    val bestCandidateRect: NormalizedDebugRect? = null,
+    val candidateRects: List<NormalizedDebugRect> = emptyList(),
     val notes: String = ""
 )
 
@@ -179,6 +208,16 @@ data class EvolutionIconDebugInfo(
     val gigantamaxKeyword: String? = null,
     val dynamaxKeyword: String? = null,
     val detectedFlags: List<String> = emptyList(),
+    val notes: String = ""
+)
+
+data class MasterIvBadgeDebugInfo(
+    val supportedIvPercent: Boolean = false,
+    val familyMembers: List<String> = emptyList(),
+    val expectedAttack: Int? = null,
+    val expectedDefense: Int? = null,
+    val expectedStamina: Int? = null,
+    val isBestMatch: Boolean? = null,
     val notes: String = ""
 )
 

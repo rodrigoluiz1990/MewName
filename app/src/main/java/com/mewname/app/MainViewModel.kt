@@ -489,7 +489,7 @@ private fun shouldOpenReview(data: PokemonScreenData, fields: List<NamingField>)
     return fields.any { field ->
         when (field) {
             NamingField.POKEMON_NAME -> data.pokemonName.isNullOrBlank()
-            NamingField.UNOWN_LETTER -> data.pokemonName.equals("Unown", ignoreCase = true) && data.unownLetter.isNullOrBlank()
+            NamingField.UNOWN_LETTER -> false
             NamingField.UNIQUE_FORM -> UniquePokemonCatalog.optionsFor(data.pokemonName).isNotEmpty() && data.uniqueForm.isNullOrBlank()
             NamingField.VIVILLON_PATTERN -> isVivillonFamily(data.pokemonName) && data.vivillonPattern == null
             NamingField.CP -> data.cp == null
@@ -498,6 +498,7 @@ private fun shouldOpenReview(data: PokemonScreenData, fields: List<NamingField>)
             NamingField.LEVEL -> data.level == null
             NamingField.GENDER -> data.gender == com.mewname.app.model.Gender.UNKNOWN
             NamingField.SIZE -> data.size == PokemonSize.NORMAL
+            NamingField.MASTER_IV_BADGE -> false
             NamingField.PVP_LEAGUE -> data.pvpLeague == null
             NamingField.PVP_RANK -> data.pvpRank == null
             NamingField.EVOLUTION_TYPE -> data.evolutionFlags.isEmpty()
@@ -562,6 +563,10 @@ fun jsonToNamingConfig(obj: JSONObject): NamingConfig {
         symbolsObj.keys().forEach { k -> symbols[k] = symbolsObj.getString(k) }
     }
 
+    val mergedSymbols = com.mewname.app.model.defaultSymbols().toMutableMap().apply {
+        putAll(symbols)
+    }
+
     return NamingConfig(
         id = obj.getString("id"),
         name = obj.getString("name"),
@@ -569,6 +574,6 @@ fun jsonToNamingConfig(obj: JSONObject): NamingConfig {
         customSeparator = obj.optString("customSeparator", ""),
         blocks = blocks,
         fields = fields,
-        symbols = symbols.ifEmpty { com.mewname.app.model.defaultSymbols() }
+        symbols = mergedSymbols
     )
 }

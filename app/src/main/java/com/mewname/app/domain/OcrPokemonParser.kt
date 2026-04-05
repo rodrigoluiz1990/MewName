@@ -2,18 +2,22 @@
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Rect
 import androidx.palette.graphics.Palette
 import com.mewname.app.model.EvolutionFlag
 import com.mewname.app.model.Gender
+import com.mewname.app.model.GenderDebugInfo
 import com.mewname.app.model.AdventureEffectDebugInfo
+import com.mewname.app.model.AttributeDebugInfo
 import com.mewname.app.model.BackgroundDebugInfo
 import com.mewname.app.model.CandyDebugInfo
 import com.mewname.app.model.EvolutionIconDebugInfo
 import com.mewname.app.model.IvDebugInfo
 import com.mewname.app.model.LegacyDebugInfo
 import com.mewname.app.model.LevelDebugInfo
+import com.mewname.app.model.MasterIvBadgeDebugInfo
 import com.mewname.app.model.NormalizedDebugRect
 import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.PvpLeague
@@ -34,6 +38,9 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 class OcrPokemonParser {
+    @Volatile
+    private var shadowTextureSignatures: List<IntArray>? = null
+
     private data class PokemonNameEntry(
         val dex: Int,
         val name: String,
@@ -123,7 +130,8 @@ class OcrPokemonParser {
     private val specialBackgroundKeywords = setOf(
         "LONDON", "LONDRES", "NEW YORK", "NOVA YORK", "OSAKA", "MADRID", "SENDAI",
         "INCHEON", "JEJU", "GUAYAQUIL", "JAKARTA", "BALI", "SPECIAL", "ESPECIAL",
-        "BACKGROUND", "FUNDO", "LOCATION", "LOCALIZACAO", "PASSPORT", "PASSAPORTE"
+        "BACKGROUND", "FUNDO", "LOCATION", "LOCALIZACAO", "PASSPORT", "PASSAPORTE",
+        "DELIGHTFUL", "TRANSFORMATION", "TALES", "GO FEST", "GOFEST", "SAFARI", "TOUR"
     )
 
     private val adventureKeywords = setOf("ADVENTURE EFFECT", "EFEITO AVENTURA")
@@ -158,6 +166,7 @@ class OcrPokemonParser {
     private val fuzzyMatcher = LevenshteinDistance()
     private val rankCalculator = PvpRankCalculator()
     private val familySuggester = PokemonFamilySuggester()
+    private val masterIvBadgeCatalog = MasterIvBadgeCatalog()
     private val backgroundReferenceMatcher = BackgroundReferenceMatcher()
     private val uniquePokemonReferenceMatcher = UniquePokemonReferenceMatcher()
     private val vivillonIconMatcher = VivillonIconMatcher()
@@ -289,8 +298,19 @@ class OcrPokemonParser {
 
         val ocrLevel = extractOcrLevel(orderedLines, referenceBounds)
         val moves = extractMoves(orderedLines, referenceBounds)
-        val name = inferPokemonName(context, orderedLines, moves, cp, referenceBounds)
+        var name = inferPokemonName(context, orderedLines, moves, cp, referenceBounds)
         val (candyFamilyName, candyDebugInfo) = extractCandyFamilyName(context, orderedLines, referenceBounds)
+        val hasUnownTitleSignal = detectUnownTitleSignal(orderedLines, referenceBounds)
+        val hasUnownCandySignal = candyFamilyName.equals("Unown", ignoreCase = true)
+        val hasUnownNameSignal = name.equals("Unown", ignoreCase = true)
+        val provisionalUnownContext = hasUnownTitleSignal || hasUnownCandySignal || hasUnownNameSignal
+        val unownLetter = if (provisionalUnownContext) detectUnownLetter(normUpper, orderedLines, referenceBounds) else null
+        val shouldForceUnownName = hasUnownNameSignal ||
+            (hasUnownTitleSignal && hasUnownCandySignal) ||
+            (unownLetter != null && (hasUnownTitleSignal || hasUnownCandySignal))
+        if (shouldForceUnownName) {
+            name = "Unown"
+        }
 
         onAnalysisStep?.invoke("Estimando nível")
 
@@ -325,6 +345,11 @@ class OcrPokemonParser {
                 if (ocrLevel != null && curveLevel != null && levelMismatch != null && levelMismatch > 2.5) {
                     add("nível OCR descartado por divergência com a curva de CP")
                 }
+                if (ocrLevel == null) add("nenhuma linha com nível explícito foi encontrada no OCR")
+                if (curveLevel == null && cp == null) add("CP ausente para estimativa por curva")
+                if (curveLevel == null && cp != null && listOf(att, def, sta).any { it == null }) {
+                    add("estimativa pela curva de CP exige os três IVs; nesta captura eles não foram lidos")
+                }
                 if (ocrLevel == null && curveLevel == null) add("sem dados suficientes para estimar o nível")
             }.joinToString("; ")
         )
@@ -346,6 +371,14 @@ class OcrPokemonParser {
         } else {
             emptyList()
         }
+        val masterIvBadgeResult = masterIvBadgeCatalog.resolve(
+            context = context,
+            familyMembers = familyMembers,
+            ivPercent = ivPercent,
+            attack = att,
+            defense = def,
+            stamina = sta
+        )
 
         var league = detectLeague(normalizedRaw)
         if (league == null && cp != null) {
@@ -372,20 +405,41 @@ class OcrPokemonParser {
         val size = detectSize(normUpper, orderedLines, referenceBounds)
         val legacyDetection = detectLegacyMove(name, moves, orderedLines, loadLegacyMoves(context), referenceBounds)
         val hasLegacyMove = legacyDetection.first
-        val detectedTypes = detectPokemonTypes(orderedLines, normUpper, referenceBounds)
+        val typeDetection = detectPokemonTypes(orderedLines, normUpper, referenceBounds)
+        val detectedTypes = typeDetection.first
+        val genderDetection = detectGender(normalizedRaw, orderedLines, referenceBounds, name, bitmap)
+        val isFavorite = bitmap?.let(::detectFavoriteStarFilled) ?: false
+        val favoriteRatio = bitmap?.let(::measureFavoriteStarYellowRatio)
+        val purifiedTextMatch = normalizedRaw.lowercase().let { it.contains("purified") || it.contains("purificado") }
         val vivillonDetection = detectVivillonPattern(context, bitmap, name)
-        val uniqueFormDetection = detectUniqueForm(context, bitmap, name)
+        val uniqueFormDetection = detectUniqueForm(context, bitmap, name, detectedTypes, unownLetter)
         val evolutionDetection = detectEvolutionFlags(normUpper, orderedLines, name, referenceBounds)
 
         onAnalysisStep?.invoke("Finalizando dados detectados")
 
         return PokemonScreenData(
             pokemonName = name,
-            unownLetter = if (name.equals("Unown", ignoreCase = true)) detectUnownLetter(normUpper, orderedLines, referenceBounds) else null,
+            unownLetter = if (name.equals("Unown", ignoreCase = true)) {
+                uniqueFormDetection.first?.takeIf { it.length == 1 || it == "!" || it == "?" } ?: unownLetter
+            } else {
+                null
+            },
             uniqueForm = uniqueFormDetection.first,
             candyFamilyName = candyFamilyName,
             candyDebugInfo = candyDebugInfo,
             levelDebugInfo = levelDebugInfo,
+            attributeDebugInfo = AttributeDebugInfo(
+                typeRegionLines = typeDetection.second,
+                detectedTypes = detectedTypes,
+                favoriteFilledMatch = isFavorite,
+                favoriteYellowRatio = favoriteRatio,
+                purifiedTextMatch = purifiedTextMatch,
+                notes = buildList {
+                    if (detectedTypes.isEmpty()) add("nenhum tipo reconhecido na área central")
+                    if (isFavorite) add("estrela superior direita preenchida em amarelo")
+                    if (purifiedTextMatch) add("texto de purificado encontrado")
+                }.joinToString("; ")
+            ),
             legacyDebugInfo = legacyDetection.second,
             adventureEffectDebugInfo = adventureDetection.second,
             backgroundDebugInfo = backgroundDetection.second,
@@ -426,17 +480,33 @@ class OcrPokemonParser {
                 )
             },
             level = level,
-            gender = detectGender(normalizedRaw, orderedLines, referenceBounds, name, bitmap),
+            gender = genderDetection.first,
+            genderDebugInfo = genderDetection.second,
             type1 = detectedTypes.firstOrNull(),
             type2 = detectedTypes.getOrNull(1),
+            isFavorite = isFavorite,
+            isLucky = backgroundDetection.second.luckyTextMatch || backgroundDetection.second.luckyVisualMatch,
+            isShiny = backgroundDetection.second.shinyParticleMatch,
             pvpLeague = league,
             pvpRank = rank,
             pvpLeagueRanks = leagueRanks,
             familyPvpRanks = familySpeciesRanks,
+            masterIvBadgeMatch = masterIvBadgeResult.isBestMatch,
+            masterIvBadgeDebugInfo = MasterIvBadgeDebugInfo(
+                supportedIvPercent = ivPercent in setOf(67, 91, 93, 96, 98),
+                familyMembers = familyMembers,
+                expectedAttack = masterIvBadgeResult.expectedAttack,
+                expectedDefense = masterIvBadgeResult.expectedDefense,
+                expectedStamina = masterIvBadgeResult.expectedStamina,
+                isBestMatch = masterIvBadgeResult.isBestMatch,
+                notes = masterIvBadgeResult.notes
+            ),
             evolutionFlags = evolutionDetection.first,
             hasLegacyMove = hasLegacyMove,
-            isShadow = normalizedRaw.lowercase().let { it.contains("shadow") || it.contains("sombroso") },
-            isPurified = normalizedRaw.lowercase().let { it.contains("purified") || it.contains("purificado") },
+            isShadow = backgroundDetection.second.shadowTextMatch ||
+                backgroundDetection.second.shadowParticleMatch ||
+                backgroundDetection.second.shadowTextureMatch,
+            isPurified = purifiedTextMatch,
             hasSpecialBackground = hasSpecialBackground,
             hasAdventureEffect = hasAdventureEffect,
             size = size
@@ -446,9 +516,76 @@ class OcrPokemonParser {
     private fun detectUniqueForm(
         context: Context,
         bitmap: Bitmap?,
-        pokemonName: String?
+        pokemonName: String?,
+        detectedTypes: List<String>,
+        detectedUnownLetter: String?
     ): Pair<String?, UniqueFormDebugInfo?> {
-        return uniquePokemonReferenceMatcher.detect(context, bitmap, pokemonName)
+        if (pokemonName.equals("Unown", ignoreCase = true)) {
+            if (!detectedUnownLetter.isNullOrBlank()) {
+                return detectedUnownLetter to UniqueFormDebugInfo(
+                    category = "unown",
+                    bestLabel = detectedUnownLetter,
+                    accepted = true,
+                    notes = "decisao_final=ocr_unown"
+                )
+            }
+            val matcherResult = uniquePokemonReferenceMatcher.detect(context, bitmap, "Unown")
+            val matcherDebug = matcherResult.second
+            val debug = matcherDebug?.copy(
+                notes = buildString {
+                    if (!matcherDebug.notes.isNullOrBlank()) {
+                        append(matcherDebug.notes)
+                        append("; ")
+                    }
+                    append("decisao_final=sprite_unown")
+                }
+            )
+            return matcherResult.first to debug
+        }
+        val rotomFormByTypes = detectRotomFormByTypes(pokemonName, detectedTypes)
+        val matcherResult = uniquePokemonReferenceMatcher.detect(
+            context = context,
+            bitmap = bitmap,
+            pokemonName = pokemonName,
+            allowedLabels = rotomFormByTypes?.let(::setOf).orEmpty()
+        )
+        if (rotomFormByTypes == null) return matcherResult
+
+        val typeSummary = detectedTypes.joinToString("/")
+        val baseDebug = matcherResult.second ?: UniqueFormDebugInfo(category = "rotom")
+        return rotomFormByTypes to baseDebug.copy(
+            accepted = true,
+            notes = buildString {
+                if (baseDebug.notes.isNotBlank()) {
+                    append(baseDebug.notes)
+                    append("; ")
+                }
+                append("decisao_final=tipos")
+                if (typeSummary.isNotBlank()) {
+                    append("; tipos=$typeSummary")
+                }
+            }
+        )
+    }
+
+    private fun detectRotomFormByTypes(
+        pokemonName: String?,
+        detectedTypes: List<String>
+    ): String? {
+        if (!pokemonName.equals("Rotom", ignoreCase = true)) return null
+        val typeSet = detectedTypes
+            .map { it.trim().uppercase(Locale.US) }
+            .filter { it.isNotEmpty() }
+            .toSet()
+        return when (typeSet) {
+            setOf("ELECTRIC", "FIRE") -> "Calor"
+            setOf("ELECTRIC", "WATER") -> "Lavagem"
+            setOf("ELECTRIC", "ICE") -> "Congelante"
+            setOf("ELECTRIC", "FLYING") -> "Ventilador"
+            setOf("ELECTRIC", "GRASS") -> "Corte"
+            setOf("ELECTRIC", "GHOST") -> "Normal"
+            else -> null
+        }
     }
 
     private fun detectUnownLetter(
@@ -456,14 +593,20 @@ class OcrPokemonParser {
         lines: List<OcrTextLine>,
         referenceBounds: Rect?
     ): String? {
-        val relevant = buildList {
-            add(normalizedRaw)
-            addAll(normalizedLinesInRegion(lines, 0.10f, 0.90f, 0.08f, 0.40f, referenceBounds))
-            addAll(normalizedLinesInRegion(lines, 0.10f, 0.90f, 0.80f, 0.98f, referenceBounds))
-        }
-        val explicit = Regex("""UNOWN\s*([A-Z?])""").find(relevant.joinToString(" "))?.groupValues?.getOrNull(1)
+        val relevant = normalizedLinesInRegion(lines, 0.16f, 0.84f, 0.18f, 0.40f, referenceBounds)
+        val collapsed = relevant.joinToString(" ")
+        val explicit = Regex("""UNOWN\s*([A-Z?])(?=$|[^A-Z])""").find(collapsed)?.groupValues?.getOrNull(1)
+            ?: Regex("""UNOWN([A-Z?])(?=$|[^A-Z])""").find(collapsed)?.groupValues?.getOrNull(1)
         if (!explicit.isNullOrBlank()) return explicit
         return null
+    }
+
+    private fun detectUnownTitleSignal(
+        lines: List<OcrTextLine>,
+        referenceBounds: Rect?
+    ): Boolean {
+        val titleLines = normalizedLinesInRegion(lines, 0.14f, 0.86f, 0.18f, 0.36f, referenceBounds)
+        return titleLines.any { line -> line.contains("UNOWN") }
     }
 
     private fun detectVivillonPattern(
@@ -472,7 +615,7 @@ class OcrPokemonParser {
         pokemonName: String?
     ): Pair<VivillonPattern?, com.mewname.app.model.VivillonDebugInfo?> {
         if (bitmap == null || !isVivillonFamily(pokemonName)) return null to null
-        val result = vivillonIconMatcher.detectPattern(context, bitmap)
+        val result = vivillonIconMatcher.detectPattern(context, bitmap, pokemonName)
         return result.pattern to result.debugInfo
     }
 
@@ -1598,8 +1741,8 @@ class OcrPokemonParser {
     private fun loadLegacyMoves(context: Context): Map<String, List<String>> {
         if (legacyMovesCache != null) return legacyMovesCache!!
         return try {
-            val jsonString = context.assets.open("legacy_moves.json").bufferedReader().use { it.readText() }
-            val jsonObject = JSONObject(jsonString)
+            val jsonString = context.assets.open(AssetPaths.GAME_CATALOGS).bufferedReader().use { it.readText() }
+            val jsonObject = JSONObject(jsonString).getJSONObject("legacyMoves")
             val map = mutableMapOf<String, List<String>>()
             jsonObject.keys().forEach { key ->
                 val array = jsonObject.getJSONArray(key)
@@ -1621,7 +1764,7 @@ class OcrPokemonParser {
         return try {
             val list = mutableListOf<PokemonNameEntry>()
 
-            val jsonString = context.assets.open("pokemon_names.json").bufferedReader().use { it.readText() }
+            val jsonString = context.assets.open(AssetPaths.POKEMON_NAMES).bufferedReader().use { it.readText() }
             val jsonArray = JSONArray(jsonString)
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
@@ -1637,28 +1780,6 @@ class OcrPokemonParser {
                     normalizedName = normalizeText(canonicalName),
                     normalizedAliases = (aliases + normalizeText(canonicalName)).distinct()
                 )
-            }
-
-            val extraNames = context.assets.open("pokemon_names_full.txt").bufferedReader().useLines { lines ->
-                lines.map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .toList()
-            }
-
-            var nextDex = (list.maxOfOrNull { it.dex } ?: 0) + 1
-            extraNames.forEach { canonicalName ->
-                val normalized = normalizeText(canonicalName)
-                val alreadyExists = list.any { entry ->
-                    entry.normalizedName == normalized || normalized in entry.normalizedAliases
-                }
-                if (!alreadyExists) {
-                    list += PokemonNameEntry(
-                        dex = nextDex++,
-                        name = canonicalName,
-                        normalizedName = normalized,
-                        normalizedAliases = listOf(normalized)
-                    )
-                }
             }
 
             val deduped = list.distinctBy { it.normalizedName }
@@ -1707,30 +1828,60 @@ class OcrPokemonParser {
     ): Pair<Boolean, BackgroundDebugInfo> {
         val topVisualLines = normalizedLinesInRegion(lines, 0.0f, 1.0f, 0.00f, 0.22f, referenceBounds)
         val bottomMetaLines = normalizedLinesInRegion(lines, 0.0f, 1.0f, 0.86f, 1.00f, referenceBounds)
+        val midInfoLines = normalizedLinesInRegion(lines, 0.18f, 0.82f, 0.30f, 0.58f, referenceBounds)
 
         val textMatch = specialBackgroundKeywords.any { normalizedRaw.contains(it) }
         val topRegionMatch = (topVisualLines + bottomMetaLines)
             .any { normalized -> specialBackgroundKeywords.any { normalized.contains(it) } }
+        val eventBadgeVisualMatch = bitmap?.let(::detectEventBadgeVisual) ?: false
+        val shadowTextMatch = sequenceOf(normalizedRaw)
+            .plus(midInfoLines.asSequence())
+            .plus(bottomMetaLines.asSequence())
+            .any { normalized ->
+                normalized.contains("SHADOW") ||
+                    normalized.contains("SOMBROSO")
+            }
+        val luckyTextMatch = sequenceOf(normalizedRaw)
+            .plus(midInfoLines.asSequence())
+            .plus(bottomMetaLines.asSequence())
+            .any { normalized ->
+                normalized.contains("SORTUDO") ||
+                    normalized.contains("POKEMON SORTUDO") ||
+                    normalized.contains("LUCKY POKEMON") ||
+                    normalized.contains("LUCKY")
+            }
+        val luckyVisualMatch = bitmap?.let(::detectLuckyBackgroundVisual) ?: false
+        val shinyParticleMatch = bitmap?.let(::detectShinyParticles) ?: false
+        val shadowParticleMatch = bitmap?.let(::detectShadowParticles) ?: false
+        val shadowTextureMatch = bitmap?.let { detectShadowTexture(context, it) } ?: false
         val referenceDebug = bitmap?.let { backgroundReferenceMatcher.debugSpecialBackground(context, it) }
         val referenceMatch = referenceDebug?.isSpecial
         val bestNormalDistance = referenceDebug?.bestNormalDistance ?: Double.MAX_VALUE
-        val bestSpecialDistance = referenceDebug?.bestSpecialDistance ?: Double.MAX_VALUE
-        val normalReferenceClearlyBetter = bestNormalDistance.isFinite() &&
-            (bestSpecialDistance == Double.MAX_VALUE || bestNormalDistance + 0.24 < bestSpecialDistance)
+        val normalReferenceClearlyBetter = referenceMatch == false &&
+            bestNormalDistance.isFinite() &&
+            bestNormalDistance <= 2.60
         val normalReferenceCompetitive = referenceMatch == false &&
             bestNormalDistance.isFinite() &&
-            (
-                bestNormalDistance <= 3.35 ||
-                    bestSpecialDistance == Double.MAX_VALUE ||
-                    bestNormalDistance <= bestSpecialDistance + 0.28
-                )
+            bestNormalDistance <= 2.78
         val strongNormalReference = referenceMatch == false &&
-            (bestNormalDistance <= 3.2 || normalReferenceClearlyBetter || normalReferenceCompetitive)
+            normalReferenceClearlyBetter
         val colorMatch = bitmap?.let { analyzeColorsForSpecialBackground(it) } ?: false
-        val detected = textMatch || topRegionMatch || referenceMatch == true || (colorMatch && !strongNormalReference)
+        val colorOverrideSpecial = colorMatch &&
+            bestNormalDistance.isFinite() &&
+            bestNormalDistance >= 2.45
+        val detected = (
+            textMatch || topRegionMatch || eventBadgeVisualMatch || referenceMatch == true || colorOverrideSpecial || (colorMatch && !strongNormalReference)
+        )
         return detected to BackgroundDebugInfo(
             textMatch = textMatch,
             topRegionMatch = topRegionMatch,
+            eventBadgeVisualMatch = eventBadgeVisualMatch,
+            luckyTextMatch = luckyTextMatch,
+            luckyVisualMatch = luckyVisualMatch,
+            shinyParticleMatch = shinyParticleMatch,
+            shadowTextMatch = shadowTextMatch,
+            shadowParticleMatch = shadowParticleMatch,
+            shadowTextureMatch = shadowTextureMatch,
             referenceDecision = referenceMatch,
             referenceName = referenceDebug?.bestReferenceName,
             referenceDistance = referenceDebug?.bestDistance,
@@ -1745,16 +1896,229 @@ class OcrPokemonParser {
                 if (referenceDebug?.referenceCount == 0) append("nenhuma referencia normal carregada; ")
                 if (textMatch) append("texto especial encontrado; ")
                 if (topRegionMatch) append("topo/meta com marcador especial; ")
+                if (eventBadgeVisualMatch) append("selo visual de evento encontrado; ")
                 if (referenceMatch == true) append("matcher de referencia marcou especial; ")
                 if (referenceMatch == false) append("matcher de referencia marcou normal; ")
                 if (!referenceDebug?.bestSpecialReferenceName.isNullOrBlank()) append("melhor special=${referenceDebug?.bestSpecialReferenceName}; ")
                 if (colorMatch) append("fallback de cor marcou especial; ")
-                if (normalReferenceClearlyBetter) append("referencia normal melhor que special; ")
-                if (normalReferenceCompetitive) append("referencia normal competitiva bloqueou o fallback de cor; ")
+                if (colorOverrideSpecial) append("fallback de cor sobrepos referencia normal; ")
+                if (luckyTextMatch) append("texto de sortudo encontrado; ")
+                if (luckyVisualMatch) append("visual dourado de sortudo encontrado; ")
+                if (shinyParticleMatch) append("particulas brilhantes de shiny encontradas; ")
+                if (shadowTextMatch) append("texto de sombrio encontrado; ")
+                if (shadowParticleMatch) append("particulas de sombra encontradas; ")
+                if (shadowTextureMatch) append("textura de sombra encontrada; ")
+                if (normalReferenceClearlyBetter) append("referencia normal forte encontrada; ")
+                if (normalReferenceCompetitive && !normalReferenceClearlyBetter) append("referencia normal competitiva encontrada; ")
                 if (strongNormalReference) append("referencia normal forte bloqueou o fallback de cor; ")
                 if (referenceMatch == null && bitmap == null) append("sem bitmap para matcher de referencia; ")
             }.trim()
         )
+    }
+
+    private fun detectEventBadgeVisual(bitmap: Bitmap): Boolean {
+        return try {
+            val region = normalizedBitmapRect(bitmap, 0.02f, 0.34f, 0.03f, 0.17f)
+            val hsv = FloatArray(3)
+            var sampled = 0
+            var saturated = 0
+            var darkOutline = 0
+            val hueBuckets = mutableSetOf<Int>()
+            var y = region.top
+            while (y < region.bottom) {
+                var x = region.left
+                while (x < region.right) {
+                    val color = bitmap.getPixel(x, y)
+                    Color.colorToHSV(color, hsv)
+                    val sat = hsv[1]
+                    val value = hsv[2]
+                    val brightness = (Color.red(color) + Color.green(color) + Color.blue(color)) / 3f
+                    sampled++
+                    if (sat >= 0.22f && value in 0.18f..0.95f) {
+                        saturated++
+                        hueBuckets += (hsv[0] / 24f).toInt()
+                    }
+                    if (brightness <= 96f && value <= 0.50f) {
+                        darkOutline++
+                    }
+                    x += 2
+                }
+                y += 2
+            }
+            if (sampled == 0) return false
+            val saturatedRatio = saturated.toDouble() / sampled.toDouble()
+            saturatedRatio >= 0.16 &&
+                darkOutline >= 45 &&
+                hueBuckets.size >= 4
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun detectLuckyBackgroundVisual(bitmap: Bitmap): Boolean {
+        return try {
+            val region = normalizedBitmapRect(bitmap, 0.08f, 0.82f, 0.03f, 0.34f)
+            val hsv = FloatArray(3)
+            var goldenBright = 0
+            var sampled = 0
+            var y = region.top
+            while (y < region.bottom) {
+                var x = region.left
+                while (x < region.right) {
+                    val color = bitmap.getPixel(x, y)
+                    Color.colorToHSV(color, hsv)
+                    sampled++
+                    val hue = hsv[0]
+                    val sat = hsv[1]
+                    val value = hsv[2]
+                    val warmGold = ((hue in 28f..62f) || hue < 16f) && sat >= 0.22f && value >= 0.72f
+                    if (warmGold) goldenBright++
+                    x += 6
+                }
+                y += 6
+            }
+            sampled > 0 && (goldenBright.toDouble() / sampled.toDouble()) >= 0.20
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun detectShinyParticles(bitmap: Bitmap): Boolean {
+        return try {
+            val region = normalizedBitmapRect(bitmap, 0.06f, 0.90f, 0.03f, 0.34f)
+            val hsv = FloatArray(3)
+            var brightWhite = 0
+            var sampled = 0
+            var y = region.top
+            while (y < region.bottom) {
+                var x = region.left
+                while (x < region.right) {
+                    if (x < bitmap.width * 0.86f || y > bitmap.height * 0.10f) {
+                        val color = bitmap.getPixel(x, y)
+                        Color.colorToHSV(color, hsv)
+                        sampled++
+                        val nearWhite = hsv[1] <= 0.12f && hsv[2] >= 0.92f
+                        if (nearWhite) brightWhite++
+                    }
+                    x += 8
+                }
+                y += 8
+            }
+            sampled > 0 && brightWhite in 12..180
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun detectShadowParticles(bitmap: Bitmap): Boolean {
+        return try {
+            val candidateRegions = listOf(
+                normalizedBitmapRect(bitmap, 0.06f, 0.90f, 0.03f, 0.38f),
+                normalizedBitmapRect(bitmap, 0.18f, 0.82f, 0.05f, 0.34f),
+                normalizedBitmapRect(bitmap, 0.22f, 0.78f, 0.08f, 0.30f)
+            )
+            val hsv = FloatArray(3)
+            candidateRegions.any { region ->
+                var purpleDark = 0
+                var sampled = 0
+                var y = region.top
+                while (y < region.bottom) {
+                    var x = region.left
+                    while (x < region.right) {
+                        val color = bitmap.getPixel(x, y)
+                        Color.colorToHSV(color, hsv)
+                        sampled++
+                        val hue = hsv[0]
+                        val sat = hsv[1]
+                        val value = hsv[2]
+                        val shadowLike = (hue in 250f..330f) && sat >= 0.18f && value in 0.14f..0.78f
+                        if (shadowLike) purpleDark++
+                        x += 5
+                    }
+                    y += 5
+                }
+                sampled > 0 && (purpleDark.toDouble() / sampled.toDouble()) >= 0.07
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun detectShadowTexture(context: Context, bitmap: Bitmap): Boolean {
+        return try {
+            val textureSignatures = loadShadowTextureSignatures(context)
+            if (textureSignatures.isEmpty()) return false
+            val candidates = listOf(
+                normalizedBitmapRect(bitmap, 0.06f, 0.90f, 0.03f, 0.38f),
+                normalizedBitmapRect(bitmap, 0.10f, 0.86f, 0.05f, 0.34f),
+                normalizedBitmapRect(bitmap, 0.12f, 0.82f, 0.07f, 0.32f),
+                normalizedBitmapRect(bitmap, 0.18f, 0.82f, 0.08f, 0.30f),
+                normalizedBitmapRect(bitmap, 0.22f, 0.78f, 0.10f, 0.28f)
+            )
+            val bestDistance = candidates.minOfOrNull { rect ->
+                val crop = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
+                try {
+                    val cropSignature = createMiniSignature(crop)
+                    textureSignatures.minOfOrNull { signatureDistance(cropSignature, it) } ?: Double.MAX_VALUE
+                } finally {
+                    if (!crop.isRecycled) crop.recycle()
+                }
+            } ?: Double.MAX_VALUE
+            bestDistance <= 2.95
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun loadShadowTextureSignatures(context: Context): List<IntArray> {
+        shadowTextureSignatures?.let { return it }
+        synchronized(this) {
+            shadowTextureSignatures?.let { return it }
+            val loaded = buildList {
+                listOf("tx_sombroso.png", "tx_sombroso_alt.png").forEach { assetName ->
+                    runCatching {
+                        context.assets.open(assetName).use { input ->
+                            val bitmap = BitmapFactory.decodeStream(input) ?: return@use
+                            try {
+                                add(createMiniSignature(bitmap))
+                            } finally {
+                                if (!bitmap.isRecycled) bitmap.recycle()
+                            }
+                        }
+                    }.getOrNull()
+                }
+            }
+            shadowTextureSignatures = loaded
+            return loaded
+        }
+    }
+
+    private fun createMiniSignature(bitmap: Bitmap): IntArray {
+        val size = 8
+        val scaled = Bitmap.createScaledBitmap(bitmap, size, size, true)
+        val signature = IntArray(size * size * 3)
+        var index = 0
+        for (y in 0 until size) {
+            for (x in 0 until size) {
+                val color = scaled.getPixel(x, y)
+                signature[index++] = ((Color.red(color) / 16f).roundToInt()).coerceIn(0, 15)
+                signature[index++] = ((Color.green(color) / 16f).roundToInt()).coerceIn(0, 15)
+                signature[index++] = ((Color.blue(color) / 16f).roundToInt()).coerceIn(0, 15)
+            }
+        }
+        if (scaled != bitmap && !scaled.isRecycled) {
+            scaled.recycle()
+        }
+        return signature
+    }
+
+    private fun signatureDistance(a: IntArray, b: IntArray): Double {
+        if (a.size != b.size) return Double.MAX_VALUE
+        var total = 0.0
+        for (i in a.indices) {
+            total += abs(a[i] - b[i]).toDouble()
+        }
+        return total / a.size.toDouble()
     }
 
     private fun detectAdventureEffect(
@@ -1884,7 +2248,7 @@ class OcrPokemonParser {
         lines: List<OcrTextLine>,
         normalizedRaw: String,
         referenceBounds: Rect?
-    ): List<String> {
+    ): Pair<List<String>, List<String>> {
         val centerStatsLines = normalizedLinesInRegion(lines, 0.22f, 0.78f, 0.34f, 0.58f, referenceBounds)
         val candidateTexts = buildList {
             addAll(centerStatsLines)
@@ -1900,7 +2264,57 @@ class OcrPokemonParser {
             }
         }
 
-        return detected.take(2)
+        return detected.take(2) to centerStatsLines
+    }
+
+    private fun detectFavoriteStarFilled(bitmap: Bitmap): Boolean {
+        val ratio = measureFavoriteStarYellowRatio(bitmap) ?: return false
+        return ratio >= 0.16
+    }
+
+    private fun measureFavoriteStarYellowRatio(bitmap: Bitmap): Double? {
+        return try {
+            val candidateRects = listOf(
+                normalizedBitmapRect(bitmap, 0.84f, 0.96f, 0.03f, 0.13f),
+                normalizedBitmapRect(bitmap, 0.85f, 0.97f, 0.05f, 0.16f),
+                normalizedBitmapRect(bitmap, 0.86f, 0.98f, 0.06f, 0.18f),
+                normalizedBitmapRect(bitmap, 0.82f, 0.98f, 0.00f, 0.18f)
+            )
+            candidateRects.maxOfOrNull { rect ->
+                measureFavoriteYellowRatio(bitmap, rect)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun measureFavoriteYellowRatio(bitmap: Bitmap, rect: Rect): Double {
+        val hsv = FloatArray(3)
+        var yellow = 0
+        var chromaSampled = 0
+        var sampled = 0
+        var y = rect.top
+        while (y < rect.bottom) {
+            var x = rect.left
+            while (x < rect.right) {
+                val color = bitmap.getPixel(x, y)
+                Color.colorToHSV(color, hsv)
+                sampled++
+                val hue = hsv[0]
+                val sat = hsv[1]
+                val value = hsv[2]
+                val isFilledYellow = hue in 35f..66f && sat >= 0.45f && value >= 0.70f
+                val isChromaPixel = sat >= 0.14f || value <= 0.72f
+                if (isFilledYellow) yellow++
+                if (isChromaPixel) chromaSampled++
+                x += 4
+            }
+            y += 4
+        }
+        if (sampled == 0) return 0.0
+        val ratioAll = yellow.toDouble() / sampled.toDouble()
+        val ratioChroma = if (chromaSampled == 0) 0.0 else yellow.toDouble() / chromaSampled.toDouble()
+        return max(ratioAll, ratioChroma)
     }
 
     private fun normalizedLinesInRegion(
@@ -2058,13 +2472,16 @@ class OcrPokemonParser {
         referenceBounds: Rect?,
         pokemonName: String?,
         bitmap: Bitmap?
-    ): Gender {
+    ): Pair<Gender, GenderDebugInfo?> {
         if (isGenderlessPokemon(pokemonName)) {
-            return Gender.GENDERLESS
+            return Gender.GENDERLESS to GenderDebugInfo(
+                detectedGender = Gender.GENDERLESS,
+                notes = "pokémon sem gênero definido na base local"
+            )
         }
         when {
-            text.contains("♂") -> return Gender.MALE
-            text.contains("♀") -> return Gender.FEMALE
+            text.contains("♂") -> return Gender.MALE to GenderDebugInfo(detectedGender = Gender.MALE, notes = "símbolo masculino encontrado no OCR bruto")
+            text.contains("♀") -> return Gender.FEMALE to GenderDebugInfo(detectedGender = Gender.FEMALE, notes = "símbolo feminino encontrado no OCR bruto")
         }
 
         val candidateLines = buildList {
@@ -2074,13 +2491,13 @@ class OcrPokemonParser {
 
         val normalizedCandidates = candidateLines.map(::normalizeText)
         if (candidateLines.any { it.contains("♂") } || normalizedCandidates.any { it.contains(" MACHO") || it == "MACHO" || it.endsWith(" MACHO") }) {
-            return Gender.MALE
+            return Gender.MALE to GenderDebugInfo(detectedGender = Gender.MALE, notes = "símbolo/texto masculino encontrado na área do ícone")
         }
         if (candidateLines.any { it.contains("♀") } || normalizedCandidates.any { it.contains(" FEMEA") || it == "FEMEA" || it.endsWith(" FEMEA") }) {
-            return Gender.FEMALE
+            return Gender.FEMALE to GenderDebugInfo(detectedGender = Gender.FEMALE, notes = "símbolo/texto feminino encontrado na área do ícone")
         }
 
-        return bitmap?.let(::detectGenderFromIcon) ?: Gender.UNKNOWN
+        return bitmap?.let(::detectGenderFromIcon) ?: (Gender.UNKNOWN to null)
     }
 
     private fun isGenderlessPokemon(pokemonName: String?): Boolean {
@@ -2088,8 +2505,8 @@ class OcrPokemonParser {
         return normalized.isNotBlank() && normalized in genderlessPokemon
     }
 
-    private fun detectGenderFromIcon(bitmap: Bitmap): Gender {
-        val iconRect = normalizedBitmapRect(bitmap, 0.78f, 0.97f, 0.32f, 0.54f)
+    private fun detectGenderFromIcon(bitmap: Bitmap): Pair<Gender, GenderDebugInfo> {
+        val iconRect = normalizedBitmapRect(bitmap, 0.84f, 0.95f, 0.34f, 0.46f)
         var maleHueScore = 0.0
         var femaleHueScore = 0.0
         var upperRightInk = 0.0
@@ -2138,7 +2555,7 @@ class OcrPokemonParser {
         }
 
         val femaleStructure = lowerCenterInk + (lowerBarInk * 1.6)
-        return when {
+        val detected = when {
             lowerBarInk >= 3.0 && lowerCenterInk >= 3.0 && femaleStructure > upperRightInk -> Gender.FEMALE
             femaleStructure >= 7.0 && femaleStructure > upperRightInk * 1.05 -> Gender.FEMALE
             upperRightInk >= 9.0 && upperRightInk > femaleStructure * 1.8 -> Gender.MALE
@@ -2146,6 +2563,11 @@ class OcrPokemonParser {
             maleHueScore >= 10.0 && maleHueScore > femaleHueScore * 1.35 -> Gender.MALE
             else -> Gender.UNKNOWN
         }
+        return detected to GenderDebugInfo(
+            detectedGender = detected,
+            iconRect = normalizeDebugRect(iconRect, bitmap),
+            notes = "maleHue=${"%.2f".format(maleHueScore)} femaleHue=${"%.2f".format(femaleHueScore)} upperRightInk=${"%.1f".format(upperRightInk)} lowerCenterInk=${"%.1f".format(lowerCenterInk)} lowerBarInk=${"%.1f".format(lowerBarInk)}"
+        )
     }
 
     private fun detectEvolutionFlags(

@@ -1185,6 +1185,7 @@ fun PresetListScreen(
             size = PokemonSize.XXL,
             pvpLeague = PvpLeague.GREAT,
             pvpRank = 1,
+            masterIvBadgeMatch = true,
             hasLegacyMove = true,
             evolutionFlags = setOf(EvolutionFlag.MEGA)
         )
@@ -1250,6 +1251,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             NamingField.UNIQUE_FORM,
             NamingField.IV_PERCENT,
             NamingField.IV_COMBINATION,
+            NamingField.MASTER_IV_BADGE,
             NamingField.LEVEL,
             NamingField.CP,
             NamingField.GENDER,
@@ -1278,6 +1280,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             "Status" to listOf(
                 NamingField.IV_PERCENT,
                 NamingField.IV_COMBINATION,
+                NamingField.MASTER_IV_BADGE,
                 NamingField.CP
             ),
             "PvP" to listOf(
@@ -1324,6 +1327,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             size = PokemonSize.XXL,
             pvpLeague = PvpLeague.GREAT,
             pvpRank = 1,
+            masterIvBadgeMatch = true,
             hasLegacyMove = true,
             evolutionFlags = setOf(EvolutionFlag.MEGA)
         )
@@ -1648,6 +1652,18 @@ private fun UniqueFormFieldConfigContent(
                     }
                 )
             )
+            add(
+                com.mewname.app.domain.UniquePokemonSpec(
+                    assetFolder = "vivillon",
+                    pokemonNames = setOf("VIVILLON"),
+                    options = VivillonPattern.entries.map { pattern ->
+                        com.mewname.app.domain.UniquePokemonFormOption(
+                            label = pattern.label,
+                            code = pattern.symbolKey.removePrefix("VIVILLON_")
+                        )
+                    }
+                )
+            )
         }
     }
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -1674,6 +1690,8 @@ private fun UniqueFormFieldConfigContent(
             currentSpec.options.forEachIndexed { index, option ->
                 val symbolKey = if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
                     "UNOWN_${option.code}"
+                } else if (currentSpec.assetFolder.equals("vivillon", ignoreCase = true)) {
+                    "VIVILLON_${option.code}"
                 } else {
                     UniquePokemonCatalog.symbolKeyForAsset(currentSpec.assetFolder, option.code)
                 }
@@ -1682,6 +1700,8 @@ private fun UniqueFormFieldConfigContent(
                     "Spinda #${index + 1}: ${currentSymbols[symbolKey] ?: option.code}"
                 } else if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
                     "Unown ${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
+                } else if (currentSpec.assetFolder.equals("vivillon", ignoreCase = true)) {
+                    "Vivillon ${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
                 } else {
                     "${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
                 }
@@ -1700,6 +1720,8 @@ private fun UniqueFormFieldConfigContent(
                                         "Spinda #${index + 1}"
                                     } else if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
                                         "Unown ${option.label}"
+                                    } else if (currentSpec.assetFolder.equals("vivillon", ignoreCase = true)) {
+                                        "Vivillon ${option.label}"
                                     } else {
                                         "$pokemonLabel ${option.label}"
                                     },
@@ -1815,6 +1837,7 @@ private fun fieldDescription(field: NamingField): String {
         NamingField.CP -> "Mostrar os pontos de combate atuais do Pokémon."
         NamingField.GENDER -> "Exibir um símbolo configurável para macho ou fêmea conforme o gênero detectado."
         NamingField.SIZE -> "Mostrar XXS, XS, XL ou XXL usando um símbolo para cada tamanho."
+        NamingField.MASTER_IV_BADGE -> "Para IV 98, 96, 93, 91 e 67, comparar a combinação A/D/S com a melhor da família no ranking Master. Se bater, usa o símbolo de verdadeiro; se não bater, usa o símbolo de falso."
         NamingField.SPECIAL_BACKGROUND -> "Exibir o símbolo se houver fundo especial."
         NamingField.PVP_LEAGUE -> "Mostrar Copinha, Great League, Ultra League ou Master League conforme a liga estimada."
         NamingField.PVP_RANK -> "Mostrar o ranking PvP calculado."
@@ -1871,6 +1894,10 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
             option("XS", "XS"),
             option("XXS", "XXS")
         )
+        NamingField.MASTER_IV_BADGE -> listOf(
+            option("MASTER_IV_MATCH", "Melhor combinação"),
+            option("MASTER_IV_OTHER", "Outra combinação")
+        )
         NamingField.PVP_LEAGUE -> listOf(
             option("LITTLE_LEAGUE", "Copinha"),
             option("GREAT_LEAGUE", "Great League"),
@@ -1900,7 +1927,7 @@ fun SymbolPickerDialog(
 ) {
     val commonSymbols = listOf(
         "\u2642", "\u2640", "M", "F", "*", "+", "SH", "PU", "FE", "AV", "XXL", "XXS",
-        "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY"
+        "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY", "tm", "●"
     )
     var customText by remember(title, initialValue) { mutableStateOf(initialValue) }
 

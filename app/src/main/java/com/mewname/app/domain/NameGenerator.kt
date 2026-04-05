@@ -133,6 +133,11 @@ class NameGenerator {
                 PokemonSize.XXS -> config.symbols["XXS"]
                 else -> null
             }
+            NamingField.MASTER_IV_BADGE -> when (data.masterIvBadgeMatch) {
+                true -> config.symbols["MASTER_IV_MATCH"]
+                false -> config.symbols["MASTER_IV_OTHER"]
+                null -> null
+            }?.takeIf { it.isNotBlank() }
             NamingField.PVP_LEAGUE -> when (data.pvpLeague) {
                 PvpLeague.GREAT -> config.symbols["GREAT_LEAGUE"]
                 PvpLeague.ULTRA -> config.symbols["ULTRA_LEAGUE"]

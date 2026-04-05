@@ -55,19 +55,30 @@ class PokemonFamilySuggester {
         synchronized(this) {
             familyMap?.let { return it }
             val loaded = runCatching {
-                val jsonString = context.assets.open("pokemon_families.json").bufferedReader().use { it.readText() }
+                val jsonString = context.assets.open(AssetPaths.POKEMON_FAMILIES).bufferedReader().use { it.readText() }
                 val jsonObject = JSONObject(jsonString)
                 buildMap {
                     jsonObject.keys().forEach { key ->
-                        val array = jsonObject.getJSONArray(key)
-                        put(
-                            normalize(key),
-                            buildList(array.length()) {
-                                for (index in 0 until array.length()) {
-                                    add(array.getString(index))
+                        val members = when (val rawValue = jsonObject.opt(key)) {
+                            is JSONArray -> buildList(rawValue.length()) {
+                                for (index in 0 until rawValue.length()) {
+                                    add(rawValue.getString(index))
                                 }
                             }
-                        )
+                            is String -> listOf(rawValue)
+                            else -> emptyList()
+                        }
+                        if (members.isEmpty()) return@forEach
+
+                        val normalizedMembers = members
+                            .map(::normalize)
+                            .filter { it.isNotBlank() }
+                            .distinct()
+
+                        put(normalize(key), members)
+                        normalizedMembers.forEach { member ->
+                            put(member, members)
+                        }
                     }
                 }
             }.getOrElse { emptyMap() }
@@ -82,7 +93,7 @@ class PokemonFamilySuggester {
             orderedNames?.let { return it }
 
             val fromJson = runCatching {
-                val jsonString = context.assets.open("pokemon_names.json").bufferedReader().use { it.readText() }
+                val jsonString = context.assets.open(AssetPaths.POKEMON_NAMES).bufferedReader().use { it.readText() }
                 val array = JSONArray(jsonString)
                 buildList(array.length()) {
                     for (index in 0 until array.length()) {
@@ -90,16 +101,7 @@ class PokemonFamilySuggester {
                     }
                 }
             }.getOrElse { emptyList() }
-
-            val fromTxt = runCatching {
-                context.assets.open("pokemon_names_full.txt").bufferedReader().useLines { lines ->
-                    lines.map { it.trim() }
-                        .filter { it.isNotEmpty() }
-                        .toList()
-                }
-            }.getOrElse { emptyList() }
-
-            val loaded = (fromJson + fromTxt).distinct()
+            val loaded = fromJson.distinct()
             orderedNames = loaded
             return loaded
         }

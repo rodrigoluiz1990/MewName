@@ -42,13 +42,15 @@ object GameCatalogRepository {
     @Volatile
     private var adventureEffectCatalogCache: List<AdventureEffectCatalogEntry>? = null
 
+    @Volatile
+    private var gameCatalogRootCache: JSONObject? = null
+
     fun loadLegacyMoveCatalog(context: Context): List<LegacyMoveCatalogEntry> {
         legacyMoveCatalogCache?.let { return it }
         synchronized(this) {
             legacyMoveCatalogCache?.let { return it }
             val loaded = runCatching {
-                val jsonString = context.assets.open("legacy_moves.json").bufferedReader().use { it.readText() }
-                val jsonObject = JSONObject(jsonString)
+                val jsonObject = loadGameCatalogRoot(context).getJSONObject("legacyMoves")
                 buildList {
                     jsonObject.keys().forEach { pokemon ->
                         val array = jsonObject.getJSONArray(pokemon)
@@ -92,8 +94,7 @@ object GameCatalogRepository {
         synchronized(this) {
             adventureEffectCatalogCache?.let { return it }
             val loaded = runCatching {
-                val jsonString = context.assets.open("adventure_effects.json").bufferedReader().use { it.readText() }
-                val jsonArray = JSONArray(jsonString)
+                val jsonArray = loadGameCatalogRoot(context).getJSONArray("adventureEffects")
                 buildList {
                     for (index in 0 until jsonArray.length()) {
                         val item = jsonArray.getJSONObject(index)
@@ -114,6 +115,18 @@ object GameCatalogRepository {
                 }
             }.getOrElse { emptyList() }
             adventureEffectCatalogCache = loaded
+            return loaded
+        }
+    }
+
+    private fun loadGameCatalogRoot(context: Context): JSONObject {
+        gameCatalogRootCache?.let { return it }
+        synchronized(this) {
+            gameCatalogRootCache?.let { return it }
+            val loaded = JSONObject(
+                context.assets.open(AssetPaths.GAME_CATALOGS).bufferedReader().use { it.readText() }
+            )
+            gameCatalogRootCache = loaded
             return loaded
         }
     }

@@ -68,6 +68,17 @@ object UniquePokemonCatalog {
                 UniquePokemonFormOption("Spinda #8", "08"),
                 UniquePokemonFormOption("Spinda #9", "09")
             )
+        ),
+        UniquePokemonSpec(
+            assetFolder = "unown",
+            pokemonNames = setOf("UNOWN"),
+            options = buildList {
+                ('A'..'Z').forEach { letter ->
+                    add(UniquePokemonFormOption(letter.toString(), letter.toString()))
+                }
+                add(UniquePokemonFormOption("!", "!"))
+                add(UniquePokemonFormOption("?", "?"))
+            }
         )
     )
 

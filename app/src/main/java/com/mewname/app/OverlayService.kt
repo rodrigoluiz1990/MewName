@@ -889,7 +889,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         return fields.any { field ->
             when (field) {
                 NamingField.POKEMON_NAME -> data.pokemonName.isNullOrBlank()
-                NamingField.UNOWN_LETTER -> data.pokemonName.equals("Unown", ignoreCase = true) && data.unownLetter.isNullOrBlank()
+                NamingField.UNOWN_LETTER -> false
                 NamingField.UNIQUE_FORM -> UniquePokemonCatalog.optionsFor(data.pokemonName).isNotEmpty() && data.uniqueForm.isNullOrBlank()
                 NamingField.VIVILLON_PATTERN -> isVivillonFamily(data.pokemonName) && data.vivillonPattern == null
                 NamingField.CP -> data.cp == null
@@ -898,6 +898,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 NamingField.LEVEL -> data.level == null
                 NamingField.GENDER -> data.gender == Gender.UNKNOWN
                 NamingField.SIZE -> data.size == PokemonSize.NORMAL
+                NamingField.MASTER_IV_BADGE -> false
                 NamingField.PVP_LEAGUE -> data.pvpLeague == null
                 NamingField.PVP_RANK -> data.pvpRank == null
                 NamingField.EVOLUTION_TYPE -> data.evolutionFlags.isEmpty()
@@ -1007,26 +1008,34 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     ) {
         val includeAll = reviewableFields.isEmpty()
         fun wants(vararg fields: NamingField): Boolean = includeAll || fields.any { it in reviewableFields }
+        val includeMasterIv = wants(NamingField.MASTER_IV_BADGE) ||
+            (data.masterIvBadgeDebugInfo?.supportedIvPercent == true)
 
         appendLine(title)
-        if (wants(NamingField.POKEMON_NAME, NamingField.CP, NamingField.LEVEL, NamingField.GENDER, NamingField.UNOWN_LETTER, NamingField.UNIQUE_FORM, NamingField.VIVILLON_PATTERN)) {
+        if (wants(NamingField.POKEMON_NAME, NamingField.CP, NamingField.LEVEL, NamingField.GENDER, NamingField.UNIQUE_FORM, NamingField.VIVILLON_PATTERN, NamingField.TYPE, NamingField.FAVORITE, NamingField.LUCKY, NamingField.SHADOW, NamingField.PURIFIED)) {
             if (wants(NamingField.POKEMON_NAME)) {
                 appendLine("Pokemon: ${data.pokemonName ?: "-"}")
                 appendLine("Familia doce: ${data.candyFamilyName ?: "-"}")
             }
-            if (wants(NamingField.UNOWN_LETTER)) appendLine("Unown: ${data.unownLetter ?: "-"}")
             if (wants(NamingField.UNIQUE_FORM)) appendLine("Forma unica: ${data.uniqueForm ?: "-"}")
             if (wants(NamingField.VIVILLON_PATTERN)) appendLine("Padrão Vivillon: ${data.vivillonPattern?.label ?: "-"}")
             if (wants(NamingField.CP)) appendLine("CP: ${data.cp ?: "-"}")
             if (wants(NamingField.LEVEL)) appendLine("Nivel: ${data.level ?: "-"}")
             if (wants(NamingField.GENDER)) appendLine("Genero: ${formatGenderForLog(data.gender)}")
-            if (wants(NamingField.POKEMON_NAME)) {
+            if (wants(NamingField.TYPE)) {
                 appendLine("Tipo: ${listOfNotNull(data.type1, data.type2).joinToString("/").ifBlank { "-" }}")
             }
+            if (wants(NamingField.FAVORITE)) appendLine("Favorito: ${formatBooleanForLog(data.isFavorite)}")
+            if (wants(NamingField.LUCKY)) appendLine("Sortudo: ${formatBooleanForLog(data.isLucky)}")
+            if (wants(NamingField.SHADOW)) appendLine("Sombrio: ${formatBooleanForLog(data.isShadow)}")
+            if (wants(NamingField.PURIFIED)) appendLine("Purificado: ${formatBooleanForLog(data.isPurified)}")
         }
         if (wants(NamingField.IV_PERCENT, NamingField.IV_COMBINATION)) {
             appendLine("IV: ${data.attIv ?: "-"}/${data.defIv ?: "-"}/${data.staIv ?: "-"}")
             appendLine("IV %: ${data.ivPercent ?: "-"}")
+        }
+        if (includeMasterIv) {
+            appendLine("IV Master: ${formatMasterIvBadgeForLog(data.masterIvBadgeMatch)}")
         }
         if (wants(NamingField.PVP_LEAGUE, NamingField.PVP_RANK)) {
             appendLine("PvP: ${data.pvpLeague?.name ?: "-"} | Rank: ${data.pvpRank ?: "-"}")
@@ -1096,12 +1105,35 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     ) {
         val includeAll = snapshotReviewFields.isEmpty()
         fun wants(field: NamingField) = includeAll || field in snapshotReviewFields
+        val includeMasterIv = wants(NamingField.MASTER_IV_BADGE) ||
+            (data.masterIvBadgeDebugInfo?.supportedIvPercent == true)
         data.levelDebugInfo?.let { info ->
             if (wants(NamingField.LEVEL)) {
                 appendLine(
                     "Level dbg: fonte=${info.source.ifBlank { "-" }} ocr=${info.ocrLevel ?: "-"} curva=${info.curveLevel ?: "-"} final=${info.finalLevel ?: "-"} pokemon=${info.pokemonName ?: "-"} cp=${info.cp ?: "-"} iv=${info.attackIv ?: "-"}/${info.defenseIv ?: "-"}/${info.staminaIv ?: "-"}"
                 )
                 if (info.notes.isNotBlank()) appendLine("Level obs: ${info.notes}")
+            }
+        }
+        data.genderDebugInfo?.let { info ->
+            if (wants(NamingField.GENDER)) {
+                appendLine("Genero dbg: detectado=${formatGenderForLog(info.detectedGender)}")
+                debugRectSummary("Genero", info.iconRect, bitmapWidth, bitmapHeight)?.let(::appendLine)
+                if (info.notes.isNotBlank()) appendLine("Genero obs: ${info.notes}")
+            }
+        }
+        data.attributeDebugInfo?.let { info ->
+            if (
+                wants(NamingField.TYPE) ||
+                wants(NamingField.FAVORITE) ||
+                wants(NamingField.LUCKY) ||
+                wants(NamingField.SHADOW) ||
+                wants(NamingField.PURIFIED)
+            ) {
+                appendLine(
+                    "Atributos dbg: tipos=${info.detectedTypes.joinToString("/").ifBlank { "-" }} linhas=${info.typeRegionLines.joinToString(" | ").ifBlank { "-" }} favorito=${info.favoriteFilledMatch} ratio=${info.favoriteYellowRatio?.formatDebugValue() ?: "-"} purificadoTexto=${info.purifiedTextMatch} sortudoTexto=${data.backgroundDebugInfo?.luckyTextMatch ?: false} sortudoVisual=${data.backgroundDebugInfo?.luckyVisualMatch ?: false} sombraTexto=${data.backgroundDebugInfo?.shadowTextMatch ?: false} sombraParticulas=${data.backgroundDebugInfo?.shadowParticleMatch ?: false} sombraTextura=${data.backgroundDebugInfo?.shadowTextureMatch ?: false}"
+                )
+                if (info.notes.isNotBlank()) appendLine("Atributos obs: ${info.notes}")
             }
         }
         if (wants(NamingField.SIZE)) {
@@ -1118,6 +1150,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 "${info.league.name}:${info.pokemonName ?: "-"}#${info.rank ?: "-"}"
             }.ifBlank { "-" }
             appendLine("Liga PvP dbg: atual=${data.pvpLeague?.name ?: "-"} resumo=$summary")
+        }
+        data.masterIvBadgeDebugInfo?.let { info ->
+            if (includeMasterIv) {
+                appendLine(
+                    "IV Master dbg: suportado=${info.supportedIvPercent} match=${formatMasterIvBadgeForLog(info.isBestMatch)} esperado=${info.expectedAttack ?: "-"}/${info.expectedDefense ?: "-"}/${info.expectedStamina ?: "-"} familia=${info.familyMembers.joinToString("/").ifBlank { "-" }}"
+                )
+                if (info.notes.isNotBlank()) appendLine("IV Master obs: ${info.notes}")
+            }
         }
         if (wants(NamingField.PVP_RANK) && data.familyPvpRanks.isNotEmpty()) {
             val bestSpecies = data.familyPvpRanks
@@ -1139,7 +1179,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         data.backgroundDebugInfo?.let { info ->
             if (wants(NamingField.SPECIAL_BACKGROUND) || data.hasSpecialBackground) {
                 appendLine(
-                    "Background dbg: texto=${info.textMatch} topo=${info.topRegionMatch} ref=${info.referenceDecision ?: "-"} nome=${info.referenceName ?: "-"} distancia=${info.referenceDistance?.formatDebugValue() ?: "-"} specialNome=${info.specialReferenceName ?: "-"} specialDist=${info.specialReferenceDistance?.formatDebugValue() ?: "-"} fallbackCor=${info.colorFallbackMatch}"
+                    "Background dbg: texto=${info.textMatch} topo=${info.topRegionMatch} seloEvento=${info.eventBadgeVisualMatch} sortudoTexto=${info.luckyTextMatch} sortudoVisual=${info.luckyVisualMatch} shinyParticulas=${info.shinyParticleMatch} sombraTexto=${info.shadowTextMatch} sombraParticulas=${info.shadowParticleMatch} sombraTextura=${info.shadowTextureMatch} ref=${info.referenceDecision ?: "-"} nome=${info.referenceName ?: "-"} distancia=${info.referenceDistance?.formatDebugValue() ?: "-"} specialNome=${info.specialReferenceName ?: "-"} specialDist=${info.specialReferenceDistance?.formatDebugValue() ?: "-"} fallbackCor=${info.colorFallbackMatch}"
                 )
                 if (info.notes.isNotBlank()) appendLine("Background obs: ${info.notes}")
             }
@@ -1147,6 +1187,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         data.uniqueFormDebugInfo?.let { info ->
             if (wants(NamingField.UNIQUE_FORM) || !data.uniqueForm.isNullOrBlank()) {
                 appendLine("Forma unica dbg: categoria=${info.category ?: "-"} melhor=${info.bestLabel ?: "-"} arquivo=${info.bestReferenceName ?: "-"} distancia=${info.bestDistance?.formatDebugValue() ?: "-"} aceita=${info.accepted}")
+                debugRectSummary("Forma unica", info.bestCandidateRect, bitmapWidth, bitmapHeight)?.let(::appendLine)
+                info.candidateRects.take(4).forEachIndexed { index, rect ->
+                    debugRectSummary("Forma unica cand${index + 1}", rect, bitmapWidth, bitmapHeight)?.let(::appendLine)
+                }
                 if (info.notes.isNotBlank()) appendLine("Forma unica obs: ${info.notes}")
             }
         }
@@ -1205,6 +1249,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         return buildList {
             if (data.isFavorite) add("favorite")
             if (data.isLucky) add("lucky")
+            if (data.isShiny) add("shiny")
             if (data.isShadow) add("shadow")
             if (data.isPurified) add("purified")
             if (data.hasSpecialBackground) add("special_background")
@@ -1212,6 +1257,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             if (data.hasLegacyMove) add("legacy_move")
             addAll(data.evolutionFlags.map { it.name.lowercase(Locale.US) })
         }.ifEmpty { listOf("none") }.joinToString(", ")
+    }
+
+    private fun formatBooleanForLog(value: Boolean): String = if (value) "Sim" else "Nao"
+
+    private fun formatMasterIvBadgeForLog(value: Boolean?): String = when (value) {
+        true -> "Sim"
+        false -> "Nao"
+        null -> "-"
     }
 
     private fun buildOcrLineLogs(ocrResult: OcrResult): List<String> {

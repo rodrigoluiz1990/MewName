@@ -1,4 +1,4 @@
-[
+﻿[
   {"name":"Bulbasaur","stage":"BASIC"},
   {"name":"Ivysaur","stage":"STAGE1"},
   {"name":"Venusaur","stage":"STAGE2"},
@@ -152,7 +152,7 @@
   {"name":"Mewtwo","stage":"BASIC"},
   {"name":"Mew","stage":"BASIC"},
   {"name":"Nidoran","stage":"BASIC"},
-  {"name":"Farfetch'd","stage":"BASIC"},
+  {"name":"Farfetch\u0027d","stage":"BASIC"},
   {"name":"Mr. Mime","stage":"BASIC"},
   {"name":"Chikorita","stage":"BASIC"},
   {"name":"Bayleef","stage":"STAGE1"},
@@ -895,8 +895,8 @@
   {"name":"Galarian Slowking","stage":"STAGE1"},
   {"name":"Galarian Corsola","stage":"BASIC"},
   {"name":"Cursola","stage":"STAGE1"},
-  {"name":"Galarian Farfetch'd","stage":"BASIC"},
-  {"name":"Sirfetch'd","stage":"BASIC"},
+  {"name":"Galarian Farfetch\u0027d","stage":"BASIC"},
+  {"name":"Sirfetch\u0027d","stage":"BASIC"},
   {"name":"Galarian Weezing","stage":"STAGE1"},
   {"name":"Galarian Mr. Mime","stage":"BASIC"},
   {"name":"Mr. Rime","stage":"STAGE2"},

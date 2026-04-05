@@ -5,14 +5,21 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Rect
+import com.mewname.app.model.NormalizedDebugRect
 import com.mewname.app.model.UniqueFormDebugInfo
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class UniquePokemonReferenceMatcher {
+    private enum class ReferenceKind {
+        SPRITE,
+        FALLBACK_ICON
+    }
+
     private data class ReferenceSignature(
         val fileName: String,
         val label: String,
+        val kind: ReferenceKind,
         val pixels: IntArray,
         val mask: BooleanArray
     )
@@ -20,7 +27,12 @@ class UniquePokemonReferenceMatcher {
     @Volatile
     private var cache: MutableMap<String, List<ReferenceSignature>> = mutableMapOf()
 
-    fun detect(context: Context, bitmap: Bitmap?, pokemonName: String?): Pair<String?, UniqueFormDebugInfo?> {
+    fun detect(
+        context: Context,
+        bitmap: Bitmap?,
+        pokemonName: String?,
+        allowedLabels: Set<String> = emptySet()
+    ): Pair<String?, UniqueFormDebugInfo?> {
         val spec = UniquePokemonCatalog.specFor(pokemonName) ?: return null to null
         val screenshot = bitmap ?: return null to UniqueFormDebugInfo(
             category = spec.assetFolder,
@@ -33,29 +45,65 @@ class UniquePokemonReferenceMatcher {
                 notes = "nenhuma referencia carregada"
             )
         }
+        val normalizedAllowedLabels = allowedLabels
+            .mapNotNull { label -> label.trim().takeIf { it.isNotEmpty() }?.lowercase() }
+            .toSet()
+        val candidateReferences = if (normalizedAllowedLabels.isEmpty()) {
+            references
+        } else {
+            references.filter { ref -> ref.label.lowercase() in normalizedAllowedLabels }
+                .ifEmpty { references }
+        }
 
-        val crops = candidateRects(screenshot).map { rect ->
+        val rects = candidateRects(screenshot, spec)
+        val crops = rects.map { rect ->
             Bitmap.createBitmap(screenshot, rect.left, rect.top, rect.width(), rect.height())
         }
-        val ranked = references.map { ref ->
-            ref to (crops.minOfOrNull { crop -> compareCropToReference(crop, ref) } ?: Double.MAX_VALUE)
-        }.sortedBy { it.second }
+        val spriteRefs = candidateReferences.filter { it.kind == ReferenceKind.SPRITE }
+        val fallbackRefs = candidateReferences.filter { it.kind == ReferenceKind.FALLBACK_ICON }
+        val spriteRanked = rankReferences(spriteRefs, crops, rects)
+        val fallbackRanked = rankReferences(fallbackRefs, crops, rects)
         crops.forEach { it.recycle() }
 
-        val best = ranked.firstOrNull()
-        val accepted = best != null && best.second <= UNIQUE_MATCH_THRESHOLD
+        val spriteBest = spriteRanked.firstOrNull()
+        val matchThreshold = matchThresholdFor(spec)
+        val spriteAccepted = spriteBest != null && spriteBest.second <= matchThreshold
+        val fallbackBest = fallbackRanked.firstOrNull()
+        val fallbackAccepted = fallbackBest != null && fallbackBest.second <= matchThreshold
+        val best = when {
+            spriteAccepted -> spriteBest
+            fallbackAccepted -> fallbackBest
+            spriteBest != null -> spriteBest
+            else -> fallbackBest
+        }
+        val accepted = when {
+            spriteAccepted -> true
+            fallbackAccepted -> true
+            else -> false
+        }
+        val sourceLabel = when (best?.first?.kind) {
+            ReferenceKind.SPRITE -> "sprite"
+            ReferenceKind.FALLBACK_ICON -> "fallback_icon"
+            null -> "-"
+        }
         val debug = UniqueFormDebugInfo(
             category = spec.assetFolder,
             bestReferenceName = best?.first?.fileName,
             bestLabel = best?.first?.label,
             bestDistance = best?.second,
             accepted = accepted,
+            bestCandidateRect = best?.third?.let { normalizeRect(screenshot, it) },
+            candidateRects = rects.map { normalizeRect(screenshot, it) },
             notes = buildString {
-                append("categoria=${spec.assetFolder}; referencias=${references.size}")
+                append("categoria=${spec.assetFolder}; referencias=${references.size}; referenciasAtivas=${candidateReferences.size}; sprites=${spriteRefs.size}; fallbacks=${fallbackRefs.size}; origem=${sourceLabel}; threshold=${"%.3f".format(matchThreshold)}")
+                if (normalizedAllowedLabels.isNotEmpty()) {
+                    append("; filtro=${allowedLabels.joinToString("/")}")
+                }
                 best?.let {
                     append("; melhor=${it.first.label}")
                     append("; distancia=${"%.3f".format(it.second)}")
                 }
+                if (!spriteAccepted && fallbackAccepted) append("; fallback acionado")
                 if (!accepted) append("; acima do limiar")
             }
         )
@@ -84,6 +132,7 @@ class UniquePokemonReferenceMatcher {
                             ReferenceSignature(
                                 fileName = file,
                                 label = label,
+                                kind = referenceKindForFile(file),
                                 pixels = signature.first,
                                 mask = signature.second
                             )
@@ -112,11 +161,11 @@ class UniquePokemonReferenceMatcher {
             }
             "rotom" -> when {
                 "normal" in normalized -> "Normal"
-                "fan" in normalized -> "Fan"
-                "frost" in normalized -> "Frost"
-                "heat" in normalized -> "Heat"
-                "mow" in normalized -> "Mow"
-                "wash" in normalized -> "Wash"
+                "fan" in normalized || "ventilador" in normalized -> "Ventilador"
+                "frost" in normalized || "congelante" in normalized -> "Congelante"
+                "heat" in normalized || "calor" in normalized -> "Calor"
+                "mow" in normalized || "corte" in normalized -> "Corte"
+                "wash" in normalized || "lavagem" in normalized -> "Lavagem"
                 else -> null
             }
             "furfrou" -> spec.options.firstOrNull { normalized.contains(it.label.lowercase().replace(" ", "_")) }?.label
@@ -129,8 +178,35 @@ class UniquePokemonReferenceMatcher {
                 "pachibd" in normalized -> "Spinda #6"
                 else -> null
             }
+            "unown" -> when {
+                "qm" in normalized || "qu" in normalized || "question" in normalized -> "?"
+                "em" in normalized || "ex" in normalized || "exclamation" in normalized -> "!"
+                else -> Regex("""(?:^|[-_])([a-z])$""").find(normalized)?.groupValues?.getOrNull(1)?.uppercase()
+            }
             else -> null
         }
+    }
+
+    private fun referenceKindForFile(fileName: String): ReferenceKind {
+        val normalized = fileName.substringBeforeLast('.').lowercase()
+        return when {
+            normalized.startsWith("ic_") -> ReferenceKind.FALLBACK_ICON
+            normalized.endsWith("_icon") -> ReferenceKind.FALLBACK_ICON
+            normalized.contains("icon") -> ReferenceKind.FALLBACK_ICON
+            else -> ReferenceKind.SPRITE
+        }
+    }
+
+    private fun rankReferences(
+        references: List<ReferenceSignature>,
+        crops: List<Bitmap>,
+        rects: List<Rect>
+    ): List<Triple<ReferenceSignature, Double, Rect?>> {
+        return references.map { ref ->
+            val bestCropIndex = crops.indices.minByOrNull { index -> compareCropToReference(crops[index], ref) }
+            val bestDistance = bestCropIndex?.let { compareCropToReference(crops[it], ref) } ?: Double.MAX_VALUE
+            Triple(ref, bestDistance, bestCropIndex?.let { rects[it] })
+        }.sortedBy { it.second }
     }
 
     private fun createReferenceSignature(bitmap: Bitmap): Pair<IntArray, BooleanArray> {
@@ -175,12 +251,38 @@ class UniquePokemonReferenceMatcher {
         return if (count == 0) Double.MAX_VALUE else total / count.toDouble()
     }
 
-    private fun candidateRects(bitmap: Bitmap): List<Rect> {
-        return listOf(
-            normalizedRect(bitmap, 0.16f, 0.82f, 0.10f, 0.54f),
-            normalizedRect(bitmap, 0.20f, 0.78f, 0.08f, 0.50f),
-            normalizedRect(bitmap, 0.14f, 0.86f, 0.12f, 0.58f)
-        ).distinctBy { listOf(it.left, it.top, it.right, it.bottom) }
+    private fun candidateRects(bitmap: Bitmap, spec: UniquePokemonSpec): List<Rect> {
+        val normalizedCandidates = when (spec.assetFolder) {
+            "furfrou" -> listOf(
+                floatArrayOf(0.28f, 0.60f, 0.10f, 0.40f),
+                floatArrayOf(0.30f, 0.58f, 0.12f, 0.38f),
+                floatArrayOf(0.26f, 0.62f, 0.11f, 0.42f)
+            )
+            "genesect" -> listOf(
+                floatArrayOf(0.24f, 0.64f, 0.10f, 0.42f),
+                floatArrayOf(0.26f, 0.62f, 0.12f, 0.40f),
+                floatArrayOf(0.22f, 0.66f, 0.11f, 0.44f)
+            )
+            "rotom" -> listOf(
+                floatArrayOf(0.30f, 0.62f, 0.10f, 0.36f),
+                floatArrayOf(0.32f, 0.60f, 0.12f, 0.34f),
+                floatArrayOf(0.28f, 0.64f, 0.11f, 0.38f)
+            )
+            "spinda" -> listOf(
+                floatArrayOf(0.32f, 0.58f, 0.12f, 0.32f),
+                floatArrayOf(0.30f, 0.60f, 0.11f, 0.34f),
+                floatArrayOf(0.34f, 0.56f, 0.13f, 0.31f)
+            )
+            "unown" -> unownCandidateBounds(bitmap)
+            else -> listOf(
+                floatArrayOf(0.26f, 0.62f, 0.10f, 0.40f),
+                floatArrayOf(0.28f, 0.60f, 0.12f, 0.38f),
+                floatArrayOf(0.24f, 0.64f, 0.11f, 0.42f)
+            )
+        }
+        return normalizedCandidates.map { bounds ->
+            normalizedRect(bitmap, bounds[0], bounds[1], bounds[2], bounds[3])
+        }.distinctBy { listOf(it.left, it.top, it.right, it.bottom) }
     }
 
     private fun normalizedRect(bitmap: Bitmap, minX: Float, maxX: Float, minY: Float, maxY: Float): Rect {
@@ -191,8 +293,98 @@ class UniquePokemonReferenceMatcher {
         return Rect(left, top, right, bottom)
     }
 
+    private fun unownCandidateBounds(bitmap: Bitmap): List<FloatArray> {
+        val dynamic = detectUnownBodyRect(bitmap)
+        val dynamicBounds = dynamic?.let { rect ->
+            listOf(
+                rectToBounds(bitmap, expandRect(bitmap, rect, 0.28f, 0.22f)),
+                rectToBounds(bitmap, expandRect(bitmap, rect, 0.18f, 0.12f)),
+                rectToBounds(bitmap, expandRect(bitmap, rect, 0.36f, 0.28f))
+            )
+        }.orEmpty()
+        val fallback = listOf(
+            floatArrayOf(0.42f, 0.58f, 0.08f, 0.22f),
+            floatArrayOf(0.40f, 0.60f, 0.07f, 0.24f),
+            floatArrayOf(0.44f, 0.56f, 0.09f, 0.21f),
+            floatArrayOf(0.39f, 0.61f, 0.08f, 0.25f),
+            floatArrayOf(0.41f, 0.59f, 0.10f, 0.24f)
+        )
+        return (dynamicBounds + fallback).distinctBy { bounds -> bounds.joinToString(",") }
+    }
+
+    private fun detectUnownBodyRect(bitmap: Bitmap): Rect? {
+        val searchRect = normalizedRect(bitmap, 0.30f, 0.70f, 0.07f, 0.30f)
+        var minX = Int.MAX_VALUE
+        var minY = Int.MAX_VALUE
+        var maxX = Int.MIN_VALUE
+        var maxY = Int.MIN_VALUE
+        var hits = 0
+        val hsv = FloatArray(3)
+        var y = searchRect.top
+        while (y < searchRect.bottom) {
+            var x = searchRect.left
+            while (x < searchRect.right) {
+                val color = bitmap.getPixel(x, y)
+                Color.colorToHSV(color, hsv)
+                val maxChannel = maxOf(Color.red(color), Color.green(color), Color.blue(color))
+                val isDarkBody = maxChannel <= 72 || (hsv[2] <= 0.24f && hsv[1] <= 0.38f)
+                if (isDarkBody) {
+                    minX = minOf(minX, x)
+                    minY = minOf(minY, y)
+                    maxX = maxOf(maxX, x)
+                    maxY = maxOf(maxY, y)
+                    hits++
+                }
+                x += 2
+            }
+            y += 2
+        }
+        if (hits < 80 || minX == Int.MAX_VALUE || minY == Int.MAX_VALUE) return null
+        return Rect(
+            minX.coerceIn(0, bitmap.width - 2),
+            minY.coerceIn(0, bitmap.height - 2),
+            (maxX + 1).coerceIn(minX + 1, bitmap.width),
+            (maxY + 1).coerceIn(minY + 1, bitmap.height)
+        )
+    }
+
+    private fun expandRect(bitmap: Bitmap, rect: Rect, horizontalPaddingRatio: Float, verticalPaddingRatio: Float): Rect {
+        val padX = (rect.width() * horizontalPaddingRatio).roundToInt().coerceAtLeast(8)
+        val padY = (rect.height() * verticalPaddingRatio).roundToInt().coerceAtLeast(8)
+        val left = (rect.left - padX).coerceIn(0, bitmap.width - 1)
+        val top = (rect.top - padY).coerceIn(0, bitmap.height - 1)
+        val right = (rect.right + padX).coerceIn(left + 1, bitmap.width)
+        val bottom = (rect.bottom + padY).coerceIn(top + 1, bitmap.height)
+        return Rect(left, top, right, bottom)
+    }
+
+    private fun rectToBounds(bitmap: Bitmap, rect: Rect): FloatArray {
+        return floatArrayOf(
+            rect.left.toFloat() / bitmap.width,
+            rect.right.toFloat() / bitmap.width,
+            rect.top.toFloat() / bitmap.height,
+            rect.bottom.toFloat() / bitmap.height
+        )
+    }
+
+    private fun normalizeRect(bitmap: Bitmap, rect: Rect): NormalizedDebugRect {
+        return NormalizedDebugRect(
+            left = rect.left.toFloat() / bitmap.width,
+            top = rect.top.toFloat() / bitmap.height,
+            right = rect.right.toFloat() / bitmap.width,
+            bottom = rect.bottom.toFloat() / bitmap.height
+        )
+    }
+
     private companion object {
         const val SIGNATURE_SIZE = 40
         const val UNIQUE_MATCH_THRESHOLD = 4.2
+    }
+
+    private fun matchThresholdFor(spec: UniquePokemonSpec): Double {
+        return when (spec.assetFolder) {
+            "unown" -> 3.85
+            else -> UNIQUE_MATCH_THRESHOLD
+        }
     }
 }

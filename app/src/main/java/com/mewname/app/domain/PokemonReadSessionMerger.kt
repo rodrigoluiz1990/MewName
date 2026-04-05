@@ -1,6 +1,7 @@
 package com.mewname.app.domain
 
 import com.mewname.app.model.Gender
+import com.mewname.app.model.LevelDebugInfo
 import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.PokemonSize
 import java.text.Normalizer
@@ -16,7 +17,9 @@ class PokemonReadSessionMerger {
             uniqueForm = current.uniqueForm ?: previous.uniqueForm,
             candyFamilyName = current.candyFamilyName ?: previous.candyFamilyName,
             candyDebugInfo = current.candyDebugInfo ?: previous.candyDebugInfo,
-            levelDebugInfo = current.levelDebugInfo ?: previous.levelDebugInfo,
+            levelDebugInfo = mergeLevelDebugInfo(current.levelDebugInfo, previous.levelDebugInfo),
+            genderDebugInfo = current.genderDebugInfo ?: previous.genderDebugInfo,
+            attributeDebugInfo = current.attributeDebugInfo ?: previous.attributeDebugInfo,
             legacyDebugInfo = current.legacyDebugInfo ?: previous.legacyDebugInfo,
             adventureEffectDebugInfo = current.adventureEffectDebugInfo ?: previous.adventureEffectDebugInfo,
             backgroundDebugInfo = current.backgroundDebugInfo ?: previous.backgroundDebugInfo,
@@ -40,6 +43,7 @@ class PokemonReadSessionMerger {
             type2 = current.type2 ?: previous.type2,
             isFavorite = current.isFavorite || previous.isFavorite,
             isLucky = current.isLucky || previous.isLucky,
+            isShiny = current.isShiny || previous.isShiny,
             isShadow = current.isShadow || previous.isShadow,
             isPurified = current.isPurified || previous.isPurified,
             hasSpecialBackground = if (current.backgroundDebugInfo != null) current.hasSpecialBackground else current.hasSpecialBackground || previous.hasSpecialBackground,
@@ -49,6 +53,8 @@ class PokemonReadSessionMerger {
             pvpRank = current.pvpRank ?: previous.pvpRank,
             pvpLeagueRanks = if (current.pvpLeagueRanks.isNotEmpty()) current.pvpLeagueRanks else previous.pvpLeagueRanks,
             familyPvpRanks = if (current.familyPvpRanks.isNotEmpty()) current.familyPvpRanks else previous.familyPvpRanks,
+            masterIvBadgeMatch = current.masterIvBadgeMatch ?: previous.masterIvBadgeMatch,
+            masterIvBadgeDebugInfo = current.masterIvBadgeDebugInfo ?: previous.masterIvBadgeDebugInfo,
             hasLegacyMove = if (current.legacyDebugInfo != null) current.hasLegacyMove else current.hasLegacyMove || previous.hasLegacyMove,
             evolutionFlags = if (current.evolutionFlags.isNotEmpty()) current.evolutionFlags else previous.evolutionFlags
         )
@@ -91,5 +97,22 @@ class PokemonReadSessionMerger {
             .uppercase(Locale.US)
             .replace(Regex("[^A-Z0-9]"), "")
             .ifBlank { null }
+    }
+
+    private fun mergeLevelDebugInfo(current: LevelDebugInfo?, previous: LevelDebugInfo?): LevelDebugInfo? {
+        if (current == null) return previous
+        if (previous == null) return current
+        return LevelDebugInfo(
+            source = current.source.ifBlank { previous.source },
+            ocrLevel = current.ocrLevel ?: previous.ocrLevel,
+            curveLevel = current.curveLevel ?: previous.curveLevel,
+            finalLevel = current.finalLevel ?: previous.finalLevel,
+            pokemonName = current.pokemonName ?: previous.pokemonName,
+            cp = current.cp ?: previous.cp,
+            attackIv = current.attackIv ?: previous.attackIv,
+            defenseIv = current.defenseIv ?: previous.defenseIv,
+            staminaIv = current.staminaIv ?: previous.staminaIv,
+            notes = current.notes.ifBlank { previous.notes }
+        )
     }
 }
