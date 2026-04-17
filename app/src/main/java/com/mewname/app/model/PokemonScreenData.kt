@@ -37,6 +37,7 @@ data class PokemonScreenData(
     val size: PokemonSize = PokemonSize.NORMAL,
     val pvpLeague: PvpLeague? = null,
     val pvpRank: Int? = null,
+    val pvpPokemonName: String? = null,
     val pvpLeagueRanks: List<PvpLeagueRankInfo> = emptyList(),
     val familyPvpRanks: List<PvpSpeciesRankInfo> = emptyList(),
     val masterIvBadgeMatch: Boolean? = null,

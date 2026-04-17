@@ -1186,6 +1186,7 @@ fun PresetListScreen(
             pvpLeague = PvpLeague.GREAT,
             pvpRank = 1,
             masterIvBadgeMatch = true,
+            legacyDebugInfo = LegacyDebugInfo(matchedLegacyMove = "Broca"),
             hasLegacyMove = true,
             evolutionFlags = setOf(EvolutionFlag.MEGA)
         )
@@ -1262,6 +1263,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             NamingField.SPECIAL_BACKGROUND,
             NamingField.ADVENTURE_EFFECT,
             NamingField.LEGACY_MOVE,
+            NamingField.LEGACY_MOVE_NAME,
             NamingField.EVOLUTION_TYPE,
             NamingField.SHADOW,
             NamingField.PURIFIED,
@@ -1301,6 +1303,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 NamingField.SPECIAL_BACKGROUND,
                 NamingField.ADVENTURE_EFFECT,
                 NamingField.LEGACY_MOVE,
+                NamingField.LEGACY_MOVE_NAME,
                 NamingField.UNIQUE_FORM
             )
         )
@@ -1328,6 +1331,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             pvpLeague = PvpLeague.GREAT,
             pvpRank = 1,
             masterIvBadgeMatch = true,
+            legacyDebugInfo = LegacyDebugInfo(matchedLegacyMove = "Broca"),
             hasLegacyMove = true,
             evolutionFlags = setOf(EvolutionFlag.MEGA)
         )
@@ -1776,6 +1780,11 @@ private fun VariableFieldGroupCard(
                     rowFields.forEach { field ->
                         VariableActionCard(
                             label = field.label,
+                            leadingIcon = if (field == NamingField.MASTER_IV_BADGE) {
+                                { UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "IV Master") }
+                            } else {
+                                null
+                            },
                             modifier = Modifier.weight(1f),
                             onClick = { onFieldClick(field) }
                         )
@@ -1800,6 +1809,7 @@ private fun VariableFieldGroupCard(
 private fun VariableActionCard(
     label: String,
     modifier: Modifier = Modifier,
+    leadingIcon: (@Composable () -> Unit)? = null,
     onClick: () -> Unit
 ) {
     Card(
@@ -1814,7 +1824,11 @@ private fun VariableActionCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            if (leadingIcon != null) {
+                leadingIcon()
+            } else {
+                Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            }
             Text(
                 label,
                 style = MaterialTheme.typography.labelMedium,
@@ -1842,6 +1856,7 @@ private fun fieldDescription(field: NamingField): String {
         NamingField.PVP_LEAGUE -> "Mostrar Copinha, Great League, Ultra League ou Master League conforme a liga estimada."
         NamingField.PVP_RANK -> "Mostrar o ranking PvP calculado."
         NamingField.LEGACY_MOVE -> "Exibir o símbolo se o Pokémon tiver movimento legado."
+        NamingField.LEGACY_MOVE_NAME -> "Exibir o nome do ataque legado detectado. Use com limite maior ou abreviações porque nomes de golpes podem ser longos."
         NamingField.TYPE -> "Adicionar o tipo principal do Pokémon usando uma sigla configurável para cada tipo."
         NamingField.ADVENTURE_EFFECT -> "Exibir o marcador de efeito aventura."
         NamingField.EVOLUTION_TYPE -> "Mostrar Baby, Estágio 1, Estágio 2, Mega, Dynamax e Gigantamax, cada um com seu símbolo."
@@ -1905,6 +1920,7 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
             option("MASTER_LEAGUE", "Master League")
         )
         NamingField.LEGACY_MOVE -> listOf(option("LEGACY", "Ataque legado"))
+        NamingField.LEGACY_MOVE_NAME -> emptyList()
         NamingField.EVOLUTION_TYPE -> listOf(
             option("BABY", "Baby"),
             option("STAGE1", "Estágio 1"),

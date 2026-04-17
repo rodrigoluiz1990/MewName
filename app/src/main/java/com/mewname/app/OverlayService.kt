@@ -784,10 +784,6 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
 
         actionsRow.addView(
-            actionButton("Exportar log") { exportBubbleLog() }
-        )
-
-        actionsRow.addView(
             actionButton("Fechar", isLast = true) {
                 windowManager.removeView(layout)
                 resultsView = null
@@ -944,7 +940,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         selectedFields: Set<NamingField>? = null
     ): String {
         val relevantFields = selectedFields?.toList() ?: snapshot.reviewableFields
-        val filteredExport = !selectedFields.isNullOrEmpty()
+        val filteredExport = selectedFields != null
+        val includeAllWhenEmpty = selectedFields == null
         return buildString {
             val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
             appendLine("MewName - Log do modo bolha")
@@ -961,7 +958,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 data = snapshot.parsedData,
                 bitmapWidth = snapshot.bitmapWidth,
                 bitmapHeight = snapshot.bitmapHeight,
-                reviewableFields = relevantFields
+                reviewableFields = relevantFields,
+                includeAllWhenEmpty = includeAllWhenEmpty
             )
 
             snapshot.reviewedData?.let { reviewed ->
@@ -971,7 +969,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     data = reviewed,
                     bitmapWidth = snapshot.bitmapWidth,
                     bitmapHeight = snapshot.bitmapHeight,
-                    reviewableFields = relevantFields
+                    reviewableFields = relevantFields,
+                    includeAllWhenEmpty = includeAllWhenEmpty
                 )
             }
 
@@ -1004,12 +1003,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         data: PokemonScreenData,
         bitmapWidth: Int,
         bitmapHeight: Int,
-        reviewableFields: List<NamingField>
+        reviewableFields: List<NamingField>,
+        includeAllWhenEmpty: Boolean
     ) {
-        val includeAll = reviewableFields.isEmpty()
+        val includeAll = includeAllWhenEmpty && reviewableFields.isEmpty()
         fun wants(vararg fields: NamingField): Boolean = includeAll || fields.any { it in reviewableFields }
-        val includeMasterIv = wants(NamingField.MASTER_IV_BADGE) ||
-            (data.masterIvBadgeDebugInfo?.supportedIvPercent == true)
+        val includeMasterIv = wants(NamingField.MASTER_IV_BADGE)
 
         appendLine(title)
         if (wants(NamingField.POKEMON_NAME, NamingField.CP, NamingField.LEVEL, NamingField.GENDER, NamingField.UNIQUE_FORM, NamingField.VIVILLON_PATTERN, NamingField.TYPE, NamingField.FAVORITE, NamingField.LUCKY, NamingField.SHADOW, NamingField.PURIFIED)) {
@@ -1038,7 +1037,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             appendLine("IV Master: ${formatMasterIvBadgeForLog(data.masterIvBadgeMatch)}")
         }
         if (wants(NamingField.PVP_LEAGUE, NamingField.PVP_RANK)) {
-            appendLine("PvP: ${data.pvpLeague?.name ?: "-"} | Rank: ${data.pvpRank ?: "-"}")
+            appendLine("PvP: ${data.pvpLeague?.name ?: "-"} | Rank: ${data.pvpRank ?: "-"} | Pokemon: ${data.pvpPokemonName ?: data.pokemonName ?: "-"}")
         }
         if (wants(NamingField.PVP_LEAGUE, NamingField.PVP_RANK) && data.pvpLeagueRanks.isNotEmpty()) {
             appendLine("PvP por liga:")
@@ -1054,7 +1053,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         if (wants(NamingField.SIZE)) {
             appendLine("Tamanho: ${data.size.name}")
         }
-        if (wants(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE, NamingField.EVOLUTION_TYPE)) {
+        if (wants(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE, NamingField.LEGACY_MOVE_NAME, NamingField.EVOLUTION_TYPE)) {
             appendLine("Flags: ${buildFlagSummary(data)}")
         }
         if (wants(NamingField.IV_PERCENT, NamingField.IV_COMBINATION)) {
@@ -1064,7 +1063,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             data = data,
             snapshotReviewFields = reviewableFields,
             bitmapWidth = bitmapWidth,
-            bitmapHeight = bitmapHeight
+            bitmapHeight = bitmapHeight,
+            includeAllWhenEmpty = includeAllWhenEmpty
         )
     }
 
@@ -1101,12 +1101,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         data: PokemonScreenData,
         snapshotReviewFields: List<NamingField>,
         bitmapWidth: Int,
-        bitmapHeight: Int
+        bitmapHeight: Int,
+        includeAllWhenEmpty: Boolean
     ) {
-        val includeAll = snapshotReviewFields.isEmpty()
+        val includeAll = includeAllWhenEmpty && snapshotReviewFields.isEmpty()
         fun wants(field: NamingField) = includeAll || field in snapshotReviewFields
-        val includeMasterIv = wants(NamingField.MASTER_IV_BADGE) ||
-            (data.masterIvBadgeDebugInfo?.supportedIvPercent == true)
+        val includeMasterIv = wants(NamingField.MASTER_IV_BADGE)
         data.levelDebugInfo?.let { info ->
             if (wants(NamingField.LEVEL)) {
                 appendLine(
@@ -1215,7 +1215,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
         }
         data.legacyDebugInfo?.let { info ->
-            if (wants(NamingField.LEGACY_MOVE) || data.hasLegacyMove) {
+            if (wants(NamingField.LEGACY_MOVE) || wants(NamingField.LEGACY_MOVE_NAME) || data.hasLegacyMove) {
+                if (wants(NamingField.LEGACY_MOVE_NAME)) {
+                    appendLine("Ataque legado: ${info.matchedLegacyMove ?: "-"}")
+                }
                 appendLine(
                     "Legacy dbg: pokemon=${info.matchedAgainstPokemon ?: "-"} keyword=${info.matchedKeyword ?: "-"} golpe=${info.matchedLegacyMove ?: "-"}"
                 )

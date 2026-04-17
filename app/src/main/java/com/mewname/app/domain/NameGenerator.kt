@@ -79,7 +79,15 @@ class NameGenerator {
 
     private fun resolveField(field: NamingField?, data: PokemonScreenData, config: NamingConfig): String? {
         return when (field) {
-            NamingField.POKEMON_NAME -> data.pokemonName?.take(14)
+            NamingField.POKEMON_NAME -> {
+                val shouldUsePvpSpecies = config.effectiveBlocks().any { block ->
+                    block.field == NamingField.PVP_LEAGUE || block.field == NamingField.PVP_RANK
+                }
+                (if (shouldUsePvpSpecies) data.pvpPokemonName else null)
+                    ?.takeIf { it.isNotBlank() }
+                    ?.take(14)
+                    ?: data.pokemonName?.take(14)
+            }
             NamingField.UNOWN_LETTER -> data.unownLetter?.takeIf { it.isNotBlank() }?.uppercase()
             NamingField.UNIQUE_FORM -> {
                 when {
@@ -147,6 +155,7 @@ class NameGenerator {
             }
             NamingField.PVP_RANK -> data.pvpRank?.toString()
             NamingField.LEGACY_MOVE -> if (data.hasLegacyMove) config.symbols["LEGACY"] else null
+            NamingField.LEGACY_MOVE_NAME -> if (data.hasLegacyMove) data.legacyDebugInfo?.matchedLegacyMove?.takeIf { it.isNotBlank() } else null
             NamingField.EVOLUTION_TYPE -> evolutionSymbols(data, config)
             null -> null
         }

@@ -52,6 +52,7 @@ enum class NamingField(val label: String) {
     PVP_LEAGUE("Liga PvP"),
     PVP_RANK("Ranking PvP"),
     LEGACY_MOVE("Ataque Legado"),
+    LEGACY_MOVE_NAME("Nome Ataque Legado"),
     EVOLUTION_TYPE("Evolução")
 }
 

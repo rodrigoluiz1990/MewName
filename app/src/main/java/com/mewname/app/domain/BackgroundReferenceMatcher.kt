@@ -64,8 +64,9 @@ class BackgroundReferenceMatcher {
         val bestNormalDistance = bestNormal?.second
         val isSpecial = when {
             bestNormalDistance == null -> null
-            bestNormalDistance <= SOFT_NORMAL_THRESHOLD -> false
-            else -> true
+            bestNormalDistance <= NORMAL_CONFIDENCE_THRESHOLD -> false
+            bestNormalDistance >= SPECIAL_OUTLIER_THRESHOLD -> true
+            else -> null
         }
         val bestReference = bestNormal?.first?.sourceName
         val bestDistance = bestNormalDistance
@@ -303,7 +304,8 @@ class BackgroundReferenceMatcher {
     private companion object {
         const val NORMAL_REFS_PATH = "background_refs/normal"
         const val SIGNATURE_SIZE = 14
-        const val SOFT_NORMAL_THRESHOLD = 2.78
+        const val NORMAL_CONFIDENCE_THRESHOLD = 3.25
+        const val SPECIAL_OUTLIER_THRESHOLD = 4.25
 
         val REFERENCE_VARIANTS = listOf(
             ReferenceVariantSpec(
