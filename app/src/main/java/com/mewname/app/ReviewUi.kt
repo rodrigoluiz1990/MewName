@@ -497,7 +497,7 @@ fun ReviewEditorCard(
                         }
                     )
                     if (showSizeHelp) {
-                        SizeHelpPanel(size = draft.size)
+                        SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
                     }
                 }
             }
@@ -663,8 +663,12 @@ fun ReviewEditorCard(
                             )
                         }
                         if (NamingField.LEGACY_MOVE in fields) {
+                            val legacyMoveLabel = draft.legacyDebugInfo
+                                ?.matchedLegacyMove
+                                ?.takeIf { it.isNotBlank() }
+                                ?: "Ataque Legado"
                             ToggleChip(
-                                label = "Ataque Legado",
+                                label = legacyMoveLabel,
                                 selected = draft.hasLegacyMove,
                                 onClick = { draft = draft.copy(hasLegacyMove = !draft.hasLegacyMove) },
                                 compact = true,
@@ -923,7 +927,7 @@ private fun LegacyHelpPanel(info: LegacyDebugInfo?) {
             Text("Leitura do ataque legado", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             Text("Pokémon base: ${info?.matchedAgainstPokemon ?: "-"}", style = MaterialTheme.typography.bodySmall)
             Text("Keyword encontrada: ${info?.matchedKeyword ?: "-"}", style = MaterialTheme.typography.bodySmall)
-            Text("Golpe legado encontrado: ${info?.matchedLegacyMove ?: "-"}", style = MaterialTheme.typography.bodySmall)
+            Text("Golpe legado sugerido/detectado: ${info?.matchedLegacyMove ?: "-"}", style = MaterialTheme.typography.bodySmall)
             if (!info?.extractedMoves.isNullOrEmpty()) {
                 Text("Golpes extraidos:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                 info?.extractedMoves?.forEach { move ->
@@ -1733,7 +1737,7 @@ private fun VivillonDebugOverlay(
 }
 
 @Composable
-private fun SizeHelpPanel(size: PokemonSize) {
+private fun SizeHelpPanel(size: PokemonSize, info: com.mewname.app.model.SizeDebugInfo?) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
         Column(
             modifier = Modifier
@@ -1745,6 +1749,18 @@ private fun SizeHelpPanel(size: PokemonSize) {
             Text("Tamanho detectado: ${sizeDisplayName(size)}", style = MaterialTheme.typography.bodySmall)
             if (size == PokemonSize.NORMAL) {
                 Text("Normal é usado quando nenhum dos tamanhos especiais está marcado.", style = MaterialTheme.typography.bodySmall)
+            }
+            if (info != null) {
+                if (info.candidateLines.isNotEmpty()) {
+                    Text("Linhas: ${info.candidateLines.joinToString(" | ")}", style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    "Visual: ${info.visualSize?.name ?: "-"} ratio=${info.visualBadgeRatio?.let { "%.3f".format(it) } ?: "-"}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (info.notes.isNotBlank()) {
+                    Text("Obs: ${info.notes}", style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }

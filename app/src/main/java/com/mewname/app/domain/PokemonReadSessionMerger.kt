@@ -12,10 +12,10 @@ class PokemonReadSessionMerger {
         if (previous == null || !isSamePokemon(current, previous)) return current
 
         return current.copy(
-            pokemonName = current.pokemonName ?: previous.pokemonName,
+            pokemonName = mergePokemonName(current, previous),
             unownLetter = current.unownLetter ?: previous.unownLetter,
             uniqueForm = current.uniqueForm ?: previous.uniqueForm,
-            candyFamilyName = current.candyFamilyName ?: previous.candyFamilyName,
+            candyFamilyName = mergeCandyFamilyName(current, previous),
             candyDebugInfo = current.candyDebugInfo ?: previous.candyDebugInfo,
             levelDebugInfo = mergeLevelDebugInfo(current.levelDebugInfo, previous.levelDebugInfo),
             genderDebugInfo = current.genderDebugInfo ?: previous.genderDebugInfo,
@@ -49,16 +49,48 @@ class PokemonReadSessionMerger {
             hasSpecialBackground = if (current.backgroundDebugInfo != null) current.hasSpecialBackground else current.hasSpecialBackground || previous.hasSpecialBackground,
             hasAdventureEffect = if (current.adventureEffectDebugInfo != null) current.hasAdventureEffect else current.hasAdventureEffect || previous.hasAdventureEffect,
             size = if (current.size != PokemonSize.NORMAL) current.size else previous.size,
+            sizeDebugInfo = current.sizeDebugInfo ?: previous.sizeDebugInfo,
             pvpLeague = current.pvpLeague ?: previous.pvpLeague,
             pvpRank = current.pvpRank ?: previous.pvpRank,
             pvpPokemonName = current.pvpPokemonName ?: previous.pvpPokemonName,
             pvpLeagueRanks = if (current.pvpLeagueRanks.isNotEmpty()) current.pvpLeagueRanks else previous.pvpLeagueRanks,
             familyPvpRanks = if (current.familyPvpRanks.isNotEmpty()) current.familyPvpRanks else previous.familyPvpRanks,
-            masterIvBadgeMatch = current.masterIvBadgeMatch ?: previous.masterIvBadgeMatch,
+            masterIvBadgeMatch = if (current.masterIvBadgeDebugInfo != null) {
+                current.masterIvBadgeMatch
+            } else {
+                current.masterIvBadgeMatch ?: previous.masterIvBadgeMatch
+            },
             masterIvBadgeDebugInfo = current.masterIvBadgeDebugInfo ?: previous.masterIvBadgeDebugInfo,
             hasLegacyMove = if (current.legacyDebugInfo != null) current.hasLegacyMove else current.hasLegacyMove || previous.hasLegacyMove,
             evolutionFlags = if (current.evolutionFlags.isNotEmpty()) current.evolutionFlags else previous.evolutionFlags
         )
+    }
+
+    private fun mergePokemonName(current: PokemonScreenData, previous: PokemonScreenData): String? {
+        val currentName = normalize(current.pokemonName)
+        val previousName = normalize(previous.pokemonName)
+        val currentFamily = normalize(current.candyFamilyName)
+        val previousFamily = normalize(previous.candyFamilyName)
+        val sameCp = current.cp != null && previous.cp != null && current.cp == previous.cp
+
+        if (currentName == null) return previous.pokemonName
+        if (previousName == null || currentName == previousName) return current.pokemonName
+        if (sameCp && currentFamily != null && previousFamily != null && currentFamily == previousFamily) {
+            return previous.pokemonName
+        }
+        return current.pokemonName
+    }
+
+    private fun mergeCandyFamilyName(current: PokemonScreenData, previous: PokemonScreenData): String? {
+        val currentFamily = normalize(current.candyFamilyName)
+        val previousFamily = normalize(previous.candyFamilyName)
+        val previousName = normalize(previous.pokemonName)
+        val sameCp = current.cp != null && previous.cp != null && current.cp == previous.cp
+
+        if (currentFamily == null) return previous.candyFamilyName
+        if (previousFamily == null || currentFamily == previousFamily) return current.candyFamilyName
+        if (sameCp && currentFamily == previousName) return previous.candyFamilyName
+        return current.candyFamilyName
     }
 
     private fun isSamePokemon(current: PokemonScreenData, previous: PokemonScreenData): Boolean {
@@ -79,11 +111,16 @@ class PokemonReadSessionMerger {
             (currentFamily != null && currentFamily == previousName) ||
                 (previousFamily != null && previousFamily == currentName)
             )
+        val currentLooksLikeIncompleteReadOfPrevious = sameCp &&
+            currentName == null &&
+            previousName != null &&
+            currentFamily != null &&
+            (currentFamily == previousFamily || currentFamily == previousName)
         val familyCompatibleWithoutCp = sameFamily && (sameIv || oneCpMissing || oneNameMissing)
         val sameNameWithPartialData = sameResolvedName && (sameIv || oneCpMissing || oneNameMissing)
 
         return when {
-            sameCp -> sameResolvedName || sameFamily || familyMatchesName
+            sameCp -> sameResolvedName || sameFamily || familyMatchesName || currentLooksLikeIncompleteReadOfPrevious
             sameNameWithPartialData -> true
             familyCompatibleWithoutCp -> true
             sameResolvedName && sameIv -> true

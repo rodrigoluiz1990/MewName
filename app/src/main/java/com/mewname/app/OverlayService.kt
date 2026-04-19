@@ -77,6 +77,7 @@ import kotlin.math.abs
 class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
     companion object {
         private const val TAG = "OverlayService"
+        private const val CAPTURE_AFTER_HIDE_DELAY_MS = 260L
         const val ACTION_CAPTURE_PERMISSION_INVALID = "com.mewname.app.action.CAPTURE_PERMISSION_INVALID"
     }
 
@@ -146,7 +147,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "STOP_SERVICE") {
             stopSelf()
-            return START_STICKY
+            return START_NOT_STICKY
         }
         
         val newProjectionData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -161,7 +162,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             launchPokemonGo()
         }
         
-        return START_STICKY
+        return START_NOT_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun startForegroundService() {
@@ -351,6 +357,23 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         return targetRect.contains(bubbleCenterX, bubbleCenterY)
     }
 
+    private fun setBubbleHiddenForCapture(hidden: Boolean) {
+        val bubble = floatingButton ?: return
+        bubble.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
+        bubble.isEnabled = !hidden
+    }
+
+    private fun drainPendingCaptureFrames(reader: ImageReader) {
+        while (true) {
+            val staleImage = try {
+                reader.acquireLatestImage()
+            } catch (_: Exception) {
+                null
+            } ?: break
+            staleImage.close()
+        }
+    }
+
     private fun launchPokemonGo() {
         val directIntent = packageManager.getLaunchIntentForPackage("com.nianticlabs.pokemongo")
         if (directIntent != null) {
@@ -393,13 +416,16 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
 
         isCaptureInProgress = true
-        Handler(Looper.getMainLooper()).postDelayed({
+        drainPendingCaptureFrames(reader)
+        setBubbleHiddenForCapture(true)
+        mainHandler.postDelayed({
             val image = try {
                 reader.acquireLatestImage()
             } catch (e: Exception) {
                 Log.e(TAG, "Falha ao obter imagem da sessao ativa", e)
                 null
             }
+            setBubbleHiddenForCapture(false)
 
             if (image == null) {
                 isCaptureInProgress = false
@@ -429,7 +455,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             } finally {
                 image.close()
             }
-        }, 180)
+        }, CAPTURE_AFTER_HIDE_DELAY_MS)
     }
 
     private fun initializeProjectionSession() {
@@ -942,6 +968,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val relevantFields = selectedFields?.toList() ?: snapshot.reviewableFields
         val filteredExport = selectedFields != null
         val includeAllWhenEmpty = selectedFields == null
+        val includeScreenLogForFilteredExport = filteredExport && relevantFields.any {
+            it == NamingField.MASTER_IV_BADGE || it == NamingField.SIZE || it in ivDebugFieldsForExport()
+        }
         return buildString {
             val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
             appendLine("MewName - Log do modo bolha")
@@ -982,7 +1011,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
 
-            if (!filteredExport) {
+            if (!filteredExport || includeScreenLogForFilteredExport) {
                 appendLine()
                 appendLine("OCR bruto")
                 appendLine(snapshot.rawText.ifBlank { "-" })
@@ -1056,7 +1085,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         if (wants(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE, NamingField.LEGACY_MOVE_NAME, NamingField.EVOLUTION_TYPE)) {
             appendLine("Flags: ${buildFlagSummary(data)}")
         }
-        if (wants(NamingField.IV_PERCENT, NamingField.IV_COMBINATION)) {
+        if (wants(NamingField.IV_PERCENT, NamingField.IV_COMBINATION) || includeMasterIv) {
             appendIvSection(data.ivDebugInfo, bitmapWidth, bitmapHeight)
         }
         appendAuxiliaryDebugSection(
@@ -1095,6 +1124,24 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         debugRectSummary("Def", info.defenseBarRect, bitmapWidth, bitmapHeight)?.let(::appendLine)
         debugRectSummary("HP", info.staminaBarRect, bitmapWidth, bitmapHeight)?.let(::appendLine)
         if (info.notes.isNotBlank()) appendLine("Obs IV: ${info.notes}")
+    }
+
+    private fun StringBuilder.appendSizeSection(
+        data: PokemonScreenData,
+        bitmapWidth: Int,
+        bitmapHeight: Int
+    ) {
+        val info = data.sizeDebugInfo
+        appendLine("Size dbg: detectado=${data.size.name} normalQuandoNenhumMarcado=${data.size == PokemonSize.NORMAL}")
+        if (info == null) return
+        if (info.candidateLines.isNotEmpty()) {
+            appendLine("Size linhas: ${info.candidateLines.joinToString(" | ")}")
+        }
+        appendLine(
+            "Size visual: tamanho=${info.visualSize?.name ?: "-"} ratio=${info.visualBadgeRatio?.formatDebugValue() ?: "-"} aspecto=${info.visualBadgeAspect?.formatDebugValue() ?: "-"} texto=${info.textMatch ?: "-"}"
+        )
+        debugRectSummary("Size selo", info.visualBadgeRect, bitmapWidth, bitmapHeight)?.let(::appendLine)
+        if (info.notes.isNotBlank()) appendLine("Size obs: ${info.notes}")
     }
 
     private fun StringBuilder.appendAuxiliaryDebugSection(
@@ -1137,7 +1184,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
         }
         if (wants(NamingField.SIZE)) {
-            appendLine("Size dbg: detectado=${data.size.name} normalQuandoNenhumMarcado=${data.size == PokemonSize.NORMAL}")
+            appendSizeSection(data, bitmapWidth, bitmapHeight)
         }
         data.candyDebugInfo?.let { info ->
             if (wants(NamingField.POKEMON_NAME)) {
@@ -1269,6 +1316,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         false -> "Nao"
         null -> "-"
     }
+
+    private fun ivDebugFieldsForExport(): Set<NamingField> = setOf(
+        NamingField.IV_PERCENT,
+        NamingField.IV_COMBINATION
+    )
 
     private fun buildOcrLineLogs(ocrResult: OcrResult): List<String> {
         return ocrResult.blocks

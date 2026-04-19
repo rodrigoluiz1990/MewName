@@ -35,6 +35,7 @@ data class PokemonScreenData(
     val hasSpecialBackground: Boolean = false,
     val hasAdventureEffect: Boolean = false,
     val size: PokemonSize = PokemonSize.NORMAL,
+    val sizeDebugInfo: SizeDebugInfo? = null,
     val pvpLeague: PvpLeague? = null,
     val pvpRank: Int? = null,
     val pvpPokemonName: String? = null,
@@ -219,6 +220,17 @@ data class MasterIvBadgeDebugInfo(
     val expectedDefense: Int? = null,
     val expectedStamina: Int? = null,
     val isBestMatch: Boolean? = null,
+    val notes: String = ""
+)
+
+data class SizeDebugInfo(
+    val detectedSize: PokemonSize = PokemonSize.NORMAL,
+    val candidateLines: List<String> = emptyList(),
+    val textMatch: String? = null,
+    val visualSize: PokemonSize? = null,
+    val visualBadgeRect: NormalizedDebugRect? = null,
+    val visualBadgeRatio: Double? = null,
+    val visualBadgeAspect: Double? = null,
     val notes: String = ""
 )
 

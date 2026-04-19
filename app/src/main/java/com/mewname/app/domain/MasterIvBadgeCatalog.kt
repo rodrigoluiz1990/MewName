@@ -47,8 +47,18 @@ class MasterIvBadgeCatalog {
             .filter { it.isNotBlank() }
             .distinct()
         val familyMap = loadFamilyMap(context)
-        val entry = familyMap[signature]
-            ?: normalizedMembers.firstNotNullOfOrNull { member -> familyMap[member] }
+        val entries = buildList {
+            familyMap[signature]?.let(::add)
+            normalizedMembers.mapNotNull { member -> familyMap[member] }.forEach(::add)
+            relatedFormEntries(familyMap, signature, normalizedMembers).forEach(::add)
+        }.distinctBy { it.signature }
+        val entry = entries.firstOrNull { candidate ->
+            candidate.combinations[ivPercent]?.let { expected ->
+                expected.first == attack && expected.second == defense && expected.third == stamina
+            } == true
+        } ?: entries.firstOrNull { candidate ->
+            ivPercent in candidate.combinations
+        }
             ?: return MatchResult(notes = "familia_sem_json")
         val expected = entry.combinations[ivPercent]
             ?: return MatchResult(notes = "percentual_sem_regra")
@@ -107,6 +117,19 @@ class MasterIvBadgeCatalog {
             .distinct()
             .sorted()
             .joinToString("|")
+    }
+
+    private fun relatedFormEntries(
+        familyMap: Map<String, FamilyEntry>,
+        signature: String,
+        normalizedMembers: List<String>
+    ): List<FamilyEntry> {
+        val hasDeoxys = signature == "DEOXYS" || "DEOXYS" in normalizedMembers
+        if (!hasDeoxys) return emptyList()
+        return familyMap
+            .filterKeys { key -> key.startsWith("DEOXYS") && key != "DEOXYS" }
+            .values
+            .toList()
     }
 
     private fun normalize(value: String): String {

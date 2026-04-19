@@ -43,6 +43,26 @@ class PvpRankCalculator {
         return estimateLevel(baseStats, cp, atk, def, sta)
     }
 
+    fun estimateCpAtLevel(
+        context: Context,
+        pokemonName: String,
+        atk: Int,
+        def: Int,
+        sta: Int,
+        level: Double
+    ): Int? {
+        val baseStats = loadBaseStats(context, pokemonName) ?: return null
+        val index = ((level - 1.0) / 0.5).toInt()
+            .coerceIn(0, cpmTable.lastIndex)
+        val cpm = cpmTable.getOrNull(index) ?: return null
+        return calculateCp(
+            baseStats.getInt("attack") + atk,
+            baseStats.getInt("defense") + def,
+            baseStats.getInt("stamina") + sta,
+            cpm
+        )
+    }
+
     fun calculateRank(context: Context, pokemonName: String, atk: Int, def: Int, sta: Int, league: PvpLeague): Int? {
         return calculateLeagueRankInfo(context, pokemonName, atk, def, sta, league)?.rank
     }
