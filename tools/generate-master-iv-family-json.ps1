@@ -206,16 +206,10 @@ try {
         if ($memberResults.Count -eq 0) { continue }
         if (($memberResults | Where-Object { $_.mode -eq "unresolved" }).Count -gt 0) { continue }
 
-        $resolvedFamilies = $memberResults |
-            ForEach-Object { $familyBySpecies[(Normalize-Text $_.resolved)] } |
-            Where-Object { $_ }
-        if (-not $resolvedFamilies) { continue }
-
-        $signatureGroups = $resolvedFamilies |
-            ForEach-Object { (($_ | ForEach-Object { Normalize-Text $_ }) | Sort-Object -Unique) -join "|" } |
-            Group-Object |
-            Sort-Object Count -Descending
-        $signature = $signatureGroups | Select-Object -First 1 -ExpandProperty Name
+        # Keep the row's lead species as the lookup key. Some families have split
+        # Master IV rows (for example Vileplume and Bellossom), so collapsing to
+        # the whole family would discard one valid branch.
+        $signature = Normalize-Text $memberResults[0].resolved
         if ([string]::IsNullOrWhiteSpace($signature)) { continue }
         if (-not $seenKeys.Add($signature)) { continue }
 

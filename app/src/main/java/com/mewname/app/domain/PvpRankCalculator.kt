@@ -31,6 +31,15 @@ class PvpRankCalculator {
 
     data class StatProduct(val atk: Int, val def: Int, val sta: Int, val product: Double, val cp: Int, val level: Double)
 
+    private data class RankTable(
+        val byIv: Map<String, StatProduct>,
+        val productsDescending: List<Double>
+    )
+
+    @Volatile
+    private var baseStatsRoot: JSONObject? = null
+    private val rankTableCache = mutableMapOf<String, RankTable>()
+
     fun estimateLevel(
         context: Context,
         pokemonName: String,
@@ -136,22 +145,8 @@ class PvpRankCalculator {
     ): PvpLeagueRankInfo {
         val cap = leagueCap(league)
         val stadiumUrl = buildStadiumUrl(pokemonName, atk, def, sta, league)
-        val eligibleProducts = mutableListOf<Double>()
-        var currentBest: StatProduct? = null
-
-        for (a in 0..15) {
-            for (d in 0..15) {
-                for (s in 0..15) {
-                    val best = getBestStatProduct(baseStats, a, d, s, cap, maxLevelForLeague(league))
-                    if (best != null) {
-                        eligibleProducts += best.product
-                        if (a == atk && d == def && s == sta) {
-                            currentBest = best
-                        }
-                    }
-                }
-            }
-        }
+        val rankTable = getRankTable(baseStats, pokemonName, league)
+        val currentBest = rankTable.byIv[ivKey(atk, def, sta)]
 
         if (currentBest == null) {
             val minCp = minimumCpAtLowestLevel(baseStats, atk, def, sta)
@@ -169,8 +164,7 @@ class PvpRankCalculator {
             )
         }
 
-        eligibleProducts.sortDescending()
-        val rank = eligibleProducts.indexOf(currentBest.product) + 1
+        val rank = rankTable.productsDescending.indexOf(currentBest.product) + 1
         return PvpLeagueRankInfo(
             league = league,
             pokemonName = pokemonName,
@@ -274,17 +268,59 @@ class PvpRankCalculator {
         return bestProduct
     }
 
+    private fun getRankTable(baseStats: JSONObject, pokemonName: String, league: PvpLeague): RankTable {
+        val cacheKey = "${pokemonName.uppercase()}|${league.name}"
+        synchronized(rankTableCache) {
+            rankTableCache[cacheKey]?.let { return it }
+        }
+
+        val byIv = mutableMapOf<String, StatProduct>()
+        val products = mutableListOf<Double>()
+        val cap = leagueCap(league)
+        val maxLevel = maxLevelForLeague(league)
+        for (a in 0..15) {
+            for (d in 0..15) {
+                for (s in 0..15) {
+                    val best = getBestStatProduct(baseStats, a, d, s, cap, maxLevel)
+                    if (best != null) {
+                        byIv[ivKey(a, d, s)] = best
+                        products += best.product
+                    }
+                }
+            }
+        }
+        products.sortDescending()
+
+        val table = RankTable(byIv = byIv, productsDescending = products)
+        synchronized(rankTableCache) {
+            rankTableCache[cacheKey] = table
+        }
+        return table
+    }
+
+    private fun ivKey(atk: Int, def: Int, sta: Int): String = "$atk/$def/$sta"
+
     private fun calculateCp(atk: Int, def: Int, sta: Int, cpm: Double): Int {
         return floor(atk * sqrt(def.toDouble()) * sqrt(sta.toDouble()) * cpm.pow(2.0) / 10.0).toInt().coerceAtLeast(10)
     }
 
     private fun loadBaseStats(context: Context, name: String): JSONObject? {
         return try {
-            val jsonString = context.assets.open(AssetPaths.POKEMON_STATS).bufferedReader().use { it.readText() }
-            val jsonObject = JSONObject(jsonString)
+            val jsonObject = loadBaseStatsRoot(context)
             jsonObject.optJSONObject(name.uppercase())
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private fun loadBaseStatsRoot(context: Context): JSONObject {
+        baseStatsRoot?.let { return it }
+        synchronized(this) {
+            baseStatsRoot?.let { return it }
+            val jsonString = context.assets.open(AssetPaths.POKEMON_STATS).bufferedReader().use { it.readText() }
+            val loaded = JSONObject(jsonString)
+            baseStatsRoot = loaded
+            return loaded
         }
     }
 

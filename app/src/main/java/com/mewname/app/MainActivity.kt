@@ -1645,19 +1645,6 @@ private fun UniqueFormFieldConfigContent(
             addAll(UniquePokemonCatalog.allSpecs())
             add(
                 com.mewname.app.domain.UniquePokemonSpec(
-                    assetFolder = "unown",
-                    pokemonNames = setOf("UNOWN"),
-                    options = buildList {
-                        ('A'..'Z').forEach { letter ->
-                            add(com.mewname.app.domain.UniquePokemonFormOption(letter.toString(), letter.toString()))
-                        }
-                        add(com.mewname.app.domain.UniquePokemonFormOption("!", "!"))
-                        add(com.mewname.app.domain.UniquePokemonFormOption("?", "?"))
-                    }
-                )
-            )
-            add(
-                com.mewname.app.domain.UniquePokemonSpec(
                     assetFolder = "vivillon",
                     pokemonNames = setOf("VIVILLON"),
                     options = VivillonPattern.entries.map { pattern ->

@@ -1,5 +1,8 @@
 Adicione aqui os icones do padrao de Vivillon usados no botao "Evoluir".
 
+Para validar screenshots completas de Scatterbug/Spewpa/Vivillon, use:
+tools/vivillon-validation/README.md
+
 Regras:
 - Use um arquivo por padrao.
 - Prefira crops pequenos contendo so o icone.

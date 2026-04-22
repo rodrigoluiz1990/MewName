@@ -1,6 +1,7 @@
 {
   "legacyMoves": {
     "BUTTERFREE": ["BUG BITE","Picada","PICADURA"],
+    "LICKITUNG": ["BODY SLAM","Pancada Corporal","GOLPE CUERPO"],
     "PIDGEOT": ["GUST","Lufada de Vento","TORNADO","AIR CUTTER","Cortador de Ar","TAJO AEREO"],
     "FEAROW": ["TWISTER","Twister","CICLÓN"],
     "PIKACHU": ["SURF","Surfar","SURF","FLY","Voar","VUELO","PRESENT","Presente","PRESENTE"],
@@ -9,7 +10,7 @@
     "NINETALES": ["EMBER","Brasa","ASCUAS","FIRE PERSONA","Rajada de Fogo","PIROTECNIA"],
     "POLIWRATH": ["COUNTER","Contra-atacar","CONTRAATAQUE","SCALD","Escaldada","ESCALDAR"],
     "GRAVELER": ["ROCK THROW","Lançamento de Rocha","LANZARROCAS"],
-    "GOLEM": ["ANCIENT POWER","Poder Ancião","PODER PASADO","MUD SHOT","Tiro de Lama","DISPARO LODO"],
+    "GOLEM": ["ANCIENT POWER","Poder Ancestral","Poder Ancião","PODER PASADO","MUD SHOT","Tiro de Lama","DISPARO LODO"],
     "FARFETCHD": ["CUT","Cortar","CORTE"],
     "CLOYSTER": ["BLIZZARD","Nevasca","VENTISCA"],
     "EXEGGUTOR": ["ZEN HEADBUTT","Cabeçada Zen","CABEZAZO ZEN"],
@@ -128,6 +129,7 @@
     "SYLVEON": ["LAST RESORT","Último Recurso","ULTIMA BAZA","PSYSHOCK","Choque Psíquico","PSICOCARGA"],
     "GOODRA": ["THUNDER PUNCH","Soco Trovoada","PUÑO TRUENO"],
     "AURORUS": ["METEOR BEAM","Feixe Meteórico","METEOROCARGA"],
+    "FLORGES": ["CHILLING WATER","Água Fria","Agua Fria","AGUA FRIA"],
     "XERNEAS": ["GEOMANCY","Geomancia","GEOMANCIA"],
     "YVELTAL": ["OBLIVION WING","Asa do Esquecimento","ALA MORTÍFERA"],
     "DECIDUEYE": ["FRENZY PLANT","Planta Mortal","PLANTA FEROZ","SPIRIT SHACKLE","Manilha Sombria","PUNTADA SOMBRÍA"],

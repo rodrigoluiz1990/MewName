@@ -563,8 +563,17 @@ fun jsonToNamingConfig(obj: JSONObject): NamingConfig {
         symbolsObj.keys().forEach { k -> symbols[k] = symbolsObj.getString(k) }
     }
 
-    val mergedSymbols = com.mewname.app.model.defaultSymbols().toMutableMap().apply {
-        putAll(symbols)
+    val defaultSymbols = com.mewname.app.model.defaultSymbols()
+    val migratedSymbols = symbols.mapValues { (key, value) ->
+        val legacyVivillonValue = legacyVivillonDefaultSymbols[key]
+        if (legacyVivillonValue != null && value == legacyVivillonValue) {
+            defaultSymbols[key].orEmpty()
+        } else {
+            value
+        }
+    }
+    val mergedSymbols = defaultSymbols.toMutableMap().apply {
+        putAll(migratedSymbols)
     }
 
     return NamingConfig(
@@ -577,3 +586,24 @@ fun jsonToNamingConfig(obj: JSONObject): NamingConfig {
         symbols = mergedSymbols
     )
 }
+
+private val legacyVivillonDefaultSymbols = mapOf(
+    "VIVILLON_ARCHIPELAGO" to "ARC",
+    "VIVILLON_CONTINENTAL" to "CON",
+    "VIVILLON_ELEGANT" to "ELE",
+    "VIVILLON_GARDEN" to "GAR",
+    "VIVILLON_HIGH_PLAINS" to "HPL",
+    "VIVILLON_ICY_SNOW" to "ISN",
+    "VIVILLON_JUNGLE" to "JUN",
+    "VIVILLON_MARINE" to "MAR",
+    "VIVILLON_MEADOW" to "MEA",
+    "VIVILLON_MODERN" to "MOD",
+    "VIVILLON_MONSOON" to "MON",
+    "VIVILLON_OCEAN" to "OCE",
+    "VIVILLON_POLAR" to "POL",
+    "VIVILLON_RIVER" to "RIV",
+    "VIVILLON_SANDSTORM" to "SAN",
+    "VIVILLON_SAVANNA" to "SAV",
+    "VIVILLON_SUN" to "SUN",
+    "VIVILLON_TUNDRA" to "TUN"
+)

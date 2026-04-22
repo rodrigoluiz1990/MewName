@@ -10,6 +10,12 @@ import java.util.Locale
 class PokemonReadSessionMerger {
     fun mergeIfSamePokemon(current: PokemonScreenData, previous: PokemonScreenData?): PokemonScreenData {
         if (previous == null || !isSamePokemon(current, previous)) return current
+        val trustCurrentIv = hasTrustedIvRead(current)
+        val mergedLegacyMove = current.hasLegacyMove || previous.hasLegacyMove
+        val mergedMasterIvBadgeMatch = mergePositiveBadgeMatch(
+            current = current.masterIvBadgeMatch,
+            previous = previous.masterIvBadgeMatch
+        )
 
         return current.copy(
             pokemonName = mergePokemonName(current, previous),
@@ -20,7 +26,7 @@ class PokemonReadSessionMerger {
             levelDebugInfo = mergeLevelDebugInfo(current.levelDebugInfo, previous.levelDebugInfo),
             genderDebugInfo = current.genderDebugInfo ?: previous.genderDebugInfo,
             attributeDebugInfo = current.attributeDebugInfo ?: previous.attributeDebugInfo,
-            legacyDebugInfo = current.legacyDebugInfo ?: previous.legacyDebugInfo,
+            legacyDebugInfo = mergeLegacyDebugInfo(current, previous, mergedLegacyMove),
             adventureEffectDebugInfo = current.adventureEffectDebugInfo ?: previous.adventureEffectDebugInfo,
             backgroundDebugInfo = current.backgroundDebugInfo ?: previous.backgroundDebugInfo,
             uniqueFormDebugInfo = current.uniqueFormDebugInfo ?: previous.uniqueFormDebugInfo,
@@ -29,11 +35,11 @@ class PokemonReadSessionMerger {
             vivillonPattern = current.vivillonPattern ?: previous.vivillonPattern,
             pokedexNumber = current.pokedexNumber ?: previous.pokedexNumber,
             cp = current.cp ?: previous.cp,
-            ivPercent = current.ivPercent ?: previous.ivPercent,
-            attIv = current.attIv ?: previous.attIv,
-            defIv = current.defIv ?: previous.defIv,
-            staIv = current.staIv ?: previous.staIv,
-            ivDebugInfo = current.ivDebugInfo ?: previous.ivDebugInfo,
+            ivPercent = if (trustCurrentIv) current.ivPercent ?: previous.ivPercent else previous.ivPercent,
+            attIv = if (trustCurrentIv) current.attIv ?: previous.attIv else previous.attIv,
+            defIv = if (trustCurrentIv) current.defIv ?: previous.defIv else previous.defIv,
+            staIv = if (trustCurrentIv) current.staIv ?: previous.staIv else previous.staIv,
+            ivDebugInfo = if (trustCurrentIv) current.ivDebugInfo ?: previous.ivDebugInfo else previous.ivDebugInfo,
             level = current.level ?: previous.level,
             gender = when (current.gender) {
                 Gender.UNKNOWN -> previous.gender
@@ -55,15 +61,46 @@ class PokemonReadSessionMerger {
             pvpPokemonName = current.pvpPokemonName ?: previous.pvpPokemonName,
             pvpLeagueRanks = if (current.pvpLeagueRanks.isNotEmpty()) current.pvpLeagueRanks else previous.pvpLeagueRanks,
             familyPvpRanks = if (current.familyPvpRanks.isNotEmpty()) current.familyPvpRanks else previous.familyPvpRanks,
-            masterIvBadgeMatch = if (current.masterIvBadgeDebugInfo != null) {
-                current.masterIvBadgeMatch
-            } else {
-                current.masterIvBadgeMatch ?: previous.masterIvBadgeMatch
-            },
-            masterIvBadgeDebugInfo = current.masterIvBadgeDebugInfo ?: previous.masterIvBadgeDebugInfo,
-            hasLegacyMove = if (current.legacyDebugInfo != null) current.hasLegacyMove else current.hasLegacyMove || previous.hasLegacyMove,
+            masterIvBadgeMatch = mergedMasterIvBadgeMatch,
+            masterIvBadgeDebugInfo = mergeMasterIvBadgeDebugInfo(current, previous, mergedMasterIvBadgeMatch),
+            hasLegacyMove = mergedLegacyMove,
             evolutionFlags = if (current.evolutionFlags.isNotEmpty()) current.evolutionFlags else previous.evolutionFlags
         )
+    }
+
+    private fun mergePositiveBadgeMatch(current: Boolean?, previous: Boolean?): Boolean? {
+        return when {
+            current == true || previous == true -> true
+            current != null -> current
+            else -> previous
+        }
+    }
+
+    private fun mergeMasterIvBadgeDebugInfo(
+        current: PokemonScreenData,
+        previous: PokemonScreenData,
+        mergedMatch: Boolean?
+    ) = when {
+        mergedMatch == true && current.masterIvBadgeMatch == true -> current.masterIvBadgeDebugInfo ?: previous.masterIvBadgeDebugInfo
+        mergedMatch == true && previous.masterIvBadgeMatch == true -> previous.masterIvBadgeDebugInfo ?: current.masterIvBadgeDebugInfo
+        else -> current.masterIvBadgeDebugInfo ?: previous.masterIvBadgeDebugInfo
+    }
+
+    private fun mergeLegacyDebugInfo(
+        current: PokemonScreenData,
+        previous: PokemonScreenData,
+        mergedLegacyMove: Boolean
+    ) = when {
+        mergedLegacyMove && current.hasLegacyMove -> current.legacyDebugInfo ?: previous.legacyDebugInfo
+        mergedLegacyMove && previous.hasLegacyMove -> previous.legacyDebugInfo ?: current.legacyDebugInfo
+        else -> current.legacyDebugInfo ?: previous.legacyDebugInfo
+    }
+
+    private fun hasTrustedIvRead(data: PokemonScreenData): Boolean {
+        val hasIvValues = data.ivPercent != null || data.attIv != null || data.defIv != null || data.staIv != null
+        if (!hasIvValues) return false
+        val debug = data.ivDebugInfo ?: return true
+        return debug.appraisalDetected
     }
 
     private fun mergePokemonName(current: PokemonScreenData, previous: PokemonScreenData): String? {

@@ -1,0 +1,3 @@
+file,expected_pattern,crop_left,crop_top,crop_right,crop_bottom,notes
+exemplo-marine.png,marine,0.165,0.790,0.250,0.855,Substitua pelo nome real da screenshot
+exemplo-jungle.png,jungle,0.165,0.790,0.250,0.855,Adicione uma linha por screenshot

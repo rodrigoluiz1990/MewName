@@ -1,5 +1,8 @@
 package com.mewname.app.model
 
+import java.text.Normalizer
+import java.util.Locale
+
 enum class VivillonPattern(
     val label: String,
     val symbolKey: String
@@ -27,14 +30,33 @@ enum class VivillonPattern(
 
     companion object {
         fun fromAssetName(name: String): VivillonPattern? {
-            val normalized = name
+            val normalized = Normalizer.normalize(name.substringBeforeLast('.'), Normalizer.Form.NFD)
+                .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
                 .substringBeforeLast('.')
                 .trim()
-                .uppercase()
-                .replace('-', '_')
-                .replace(' ', '_')
+                .uppercase(Locale.US)
+                .replace(Regex("[^A-Z0-9]+"), "_")
+                .trim('_')
+                .replace(Regex("^\\d+_?"), "")
+                .removePrefix("VIVILLON_")
             val aliases = mapOf(
-                "POKEBALL" to "POKE_BALL"
+                "ARQUIPELAGO" to "ARCHIPELAGO",
+                "DESERTO" to "SANDSTORM",
+                "ELEGANTE" to "ELEGANT",
+                "JARDIM" to "GARDEN",
+                "MARINHO" to "MARINE",
+                "MONCAO" to "MONSOON",
+                "MODERNO" to "MODERN",
+                "NEVE_CONGELADA" to "ICY_SNOW",
+                "OCEANO" to "OCEAN",
+                "PLANALTO" to "HIGH_PLAINS",
+                "PRADO" to "MEADOW",
+                "RIO" to "RIVER",
+                "SAVANA" to "SAVANNA",
+                "SELVA" to "JUNGLE",
+                "SOLAR" to "SUN",
+                "POKEBALL" to "POKE_BALL",
+                "POKE_BALL" to "POKE_BALL"
             )
             val resolved = aliases[normalized] ?: normalized
             return entries.firstOrNull { it.name == resolved }
