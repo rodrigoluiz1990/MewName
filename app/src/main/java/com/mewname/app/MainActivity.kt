@@ -65,6 +65,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -87,6 +88,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,12 +105,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mewname.app.BuildConfig
 import com.mewname.app.domain.AdventureEffectCatalogEntry
+import com.mewname.app.domain.AppLanguage
 import com.mewname.app.domain.GameCatalogRepository
 import com.mewname.app.domain.LegacyMoveCatalogEntry
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.*
 import java.util.Collections
+
+private const val NEW_PRESET_ID = "__new_preset__"
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
@@ -157,27 +162,41 @@ class MainActivity : ComponentActivity() {
                         AppScreen.PRESET_LIST,
                         AppScreen.LEGACY_MOVES,
                         AppScreen.ADVENTURE_EFFECTS,
+                        AppScreen.RAID_PLANNER,
+                        AppScreen.TYPE_CHART,
+                        AppScreen.MOVEDEX,
+                        AppScreen.POKEDEX,
+                        AppScreen.FILTER_BUILDER,
+                        AppScreen.TEST_MENU,
+                        AppScreen.HELP_MENU,
                         AppScreen.DONATION,
+                        AppScreen.PRIVACY_POLICY,
                         AppScreen.APP_UPDATE,
                         AppScreen.IV_VALIDATION -> viewModel.navigateTo(AppScreen.HOME)
                         else -> Unit
                     }
                 }
 
+                CompositionLocalProvider(LocalAppLanguage provides uiState.appLanguage) {
                 when (uiState.currentScreen) {
                     AppScreen.HOME -> HomeScreen(
                         uiState = uiState,
-                        onPickImage = { pickImage.launch("image/*") },
                         onClear = viewModel::clearResults,
                         onGoToPresets = { viewModel.navigateTo(AppScreen.PRESET_LIST) },
                         onGoToLegacyMoves = { viewModel.navigateTo(AppScreen.LEGACY_MOVES) },
                         onGoToAdventureEffects = { viewModel.navigateTo(AppScreen.ADVENTURE_EFFECTS) },
-                        onGoToDonation = { viewModel.navigateTo(AppScreen.DONATION) },
+                        onGoToRaidPlanner = { viewModel.navigateTo(AppScreen.RAID_PLANNER) },
+                        onGoToTypes = { viewModel.navigateTo(AppScreen.TYPE_CHART) },
+                        onGoToMoves = { viewModel.navigateTo(AppScreen.MOVEDEX) },
+                        onGoToPokedex = { viewModel.navigateTo(AppScreen.POKEDEX) },
+                        onGoToFilters = { viewModel.navigateTo(AppScreen.FILTER_BUILDER) },
+                        onGoToTestMenu = { viewModel.navigateTo(AppScreen.TEST_MENU) },
+                        onGoToHelp = { viewModel.navigateTo(AppScreen.HELP_MENU) },
                         onGoToAppUpdate = { viewModel.navigateTo(AppScreen.APP_UPDATE) },
-                        onGoToIvValidation = { viewModel.navigateTo(AppScreen.IV_VALIDATION) },
                         onDismissReview = viewModel::dismissReview,
                         onApplyReview = viewModel::applyReview,
-                        onBubbleOptionVisibleChange = viewModel::setBubbleOptionVisible
+                        onBubbleOptionVisibleChange = viewModel::setBubbleOptionVisible,
+                        onAppLanguageChange = { viewModel.setAppLanguage(appContext, it) }
                     )
 
                     AppScreen.PRESET_LIST -> {
@@ -185,7 +204,7 @@ class MainActivity : ComponentActivity() {
                         PresetListScreen(
                             configs = uiState.configs,
                             onBack = { viewModel.navigateTo(AppScreen.HOME) },
-                            onAdd = { viewModel.addConfig(context, "Novo Formato") },
+                            onAdd = { viewModel.navigateTo(AppScreen.PRESET_EDIT, NEW_PRESET_ID) },
                             onEdit = { viewModel.navigateTo(AppScreen.PRESET_EDIT, it) },
                             onDelete = { viewModel.removeConfig(context, it) }
                         )
@@ -194,6 +213,13 @@ class MainActivity : ComponentActivity() {
                     AppScreen.PRESET_EDIT -> {
                         val context = LocalContext.current
                         val config = uiState.configs.find { it.id == uiState.editingConfigId }
+                            ?: if (uiState.editingConfigId == NEW_PRESET_ID) {
+                                remember(uiState.appLanguage) {
+                                    NamingConfig(name = lt(uiState.appLanguage, "Novo Formato", "New Preset", "Nuevo Formato"))
+                                }
+                            } else {
+                                null
+                            }
                         if (config != null) {
                             PresetEditScreen(
                                 config = config,
@@ -211,8 +237,50 @@ class MainActivity : ComponentActivity() {
                         AdventureEffectsScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
                     }
 
+                    AppScreen.RAID_PLANNER -> {
+                        RaidPlannerScreen(
+                            onBack = { viewModel.navigateTo(AppScreen.HOME) }
+                        )
+                    }
+
+                    AppScreen.TYPE_CHART -> {
+                        TypesScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    }
+
+                    AppScreen.MOVEDEX -> {
+                        MovesScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    }
+
+                    AppScreen.POKEDEX -> {
+                        PokedexScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    }
+
+                    AppScreen.FILTER_BUILDER -> {
+                        FilterBuilderScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    }
+
+                    AppScreen.TEST_MENU -> {
+                        TestMenuScreen(
+                            onBack = { viewModel.navigateTo(AppScreen.HOME) },
+                            onPickImage = { pickImage.launch("image/*") },
+                            onGoToIvValidation = { viewModel.navigateTo(AppScreen.IV_VALIDATION) },
+                            onGoToDonation = { viewModel.navigateTo(AppScreen.DONATION) }
+                        )
+                    }
+
+                    AppScreen.HELP_MENU -> {
+                        HelpMenuScreen(
+                            onBack = { viewModel.navigateTo(AppScreen.HOME) },
+                            onGoToPrivacy = { viewModel.navigateTo(AppScreen.PRIVACY_POLICY) }
+                        )
+                    }
+
                     AppScreen.DONATION -> {
                         DonationScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    }
+
+                    AppScreen.PRIVACY_POLICY -> {
+                        PrivacyPolicyScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
                     }
 
                     AppScreen.APP_UPDATE -> {
@@ -232,6 +300,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+                }
             }
         }
     }
@@ -246,19 +315,25 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun HomeScreen(
     uiState: UiState,
-    onPickImage: () -> Unit,
     onClear: () -> Unit,
     onGoToPresets: () -> Unit,
     onGoToLegacyMoves: () -> Unit,
     onGoToAdventureEffects: () -> Unit,
-    onGoToDonation: () -> Unit,
+    onGoToRaidPlanner: () -> Unit,
+    onGoToTypes: () -> Unit,
+    onGoToMoves: () -> Unit,
+    onGoToPokedex: () -> Unit,
+    onGoToFilters: () -> Unit,
+    onGoToTestMenu: () -> Unit,
+    onGoToHelp: () -> Unit,
     onGoToAppUpdate: () -> Unit,
-    onGoToIvValidation: () -> Unit,
     onDismissReview: () -> Unit,
     onApplyReview: (PokemonScreenData) -> Unit,
-    onBubbleOptionVisibleChange: (Boolean) -> Unit
+    onBubbleOptionVisibleChange: (Boolean) -> Unit,
+    onAppLanguageChange: (AppLanguage) -> Unit
 ) {
     val context = LocalContext.current
+    val language = appLanguage()
     val releaseLabel = BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" } ?: "local"
     val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -298,11 +373,47 @@ fun HomeScreen(
                                 "MewName",
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
-                            Text(
-                                text = releaseLabel,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    AppLanguage.entries.forEach { option ->
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(999.dp))
+                                                .background(
+                                                    if (uiState.appLanguage == option) {
+                                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f)
+                                                    } else {
+                                                        Color.Transparent
+                                                    }
+                                                )
+                                                .border(
+                                                    width = if (uiState.appLanguage == option) 1.dp else 0.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.42f),
+                                                    shape = RoundedCornerShape(999.dp)
+                                                )
+                                                .clickable { onAppLanguageChange(option) }
+                                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = appLanguageFlag(option),
+                                                style = MaterialTheme.typography.titleSmall
+                                            )
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = releaseLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
+                                )
+                            }
                         }
                     }
                 )
@@ -332,7 +443,13 @@ fun HomeScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Text(if (uiState.showBubbleOption) "Iniciar sobreposição" else "Solicitar Permissão de Captura")
+                Text(
+                    if (uiState.showBubbleOption) {
+                        lt(language, "Iniciar sobreposicao", "Start overlay", "Iniciar superposicion")
+                    } else {
+                        lt(language, "Solicitar permissao de captura", "Request capture permission", "Solicitar permiso de captura")
+                    }
+                )
             }
         }
     ) { padding ->
@@ -349,77 +466,96 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 HomeActionSquare(
-                    title = "Gerar nome por imagem",
+                    title = lt(language, "Calendario", "Calendar", "Calendario"),
                     iconRes = null,
-                    assetIconPath = "icon-gerar-nome-imagem.png",
-                    onClick = onPickImage,
-                    modifier = Modifier.fillMaxWidth(0.31f)
-                )
-                HomeActionSquare(
-                    title = "Definir Nomes",
-                    iconRes = null,
-                    assetIconPath = "icon-definir-nome.png",
-                    onClick = onGoToPresets,
-                    modifier = Modifier.fillMaxWidth(0.31f)
-                )
-                HomeActionSquare(
-                    title = "Ataques Legados",
-                    iconRes = null,
-                    assetIconPath = "icon-legacy.png",
-                    onClick = onGoToLegacyMoves,
-                    modifier = Modifier.fillMaxWidth(0.31f)
-                )
-                HomeActionSquare(
-                    title = "Efeitos de Aventura",
-                    iconRes = null,
-                    assetIconPath = "icon-fieldmove.png",
-                    onClick = onGoToAdventureEffects,
-                    modifier = Modifier.fillMaxWidth(0.31f)
-                )
-                HomeActionSquare(
-                    title = if (uiState.isCheckingForUpdate) "Verificando..." else "Atualizar app",
-                    iconRes = null,
-                    assetIconPath = "icon-update.png",
-                    onClick = onGoToAppUpdate,
-                    modifier = Modifier.fillMaxWidth(0.31f)
-                )
-                HomeActionSquare(
-                    title = "Validar amostras",
-                    iconRes = null,
-                    assetIconPath = "icon-validar-amostras.png",
-                    onClick = onGoToIvValidation,
-                    modifier = Modifier.fillMaxWidth(0.31f)
-                )
-                HomeActionSquare(
-                    title = "Calendário",
-                    iconRes = null,
-                    customIcon = { HomeBrowserGlyph() },
+                    customIcon = { HomeMenuGlyph("calendar") },
                     onClick = { openExternalUrl(context, "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Calendario/calendario.html") },
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
-                    title = "Doação",
+                    title = lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"),
                     iconRes = null,
-                    assetIconPath = "icon-doacao.png",
-                    onClick = onGoToDonation,
+                    customIcon = { HomeMenuGlyph("presets") },
+                    onClick = onGoToPresets,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Filtros", "Filters", "Filtros"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("filters") },
+                    onClick = onGoToFilters,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = "Pokedex",
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("pokedex") },
+                    onClick = onGoToPokedex,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Raids", "Raids", "Raids"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("raid") },
+                    onClick = onGoToRaidPlanner,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Tipos", "Types", "Tipos"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("types") },
+                    onClick = onGoToTypes,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("adventure") },
+                    onClick = onGoToAdventureEffects,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legado"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("legacy") },
+                    onClick = onGoToLegacyMoves,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Ataques", "Moves", "Ataques"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("moves") },
+                    onClick = onGoToMoves,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Teste", "Test", "Prueba"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("test") },
+                    onClick = onGoToTestMenu,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = if (uiState.isCheckingForUpdate) {
+                        lt(language, "Verificando...", "Checking...", "Verificando...")
+                    } else {
+                        lt(language, "Atualizar", "Update", "Actualizar")
+                    },
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("update") },
+                    onClick = onGoToAppUpdate,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Ajuda", "Help", "Ayuda"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("help") },
+                    onClick = onGoToHelp,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
             }
 
-            if (uiState.generatedResults.isNotEmpty()) {
-                Text("Nome sugerido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                uiState.generatedResults.forEach { result ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(result.configName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            Text(result.generatedName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                Button(onClick = onClear, modifier = Modifier.fillMaxWidth()) {
-                    Text("Limpar Resultados")
-                }
-            }
+            AnalysisTabsSection(uiState = uiState, onClear = onClear)
         }
 
         if (uiState.isProcessing) {
@@ -442,12 +578,17 @@ fun HomeScreen(
                     ) {
                         CircularProgressIndicator()
                         Text(
-                            "Analisando imagem",
+                            lt(language, "Analisando imagem", "Analyzing image", "Analizando imagen"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            uiState.processingStatusMessage ?: "Lendo os dados detectados para gerar o nome sugerido.",
+                            uiState.processingStatusMessage ?: lt(
+                                language,
+                                "Lendo os dados detectados para gerar o nome sugerido.",
+                                "Reading detected data to generate the suggested name.",
+                                "Leyendo los datos detectados para generar el nombre sugerido."
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -477,6 +618,7 @@ private fun AppUpdateScreen(
     onRefresh: () -> Unit
 ) {
     val context = LocalContext.current
+    val language = appLanguage()
 
     LaunchedEffect(Unit) {
         if (!uiState.isCheckingForUpdate && uiState.latestAppUpdate == null && uiState.appUpdateError == null) {
@@ -487,10 +629,10 @@ private fun AppUpdateScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Atualização do App") },
+                title = { Text(lt(language, "Atualizacao do App", "App Update", "Actualizacion de la App")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
@@ -509,10 +651,10 @@ private fun AppUpdateScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("Versão instalada", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("Nome: v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
+                    Text(lt(language, "Versao instalada", "Installed version", "Version instalada"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("${lt(language, "Nome", "Name", "Nombre")}: v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "Release: ${BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" } ?: "build local"}",
+                        "Release: ${BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" } ?: lt(language, "build local", "local build", "build local")}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -527,7 +669,7 @@ private fun AppUpdateScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             CircularProgressIndicator()
-                            Text("Verificando nova release...", style = MaterialTheme.typography.bodyMedium)
+                            Text(lt(language, "Verificando nova release...", "Checking for a new release...", "Buscando nueva release..."), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -539,13 +681,13 @@ private fun AppUpdateScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Nova release disponível", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text("Versão: ${update.tagName}", style = MaterialTheme.typography.bodyMedium)
+                            Text(lt(language, "Nova release disponivel", "New release available", "Nueva release disponible"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("${lt(language, "Versao", "Version", "Version")}: ${update.tagName}", style = MaterialTheme.typography.bodyMedium)
                             if (update.releaseName.isNotBlank()) {
-                                Text("Título: ${update.releaseName}", style = MaterialTheme.typography.bodyMedium)
+                                Text("${lt(language, "Titulo", "Title", "Titulo")}: ${update.releaseName}", style = MaterialTheme.typography.bodyMedium)
                             }
                             if (update.publishedAt.isNotBlank()) {
-                                Text("Publicada em: ${update.publishedAt}", style = MaterialTheme.typography.bodyMedium)
+                                Text("${lt(language, "Publicada em", "Published at", "Publicada en")}: ${update.publishedAt}", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }
@@ -555,9 +697,9 @@ private fun AppUpdateScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("O que mudou", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(lt(language, "O que mudou", "What's changed", "Que cambio"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text(
-                                update.releaseNotes.ifBlank { "Sem descrição cadastrada para esta release." },
+                                update.releaseNotes.ifBlank { lt(language, "Sem descricao cadastrada para esta release.", "No description was added for this release.", "No hay descripcion registrada para esta release.") },
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -567,7 +709,7 @@ private fun AppUpdateScreen(
                         onClick = { openExternalUrl(context, update.releasePageUrl) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Ver página da release")
+                        Text(lt(language, "Ver pagina da release", "View release page", "Ver pagina de la release"))
                     }
 
                     Button(
@@ -576,7 +718,7 @@ private fun AppUpdateScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(if (update.apkDownloadUrl != null) "Baixar atualização" else "Abrir release")
+                        Text(if (update.apkDownloadUrl != null) lt(language, "Baixar atualizacao", "Download update", "Descargar actualizacion") else lt(language, "Abrir release", "Open release", "Abrir release"))
                     }
                 }
 
@@ -589,7 +731,7 @@ private fun AppUpdateScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Falha ao verificar atualização", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(lt(language, "Falha ao verificar atualizacao", "Failed to check for updates", "Error al buscar actualizacion"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text(
                                 uiState.appUpdateError,
                                 style = MaterialTheme.typography.bodySmall,
@@ -599,7 +741,7 @@ private fun AppUpdateScreen(
                     }
 
                     Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
-                        Text("Tentar novamente")
+                        Text(lt(language, "Tentar novamente", "Try again", "Intentar de nuevo"))
                     }
                 }
 
@@ -609,16 +751,16 @@ private fun AppUpdateScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Seu app já está atualizado", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(lt(language, "Seu app ja esta atualizado", "Your app is up to date", "Tu app ya esta actualizada"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text(
-                                uiState.appUpdateStatusMessage ?: "Nenhuma atualização mais nova foi encontrada no GitHub.",
+                                uiState.appUpdateStatusMessage ?: lt(language, "Nenhuma atualizacao mais nova foi encontrada no GitHub.", "No newer update was found on GitHub.", "No se encontro una actualizacion mas nueva en GitHub."),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
 
                     Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
-                        Text("Verificar novamente")
+                        Text(lt(language, "Verificar novamente", "Check again", "Buscar de nuevo"))
                     }
                 }
             }
@@ -630,6 +772,7 @@ private fun AppUpdateScreen(
 @Composable
 private fun LegacyMovesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val language = appLanguage()
     val entries = remember { GameCatalogRepository.loadLegacyMoveCatalog(context) }
     var query by remember { mutableStateOf("") }
     val normalizedQuery = remember(query) {
@@ -647,10 +790,10 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ataques Legados") },
+                title = { Text(lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legados")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
@@ -668,7 +811,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Buscar Pokémon ou ataque") },
+                    label = { Text(lt(language, "Buscar Pokemon ou ataque", "Search Pokemon or move", "Buscar Pokemon o ataque")) },
                     singleLine = true
                 )
             }
@@ -680,7 +823,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                     ) {
                         Text(entry.pokemon, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(
-                            entry.moves.joinToString(" • ").ifBlank { "Sem golpes cadastrados" },
+                            entry.moves.joinToString(" • ").ifBlank { lt(language, "Sem golpes cadastrados", "No registered moves", "Sin ataques registrados") },
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -694,15 +837,16 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
 @Composable
 private fun AdventureEffectsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val language = appLanguage()
     val entries = remember { GameCatalogRepository.loadAdventureEffectCatalog(context) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Efeitos de Aventura") },
+                title = { Text(lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
@@ -716,7 +860,7 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(entries) { entry ->
-                AdventureEffectCard(entry = entry)
+                AdventureEffectCard(entry = entry, language = language)
             }
         }
     }
@@ -725,10 +869,11 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DonationScreen(onBack: () -> Unit) {
+    val language = appLanguage()
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Doação") },
+                title = { Text(lt(language, "Doacao", "Donate", "Donacion")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
@@ -749,9 +894,14 @@ private fun DonationScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Apoie o MewName", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(lt(language, "Apoie o MewName", "Support MewName", "Apoya MewName"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
-                        "Esta tela já está pronta para receber sua chave Pix, link de doação ou outra forma de apoio em uma próxima atualização.",
+                        lt(
+                            language,
+                            "Esta tela ja esta pronta para receber sua chave Pix, link de doacao ou outra forma de apoio em uma proxima atualizacao.",
+                            "This screen is ready to receive a Pix key, donation link, or another support option in a future update.",
+                            "Esta pantalla esta lista para recibir una clave Pix, enlace de donacion u otra forma de apoyo en una proxima actualizacion."
+                        ),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -760,16 +910,259 @@ private fun DonationScreen(onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun AdventureEffectCard(entry: AdventureEffectCatalogEntry) {
+private fun TestMenuScreen(
+    onBack: () -> Unit,
+    onPickImage: () -> Unit,
+    onGoToIvValidation: () -> Unit,
+    onGoToDonation: () -> Unit
+) {
+    val language = appLanguage()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(lt(language, "Teste", "Test", "Prueba")) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        FlowRow(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            HomeActionSquare(
+                title = lt(language, "Gerar nome por imagem", "Generate name from image", "Generar nombre por imagen"),
+                iconRes = null,
+                customIcon = { HomeMenuGlyph("capture") },
+                onClick = onPickImage,
+                modifier = Modifier.fillMaxWidth(0.31f)
+            )
+            HomeActionSquare(
+                title = lt(language, "Validar amostras", "Validate samples", "Validar muestras"),
+                iconRes = null,
+                customIcon = { HomeMenuGlyph("validation") },
+                onClick = onGoToIvValidation,
+                modifier = Modifier.fillMaxWidth(0.31f)
+            )
+            HomeActionSquare(
+                title = lt(language, "Doacao", "Donate", "Donacion"),
+                iconRes = null,
+                customIcon = { HomeMenuGlyph("donation") },
+                onClick = onGoToDonation,
+                modifier = Modifier.fillMaxWidth(0.31f)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HelpMenuScreen(
+    onBack: () -> Unit,
+    onGoToPrivacy: () -> Unit
+) {
+    val language = appLanguage()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(lt(language, "Ajuda", "Help", "Ayuda")) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(lt(language, "Como usar cada tela", "How to use each screen", "Como usar cada pantalla"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        HelpLine("Calendario", lt(language, "Abre o calendario externo de eventos. Use para conferir raids, horas em destaque, dias comunitarios e eventos antes de montar filtros.", "Opens the external event calendar. Use it to check raids, spotlight hours, community days, and events before building filters.", "Abre el calendario externo de eventos. Usalo para revisar raids, horas destacadas, dias comunitarios y eventos antes de crear filtros."))
+                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a bolha usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. A bolha usa apenas formatos ja salvos.", "Create the formats used by the bubble to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. The bubble only uses saved formats.", "Crea los formatos que usa la burbuja para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. La burbuja solo usa formatos guardados."))
+                        HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
+                        HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
+                        HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Use a leitura da bolha ou selecione o chefe manualmente. Escolha os tipos do chefe, copie o filtro e compare as colunas Atacantes e Defensores.", "Use the bubble reading or manually select the boss. Pick the boss types, copy the filter, and compare the Attackers and Defenders columns.", "Usa la lectura de la burbuja o selecciona el jefe manualmente. Elige los tipos del jefe, copia el filtro y compara las columnas Atacantes y Defensores."))
+                        HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
+                        HelpLine(lt(language, "Ataques", "Moves", "Ataques"), lt(language, "Pesquise ataques por nome, tipo e categoria. Cada registro mostra dados de ginasio e PvP para comparar dano, energia e duracao.", "Search moves by name, type, and category. Each row shows Gym and PvP data so you can compare damage, energy, and duration.", "Busca ataques por nombre, tipo y categoria. Cada registro muestra datos de gimnasio y PvP para comparar dano, energia y duracion."))
+                        HelpLine(lt(language, "Teste", "Test", "Prueba"), lt(language, "Agrupa ferramentas de manutencao: gerar nome a partir de imagem, validar amostras e abrir a tela de doacao.", "Groups maintenance tools: generate a name from an image, validate samples, and open the donation screen.", "Agrupa herramientas de mantenimiento: generar nombre desde imagen, validar muestras y abrir la pantalla de donacion."))
+                        HelpLine(lt(language, "Atualizar", "Update", "Actualizar"), lt(language, "Consulta releases do app e mostra a versao instalada. Use quando quiser verificar se ha APK mais recente.", "Checks app releases and shows the installed version. Use it when you want to see whether a newer APK exists.", "Consulta releases de la app y muestra la version instalada. Usalo cuando quieras verificar si hay un APK mas reciente."))
+                        HelpLine(lt(language, "Privacidade", "Privacy", "Privacidad"), lt(language, "Explica permissoes, captura de tela, processamento local, armazenamento e direitos da Pokemon Company.", "Explains permissions, screen capture, local processing, storage, and Pokemon Company rights.", "Explica permisos, captura de pantalla, procesamiento local, almacenamiento y derechos de Pokemon Company."))
+                    }
+                }
+            }
+            item {
+                Button(onClick = onGoToPrivacy, modifier = Modifier.fillMaxWidth()) {
+                    Text(lt(language, "Politica de privacidade", "Privacy policy", "Politica de privacidad"))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpLine(title: String, body: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PrivacyPolicyScreen(onBack: () -> Unit) {
+    val language = appLanguage()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(lt(language, "Privacidade", "Privacy", "Privacidad")) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(lt(language, "Politica de privacidade", "Privacy policy", "Politica de privacidad"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            lt(
+                                language,
+                                "O MewName processa imagens escolhidas por voce ou capturadas pela bolha para reconhecer dados visiveis na tela e gerar sugestoes. A analise acontece no aparelho.",
+                                "MewName processes images you choose or capture with the bubble to recognize visible screen data and generate suggestions. Analysis happens on the device.",
+                                "MewName procesa imagenes elegidas por ti o capturadas con la burbuja para reconocer datos visibles y generar sugerencias. El analisis ocurre en el dispositivo."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            lt(
+                                language,
+                                "O app nao exige cadastro, nao coleta localizacao propria, nao vende dados pessoais e nao envia suas capturas para servidores do MewName.",
+                                "The app does not require an account, does not collect its own location data, does not sell personal data, and does not send captures to MewName servers.",
+                                "La app no requiere cuenta, no recopila ubicacion propia, no vende datos personales y no envia capturas a servidores de MewName."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            lt(
+                                language,
+                                "Ao usar links externos, atualizacoes, calendario, doacoes ou compartilhamento de logs, o Android e os apps/sites abertos podem aplicar suas proprias politicas.",
+                                "When you use external links, updates, calendar, donations, or log sharing, Android and opened apps/sites may apply their own policies.",
+                                "Al usar enlaces externos, actualizaciones, calendario, donaciones o compartir registros, Android y las apps/sitios abiertos pueden aplicar sus propias politicas."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(lt(language, "Permissoes", "Permissions", "Permisos"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            lt(
+                                language,
+                                "Sobreposicao: usada para mostrar a bolha sobre o jogo. Captura de tela: usada somente depois da autorizacao do Android.",
+                                "Overlay: used to show the bubble over the game. Screen capture: used only after Android authorization.",
+                                "Superposicion: usada para mostrar la burbuja sobre el juego. Captura de pantalla: usada solo despues de la autorizacion de Android."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            lt(
+                                language,
+                                "Internet: usada para consultar atualizacoes, abrir paginas externas e recursos online acionados por voce.",
+                                "Internet: used to check updates, open external pages, and online resources you trigger.",
+                                "Internet: usada para consultar actualizaciones, abrir paginas externas y recursos online que tu activas."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(lt(language, "Direitos e marcas Pokemon", "Pokemon rights and trademarks", "Derechos y marcas Pokemon"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            lt(
+                                language,
+                                "MewName e uma ferramenta independente e nao e afiliado, endossado, patrocinado ou aprovado pela The Pokemon Company, Nintendo, Game Freak, Creatures Inc. ou Niantic.",
+                                "MewName is an independent tool and is not affiliated with, endorsed, sponsored, or approved by The Pokemon Company, Nintendo, Game Freak, Creatures Inc., or Niantic.",
+                                "MewName es una herramienta independiente y no esta afiliada, respaldada, patrocinada ni aprobada por The Pokemon Company, Nintendo, Game Freak, Creatures Inc. o Niantic."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            lt(
+                                language,
+                                "Pokemon, Pokemon GO, nomes, imagens, marcas, personagens e materiais relacionados pertencem aos seus respectivos titulares. Todos os direitos sao reservados aos proprietarios.",
+                                "Pokemon, Pokemon GO, names, images, trademarks, characters, and related materials belong to their respective owners. All rights are reserved by the owners.",
+                                "Pokemon, Pokemon GO, nombres, imagenes, marcas, personajes y materiales relacionados pertenecen a sus respectivos titulares. Todos los derechos estan reservados."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            lt(
+                                language,
+                                "As referencias usadas pelo app existem apenas para identificacao, organizacao pessoal e compatibilidade com a experiencia do usuario.",
+                                "References used by the app exist only for identification, personal organization, and user experience compatibility.",
+                                "Las referencias usadas por la app existen solo para identificacion, organizacion personal y compatibilidad con la experiencia de usuario."
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdventureEffectCard(entry: AdventureEffectCatalogEntry, language: AppLanguage) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(entry.displayPokemonPt, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Text("Ataque: ${entry.movePt}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-            Text("Efeito: ${entry.effectNamePt}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+            Text("${lt(language, "Ataque", "Move", "Ataque")}: ${entry.movePt}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+            Text("${lt(language, "Efeito", "Effect", "Efecto")}: ${entry.effectNamePt}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
             Text(entry.description, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -987,6 +1380,7 @@ private fun IvValidationScreen(
     onRunExistingValidation: () -> Unit
 ) {
     val context = LocalContext.current
+    val language = appLanguage()
     val results = uiState.debugIvValidationResults
     val comparableCount = results.count { it.comparable }
     val matchedCount = results.count { it.comparable && it.matched }
@@ -994,10 +1388,10 @@ private fun IvValidationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Validador IV") },
+                title = { Text(lt(language, "Validador IV", "IV Validator", "Validador IV")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
@@ -1016,26 +1410,31 @@ private fun IvValidationScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text("Enviar novos prints para análise", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(lt(language, "Enviar novos prints para analise", "Send new screenshots for analysis", "Enviar nuevas capturas para analisis"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Button(
                             onClick = onPickImages,
                             enabled = !uiState.debugIvValidationRunning,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Selecionar imagens")
+                            Text(lt(language, "Selecionar imagens", "Select images", "Seleccionar imagenes"))
                         }
                         Text(
-                            "Se o nome do arquivo tiver o formato 15-14-13, o app também compara o IV esperado com o detectado.",
+                            lt(
+                                language,
+                                "Se o nome do arquivo tiver o formato 15-14-13, o app tambem compara o IV esperado com o detectado.",
+                                "If the file name uses the 15-14-13 format, the app also compares the expected IV with the detected one.",
+                                "Si el nombre del archivo usa el formato 15-14-13, la app tambien compara el IV esperado con el detectado."
+                            ),
                             style = MaterialTheme.typography.bodySmall
                         )
                         HorizontalDivider()
-                        Text("Imagens existentes no projeto", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(lt(language, "Imagens existentes no projeto", "Existing project images", "Imagenes existentes del proyecto"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Button(
                             onClick = onRunExistingValidation,
                             enabled = !uiState.debugIvValidationRunning,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (uiState.debugIvValidationRunning) "Analisando..." else "Analisar imagens existentes")
+                            Text(if (uiState.debugIvValidationRunning) lt(language, "Analisando...", "Analyzing...", "Analizando...") else lt(language, "Analisar imagens existentes", "Analyze existing images", "Analizar imagenes existentes"))
                         }
                     }
                 }
@@ -1047,14 +1446,14 @@ private fun IvValidationScreen(
                             val exportText = buildDebugIvValidationExport(results, matchedCount)
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "MewName - Resultado do Validador IV")
+                                putExtra(Intent.EXTRA_SUBJECT, lt(language, "MewName - Resultado do Validador IV", "MewName - IV Validator Result", "MewName - Resultado del Validador IV"))
                                 putExtra(Intent.EXTRA_TEXT, exportText)
                             }
-                            context.startActivity(Intent.createChooser(shareIntent, "Exportar resultado"))
+                            context.startActivity(Intent.createChooser(shareIntent, lt(language, "Exportar resultado", "Export result", "Exportar resultado")))
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Exportar Resultado")
+                        Text(lt(language, "Exportar Resultado", "Export Result", "Exportar Resultado"))
                     }
                 }
             }
@@ -1066,7 +1465,7 @@ private fun IvValidationScreen(
             if (results.isNotEmpty()) {
                 item {
                     Text(
-                        if (comparableCount > 0) "Acertos: $matchedCount/$comparableCount" else "Resultados analisados: ${results.size}",
+                        if (comparableCount > 0) lt(language, "Acertos: $matchedCount/$comparableCount", "Matches: $matchedCount/$comparableCount", "Aciertos: $matchedCount/$comparableCount") else lt(language, "Resultados analisados: ${results.size}", "Analyzed results: ${results.size}", "Resultados analizados: ${results.size}"),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1094,18 +1493,18 @@ private fun IvValidationScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                "Esperado: ${result.expectedAttack ?: "-"}/${result.expectedDefense ?: "-"}/${result.expectedStamina ?: "-"}",
+                                "${lt(language, "Esperado", "Expected", "Esperado")}: ${result.expectedAttack ?: "-"}/${result.expectedDefense ?: "-"}/${result.expectedStamina ?: "-"}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                "Detectado: ${result.detectedAttack ?: "-"}/${result.detectedDefense ?: "-"}/${result.detectedStamina ?: "-"}",
+                                "${lt(language, "Detectado", "Detected", "Detectado")}: ${result.detectedAttack ?: "-"}/${result.detectedDefense ?: "-"}/${result.detectedStamina ?: "-"}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
                                 "IV %: ${result.detectedPercent ?: "-"} | ${when {
-                                    !result.comparable -> "Sem referência"
+                                    !result.comparable -> lt(language, "Sem referencia", "No reference", "Sin referencia")
                                     result.matched -> "OK"
-                                    else -> "Erro"
+                                    else -> lt(language, "Erro", "Error", "Error")
                                 }}",
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -1162,6 +1561,7 @@ fun PresetListScreen(
     onEdit: (String) -> Unit,
     onDelete: (String) -> Unit
 ) {
+    val language = appLanguage()
     val generator = remember { NameGenerator() }
     val exampleData = remember {
         PokemonScreenData(
@@ -1195,17 +1595,17 @@ fun PresetListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Formatos de Nome") },
+                title = { Text(lt(language, "Formatos de Nome", "Name Presets", "Formatos de Nombre")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, "Novo")
+                Icon(Icons.Default.Add, lt(language, "Novo", "New", "Nuevo"))
             }
         }
     ) { padding ->
@@ -1216,7 +1616,7 @@ fun PresetListScreen(
                     headlineContent = { Text(config.name, fontWeight = FontWeight.Bold) },
                     supportingContent = {
                         Text(
-                            text = previewName.ifBlank { "Preview indisponivel" },
+                            text = previewName.ifBlank { lt(language, "Preview indisponivel", "Preview unavailable", "Vista previa no disponible") },
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1225,7 +1625,7 @@ fun PresetListScreen(
                     modifier = Modifier.clickable { onEdit(config.id) },
                     trailingContent = {
                         IconButton(onClick = { if (configs.size > 1) onDelete(config.id) }) {
-                            Icon(Icons.Default.Delete, "Excluir", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, lt(language, "Excluir", "Delete", "Eliminar"), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 )
@@ -1238,6 +1638,7 @@ fun PresetListScreen(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (NamingConfig) -> Unit) {
+    val language = appLanguage()
     var draftConfig by remember(config.id, config) { mutableStateOf(config) }
     var showSymbolPickerFor by remember { mutableStateOf<FieldSymbolOption?>(null) }
     var selectedField by remember { mutableStateOf<NamingField?>(null) }
@@ -1342,10 +1743,18 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Configurar Nome") },
+                title = { Text(lt(language, "Configurar Nome", "Edit Preset", "Configurar Nombre")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showPatternHelp = true }) {
+                        UnownQuestionIcon(
+                            modifier = Modifier.size(24.dp),
+                            contentDescription = lt(language, "Ajuda", "Help", "Ayuda")
+                        )
                     }
                 }
             )
@@ -1361,7 +1770,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                     .navigationBarsPadding()
                     .padding(16.dp)
             ) {
-                Text("Salvar")
+                Text(lt(language, "Salvar", "Save", "Guardar"))
             }
         }
     ) { padding ->
@@ -1375,12 +1784,12 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             OutlinedTextField(
                 value = draftConfig.name,
                 onValueChange = { draftConfig = draftConfig.copy(name = it) },
-                label = { Text("Nome do formato") },
+                label = { Text(lt(language, "Nome do formato", "Preset name", "Nombre del formato")) },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Text(
-                "Preview do Apelido",
+                lt(language, "Preview do Apelido", "Nickname Preview", "Vista previa del apodo"),
                 style = sectionTitleStyle,
                 fontWeight = FontWeight.Bold
             )
@@ -1401,18 +1810,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text("Padrão do Nome", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
-                IconButton(
-                    onClick = { showPatternHelp = true },
-                    modifier = Modifier.size(22.dp)
-                ) {
-                    QuestionCircleIcon()
-                }
-            }
+            Text(lt(language, "Padrao do Nome", "Name Pattern", "Patron del Nombre"), style = sectionTitleStyle, fontWeight = FontWeight.Bold)
 
             Row(
                 modifier = Modifier
@@ -1427,7 +1825,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 val effectiveBlocks = draftConfig.effectiveBlocks()
                 if (effectiveBlocks.isEmpty()) {
                     Text(
-                        "Nenhum campo adicionado ainda",
+                        lt(language, "Nenhum campo adicionado ainda", "No fields added yet", "Todavia no se agregaron campos"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -1455,7 +1853,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    block.label(),
+                                    block.localizedLabel(language),
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -1478,13 +1876,19 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 }
             }
 
-            Text("Campos variáveis", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
+            Text(lt(language, "Campos variaveis", "Variable Fields", "Campos Variables"), style = sectionTitleStyle, fontWeight = FontWeight.Bold)
             variableFieldGroups.forEach { (groupTitle, groupFields) ->
                 VariableFieldGroupCard(
-                    title = groupTitle,
+                    title = when (groupTitle) {
+                        "Principal" -> lt(language, "Principal", "Main", "Principal")
+                        "Status" -> lt(language, "Status", "Status", "Estado")
+                        "PvP" -> "PvP"
+                        "Coleção" -> lt(language, "Colecao", "Collection", "Coleccion")
+                        else -> lt(language, "Especial", "Special", "Especial")
+                    },
                     fields = groupFields.filter { it in availableVariableFields },
                     onFieldClick = { selectedField = it },
-                    extraActionLabel = if (groupTitle == "Especial") "Texto Livre" else null,
+                    extraActionLabel = if (groupTitle == "Especial") lt(language, "Texto Livre", "Free Text", "Texto Libre") else null,
                     onExtraActionClick = if (groupTitle == "Especial") {
                         { showFixedTextDialog = true }
                     } else {
@@ -1493,7 +1897,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 )
             }
 
-            Text("Limite de Caracteres: ${draftConfig.maxLength}", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
+            Text("${lt(language, "Limite de Caracteres", "Character Limit", "Limite de Caracteres")}: ${draftConfig.maxLength}", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
             Slider(
                 value = draftConfig.maxLength.toFloat(),
                 onValueChange = { draftConfig = draftConfig.copy(maxLength = it.toInt()) },
@@ -1505,15 +1909,15 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
     if (showPatternHelp) {
         AlertDialog(
             onDismissRequest = { showPatternHelp = false },
-            title = { Text("Como Funciona o Padrão do Nome") },
+            title = { Text(lt(language, "Como Funciona o Padrao do Nome", "How the Name Pattern Works", "Como Funciona el Patron del Nombre")) },
             text = {
                 Text(
-                    "Toque em um campo para abrir o modal, configurar os símbolos e depois adicionar ao nome."
+                    lt(language, "Toque em um campo para abrir o modal, configurar os simbolos e depois adicionar ao nome.", "Tap a field to open the dialog, configure symbols, and add it to the name.", "Toca un campo para abrir el dialogo, configurar simbolos y luego agregarlo al nombre.")
                 )
             },
             confirmButton = {
                 TextButton(onClick = { showPatternHelp = false }) {
-                    Text("Fechar")
+                    Text(lt(language, "Fechar", "Close", "Cerrar"))
                 }
             }
         )
@@ -1582,12 +1986,13 @@ private fun FieldConfigDialog(
     onPickSymbol: (FieldSymbolOption) -> Unit,
     onAdd: () -> Unit
 ) {
+    val language = appLanguage()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(field.label, fontWeight = FontWeight.Bold) },
+        title = { Text(field.localizedLabel(language), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(fieldDescription(field), color = Color(0xFF555555))
+                Text(fieldDescription(field, language), color = Color(0xFF555555))
                 if (field == NamingField.UNIQUE_FORM) {
                     UniqueFormFieldConfigContent(
                         onPickSymbol = onPickSymbol,
@@ -1609,7 +2014,7 @@ private fun FieldConfigDialog(
                             ) {
                                 Text("${option.label}: ${option.value}")
                                 TextButton(onClick = { onPickSymbol(option) }) {
-                                    Text("EDITAR")
+                                    Text(lt(language, "EDITAR", "EDIT", "EDITAR"))
                                 }
                             }
                         }
@@ -1624,11 +2029,11 @@ private fun FieldConfigDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(onClick = onAdd) {
-                    Text("ADICIONAR")
+                    Text(lt(language, "ADICIONAR", "ADD", "AGREGAR"))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 TextButton(onClick = onDismiss) {
-                    Text("Cancelar")
+                    Text(lt(language, "Cancelar", "Cancel", "Cancelar"))
                 }
             }
         }
@@ -1744,6 +2149,7 @@ private fun VariableFieldGroupCard(
     extraActionLabel: String? = null,
     onExtraActionClick: (() -> Unit)? = null
 ) {
+    val language = appLanguage()
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
@@ -1766,9 +2172,16 @@ private fun VariableFieldGroupCard(
                 ) {
                     rowFields.forEach { field ->
                         VariableActionCard(
-                            label = field.label,
+                            label = field.localizedLabel(language),
                             leadingIcon = if (field == NamingField.MASTER_IV_BADGE) {
-                                { UnownQuestionIcon(modifier = Modifier.size(16.dp), contentDescription = "IV Master") }
+                                {
+                                    Text(
+                                        "+",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             } else {
                                 null
                             },
@@ -1827,32 +2240,32 @@ private fun VariableActionCard(
     }
 }
 
-private fun fieldDescription(field: NamingField): String {
+private fun fieldDescription(field: NamingField, language: AppLanguage): String {
     return when (field) {
-        NamingField.IV_PERCENT -> "Exibir o IV médio do Pokémon no apelido."
-        NamingField.POKEMON_NAME -> "Adicionar o nome do Pokémon reconhecido pelo app."
-        NamingField.UNOWN_LETTER -> "Campo legado do Unown. A tela de definição usa agora Forma única para variantes especiais."
-        NamingField.UNIQUE_FORM -> "Mostrar o código curto da forma detectada para Pokémon com variantes especiais, como Furfrou, Genesect, Rotom, Spinda e Unown."
-        NamingField.VIVILLON_PATTERN -> "Campo legado do Vivillon. Essa opção não aparece mais na tela de definição."
-        NamingField.LEVEL -> "Mostrar o nível atual do Pokémon."
-        NamingField.CP -> "Mostrar os pontos de combate atuais do Pokémon."
-        NamingField.GENDER -> "Exibir um símbolo configurável para macho ou fêmea conforme o gênero detectado."
-        NamingField.SIZE -> "Mostrar XXS, XS, XL ou XXL usando um símbolo para cada tamanho."
-        NamingField.MASTER_IV_BADGE -> "Para IV 98, 96, 93, 91 e 67, comparar a combinação A/D/S com a melhor da família no ranking Master. Se bater, usa o símbolo de verdadeiro; se não bater, usa o símbolo de falso."
-        NamingField.SPECIAL_BACKGROUND -> "Exibir o símbolo se houver fundo especial."
-        NamingField.PVP_LEAGUE -> "Mostrar Copinha, Great League, Ultra League ou Master League conforme a liga estimada."
-        NamingField.PVP_RANK -> "Mostrar o ranking PvP calculado."
-        NamingField.LEGACY_MOVE -> "Exibir o símbolo se o Pokémon tiver movimento legado."
-        NamingField.LEGACY_MOVE_NAME -> "Exibir o nome do ataque legado detectado. Use com limite maior ou abreviações porque nomes de golpes podem ser longos."
-        NamingField.TYPE -> "Adicionar o tipo principal do Pokémon usando uma sigla configurável para cada tipo."
-        NamingField.ADVENTURE_EFFECT -> "Exibir o marcador de efeito aventura."
-        NamingField.EVOLUTION_TYPE -> "Mostrar Baby, Estágio 1, Estágio 2, Mega, Dynamax e Gigantamax, cada um com seu símbolo."
-        NamingField.SHADOW -> "Exibir o símbolo se o Pokémon for sombrio."
-        NamingField.PURIFIED -> "Exibir o símbolo se o Pokémon for purificado."
-        NamingField.FAVORITE -> "Exibir o símbolo de favorito."
-        NamingField.LUCKY -> "Exibir o símbolo de sortudo."
-        NamingField.POKEDEX_NUMBER -> "Mostrar o número da Pokédex."
-        NamingField.IV_COMBINATION -> "Mostrar os IVs em formato Ataque/Defesa/Stamina."
+        NamingField.IV_PERCENT -> lt(language, "Exibir o IV medio do Pokemon no apelido.", "Show the average IV in the nickname.", "Mostrar el IV medio en el apodo.")
+        NamingField.POKEMON_NAME -> lt(language, "Adicionar o nome do Pokemon reconhecido pelo app.", "Add the Pokemon name recognized by the app.", "Agregar el nombre del Pokemon reconocido por la app.")
+        NamingField.UNOWN_LETTER -> lt(language, "Campo legado do Unown. A tela de definicao usa agora Forma unica para variantes especiais.", "Legacy Unown field. Use Unique Form for special variants.", "Campo legado de Unown. Usa Forma unica para variantes especiales.")
+        NamingField.UNIQUE_FORM -> lt(language, "Mostrar o codigo curto da forma detectada.", "Show the short code of the detected form.", "Mostrar el codigo corto de la forma detectada.")
+        NamingField.VIVILLON_PATTERN -> lt(language, "Campo legado do Vivillon. Essa opcao nao aparece mais na tela de definicao.", "Legacy Vivillon field. This option is hidden in the editor.", "Campo legado de Vivillon. Esta opcion ya no aparece en el editor.")
+        NamingField.LEVEL -> lt(language, "Mostrar o nivel atual do Pokemon.", "Show the current Pokemon level.", "Mostrar el nivel actual del Pokemon.")
+        NamingField.CP -> lt(language, "Mostrar os pontos de combate atuais do Pokemon.", "Show the current combat power.", "Mostrar los puntos de combate actuales.")
+        NamingField.GENDER -> lt(language, "Exibir um simbolo configuravel para macho ou femea.", "Show a configurable symbol for male or female.", "Mostrar un simbolo configurable para macho o hembra.")
+        NamingField.SIZE -> lt(language, "Mostrar XXS, XS, XL ou XXL usando um simbolo para cada tamanho.", "Show XXS, XS, XL or XXL with one symbol each.", "Mostrar XXS, XS, XL o XXL usando un simbolo para cada tamano.")
+        NamingField.MASTER_IV_BADGE -> lt(language, "Compara a combinacao A/D/S com a melhor da familia no ranking Master.", "Compare the A/D/S spread with the best family spread for Master ranking.", "Compara la combinacion A/D/S con la mejor de la familia en Master.")
+        NamingField.SPECIAL_BACKGROUND -> lt(language, "Exibir o simbolo se houver fundo especial.", "Show the symbol if there is a special background.", "Mostrar el simbolo si hay fondo especial.")
+        NamingField.PVP_LEAGUE -> lt(language, "Mostrar a liga PvP estimada.", "Show the estimated PvP league.", "Mostrar la liga PvP estimada.")
+        NamingField.PVP_RANK -> lt(language, "Mostrar o ranking PvP calculado.", "Show the calculated PvP rank.", "Mostrar el ranking PvP calculado.")
+        NamingField.LEGACY_MOVE -> lt(language, "Exibir o simbolo se o Pokemon tiver movimento legado.", "Show a symbol if the Pokemon has a legacy move.", "Mostrar un simbolo si el Pokemon tiene movimiento legado.")
+        NamingField.LEGACY_MOVE_NAME -> lt(language, "Exibir o nome do ataque legado detectado.", "Show the detected legacy move name.", "Mostrar el nombre del ataque legado detectado.")
+        NamingField.TYPE -> lt(language, "Adicionar o tipo principal do Pokemon usando uma sigla configuravel.", "Add the main type using a configurable abbreviation.", "Agregar el tipo principal usando una abreviatura configurable.")
+        NamingField.ADVENTURE_EFFECT -> lt(language, "Exibir o marcador de efeito aventura.", "Show the adventure effect marker.", "Mostrar el marcador de efecto aventura.")
+        NamingField.EVOLUTION_TYPE -> lt(language, "Mostrar Baby, Estagio 1, Estagio 2, Mega, Dynamax e Gigantamax.", "Show Baby, Stage 1, Stage 2, Mega, Dynamax and Gigantamax.", "Mostrar Baby, Etapa 1, Etapa 2, Mega, Dynamax y Gigamax.")
+        NamingField.SHADOW -> lt(language, "Exibir o simbolo se o Pokemon for sombrio.", "Show the symbol if the Pokemon is shadow.", "Mostrar el simbolo si el Pokemon es oscuro.")
+        NamingField.PURIFIED -> lt(language, "Exibir o simbolo se o Pokemon for purificado.", "Show the symbol if the Pokemon is purified.", "Mostrar el simbolo si el Pokemon es purificado.")
+        NamingField.FAVORITE -> lt(language, "Exibir o simbolo de favorito.", "Show the favorite symbol.", "Mostrar el simbolo de favorito.")
+        NamingField.LUCKY -> lt(language, "Exibir o simbolo de sortudo.", "Show the lucky symbol.", "Mostrar el simbolo de suerte.")
+        NamingField.POKEDEX_NUMBER -> lt(language, "Mostrar o numero da Pokedex.", "Show the Pokedex number.", "Mostrar el numero de la Pokedex.")
+        NamingField.IV_COMBINATION -> lt(language, "Mostrar os IVs em formato Ataque/Defesa/Stamina.", "Show IVs as Attack/Defense/Stamina.", "Mostrar los IVs en formato Ataque/Defensa/Stamina.")
     }
 }
 
@@ -1928,6 +2341,7 @@ fun SymbolPickerDialog(
     onDismiss: () -> Unit,
     onSymbolSelected: (String) -> Unit
 ) {
+    val language = appLanguage()
     val commonSymbols = listOf(
         "\u2642", "\u2640", "M", "F", "*", "+", "SH", "PU", "FE", "AV", "XXL", "XXS",
         "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY", "tm", "●"
@@ -1942,13 +2356,13 @@ fun SymbolPickerDialog(
                 OutlinedTextField(
                     value = customText,
                     onValueChange = { customText = it },
-                    label = { Text("Texto customizado") }
+                    label = { Text(lt(language, "Texto customizado", "Custom text", "Texto personalizado")) }
                 )
                 Button(
                     onClick = { onSymbolSelected(customText) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Aplicar")
+                    Text(lt(language, "Aplicar", "Apply", "Aplicar"))
                 }
                 HorizontalDivider()
                 LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(200.dp)) {
@@ -1967,7 +2381,7 @@ fun SymbolPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Fechar")
+                Text(lt(language, "Fechar", "Close", "Cerrar"))
             }
         }
     )
@@ -1999,16 +2413,17 @@ private fun FixedTextDialog(
     onDismiss: () -> Unit,
     onAdd: (String) -> Unit
 ) {
+    val language = appLanguage()
     var customText by remember { mutableStateOf(TextFieldValue("")) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adicionar texto fixo") },
+        title = { Text(lt(language, "Adicionar texto fixo", "Add fixed text", "Agregar texto fijo")) },
         text = {
             OutlinedTextField(
                 value = customText,
                 onValueChange = { customText = it },
-                label = { Text("Ex: XXL, FE, espaco") },
+                label = { Text(lt(language, "Ex: XXL, FE, espaco", "Ex: XXL, FE, space", "Ej: XXL, FE, espacio")) },
                 modifier = Modifier.fillMaxWidth()
             )
         },
@@ -2025,11 +2440,11 @@ private fun FixedTextDialog(
                         }
                     }
                 ) {
-                    Text("Adicionar")
+                    Text(lt(language, "Adicionar", "Add", "Agregar"))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 TextButton(onClick = onDismiss) {
-                    Text("Cancelar")
+                    Text(lt(language, "Cancelar", "Cancel", "Cancelar"))
                 }
             }
         }

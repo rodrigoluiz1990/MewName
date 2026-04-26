@@ -139,6 +139,13 @@ class PokemonReadSessionMerger {
         val previousName = normalize(previous.pokemonName)
         val currentFamily = normalize(current.candyFamilyName)
         val previousFamily = normalize(previous.candyFamilyName)
+        val currentHasIdentity = current.cp != null || currentName != null || currentFamily != null
+        val previousHasIdentity = previous.cp != null || previousName != null || previousFamily != null
+        val currentHasSupplementalRead = hasTrustedIvRead(current) ||
+            current.level != null ||
+            current.legacyDebugInfo?.extractedMoves?.isNotEmpty() == true ||
+            current.legacyDebugInfo?.moveRegionLines?.isNotEmpty() == true ||
+            current.attributeDebugInfo?.detectedTypes?.isNotEmpty() == true
 
         val sameResolvedName = currentName != null && previousName != null && currentName == previousName
         val sameFamily = currentFamily != null && previousFamily != null && currentFamily == previousFamily
@@ -157,6 +164,7 @@ class PokemonReadSessionMerger {
         val sameNameWithPartialData = sameResolvedName && (sameIv || oneCpMissing || oneNameMissing)
 
         return when {
+            !currentHasIdentity && previousHasIdentity && currentHasSupplementalRead -> true
             sameCp -> sameResolvedName || sameFamily || familyMatchesName || currentLooksLikeIncompleteReadOfPrevious
             sameNameWithPartialData -> true
             familyCompatibleWithoutCp -> true

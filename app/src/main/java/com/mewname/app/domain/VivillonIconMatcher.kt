@@ -163,10 +163,10 @@ class VivillonIconMatcher {
         val anchorRects = buildList {
             anchorSizes.forEach { size ->
                 val step = (size * 0.65f).roundToInt().coerceAtLeast(18)
-                val startX = (bitmap.width * 0.035f).roundToInt()
-                val endX = (bitmap.width * 0.540f).roundToInt()
-                val startY = (bitmap.height * 0.635f).roundToInt()
-                val endY = (bitmap.height * 0.925f).roundToInt()
+                val startX = (bitmap.width * 0.045f).roundToInt()
+                val endX = (bitmap.width * 0.430f).roundToInt()
+                val startY = (bitmap.height * 0.610f).roundToInt()
+                val endY = (bitmap.height * 0.825f).roundToInt()
 
                 var top = startY
                 while (top + size <= endY) {
@@ -185,7 +185,7 @@ class VivillonIconMatcher {
                 }
             }
         }
-        val evolveAnchors = preferLowerButtonRow(anchorRects)
+        val evolveAnchors = preferPatternIconRows(bitmap, anchorRects)
         val expandedRects = evolveAnchors
             .take(MAX_SCAN_ANCHORS)
             .flatMap { anchor -> expandedPreEvolutionIconRects(bitmap, anchor) }
@@ -193,7 +193,7 @@ class VivillonIconMatcher {
         return fixedCandidates + expandedRects.take(MAX_SCAN_CANDIDATES) + evolveAnchors.take(MAX_SCAN_CANDIDATES)
     }
 
-    private fun preferLowerButtonRow(rects: List<Rect>): List<Rect> {
+    private fun preferPatternIconRows(bitmap: Bitmap, rects: List<Rect>): List<Rect> {
         if (rects.size < 8) return rects
 
         val tolerance = (rects.minOf { it.height() } * 0.95f).roundToInt().coerceAtLeast(28)
@@ -213,14 +213,26 @@ class VivillonIconMatcher {
             .filter { group -> group.size >= MIN_BUTTON_ROW_ANCHORS }
             .sortedBy { group -> group.map { it.centerY() }.average() }
 
-        val selectedRows = if (rows.size >= 2) {
-            rows.takeLast(2)
-        } else {
-            rows
+        val targetY = bitmap.height * 0.705
+        val selectedRows = rows
+            .sortedBy { group -> abs(group.map { it.centerY() }.average() - targetY) }
+            .take(3)
+        val selected = selectedRows
+            .flatten()
+            .filter { rect ->
+                val centerY = rect.centerY().toFloat() / bitmap.height.toFloat()
+                centerY in 0.61f..0.79f
+            }
+        if (selected.isEmpty()) {
+            return rects.sortedWith(
+                compareBy<Rect> { abs(it.centerY() - targetY) }
+                    .thenBy { it.left }
+            )
         }
-        val selected = selectedRows.flatten()
-        if (selected.isEmpty()) return rects.sortedWith(compareByDescending<Rect> { it.centerY() }.thenBy { it.left })
-        return selected.sortedWith(compareByDescending<Rect> { it.centerY() }.thenBy { it.left })
+        return selected.sortedWith(
+            compareBy<Rect> { abs(it.centerY() - targetY) }
+                .thenBy { it.left }
+        )
     }
 
     private fun expandedPreEvolutionIconRects(bitmap: Bitmap, anchor: Rect): List<Rect> {
@@ -256,8 +268,43 @@ class VivillonIconMatcher {
                 }
             }
         }.filter { rect ->
-            rect.width() > 1 && rect.height() > 1
+            rect.width() > 1 && rect.height() > 1 && isPreEvolutionPatternArea(bitmap, rect)
         }
+    }
+
+    private fun isPreEvolutionPatternArea(bitmap: Bitmap, rect: Rect): Boolean {
+        val centerX = rect.centerX().toFloat() / bitmap.width.toFloat()
+        val centerY = rect.centerY().toFloat() / bitmap.height.toFloat()
+        if (centerX !in 0.05f..0.40f || centerY !in 0.61f..0.82f) return false
+
+        val hsv = FloatArray(3)
+        var sampled = 0
+        var greenPixels = 0
+        var palePixels = 0
+        var saturatedPixels = 0
+        val step = maxOf(2, minOf(rect.width(), rect.height()) / 16)
+        var y = rect.top
+        while (y < rect.bottom) {
+            var x = rect.left
+            while (x < rect.right) {
+                val color = bitmap.getPixel(x, y)
+                Color.colorToHSV(color, hsv)
+                sampled++
+                val hue = hsv[0]
+                val saturation = hsv[1]
+                val value = hsv[2]
+                if (hue in 80f..170f && saturation >= 0.28f && value >= 0.38f) greenPixels++
+                if (value >= 0.76f && saturation <= 0.36f) palePixels++
+                if (saturation >= 0.18f && value >= 0.28f) saturatedPixels++
+                x += step
+            }
+            y += step
+        }
+        if (sampled == 0) return false
+        val greenRatio = greenPixels.toDouble() / sampled.toDouble()
+        val paleRatio = palePixels.toDouble() / sampled.toDouble()
+        val saturatedRatio = saturatedPixels.toDouble() / sampled.toDouble()
+        return greenRatio <= 0.42 && paleRatio >= 0.05 && saturatedRatio >= 0.04
     }
 
     private fun candidateRectAround(bitmap: Bitmap, centerX: Int, centerY: Int, width: Int, height: Int): Rect {
@@ -342,14 +389,12 @@ class VivillonIconMatcher {
     private fun candidateBoundsFor(pokemonName: String?): List<FloatArray> {
         return when (candidateProfileFor(pokemonName)) {
             "pre_evo" -> listOf(
-                floatArrayOf(0.165f, 0.250f, 0.790f, 0.855f),
-                floatArrayOf(0.155f, 0.240f, 0.785f, 0.850f),
-                floatArrayOf(0.175f, 0.260f, 0.785f, 0.850f),
-                floatArrayOf(0.165f, 0.250f, 0.805f, 0.870f),
-                floatArrayOf(0.145f, 0.255f, 0.780f, 0.870f),
-                floatArrayOf(0.155f, 0.265f, 0.785f, 0.875f),
-                floatArrayOf(0.135f, 0.245f, 0.800f, 0.890f),
-                floatArrayOf(0.105f, 0.225f, 0.790f, 0.875f)
+                floatArrayOf(0.095f, 0.285f, 0.640f, 0.775f),
+                floatArrayOf(0.075f, 0.265f, 0.625f, 0.760f),
+                floatArrayOf(0.115f, 0.305f, 0.625f, 0.775f),
+                floatArrayOf(0.065f, 0.285f, 0.660f, 0.805f),
+                floatArrayOf(0.045f, 0.245f, 0.675f, 0.820f),
+                floatArrayOf(0.125f, 0.335f, 0.640f, 0.800f)
             )
             else -> listOf(
                 floatArrayOf(0.13f, 0.27f, 0.64f, 0.79f),
@@ -422,7 +467,13 @@ class VivillonIconMatcher {
         val targetHeight = minDimension * 0.095
         val widthPenalty = ((targetWidth - rect.width()).coerceAtLeast(0.0) / targetWidth) * 0.65
         val heightPenalty = ((targetHeight - rect.height()).coerceAtLeast(0.0) / targetHeight) * 0.55
-        return distance + widthPenalty + heightPenalty
+        val centerX = rect.centerX().toDouble() / bitmap.width.toDouble()
+        val centerY = rect.centerY().toDouble() / bitmap.height.toDouble()
+        val targetCenterX = 0.18
+        val targetCenterY = 0.705
+        val positionPenalty = (abs(centerX - targetCenterX) * 1.8) + (abs(centerY - targetCenterY) * 3.0)
+        val lowerButtonPenalty = if (centerY > 0.79) (centerY - 0.79) * 12.0 else 0.0
+        return distance + widthPenalty + heightPenalty + positionPenalty + lowerButtonPenalty
     }
 
     private fun normalizedRect(

@@ -1,0 +1,1026 @@
+﻿{
+    "updatedAt":  "2026-04-25",
+    "sourceUrl":  "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Raids/ultimas_raids.html",
+    "categories":  [
+                       {
+                           "id":  "raids5",
+                           "titlePt":  "Raids Nível 5",
+                           "titleEn":  "Tier 5 Raids",
+                           "titleEs":  "Raids Nivel 5",
+                           "items":  [
+                                         {
+                                             "name":  "Tapu Fini",
+                                             "url":  "https://www.pokebattler.com/raids/TAPU_FINI",
+                                             "lastStart":  "2026-05-27T10:00:00",
+                                             "lastEnd":  "2026-06-03T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Tapu Bulu",
+                                             "url":  "https://www.pokebattler.com/raids/TAPU_BULU",
+                                             "lastStart":  "2026-05-20T10:00:00",
+                                             "lastEnd":  "2026-05-27T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Pheromosa",
+                                             "url":  "https://www.pokebattler.com/raids/PHEROMOSA",
+                                             "lastStart":  "2026-05-13T10:00:00",
+                                             "lastEnd":  "2026-05-20T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Xurkitree",
+                                             "url":  "https://www.pokebattler.com/raids/XURKITREE",
+                                             "lastStart":  "2026-05-13T10:00:00",
+                                             "lastEnd":  "2026-05-20T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Buzzwole",
+                                             "url":  "https://www.pokebattler.com/raids/BUZZWOLE",
+                                             "lastStart":  "2026-05-13T10:00:00",
+                                             "lastEnd":  "2026-05-20T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Nihilego",
+                                             "url":  "https://www.pokebattler.com/raids/NIHILEGO",
+                                             "lastStart":  "2026-05-06T10:00:00",
+                                             "lastEnd":  "2026-05-13T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Tapu Lele",
+                                             "url":  "https://www.pokebattler.com/raids/TAPU_LELE",
+                                             "lastStart":  "2026-04-29T10:00:00",
+                                             "lastEnd":  "2026-05-06T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Tapu Koko",
+                                             "url":  "https://www.pokebattler.com/raids/TAPU_KOKO",
+                                             "lastStart":  "2026-04-22T10:00:00",
+                                             "lastEnd":  "2026-04-29T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Groudon",
+                                             "url":  "https://www.pokebattler.com/raids/GROUDON",
+                                             "lastStart":  "2026-04-15T10:00:00",
+                                             "lastEnd":  "2026-04-22T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Kyogre",
+                                             "url":  "https://www.pokebattler.com/raids/KYOGRE",
+                                             "lastStart":  "2026-04-08T10:00:00",
+                                             "lastEnd":  "2026-04-15T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Regidrago",
+                                             "url":  "https://www.pokebattler.com/raids/REGIDRAGO",
+                                             "lastStart":  "2026-04-01T10:00:00",
+                                             "lastEnd":  "2026-04-08T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Regieleki",
+                                             "url":  "https://www.pokebattler.com/raids/REGIELEKI",
+                                             "lastStart":  "2026-03-25T10:00:00",
+                                             "lastEnd":  "2026-04-01T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Zamazenta",
+                                             "url":  "https://www.pokebattler.com/raids/ZAMAZENTA",
+                                             "lastStart":  "2026-03-18T10:00:00",
+                                             "lastEnd":  "2026-03-25T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Zacian",
+                                             "url":  "https://www.pokebattler.com/raids/ZACIAN",
+                                             "lastStart":  "2026-03-11T10:00:00",
+                                             "lastEnd":  "2026-03-18T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Zapdos",
+                                             "url":  "https://www.pokebattler.com/raids/ZAPDOS",
+                                             "lastStart":  "2026-03-04T10:00:00",
+                                             "lastEnd":  "2026-03-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Articuno",
+                                             "url":  "https://www.pokebattler.com/raids/ARTICUNO",
+                                             "lastStart":  "2026-03-04T10:00:00",
+                                             "lastEnd":  "2026-03-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Moltres",
+                                             "url":  "https://www.pokebattler.com/raids/MOLTRES",
+                                             "lastStart":  "2026-03-04T10:00:00",
+                                             "lastEnd":  "2026-03-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Lunala",
+                                             "url":  "https://www.pokebattler.com/raids/LUNALA",
+                                             "lastStart":  "2026-03-02T10:00:00",
+                                             "lastEnd":  "2026-03-03T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Zekrom",
+                                             "url":  "https://www.pokebattler.com/raids/ZEKROM",
+                                             "lastStart":  "2026-02-27T10:00:00",
+                                             "lastEnd":  "2026-02-27T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Reshiram",
+                                             "url":  "https://www.pokebattler.com/raids/RESHIRAM",
+                                             "lastStart":  "2026-02-27T10:00:00",
+                                             "lastEnd":  "2026-02-27T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Kyurem Preto",
+                                             "url":  "https://www.pokebattler.com/raids/KYUREM_BLACK_FORM",
+                                             "lastStart":  "2026-02-27T10:00:00",
+                                             "lastEnd":  "2026-02-27T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Kyurem Branco",
+                                             "url":  "https://www.pokebattler.com/raids/KYUREM_WHITE_FORM",
+                                             "lastStart":  "2026-02-27T10:00:00",
+                                             "lastEnd":  "2026-02-27T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Dialga",
+                                             "url":  "https://www.pokebattler.com/raids/DIALGA",
+                                             "lastStart":  "2026-02-26T10:00:00",
+                                             "lastEnd":  "2026-02-26T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Palkia (Origem)",
+                                             "url":  "https://www.pokebattler.com/raids/PALKIA_ORIGIN_FORM",
+                                             "lastStart":  "2026-02-26T10:00:00",
+                                             "lastEnd":  "2026-02-26T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Palkia",
+                                             "url":  "https://www.pokebattler.com/raids/PALKIA",
+                                             "lastStart":  "2026-02-26T10:00:00",
+                                             "lastEnd":  "2026-02-26T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Dialga (Origem)",
+                                             "url":  "https://www.pokebattler.com/raids/DIALGA_ORIGIN_FORM",
+                                             "lastStart":  "2026-02-26T10:00:00",
+                                             "lastEnd":  "2026-02-26T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Solgaleo",
+                                             "url":  "https://www.pokebattler.com/raids/SOLGALEO",
+                                             "lastStart":  "2026-02-16T10:00:00",
+                                             "lastEnd":  "2026-02-21T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Enamorus",
+                                             "url":  "https://www.pokebattler.com/raids/ENAMORUS_INCARNATE_FORM",
+                                             "lastStart":  "2026-02-14T14:00:00",
+                                             "lastEnd":  "2026-02-14T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Tornadus (Incarnado)",
+                                             "url":  "https://www.pokebattler.com/raids/TORNADUS_INCARNATE_FORM",
+                                             "lastStart":  "2026-01-25T10:00:00",
+                                             "lastEnd":  "2026-02-04T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Thundurus (Incarnado)",
+                                             "url":  "https://www.pokebattler.com/raids/THUNDURUS_INCARNATE_FORM",
+                                             "lastStart":  "2026-01-16T10:00:00",
+                                             "lastEnd":  "2026-01-25T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Genesect (Criogênico)",
+                                             "url":  "https://www.pokebattler.com/raids/GENESECT_CHILL_FORM",
+                                             "lastStart":  "2026-01-05T10:00:00",
+                                             "lastEnd":  "2026-01-16T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Genesect (Incendiário)",
+                                             "url":  "https://www.pokebattler.com/raids/GENESECT_BURN_FORM",
+                                             "lastStart":  "2026-01-05T10:00:00",
+                                             "lastEnd":  "2026-01-16T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Blacephalon",
+                                             "url":  "https://www.pokebattler.com/raids/BLACEPHALON",
+                                             "lastStart":  "2026-01-01T10:00:00",
+                                             "lastEnd":  "2026-01-05T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Kyurem",
+                                             "url":  "https://www.pokebattler.com/raids/KYUREM",
+                                             "lastStart":  "2025-12-04T10:00:00",
+                                             "lastEnd":  "2025-12-13T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Terrakion",
+                                             "url":  "https://www.pokebattler.com/raids/TERRAKION",
+                                             "lastStart":  "2025-11-25T10:00:00",
+                                             "lastEnd":  "2025-12-02T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Virizion",
+                                             "url":  "https://www.pokebattler.com/raids/VIRIZION",
+                                             "lastStart":  "2025-11-25T10:00:00",
+                                             "lastEnd":  "2025-12-02T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Cobalion",
+                                             "url":  "https://www.pokebattler.com/raids/COBALION",
+                                             "lastStart":  "2025-11-25T10:00:00",
+                                             "lastEnd":  "2025-12-02T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Heatran",
+                                             "url":  "https://www.pokebattler.com/raids/HEATRAN",
+                                             "lastStart":  "2025-11-18T10:00:00",
+                                             "lastEnd":  "2025-11-25T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Necrozma (Asas Alvorada)",
+                                             "url":  "https://www.pokebattler.com/raids/NECROZMA_DAWN_WINGS_FORM",
+                                             "lastStart":  "2025-11-14T10:00:00",
+                                             "lastEnd":  "2025-11-15T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Necrozma (Juba Crepúsculo)",
+                                             "url":  "https://www.pokebattler.com/raids/NECROZMA_DUSK_MANE_FORM",
+                                             "lastStart":  "2025-11-12T10:00:00",
+                                             "lastEnd":  "2025-11-13T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Entei",
+                                             "url":  "https://www.pokebattler.com/raids/ENTEI",
+                                             "lastStart":  "2025-11-04T10:00:00",
+                                             "lastEnd":  "2025-11-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Suicune",
+                                             "url":  "https://www.pokebattler.com/raids/SUICUNE",
+                                             "lastStart":  "2025-11-04T10:00:00",
+                                             "lastEnd":  "2025-11-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Raikou",
+                                             "url":  "https://www.pokebattler.com/raids/RAIKOU",
+                                             "lastStart":  "2025-11-04T10:00:00",
+                                             "lastEnd":  "2025-11-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Giratina (Alterada)",
+                                             "url":  "https://www.pokebattler.com/raids/GIRATINA_ALTERED_FORM",
+                                             "lastStart":  "2025-10-28T10:00:00",
+                                             "lastEnd":  "2025-11-04T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Genesect (Hídrico)",
+                                             "url":  "https://www.pokebattler.com/raids/GENESECT_DOUSE_FORM",
+                                             "lastStart":  "2025-10-21T10:00:00",
+                                             "lastEnd":  "2025-10-28T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Genesect (Normal)",
+                                             "url":  "https://www.pokebattler.com/raids/GENESECT",
+                                             "lastStart":  "2025-10-21T10:00:00",
+                                             "lastEnd":  "2025-10-28T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Genesect (Elétrico)",
+                                             "url":  "https://www.pokebattler.com/raids/GENESECT_SHOCK_FORM",
+                                             "lastStart":  "2025-10-21T10:00:00",
+                                             "lastEnd":  "2025-10-28T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Deoxys (Ataque)",
+                                             "url":  "https://www.pokebattler.com/raids/DEOXYS_ATTACK_FORM",
+                                             "lastStart":  "2025-10-14T10:00:00",
+                                             "lastEnd":  "2025-10-21T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Deoxys (Velocidade)",
+                                             "url":  "https://www.pokebattler.com/raids/DEOXYS_SPEED_FORM",
+                                             "lastStart":  "2025-10-14T10:00:00",
+                                             "lastEnd":  "2025-10-21T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Deoxys (Normal)",
+                                             "url":  "https://www.pokebattler.com/raids/DEOXYS_NORMAL_FORM",
+                                             "lastStart":  "2025-10-07T10:00:00",
+                                             "lastEnd":  "2025-10-14T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Deoxys (Defesa)",
+                                             "url":  "https://www.pokebattler.com/raids/DEOXYS_DEFENSE_FORM",
+                                             "lastStart":  "2025-10-07T10:00:00",
+                                             "lastEnd":  "2025-10-14T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Necrozma",
+                                             "url":  "https://www.pokebattler.com/raids/NECROZMA",
+                                             "lastStart":  "2025-08-25T10:00:00",
+                                             "lastEnd":  "2025-09-02T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Ho-Oh",
+                                             "url":  "https://www.pokebattler.com/raids/HO_OH",
+                                             "lastStart":  "2025-08-11T10:00:00",
+                                             "lastEnd":  "2025-08-18T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Lugia",
+                                             "url":  "https://www.pokebattler.com/raids/LUGIA",
+                                             "lastStart":  "2025-08-04T10:00:00",
+                                             "lastEnd":  "2025-08-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Lilligant de Hisui",
+                                             "url":  "https://www.pokebattler.com/raids/LILLIGANT_HISUIAN_FORM",
+                                             "lastStart":  "2025-07-12T14:00:00",
+                                             "lastEnd":  "2025-07-12T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Regigigas",
+                                             "url":  "https://www.pokebattler.com/raids/REGIGIGAS",
+                                             "lastStart":  "2019-11-19T00:00:00",
+                                             "lastEnd":  "2019-12-31T23:59:00"
+                                         },
+                                         {
+                                             "name":  "Darkrai",
+                                             "url":  "https://www.pokebattler.com/raids/DARKRAI",
+                                             "lastStart":  "2019-10-17T13:00:00",
+                                             "lastEnd":  "2019-11-01T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Mewtwo",
+                                             "url":  "https://www.pokebattler.com/raids/MEWTWO",
+                                             "lastStart":  "2019-09-16T13:00:00",
+                                             "lastEnd":  "2019-09-23T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Rayquaza",
+                                             "url":  "https://www.pokebattler.com/raids/RAYQUAZA",
+                                             "lastStart":  "2019-07-31T13:00:00",
+                                             "lastEnd":  "2019-09-02T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Mesprit",
+                                             "url":  "https://www.pokebattler.com/raids/MESPRIT",
+                                             "lastStart":  "2019-05-02T13:00:00",
+                                             "lastEnd":  "2019-05-27T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Uxie",
+                                             "url":  "https://www.pokebattler.com/raids/UXIE",
+                                             "lastStart":  "2019-05-02T13:00:00",
+                                             "lastEnd":  "2019-05-27T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Azelf",
+                                             "url":  "https://www.pokebattler.com/raids/AZELF",
+                                             "lastStart":  "2019-05-02T13:00:00",
+                                             "lastEnd":  "2019-05-27T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Giratina (Origem)",
+                                             "url":  "https://www.pokebattler.com/raids/GIRATINA_ORIGIN_FORM",
+                                             "lastStart":  "2019-04-02T13:00:00",
+                                             "lastEnd":  "2019-04-29T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Cresselia",
+                                             "url":  "https://www.pokebattler.com/raids/CRESSELIA",
+                                             "lastStart":  "2018-11-20T10:00:00",
+                                             "lastEnd":  "2018-12-18T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Regirock",
+                                             "url":  "https://www.pokebattler.com/raids/REGIROCK",
+                                             "lastStart":  "2018-08-16T10:00:00",
+                                             "lastEnd":  "2018-09-20T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Registeel",
+                                             "url":  "https://www.pokebattler.com/raids/REGISTEEL",
+                                             "lastStart":  "2018-07-19T10:00:00",
+                                             "lastEnd":  "2018-08-16T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Regice",
+                                             "url":  "https://www.pokebattler.com/raids/REGICE",
+                                             "lastStart":  "2018-06-21T10:00:00",
+                                             "lastEnd":  "2018-07-19T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Latias",
+                                             "url":  "https://www.pokebattler.com/raids/LATIAS",
+                                             "lastStart":  "2018-04-02T10:00:00",
+                                             "lastEnd":  "2018-06-05T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Latios",
+                                             "url":  "https://www.pokebattler.com/raids/LATIOS",
+                                             "lastStart":  "2018-04-02T10:00:00",
+                                             "lastEnd":  "2018-06-05T10:00:00"
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "mega",
+                           "titlePt":  "Raids Mega",
+                           "titleEn":  "Mega Raids",
+                           "titleEs":  "Raids Mega",
+                           "items":  [
+                                         {
+                                             "name":  "Medicham",
+                                             "url":  "https://pokebattler.com/raids/MEDICHAM_MEGA",
+                                             "lastStart":  "2026-05-27T10:00:00",
+                                             "lastEnd":  "2026-06-03T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Altaria",
+                                             "url":  "https://pokebattler.com/raids/ALTARIA_MEGA",
+                                             "lastStart":  "2026-05-20T10:00:00",
+                                             "lastEnd":  "2026-05-27T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Glalie",
+                                             "url":  "https://pokebattler.com/raids/GLALIE_MEGA",
+                                             "lastStart":  "2026-05-13T10:00:00",
+                                             "lastEnd":  "2026-05-20T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Camerupt",
+                                             "url":  "https://pokebattler.com/raids/CAMERUPT_MEGA",
+                                             "lastStart":  "2026-05-06T10:00:00",
+                                             "lastEnd":  "2026-05-13T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Banette",
+                                             "url":  "https://pokebattler.com/raids/BANETTE_MEGA",
+                                             "lastStart":  "2026-04-29T10:00:00",
+                                             "lastEnd":  "2026-05-05T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Sharpedo",
+                                             "url":  "https://pokebattler.com/raids/SHARPEDO_MEGA",
+                                             "lastStart":  "2026-04-22T10:00:00",
+                                             "lastEnd":  "2026-04-29T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Alakazam",
+                                             "url":  "https://pokebattler.com/raids/ALAKAZAM_MEGA",
+                                             "lastStart":  "2026-04-15T10:00:00",
+                                             "lastEnd":  "2026-04-22T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Aerodactyl",
+                                             "url":  "https://pokebattler.com/raids/AERODACTYL_MEGA",
+                                             "lastStart":  "2026-04-08T10:00:00",
+                                             "lastEnd":  "2026-04-15T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Manectric",
+                                             "url":  "https://pokebattler.com/raids/MANECTRIC_MEGA",
+                                             "lastStart":  "2026-04-01T10:00:00",
+                                             "lastEnd":  "2026-04-08T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Houndoom",
+                                             "url":  "https://pokebattler.com/raids/HOUNDOOM_MEGA",
+                                             "lastStart":  "2026-03-25T10:00:00",
+                                             "lastEnd":  "2026-04-01T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Slowbro",
+                                             "url":  "https://pokebattler.com/raids/SLOWBRO_MEGA",
+                                             "lastStart":  "2026-03-18T10:00:00",
+                                             "lastEnd":  "2026-03-25T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Steelix",
+                                             "url":  "https://pokebattler.com/raids/STEELIX_MEGA",
+                                             "lastStart":  "2026-03-11T10:00:00",
+                                             "lastEnd":  "2026-03-18T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Pinsir",
+                                             "url":  "https://pokebattler.com/raids/PINSIR_MEGA",
+                                             "lastStart":  "2026-03-05T10:00:00",
+                                             "lastEnd":  "2026-03-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Absol",
+                                             "url":  "https://pokebattler.com/raids/ABSOL_MEGA",
+                                             "lastStart":  "2026-03-02T10:00:00",
+                                             "lastEnd":  "2026-03-03T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Latios",
+                                             "url":  "https://pokebattler.com/raids/LATIOS_MEGA",
+                                             "lastStart":  "2026-03-01T17:00:00",
+                                             "lastEnd":  "2026-03-01T18:00:00"
+                                         },
+                                         {
+                                             "name":  "Salamence",
+                                             "url":  "https://pokebattler.com/raids/SALAMENCE_MEGA",
+                                             "lastStart":  "2026-03-01T16:00:00",
+                                             "lastEnd":  "2026-03-01T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Metagross",
+                                             "url":  "https://pokebattler.com/raids/METAGROSS_MEGA",
+                                             "lastStart":  "2026-03-01T15:00:00",
+                                             "lastEnd":  "2026-03-01T16:00:00"
+                                         },
+                                         {
+                                             "name":  "Heracross",
+                                             "url":  "https://pokebattler.com/raids/HERACROSS_MEGA",
+                                             "lastStart":  "2026-03-01T14:00:00",
+                                             "lastEnd":  "2026-03-01T15:00:00"
+                                         },
+                                         {
+                                             "name":  "Tyranitar",
+                                             "url":  "https://pokebattler.com/raids/TYRANITAR_MEGA",
+                                             "lastStart":  "2026-03-01T12:00:00",
+                                             "lastEnd":  "2026-03-01T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Scizor",
+                                             "url":  "https://pokebattler.com/raids/SCIZOR_MEGA",
+                                             "lastStart":  "2026-03-01T11:00:00",
+                                             "lastEnd":  "2026-03-01T12:00:00"
+                                         },
+                                         {
+                                             "name":  "Sceptile",
+                                             "url":  "https://pokebattler.com/raids/SCEPTILE_MEGA",
+                                             "lastStart":  "2026-03-01T10:00:00",
+                                             "lastEnd":  "2026-03-01T11:00:00"
+                                         },
+                                         {
+                                             "name":  "Swampert",
+                                             "url":  "https://pokebattler.com/raids/SWAMPERT_MEGA",
+                                             "lastStart":  "2026-03-01T10:00:00",
+                                             "lastEnd":  "2026-03-01T11:00:00"
+                                         },
+                                         {
+                                             "name":  "Blaziken",
+                                             "url":  "https://pokebattler.com/raids/BLAZIKEN_MEGA",
+                                             "lastStart":  "2026-03-01T10:00:00",
+                                             "lastEnd":  "2026-03-01T11:00:00"
+                                         },
+                                         {
+                                             "name":  "Latias",
+                                             "url":  "https://pokebattler.com/raids/LATIAS_MEGA",
+                                             "lastStart":  "2026-02-28T17:00:00",
+                                             "lastEnd":  "2026-02-28T18:00:00"
+                                         },
+                                         {
+                                             "name":  "Lucario",
+                                             "url":  "https://pokebattler.com/raids/LUCARIO_MEGA",
+                                             "lastStart":  "2026-02-28T16:00:00",
+                                             "lastEnd":  "2026-02-28T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Blastoise",
+                                             "url":  "https://pokebattler.com/raids/BLASTOISE_MEGA",
+                                             "lastStart":  "2026-02-28T15:00:00",
+                                             "lastEnd":  "2026-02-28T16:00:00"
+                                         },
+                                         {
+                                             "name":  "Venusaur",
+                                             "url":  "https://pokebattler.com/raids/VENUSAUR_MEGA",
+                                             "lastStart":  "2026-02-28T15:00:00",
+                                             "lastEnd":  "2026-02-28T16:00:00"
+                                         },
+                                         {
+                                             "name":  "Kangaskhan",
+                                             "url":  "https://pokebattler.com/raids/KANGASKHAN_MEGA",
+                                             "lastStart":  "2026-02-28T14:00:00",
+                                             "lastEnd":  "2026-02-28T15:00:00"
+                                         },
+                                         {
+                                             "name":  "Gallade",
+                                             "url":  "https://pokebattler.com/raids/GALLADE_MEGA",
+                                             "lastStart":  "2026-02-28T13:00:00",
+                                             "lastEnd":  "2026-02-28T14:00:00"
+                                         },
+                                         {
+                                             "name":  "Gardevoir",
+                                             "url":  "https://pokebattler.com/raids/GARDEVOIR_MEGA",
+                                             "lastStart":  "2026-02-28T13:00:00",
+                                             "lastEnd":  "2026-02-28T14:00:00"
+                                         },
+                                         {
+                                             "name":  "Garchomp",
+                                             "url":  "https://pokebattler.com/raids/GARCHOMP_MEGA",
+                                             "lastStart":  "2026-02-28T12:00:00",
+                                             "lastEnd":  "2026-02-28T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Pidgeot",
+                                             "url":  "https://pokebattler.com/raids/PIDGEOT_MEGA",
+                                             "lastStart":  "2026-02-28T11:00:00",
+                                             "lastEnd":  "2026-02-28T12:00:00"
+                                         },
+                                         {
+                                             "name":  "Charizard Y",
+                                             "url":  "https://pokebattler.com/raids/CHARIZARD_MEGA_Y",
+                                             "lastStart":  "2026-02-28T10:00:00",
+                                             "lastEnd":  "2026-02-28T11:00:00"
+                                         },
+                                         {
+                                             "name":  "Charizard X",
+                                             "url":  "https://pokebattler.com/raids/CHARIZARD_MEGA_X",
+                                             "lastStart":  "2026-02-28T10:00:00",
+                                             "lastEnd":  "2026-02-28T11:00:00"
+                                         },
+                                         {
+                                             "name":  "Primal Raid: Kyogre",
+                                             "url":  "https://pokebattler.com/raids/KYOGRE_PRIMAL",
+                                             "lastStart":  "2026-02-25T10:00:00",
+                                             "lastEnd":  "2026-02-25T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Primal Raid: Groudon",
+                                             "url":  "https://pokebattler.com/raids/GROUDON_PRIMAL",
+                                             "lastStart":  "2026-02-25T10:00:00",
+                                             "lastEnd":  "2026-02-25T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Sableye",
+                                             "url":  "https://pokebattler.com/raids/SABLEYE_MEGA",
+                                             "lastStart":  "2026-02-16T10:00:00",
+                                             "lastEnd":  "2026-02-21T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Ampharos",
+                                             "url":  "https://pokebattler.com/raids/AMPHAROS_MEGA",
+                                             "lastStart":  "2026-01-25T10:00:00",
+                                             "lastEnd":  "2026-02-04T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Abomasnow",
+                                             "url":  "https://pokebattler.com/raids/ABOMASNOW_MEGA",
+                                             "lastStart":  "2025-12-13T10:00:00",
+                                             "lastEnd":  "2025-12-22T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Gyarados",
+                                             "url":  "https://pokebattler.com/raids/GYARADOS_MEGA",
+                                             "lastStart":  "2025-12-04T10:00:00",
+                                             "lastEnd":  "2025-12-13T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Beedrill",
+                                             "url":  "https://pokebattler.com/raids/BEEDRILL_MEGA",
+                                             "lastStart":  "2025-11-04T10:00:00",
+                                             "lastEnd":  "2025-11-11T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Gengar",
+                                             "url":  "https://pokebattler.com/raids/GENGAR_MEGA",
+                                             "lastStart":  "2025-10-28T10:00:00",
+                                             "lastEnd":  "2025-11-04T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Mawile",
+                                             "url":  "https://pokebattler.com/raids/MAWILE_MEGA",
+                                             "lastStart":  "2025-10-14T10:00:00",
+                                             "lastEnd":  "2025-10-21T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Rayquaza",
+                                             "url":  "https://pokebattler.com/raids/RAYQUAZA_MEGA",
+                                             "lastStart":  "2025-10-18T14:00:00",
+                                             "lastEnd":  "2025-10-18T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Lopunny",
+                                             "url":  "https://pokebattler.com/raids/LOPUNNY_MEGA",
+                                             "lastStart":  "2025-09-23T10:00:00",
+                                             "lastEnd":  "2025-09-30T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Aggron",
+                                             "url":  "https://pokebattler.com/raids/AGGRON_MEGA",
+                                             "lastStart":  "2025-06-30T10:00:00",
+                                             "lastEnd":  "2025-07-08T10:00:00"
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "megaSuper",
+                           "titlePt":  "Raids Super Mega",
+                           "titleEn":  "Super Mega Raids",
+                           "titleEs":  "Raids Super Mega",
+                           "items":  [
+                                         {
+                                             "name":  "Victreebel",
+                                             "url":  "https://pokebattler.com/raids/VICTREEBEL_MEGA",
+                                             "lastStart":  "2026-02-28T10:00:00",
+                                             "lastEnd":  "2026-03-01T18:00:00"
+                                         },
+                                         {
+                                             "name":  "Dragonite",
+                                             "url":  "https://pokebattler.com/raids/DRAGONITE_MEGA",
+                                             "lastStart":  "2026-02-28T10:00:00",
+                                             "lastEnd":  "2026-03-01T18:00:00"
+                                         },
+                                         {
+                                             "name":  "Malamar",
+                                             "url":  "https://pokebattler.com/raids/MALAMAR_MEGA",
+                                             "lastStart":  "2026-02-28T10:00:00",
+                                             "lastEnd":  "2026-03-01T18:00:00"
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "shadow",
+                           "titlePt":  "Raids Sombrosas",
+                           "titleEn":  "Shadow Raids",
+                           "titleEs":  "Raids Oscuras",
+                           "items":  [
+                                         {
+                                             "name":  "Cresselia",
+                                             "url":  "https://www.pokebattler.com/raids/CRESSELIA_SHADOW_FORM",
+                                             "lastStart":  "2026-05-06T10:00:00",
+                                             "lastEnd":  "2026-06-02T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Latios",
+                                             "url":  "https://www.pokebattler.com/raids/LATIOS_SHADOW_FORM",
+                                             "lastStart":  "2026-04-01T10:00:00",
+                                             "lastEnd":  "2026-05-05T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Entei",
+                                             "url":  "https://www.pokebattler.com/raids/ENTEI_SHADOW_FORM",
+                                             "lastStart":  "2026-05-02T14:00:00",
+                                             "lastEnd":  "2026-05-02T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Latias",
+                                             "url":  "https://www.pokebattler.com/raids/LATIAS_SHADOW_FORM",
+                                             "lastStart":  "2026-03-04T10:00:00",
+                                             "lastEnd":  "2026-04-01T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Regigigas",
+                                             "url":  "https://www.pokebattler.com/raids/REGIGIGAS_SHADOW_FORM",
+                                             "lastStart":  "2026-02-01T10:00:00",
+                                             "lastEnd":  "2026-03-04T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Lugia",
+                                             "url":  "https://www.pokebattler.com/raids/LUGIA_SHADOW_FORM",
+                                             "lastStart":  "2026-02-24T10:00:00",
+                                             "lastEnd":  "2026-02-24T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Ho-Oh",
+                                             "url":  "https://www.pokebattler.com/raids/HO_OH_SHADOW_FORM",
+                                             "lastStart":  "2026-02-24T10:00:00",
+                                             "lastEnd":  "2026-02-24T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Raikou",
+                                             "url":  "https://www.pokebattler.com/raids/RAIKOU_SHADOW_FORM",
+                                             "lastStart":  "2026-01-24T14:00:00",
+                                             "lastEnd":  "2026-01-24T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Heatran",
+                                             "url":  "https://www.pokebattler.com/raids/HEATRAN_SHADOW_FORM",
+                                             "lastStart":  "2025-12-02T10:00:00",
+                                             "lastEnd":  "2026-01-01T10:00:00"
+                                         },
+                                         {
+                                             "name":  "Darkrai",
+                                             "url":  "https://www.pokebattler.com/raids/DARKRAI_SHADOW_FORM",
+                                             "lastStart":  "2025-11-16T10:00:00",
+                                             "lastEnd":  "2025-11-16T18:00:00"
+                                         },
+                                         {
+                                             "name":  "Regirock",
+                                             "url":  "https://www.pokebattler.com/raids/REGIROCK_SHADOW_FORM",
+                                             "lastStart":  "2025-08-30T06:00:00",
+                                             "lastEnd":  "2025-08-31T22:00:00"
+                                         },
+                                         {
+                                             "name":  "Kyogre",
+                                             "url":  "https://www.pokebattler.com/raids/KYOGRE_SHADOW_FORM",
+                                             "lastStart":  "2025-08-16T06:00:00",
+                                             "lastEnd":  "2025-08-17T22:00:00"
+                                         },
+                                         {
+                                             "name":  "Registeel",
+                                             "url":  "https://www.pokebattler.com/raids/REGISTEEL_SHADOW_FORM",
+                                             "lastStart":  "2025-07-26T06:00:00",
+                                             "lastEnd":  "2025-07-27T22:00:00"
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "gigantamax",
+                           "titlePt":  "Gigantamax",
+                           "titleEn":  "Gigantamax",
+                           "titleEs":  "Gigantamax",
+                           "items":  [
+                                         {
+                                             "name":  "Venusaur",
+                                             "url":  "https://www.pokebattler.com/raids/VENUSAUR_GIGANTAMAX",
+                                             "lastStart":  "2026-04-25T14:00:00",
+                                             "lastEnd":  "2026-04-25T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Charizard",
+                                             "url":  "https://www.pokebattler.com/raids/CHARIZARD_GIGANTAMAX",
+                                             "lastStart":  "2026-04-25T14:00:00",
+                                             "lastEnd":  "2026-04-25T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Blastoise",
+                                             "url":  "https://www.pokebattler.com/raids/BLASTOISE_GIGANTAMAX",
+                                             "lastStart":  "2026-04-25T14:00:00",
+                                             "lastEnd":  "2026-04-25T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Gengar",
+                                             "url":  "https://www.pokebattler.com/raids/GENGAR_GIGANTAMAX",
+                                             "lastStart":  "2026-04-25T14:00:00",
+                                             "lastEnd":  "2026-04-25T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Meowth",
+                                             "url":  "https://www.pokebattler.com/raids/MEOWTH_GIGANTAMAX",
+                                             "lastStart":  "2026-02-15T14:00:00",
+                                             "lastEnd":  "2026-02-15T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Snorlax",
+                                             "url":  "https://www.pokebattler.com/raids/SNORLAX_GIGANTAMAX",
+                                             "lastStart":  "2025-12-14T14:00:00",
+                                             "lastEnd":  "2025-12-14T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Grimmsnarl",
+                                             "url":  "https://www.pokebattler.com/raids/GRIMMSNARL_GIGANTAMAX",
+                                             "lastStart":  "2025-11-16T10:00:00",
+                                             "lastEnd":  "2025-11-16T18:00:00"
+                                         },
+                                         {
+                                             "name":  "Garbodor",
+                                             "url":  "https://www.pokebattler.com/raids/GARBODOR_GIGANTAMAX",
+                                             "lastStart":  "2025-11-01T14:00:00",
+                                             "lastEnd":  "2025-11-01T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Toxtricity (Amped)",
+                                             "url":  "https://www.pokebattler.com/raids/TOXTRICITY_AMPED_GIGANTAMAX",
+                                             "lastStart":  "2025-08-24T16:00:00",
+                                             "lastEnd":  "2025-08-24T17:00:00"
+                                         },
+                                         {
+                                             "name":  "Cinderace",
+                                             "url":  "https://www.pokebattler.com/raids/CINDERACE_GIGANTAMAX",
+                                             "lastStart":  "2025-08-24T15:00:00",
+                                             "lastEnd":  "2025-08-24T16:00:00"
+                                         },
+                                         {
+                                             "name":  "Kingler",
+                                             "url":  "https://www.pokebattler.com/raids/KINGLER_GIGANTAMAX",
+                                             "lastStart":  "2025-08-24T13:00:00",
+                                             "lastEnd":  "2025-08-24T14:00:00"
+                                         },
+                                         {
+                                             "name":  "Butterfree",
+                                             "url":  "https://www.pokebattler.com/raids/BUTTERFREE_GIGANTAMAX",
+                                             "lastStart":  "2025-08-24T12:00:00",
+                                             "lastEnd":  "2025-08-24T13:00:00"
+                                         },
+                                         {
+                                             "name":  "Rillaboom",
+                                             "url":  "https://www.pokebattler.com/raids/RILLABOOM_GIGANTAMAX",
+                                             "lastStart":  "2025-08-24T10:00:00",
+                                             "lastEnd":  "2025-08-24T11:00:00"
+                                         },
+                                         {
+                                             "name":  "Machamp",
+                                             "url":  "https://www.pokebattler.com/raids/MACHAMP_GIGANTAMAX",
+                                             "lastStart":  "2025-08-23T15:00:00",
+                                             "lastEnd":  "2025-08-23T16:00:00"
+                                         },
+                                         {
+                                             "name":  "Inteleon",
+                                             "url":  "https://www.pokebattler.com/raids/INTELEON_GIGANTAMAX",
+                                             "lastStart":  "2025-08-23T13:00:00",
+                                             "lastEnd":  "2025-08-23T14:00:00"
+                                         },
+                                         {
+                                             "name":  "Lapras",
+                                             "url":  "https://www.pokebattler.com/raids/LAPRAS_GIGANTAMAX",
+                                             "lastStart":  "2025-08-23T10:00:00",
+                                             "lastEnd":  "2025-08-23T11:00:00"
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "dynamax",
+                           "titlePt":  "Dynamax",
+                           "titleEn":  "Dynamax",
+                           "titleEs":  "Dynamax",
+                           "items":  [
+                                         {
+                                             "name":  "Registeel",
+                                             "url":  "https://www.pokebattler.com/raids/REGISTEEL/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2026-05-18T18:00:00",
+                                             "lastEnd":  "2026-05-24T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Regirock",
+                                             "url":  "https://www.pokebattler.com/raids/REGIROCK/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2026-04-20T18:00:00",
+                                             "lastEnd":  "2026-04-26T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Ho-Oh",
+                                             "url":  "https://www.pokebattler.com/raids/HO_OH/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2026-01-31T06:00:00",
+                                             "lastEnd":  "2026-02-01T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Lugia",
+                                             "url":  "https://www.pokebattler.com/raids/LUGIA/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-11-29T06:00:00",
+                                             "lastEnd":  "2025-11-30T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Eevee",
+                                             "url":  "https://www.pokebattler.com/raids/EEVEE/RAID_LEVEL_1_MAX",
+                                             "lastStart":  "2025-11-21T06:00:00",
+                                             "lastEnd":  "2025-11-24T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Raikou",
+                                             "url":  "https://www.pokebattler.com/raids/RAIKOU/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-21T10:00:00",
+                                             "lastEnd":  "2025-08-22T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Entei",
+                                             "url":  "https://www.pokebattler.com/raids/ENTEI/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-21T10:00:00",
+                                             "lastEnd":  "2025-08-22T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Suicune",
+                                             "url":  "https://www.pokebattler.com/raids/SUICUNE/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-21T10:00:00",
+                                             "lastEnd":  "2025-08-22T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Zapdos",
+                                             "url":  "https://www.pokebattler.com/raids/ZAPDOS/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-19T10:00:00",
+                                             "lastEnd":  "2025-08-20T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Articuno",
+                                             "url":  "https://www.pokebattler.com/raids/ARTICUNO/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-19T10:00:00",
+                                             "lastEnd":  "2025-08-20T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Moltres",
+                                             "url":  "https://www.pokebattler.com/raids/MOLTRES/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-19T10:00:00",
+                                             "lastEnd":  "2025-08-20T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Toxtricity (Grave)",
+                                             "url":  "https://www.pokebattler.com/raids/TOXTRICITY_LOW_KEY_FORM/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-19T10:00:00",
+                                             "lastEnd":  "2025-08-20T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Toxtricity (Aguda)",
+                                             "url":  "https://www.pokebattler.com/raids/TOXTRICITY_AMPED_FORM/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-19T10:00:00",
+                                             "lastEnd":  "2025-08-20T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Latias",
+                                             "url":  "https://www.pokebattler.com/raids/LATIAS/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-18T10:00:00",
+                                             "lastEnd":  "2025-08-18T21:00:00"
+                                         },
+                                         {
+                                             "name":  "Latios",
+                                             "url":  "https://www.pokebattler.com/raids/LATIOS/RAID_LEVEL_5_MAX",
+                                             "lastStart":  "2025-08-18T10:00:00",
+                                             "lastEnd":  "2025-08-18T21:00:00"
+                                         }
+                                     ]
+                       }
+                   ]
+}

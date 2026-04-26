@@ -17,6 +17,10 @@ val releaseStorePassword = System.getenv("MEWNAME_UPLOAD_STORE_PASSWORD")?.takeI
 val releaseKeyAlias = System.getenv("MEWNAME_UPLOAD_KEY_ALIAS")?.takeIf { it.isNotBlank() }
 val releaseKeyPassword = System.getenv("MEWNAME_UPLOAD_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
 val releaseTag = System.getenv("MEWNAME_RELEASE_TAG")?.takeIf { it.isNotBlank() } ?: "dev"
+val releaseVersionName = releaseTag
+    .takeIf { it != "dev" }
+    ?.removePrefix("v")
+    ?: "1.0.$autoVersionCode"
 val hasReleaseSigning = releaseStoreFilePath != null &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
@@ -31,7 +35,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = autoVersionCode
-        versionName = "1.0.$autoVersionCode"
+        versionName = releaseVersionName
         buildConfigField("String", "RELEASE_TAG", "\"$releaseTag\"")
         buildConfigField("String", "GITHUB_REPOSITORY", "\"rodrigoluiz1990/MewName\"")
 

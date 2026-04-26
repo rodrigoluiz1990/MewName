@@ -47,6 +47,9 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.mewname.app.domain.BattleAdvice
+import com.mewname.app.domain.BattleAdvisor
+import com.mewname.app.domain.BattleMode
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
@@ -71,6 +74,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import kotlin.math.abs
 
@@ -91,6 +95,16 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val reviewableFields: List<NamingField>,
         val generatedResults: List<Pair<String, String>>,
         val reviewedData: PokemonScreenData? = null
+    )
+
+    private data class BattleLogSnapshot(
+        val capturedAtMillis: Long,
+        val bitmapWidth: Int,
+        val bitmapHeight: Int,
+        val stage: String,
+        val rawText: String,
+        val ocrLineLogs: List<String>,
+        val advice: BattleAdvice
     )
 
     private lateinit var windowManager: WindowManager
@@ -119,6 +133,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private val sessionMerger = PokemonReadSessionMerger()
     private var lastCapturedData: PokemonScreenData? = null
     private var lastBubbleLogSnapshot: BubbleLogSnapshot? = null
+    private var lastBattleLogSnapshot: BattleLogSnapshot? = null
     private val bubbleLongPressTimeoutMillis = 1500L
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -416,6 +431,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
 
         isCaptureInProgress = true
+        removeResultsOverlay()
         drainPendingCaptureFrames(reader)
         setBubbleHiddenForCapture(true)
         mainHandler.postDelayed({
@@ -505,11 +521,40 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun processCapturedBitmap(bitmap: Bitmap) {
         showLoadingOverlay()
-        updateLoadingStatus(detail = "Extraindo texto da imagem")
+        updateLoadingStatus(detail = "Lendo tela de batalha")
         serviceScope.launch {
             runCatching {
-                ocrEngine.extract(bitmap)
-            }.onSuccess { ocrResult ->
+                withTimeoutOrNull(5500L) {
+                    ocrEngine.extractBattlePreview(bitmap)
+                }
+            }.onSuccess { previewOcrResult ->
+                if (previewOcrResult != null) {
+                    val rawBattleAdvice = kotlinx.coroutines.withContext(Dispatchers.Default) {
+                        BattleAdvisor.adviceForRaw(this@OverlayService, previewOcrResult.fullText)
+                    }
+                    rawBattleAdvice?.let { battleAdvice ->
+                        lastBattleLogSnapshot = BattleLogSnapshot(
+                            capturedAtMillis = System.currentTimeMillis(),
+                            bitmapWidth = bitmap.width,
+                            bitmapHeight = bitmap.height,
+                            stage = "preview",
+                            rawText = previewOcrResult.fullText,
+                            ocrLineLogs = buildOcrLineLogs(previewOcrResult),
+                            advice = battleAdvice
+                        )
+                        updateLoadingStatus(detail = "Montando sugestoes de batalha")
+                        showBattleSuggestionsOverlay(battleAdvice)
+                        isCaptureInProgress = false
+                        removeLoadingOverlay()
+                        return@onSuccess
+                    }
+                } else {
+                    Log.w(TAG, "OCR preview de batalha excedeu o tempo limite")
+                }
+                updateLoadingStatus(detail = "Extraindo texto da imagem")
+                val ocrResult = withTimeoutOrNull(14000L) {
+                    ocrEngine.extract(bitmap)
+                } ?: throw IllegalStateException("Tempo limite ao extrair texto da imagem")
                 val parsed = kotlinx.coroutines.withContext(Dispatchers.Default) {
                     parser.parse(this@OverlayService, ocrResult) { step ->
                         updateLoadingStatus(detail = step)
@@ -525,6 +570,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
 
                 val reviewFields = reviewableFields(savedConfigs)
+                val battleAdvice = BattleAdvisor.adviceFor(
+                    context = this@OverlayService,
+                    data = merged,
+                    rawText = ocrResult.fullText
+                )
                 lastBubbleLogSnapshot = BubbleLogSnapshot(
                     capturedAtMillis = System.currentTimeMillis(),
                     bitmapWidth = bitmap.width,
@@ -536,13 +586,29 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     generatedResults = generatedResults
                 )
                 val reviewRecommended = shouldOpenReview(merged, reviewFields)
-                showResultsOverlay(
-                    results = generatedResults,
-                    reviewRecommended = reviewRecommended,
-                    onOpenReview = {
-                        showReviewOverlay(merged, reviewFields, savedConfigs, bitmap)
-                    }
-                )
+                val hasIdentifiedPokemon = !merged.pokemonName.isNullOrBlank() || !merged.candyFamilyName.isNullOrBlank()
+                if (battleAdvice != null) {
+                    lastBattleLogSnapshot = BattleLogSnapshot(
+                        capturedAtMillis = System.currentTimeMillis(),
+                        bitmapWidth = bitmap.width,
+                        bitmapHeight = bitmap.height,
+                        stage = "full",
+                        rawText = ocrResult.fullText,
+                        ocrLineLogs = buildOcrLineLogs(ocrResult),
+                        advice = battleAdvice
+                    )
+                    showBattleSuggestionsOverlay(battleAdvice)
+                } else if (!hasIdentifiedPokemon && generatedResults.isEmpty()) {
+                    showUnsupportedBubbleScreenOverlay()
+                } else {
+                    showResultsOverlay(
+                        results = generatedResults,
+                        reviewRecommended = reviewRecommended,
+                        onOpenReview = {
+                            showReviewOverlay(merged, reviewFields, savedConfigs, bitmap)
+                        }
+                    )
+                }
 
                 isCaptureInProgress = false
                 removeLoadingOverlay()
@@ -822,6 +888,370 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         resultsView = layout
     }
 
+    private fun showUnsupportedBubbleScreenOverlay() {
+        removeResultsOverlay()
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.CENTER
+            dimAmount = 0.6f
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 34f
+                setColor(Color.argb(232, 255, 255, 255))
+            }
+            setPadding(52, 52, 52, 52)
+            elevation = 40f
+        }
+
+        layout.addView(TextView(this).apply {
+            text = "Tela nao reconhecida"
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.BLACK)
+            setPadding(0, 0, 0, 12)
+        })
+
+        layout.addView(TextView(this).apply {
+            text = "A bolha pode ser usada nestas telas:"
+            textSize = 14f
+            setTextColor(Color.rgb(65, 72, 86))
+            setPadding(0, 0, 0, 18)
+        })
+
+        fun supportedScreenRow(title: String, description: String): LinearLayout {
+            return LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, 12, 0, 12)
+                addView(TextView(this@OverlayService).apply {
+                    text = title
+                    textSize = 15f
+                    setTypeface(null, Typeface.BOLD)
+                    setTextColor(Color.BLACK)
+                })
+                addView(TextView(this@OverlayService).apply {
+                    text = description
+                    textSize = 13f
+                    setTextColor(Color.rgb(87, 96, 112))
+                    setPadding(0, 4, 0, 0)
+                })
+            }
+        }
+
+        layout.addView(supportedScreenRow("Detalhes do Pokemon", "Gera nomes e permite revisar os dados lidos."))
+        layout.addView(supportedScreenRow("Tela de Raid", "Sugere counters e copia o filtro para busca."))
+        layout.addView(supportedScreenRow("Tela de Dynamax/Gigamax", "Sugere Pokemon validos para a batalha Max."))
+
+        layout.addView(TextView(this).apply {
+            text = "Abra uma dessas telas no Pokemon GO e toque na bolha novamente."
+            textSize = 13f
+            setTextColor(Color.rgb(87, 96, 112))
+            setPadding(0, 18, 0, 22)
+        })
+
+        val closeButton = TextView(this).apply {
+            text = "Fechar"
+            gravity = Gravity.CENTER
+            textSize = 13f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.rgb(48, 63, 84))
+            setPadding(18, 24, 18, 24)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 28f
+                setColor(Color.argb(245, 248, 250, 255))
+                setStroke(2, Color.rgb(205, 214, 226))
+            }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                windowManager.removeView(layout)
+                resultsView = null
+            }
+        }
+        layout.addView(closeButton)
+
+        windowManager.addView(layout, params)
+        resultsView = layout
+    }
+
+    private fun showBattleSuggestionsOverlay(advice: BattleAdvice) {
+        removeResultsOverlay()
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.CENTER
+            dimAmount = 0.6f
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 34f
+                setColor(Color.argb(232, 255, 255, 255))
+            }
+            setPadding(52, 52, 52, 52)
+            elevation = 40f
+        }
+
+        layout.addView(TextView(this).apply {
+            text = if (advice.mode == BattleMode.MAX) "Sugestoes para Dynamax" else "Sugestoes para Raid"
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.BLACK)
+            setPadding(0, 0, 0, 10)
+        })
+
+        layout.addView(TextView(this).apply {
+            text = buildString {
+                append("Chefe: ${advice.bossName ?: "nao identificado"}")
+                if (advice.bossName.isNullOrBlank()) {
+                    append("\nTente capturar a tela novamente com o nome do chefe visivel.")
+                }
+                if (advice.bossTypes.isNotEmpty()) {
+                    append("\nTipos: ${advice.bossTypes.joinToString(" / ")}")
+                }
+                if (advice.weaknessTypes.isNotEmpty()) {
+                    append("\nFraquezas: ${advice.weaknessTypes.joinToString(", ")}")
+                }
+            }
+            textSize = 13f
+            setTextColor(Color.rgb(87, 96, 112))
+            setPadding(0, 0, 0, 20)
+        })
+
+        var currentCopyText = advice.copyText
+        lateinit var filterTitle: TextView
+        fun showCopiedFeedback(button: TextView? = null) {
+            val originalTitle = filterTitle.text
+            val originalButtonText = button?.text
+            filterTitle.text = "Filtro copiado!"
+            button?.text = "Copiado!"
+            mainHandler.postDelayed({
+                filterTitle.text = originalTitle
+                if (originalButtonText != null) {
+                    button.text = originalButtonText
+                }
+            }, 1800)
+        }
+
+        val filterBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 22f
+                setColor(Color.rgb(241, 246, 255))
+                setStroke(2, Color.rgb(207, 219, 239))
+            }
+            setPadding(24, 18, 24, 18)
+            isClickable = true
+            setOnClickListener {
+                copyToClipboard(currentCopyText)
+                showCopiedFeedback()
+                Toast.makeText(this@OverlayService, "Filtro copiado!", Toast.LENGTH_SHORT).show()
+            }
+        }
+        filterTitle = TextView(this).apply {
+            text = "Copiar para buscar Pokemon"
+            textSize = 12f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.rgb(48, 63, 84))
+        }
+        filterBox.addView(filterTitle)
+        val filterValueView = TextView(this).apply {
+            text = currentCopyText.ifBlank { "-" }
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.BLACK)
+            setPadding(0, 8, 0, 0)
+        }
+        filterBox.addView(filterValueView)
+        layout.addView(filterBox)
+
+        serviceScope.launch(Dispatchers.Default) {
+            val localizedCopyText = BattleAdvisor.copyTextFor(
+                context = this@OverlayService,
+                mode = advice.mode,
+                suggestions = advice.suggestions
+            )
+            mainHandler.post {
+                if (resultsView == layout && localizedCopyText.isNotBlank()) {
+                    currentCopyText = localizedCopyText
+                    filterValueView.text = localizedCopyText
+                }
+            }
+        }
+
+        val scrollView = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                520
+            ).apply {
+                topMargin = 20
+            }
+        }
+        scrollView.addView(battleSuggestionColumns(advice))
+        layout.addView(scrollView)
+
+        val actionsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 24, 0, 0)
+        }
+        fun actionButton(label: String, isLast: Boolean = false, onClick: () -> Unit): TextView {
+            return TextView(this).apply {
+                text = label
+                gravity = Gravity.CENTER
+                textSize = 12f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(Color.rgb(48, 63, 84))
+                setPadding(14, 22, 14, 22)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 28f
+                    setColor(Color.argb(245, 248, 250, 255))
+                    setStroke(2, Color.rgb(205, 214, 226))
+                }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginEnd = if (isLast) 0 else 8
+                }
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { onClick() }
+            }
+        }
+        lateinit var copyFilterButton: TextView
+        copyFilterButton = actionButton("Copiar filtro") {
+                copyToClipboard(currentCopyText)
+                showCopiedFeedback(copyFilterButton)
+                Toast.makeText(this@OverlayService, "Filtro copiado!", Toast.LENGTH_SHORT).show()
+            }
+        actionsRow.addView(copyFilterButton)
+        actionsRow.addView(
+            actionButton("Log") {
+                exportBattleLog()
+            }
+        )
+        actionsRow.addView(
+            actionButton("Fechar", isLast = true) {
+                windowManager.removeView(layout)
+                resultsView = null
+            }
+        )
+        layout.addView(actionsRow)
+
+        windowManager.addView(layout, params)
+        resultsView = layout
+    }
+
+    private fun battleSuggestionColumns(advice: BattleAdvice): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            isBaselineAligned = false
+            addView(
+                battleSuggestionColumn(
+                    title = "Atacantes",
+                    entries = advice.suggestions.take(8)
+                )
+            )
+            addView(
+                battleSuggestionColumn(
+                    title = "Defensores",
+                    entries = advice.defenderSuggestions.take(8).ifEmpty { advice.suggestions.take(8) },
+                    isLast = true
+                )
+            )
+        }
+    }
+
+    private fun battleSuggestionColumn(
+        title: String,
+        entries: List<com.mewname.app.domain.BattleSuggestionEntry>,
+        isLast: Boolean = false
+    ): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                rightMargin = if (isLast) 0 else 14
+            }
+            addView(TextView(this@OverlayService).apply {
+                text = title
+                textSize = 14f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.BLACK)
+                setPadding(0, 0, 0, 8)
+            })
+            entries.forEachIndexed { index, entry ->
+                addView(LinearLayout(this@OverlayService).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(0, 10, 0, 10)
+                    addView(LinearLayout(this@OverlayService).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        addView(TextView(this@OverlayService).apply {
+                            text = "${index + 1}."
+                            textSize = 11f
+                            setTypeface(null, Typeface.BOLD)
+                            setTextColor(Color.rgb(87, 96, 112))
+                            layoutParams = LinearLayout.LayoutParams(30, LinearLayout.LayoutParams.WRAP_CONTENT)
+                        })
+                        entry.attackTypes.take(2).forEach { type ->
+                            addView(typeIconView(type, 34))
+                        }
+                    })
+                    addView(TextView(this@OverlayService).apply {
+                        text = entry.name
+                        textSize = 12f
+                        setTypeface(null, Typeface.BOLD)
+                        setTextColor(Color.BLACK)
+                        maxLines = 2
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setPadding(0, 4, 0, 0)
+                    })
+                })
+                addView(View(this@OverlayService).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2)
+                    setBackgroundColor(Color.LTGRAY)
+                })
+            }
+        }
+    }
+
+    private fun typeIconView(type: String, size: Int = 42): ImageView {
+        val normalized = type.uppercase(Locale.US)
+        val bitmap = runCatching {
+            assets.open("types/POKEMON_TYPE_$normalized.png").use(BitmapFactory::decodeStream)
+        }.getOrNull()
+        return ImageView(this).apply {
+            bitmap?.let(::setImageBitmap)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.rgb(241, 246, 255))
+                setStroke(2, Color.rgb(207, 219, 239))
+            }
+            setPadding(6, 6, 6, 6)
+            layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                rightMargin = 6
+            }
+        }
+    }
+
     private fun showReviewOverlay(
         parsed: com.mewname.app.model.PokemonScreenData,
         fields: List<NamingField>,
@@ -860,6 +1290,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                             onExportLog = { selectedFields -> exportBubbleLog(selectedFields) },
                             onCancel = { removeResultsOverlay() },
                             onConfirm = { reviewed ->
+                                lastCapturedData = reviewed
                                 val results = configs.mapNotNull { config ->
                                     val generatedName = generator.generate(reviewed, config).trim()
                                     generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
@@ -959,6 +1390,58 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(chooser)
+    }
+
+    private fun exportBattleLog() {
+        val snapshot = lastBattleLogSnapshot
+        if (snapshot == null) {
+            Toast.makeText(this, "Nenhum log de batalha disponivel ainda.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val exportText = buildBattleLogExport(snapshot)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "MewName - Log de batalha")
+            putExtra(Intent.EXTRA_TEXT, exportText)
+        }
+        val chooser = Intent.createChooser(shareIntent, "Exportar log de batalha").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(chooser)
+    }
+
+    private fun buildBattleLogExport(snapshot: BattleLogSnapshot): String {
+        return buildString {
+            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+            appendLine("MewName - Log de batalha")
+            appendLine("Capturado em: ${formatter.format(Date(snapshot.capturedAtMillis))}")
+            appendLine("Bitmap: ${snapshot.bitmapWidth}x${snapshot.bitmapHeight}")
+            appendLine("Estagio OCR: ${snapshot.stage}")
+            appendLine("Modo: ${if (snapshot.advice.mode == BattleMode.MAX) "Dynamax/Gigamax" else "Raid"}")
+            appendLine("Chefe: ${snapshot.advice.bossName ?: "-"}")
+            appendLine("Tipos: ${snapshot.advice.bossTypes.joinToString(" / ").ifBlank { "-" }}")
+            appendLine("Fraquezas: ${snapshot.advice.weaknessTypes.joinToString(", ").ifBlank { "-" }}")
+            appendLine("Filtro: ${snapshot.advice.copyText.ifBlank { "-" }}")
+            appendLine()
+            appendLine("Atacantes")
+            snapshot.advice.suggestions.forEachIndexed { index, entry ->
+                appendLine("${index + 1}. ${entry.name} [${entry.attackTypes.joinToString("/")}] termos=${entry.searchTerms.joinToString(",")}")
+            }
+            appendLine()
+            appendLine("Defensores")
+            snapshot.advice.defenderSuggestions.forEachIndexed { index, entry ->
+                appendLine("${index + 1}. ${entry.name} [${entry.attackTypes.joinToString("/")}] termos=${entry.searchTerms.joinToString(",")}")
+            }
+            appendLine()
+            appendLine("OCR bruto")
+            appendLine(snapshot.rawText.ifBlank { "-" })
+            if (snapshot.ocrLineLogs.isNotEmpty()) {
+                appendLine()
+                appendLine("Linhas OCR")
+                snapshot.ocrLineLogs.forEach { line -> appendLine(line) }
+            }
+        }
     }
 
     private fun buildBubbleLogExport(

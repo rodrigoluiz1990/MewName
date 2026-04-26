@@ -44,6 +44,9 @@ class OcrPokemonParser {
     @Volatile
     private var shadowTextureSignatures: List<IntArray>? = null
 
+    private val moveRegionTop = 0.52f
+    private val moveRegionBottom = 0.98f
+
     private data class PokemonNameEntry(
         val dex: Int,
         val name: String,
@@ -337,7 +340,9 @@ class OcrPokemonParser {
         val moves = extractMoves(orderedLines, referenceBounds)
         var name = inferPokemonName(context, orderedLines, moves, cp, referenceBounds)
         val typeDetection = detectPokemonTypes(orderedLines, normUpper, referenceBounds)
-        val detectedTypes = typeDetection.first
+        val ocrDetectedTypes = typeDetection.first
+        val detectedTypes = ocrDetectedTypes.ifEmpty { lookupPokemonTypesByName(context, name) }
+        val typeFallbackUsed = ocrDetectedTypes.isEmpty() && detectedTypes.isNotEmpty()
         name = resolveRegionalMeowthName(name, detectedTypes)
         val (candyFamilyName, candyDebugInfo) = extractCandyFamilyName(context, orderedLines, referenceBounds, name)
         val hasUnownTitleSignal = detectUnownTitleSignal(orderedLines, referenceBounds)
@@ -511,6 +516,7 @@ class OcrPokemonParser {
                 purifiedTextMatch = purifiedTextMatch,
                 notes = buildList {
                     if (detectedTypes.isEmpty()) add("nenhum tipo reconhecido na área central")
+                    if (typeFallbackUsed) add("tipo preenchido pela base local a partir do nome")
                     if (isFavorite) add("estrela superior direita preenchida em amarelo")
                     if (purifiedTextMatch) add("texto de purificado encontrado")
                 }.joinToString("; ")
@@ -2515,7 +2521,7 @@ class OcrPokemonParser {
         detectedTypes: List<String>,
         referenceBounds: Rect?
     ): Pair<Boolean, LegacyDebugInfo> {
-        val moveAreaLines = normalizedLinesInRegion(lines, 0.0f, 1.0f, 0.60f, 0.90f, referenceBounds)
+        val moveAreaLines = normalizedLinesInRegion(lines, 0.0f, 1.0f, moveRegionTop, moveRegionBottom, referenceBounds)
         val matchedKeyword = moveAreaLines.firstNotNullOfOrNull { normalized ->
             legacyKeywords.firstOrNull { normalized.contains(it) }
         }
@@ -2584,6 +2590,16 @@ class OcrPokemonParser {
         }
 
         return detected.take(2) to centerStatsLines
+    }
+
+    private fun lookupPokemonTypesByName(context: Context, name: String?): List<String> {
+        val normalizedName = name?.let(::normalizeText) ?: return emptyList()
+        if (normalizedName.isBlank()) return emptyList()
+        return GameInfoRepository.loadBattlePokemonIndex(context)
+            .firstOrNull { entry -> normalizedName in entry.normalizedNames }
+            ?.types
+            ?.take(2)
+            .orEmpty()
     }
 
     private fun resolveRegionalMeowthName(name: String?, detectedTypes: List<String>): String? {
@@ -2916,7 +2932,7 @@ class OcrPokemonParser {
     private fun extractMoves(lines: List<OcrTextLine>, referenceBounds: Rect?): List<String> {
         val moveRegex = Regex("""^([\p{L}' .-]+)\s+(\d{1,3})$""", RegexOption.IGNORE_CASE)
         val damageOnlyRegex = Regex("""^\d{1,3}$""")
-        val moveLines = rawLinesInRegion(lines, 0.0f, 1.0f, 0.60f, 0.92f, referenceBounds)
+        val moveLines = rawLinesInRegion(lines, 0.0f, 1.0f, moveRegionTop, moveRegionBottom, referenceBounds)
             .map { it.text }
 
         val extracted = mutableListOf<String>()

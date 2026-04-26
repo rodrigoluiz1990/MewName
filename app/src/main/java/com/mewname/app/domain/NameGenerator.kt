@@ -91,6 +91,7 @@ class NameGenerator {
             NamingField.UNOWN_LETTER -> data.unownLetter?.takeIf { it.isNotBlank() }?.uppercase()
             NamingField.UNIQUE_FORM -> {
                 when {
+                    isVivillonFamily(data.pokemonName) -> vivillonPatternSymbol(data.vivillonPattern, config)
                     data.pokemonName.equals("Unown", ignoreCase = true) -> {
                         val letter = data.unownLetter?.trim()?.uppercase()
                         val symbolKey = letter?.let { "UNOWN_$it" }
@@ -181,6 +182,13 @@ class NameGenerator {
         return config.symbols[vivillonPattern.symbolKey]
             ?.takeIf { it.isNotBlank() }
             ?: vivillonPattern.label.take(3).uppercase()
+    }
+
+    private fun isVivillonFamily(name: String?): Boolean {
+        return when (name?.trim()?.uppercase()) {
+            "SCATTERBUG", "SPEWPA", "VIVILLON" -> true
+            else -> false
+        }
     }
 
     private fun shouldSkipFixedText(

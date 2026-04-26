@@ -101,6 +101,7 @@ fun ReviewEditorCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val language = appLanguage()
     var draft by remember(initialData, fields) {
         mutableStateOf(
             initialData.copy(
@@ -152,6 +153,9 @@ fun ReviewEditorCard(
             pvpPokemonName = selectedSpeciesRank?.pokemonName ?: selectedLeagueRank?.pokemonName
         )
     }
+    val bestMasterLabel = lt(language, "Melhor combinacao", "Best combination", "Mejor combinacion")
+    val otherMasterLabel = lt(language, "Outra combinacao", "Other combination", "Otra combinacion")
+    val unknownLabel = lt(language, "Nao identificado", "Not identified", "No identificado")
 
     Box(modifier = modifier.widthIn(max = 560.dp)) {
         Card(
@@ -171,13 +175,13 @@ fun ReviewEditorCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Dados Detectados", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text(lt(language, "Dados Detectados", "Detected Data", "Datos Detectados"), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 }
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 ReviewTextRow {
                     PokemonSuggestionField(
-                        label = "Nome",
+                        label = NamingField.POKEMON_NAME.localizedLabel(language),
                         value = draft.pokemonName.orEmpty(),
                         suggestions = pokemonSuggestions,
                         expanded = pokemonExpanded,
@@ -186,7 +190,7 @@ fun ReviewEditorCard(
                         modifier = Modifier.weight(2f)
                     )
                     SelectionDropdownField(
-                        label = "Sexo",
+                        label = NamingField.GENDER.localizedLabel(language),
                         value = when (draft.gender) {
                             Gender.MALE -> "♂"
                             Gender.FEMALE -> "♀"
@@ -205,7 +209,7 @@ fun ReviewEditorCard(
                         modifier = Modifier.weight(1f)
                     )
                     CompactField(
-                        label = "Nível",
+                        label = NamingField.LEVEL.localizedLabel(language),
                         value = draft.level?.formatLevelDebug().orEmpty(),
                         onValueChange = { draft = draft.copy(level = it.replace(",", ".").toDoubleOrNull()) },
                         headerTrailing = {
@@ -225,7 +229,7 @@ fun ReviewEditorCard(
                     ReviewTextRow {
                         if (NamingField.CP in fields) {
                             CompactField(
-                                label = "CP",
+                                label = NamingField.CP.localizedLabel(language),
                                 value = draft.cp?.toString().orEmpty(),
                                 onValueChange = { draft = draft.copy(cp = it.toIntOrNull()) },
                                 modifier = Modifier.weight(0.9f)
@@ -235,7 +239,7 @@ fun ReviewEditorCard(
                 }
                 if (uniqueFormOptions.isNotEmpty()) {
                     SelectionDropdownField(
-                        label = "Forma única",
+                        label = NamingField.UNIQUE_FORM.localizedLabel(language),
                         value = draft.uniqueForm ?: "-",
                         options = buildList {
                             add("-")
@@ -326,16 +330,16 @@ fun ReviewEditorCard(
                     SelectionDropdownField(
                         label = "",
                         value = when (draft.masterIvBadgeMatch) {
-                            true -> "Melhor combinação"
-                            false -> "Outra combinação"
+                            true -> bestMasterLabel
+                            false -> otherMasterLabel
                             null -> "-"
                         },
-                        options = listOf("-", "Melhor combinação", "Outra combinação"),
+                        options = listOf("-", bestMasterLabel, otherMasterLabel),
                         onSelected = { value ->
                             draft = draft.copy(
                                 masterIvBadgeMatch = when (value) {
-                                    "Melhor combinação" -> true
-                                    "Outra combinação" -> false
+                                    bestMasterLabel -> true
+                                    otherMasterLabel -> false
                                     else -> null
                                 }
                             )
@@ -346,16 +350,16 @@ fun ReviewEditorCard(
                         draft.masterIvBadgeDebugInfo?.let { info ->
                             Text(
                                 text = buildString {
-                                    append("Detectado: ")
+                                    append("${lt(language, "Detectado", "Detected", "Detectado")}: ")
                                     append(
                                         when (info.isBestMatch) {
-                                            true -> "Melhor combinação"
-                                            false -> "Outra combinação"
+                                            true -> bestMasterLabel
+                                            false -> otherMasterLabel
                                             null -> "-"
                                         }
                                     )
                                     if (info.expectedAttack != null && info.expectedDefense != null && info.expectedStamina != null) {
-                                        append(" | Esperado: ${info.expectedAttack}/${info.expectedDefense}/${info.expectedStamina}")
+                                        append(" | ${lt(language, "Esperado", "Expected", "Esperado")}: ${info.expectedAttack}/${info.expectedDefense}/${info.expectedStamina}")
                                     }
                                     if (info.notes.isNotBlank()) {
                                         append(" | ${info.notes}")
@@ -379,7 +383,7 @@ fun ReviewEditorCard(
             if (hasAttributeSection) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
-                        label = "Atributos",
+                        label = lt(language, "Atributos", "Attributes", "Atributos"),
                         selected = selectedDebugFields.any { it in attributeDebugFields() },
                         onMarkerClick = {
                             selectedDebugFields = selectedDebugFields.toggleAll(attributeDebugFields().intersect(fields.toSet()))
@@ -405,7 +409,7 @@ fun ReviewEditorCard(
                         }
                         if (NamingField.FAVORITE in fields) {
                             ToggleChip(
-                                label = "Favorito",
+                                label = NamingField.FAVORITE.localizedLabel(language),
                                 selected = draft.isFavorite,
                                 onClick = { draft = draft.copy(isFavorite = !draft.isFavorite) },
                                 compact = true,
@@ -415,7 +419,7 @@ fun ReviewEditorCard(
                         }
                         if (NamingField.LUCKY in fields) {
                             ToggleChip(
-                                label = "Sortudo",
+                                label = NamingField.LUCKY.localizedLabel(language),
                                 selected = draft.isLucky,
                                 onClick = { draft = draft.copy(isLucky = !draft.isLucky) },
                                 compact = true,
@@ -431,7 +435,7 @@ fun ReviewEditorCard(
                         var cellsInSecondRow = 0
                         if (NamingField.SHADOW in fields) {
                             ToggleChip(
-                                label = "Sombrio",
+                                label = NamingField.SHADOW.localizedLabel(language),
                                 selected = draft.isShadow,
                                 onClick = { draft = draft.copy(isShadow = !draft.isShadow) },
                                 compact = true,
@@ -441,7 +445,7 @@ fun ReviewEditorCard(
                         }
                         if (NamingField.PURIFIED in fields) {
                             ToggleChip(
-                                label = "Purificado",
+                                label = NamingField.PURIFIED.localizedLabel(language),
                                 selected = draft.isPurified,
                                 onClick = { draft = draft.copy(isPurified = !draft.isPurified) },
                                 compact = true,
@@ -471,7 +475,7 @@ fun ReviewEditorCard(
             if (NamingField.SIZE in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
-                        label = "Tamanho",
+                        label = NamingField.SIZE.localizedLabel(language),
                         selected = NamingField.SIZE in selectedDebugFields,
                         onMarkerClick = {
                             selectedDebugFields = selectedDebugFields.toggleField(NamingField.SIZE)
@@ -505,7 +509,7 @@ fun ReviewEditorCard(
             if (NamingField.PVP_LEAGUE in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
-                        label = "Liga PvP",
+                        label = NamingField.PVP_LEAGUE.localizedLabel(language),
                         selected = NamingField.PVP_LEAGUE in selectedDebugFields,
                         onMarkerClick = {
                             selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_LEAGUE)
@@ -537,7 +541,7 @@ fun ReviewEditorCard(
             if (NamingField.PVP_RANK in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
-                        label = "Ranking PvP",
+                        label = NamingField.PVP_RANK.localizedLabel(language),
                         selected = NamingField.PVP_RANK in selectedDebugFields,
                         onMarkerClick = {
                             selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_RANK)
@@ -594,7 +598,7 @@ fun ReviewEditorCard(
             if (isVivillonReviewFamily(draft.pokemonName)) {
                 Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                     FieldHeaderRow(
-                        label = "Padrão Vivillon",
+                        label = NamingField.VIVILLON_PATTERN.localizedLabel(language),
                         selected = NamingField.VIVILLON_PATTERN in selectedDebugFields,
                         onMarkerClick = {
                             selectedDebugFields = selectedDebugFields.toggleField(NamingField.VIVILLON_PATTERN)
@@ -603,8 +607,8 @@ fun ReviewEditorCard(
                     )
                     SelectionDropdownField(
                         label = "",
-                        value = draft.vivillonPattern?.label ?: "Não identificado",
-                        options = listOf("Não identificado") + VivillonPattern.entries.map { it.label },
+                        value = draft.vivillonPattern?.label ?: unknownLabel,
+                        options = listOf(unknownLabel) + VivillonPattern.entries.map { it.label },
                         onSelected = { value ->
                             draft = draft.copy(
                                 vivillonPattern = VivillonPattern.entries.firstOrNull { it.label == value }
@@ -627,7 +631,7 @@ fun ReviewEditorCard(
             if (hasBooleanSection) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
-                        label = "Marcadores",
+                        label = lt(language, "Marcadores", "Markers", "Marcadores"),
                         selected = selectedDebugFields.any {
                             it in setOf(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE, NamingField.LEGACY_MOVE_NAME)
                         },
@@ -646,7 +650,7 @@ fun ReviewEditorCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
                         if (NamingField.SPECIAL_BACKGROUND in fields) {
                             ToggleChip(
-                                label = "Fundo Especial",
+                                label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
                                 selected = draft.hasSpecialBackground,
                                 onClick = { draft = draft.copy(hasSpecialBackground = !draft.hasSpecialBackground) },
                                 compact = true,
@@ -655,7 +659,7 @@ fun ReviewEditorCard(
                         }
                         if (NamingField.ADVENTURE_EFFECT in fields) {
                             ToggleChip(
-                                label = "Efeito Aventura",
+                                label = NamingField.ADVENTURE_EFFECT.localizedLabel(language),
                                 selected = draft.hasAdventureEffect,
                                 onClick = { draft = draft.copy(hasAdventureEffect = !draft.hasAdventureEffect) },
                                 compact = true,
@@ -666,7 +670,7 @@ fun ReviewEditorCard(
                             val legacyMoveLabel = draft.legacyDebugInfo
                                 ?.matchedLegacyMove
                                 ?.takeIf { it.isNotBlank() }
-                                ?: "Ataque Legado"
+                                ?: NamingField.LEGACY_MOVE.localizedLabel(language)
                             ToggleChip(
                                 label = legacyMoveLabel,
                                 selected = draft.hasLegacyMove,
@@ -678,7 +682,7 @@ fun ReviewEditorCard(
                     }
                     if (NamingField.LEGACY_MOVE_NAME in fields) {
                         CompactField(
-                            label = "Nome do ataque legado",
+                            label = NamingField.LEGACY_MOVE_NAME.localizedLabel(language),
                             value = draft.legacyDebugInfo?.matchedLegacyMove.orEmpty(),
                             onValueChange = {},
                             readOnly = true,
@@ -700,7 +704,7 @@ fun ReviewEditorCard(
             if (NamingField.EVOLUTION_TYPE in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     FieldHeaderRow(
-                        label = "Evolução",
+                        label = NamingField.EVOLUTION_TYPE.localizedLabel(language),
                         selected = NamingField.EVOLUTION_TYPE in selectedDebugFields,
                         onMarkerClick = {
                             selectedDebugFields = selectedDebugFields.toggleField(NamingField.EVOLUTION_TYPE)
@@ -712,10 +716,10 @@ fun ReviewEditorCard(
                             WeightedToggleItem("Baby", EvolutionFlag.BABY in draft.evolutionFlags) {
                                 draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.BABY))
                             },
-                            WeightedToggleItem("Estágio 1", EvolutionFlag.STAGE1 in draft.evolutionFlags) {
+                            WeightedToggleItem(lt(language, "Estagio 1", "Stage 1", "Etapa 1"), EvolutionFlag.STAGE1 in draft.evolutionFlags) {
                                 draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE1))
                             },
-                            WeightedToggleItem("Estágio 2", EvolutionFlag.STAGE2 in draft.evolutionFlags) {
+                            WeightedToggleItem(lt(language, "Estagio 2", "Stage 2", "Etapa 2"), EvolutionFlag.STAGE2 in draft.evolutionFlags) {
                                 draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE2))
                             },
                             WeightedToggleItem("Mega", EvolutionFlag.MEGA in draft.evolutionFlags) {
@@ -759,17 +763,17 @@ fun ReviewEditorCard(
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                             if (onExportLog != null) {
                                 TextButton(onClick = { onExportLog(selectedDebugFields) }, modifier = Modifier.weight(0.9f)) {
-                                    Text("Exportar log", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                             Button(
                                 onClick = { onConfirm(draft.recalculateIvPercent().normalizeReviewData()) },
                                 modifier = Modifier.weight(1.2f)
                             ) {
-                                Text("Continuar", fontSize = 14.sp, maxLines = 1)
+                                Text(lt(language, "Continuar", "Continue", "Continuar"), fontSize = 14.sp, maxLines = 1)
                             }
                             TextButton(onClick = onCancel, modifier = Modifier.weight(0.9f)) {
-                                Text("Cancelar", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(lt(language, "Cancelar", "Cancel", "Cancelar"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

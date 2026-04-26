@@ -6,8 +6,10 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mewname.app.BuildConfig
+import com.mewname.app.domain.AppLanguage
 import com.mewname.app.domain.AppUpdateInfo
 import com.mewname.app.domain.AppUpdateRepository
+import com.mewname.app.domain.GameTextRepository
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
@@ -36,7 +38,15 @@ enum class AppScreen {
     PRESET_EDIT,
     LEGACY_MOVES,
     ADVENTURE_EFFECTS,
+    RAID_PLANNER,
+    TYPE_CHART,
+    MOVEDEX,
+    POKEDEX,
+    FILTER_BUILDER,
+    TEST_MENU,
+    HELP_MENU,
     DONATION,
+    PRIVACY_POLICY,
     APP_UPDATE,
     IV_VALIDATION
 }
@@ -54,8 +64,15 @@ class MainViewModel : ViewModel() {
 
     fun loadConfigs(context: Context) {
         val prefs = context.getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
+        if (_uiState.value.configsLoaded) return
+        val savedLanguage = prefs.getString("app_language", null)
+            ?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
+            ?: GameTextRepository.resolveLanguage()
         val jsonString = prefs.getString("saved_presets", null)
-        if (jsonString.isNullOrBlank()) return
+        if (jsonString.isNullOrBlank()) {
+            _uiState.update { it.copy(appLanguage = savedLanguage, configsLoaded = true) }
+            return
+        }
 
         val loadedConfigs = runCatching {
             val jsonArray = JSONArray(jsonString)
@@ -67,11 +84,23 @@ class MainViewModel : ViewModel() {
         }.getOrElse { return }
 
         _uiState.update { state ->
-            if (loadedConfigs.isEmpty()) state else state.copy(
+            if (loadedConfigs.isEmpty()) {
+                state.copy(appLanguage = savedLanguage, configsLoaded = true)
+            } else state.copy(
+                appLanguage = savedLanguage,
+                configsLoaded = true,
                 configs = loadedConfigs,
                 generatedResults = state.parsedData?.let { generateAll(it, loadedConfigs) } ?: emptyList()
             )
         }
+    }
+
+    fun setAppLanguage(context: Context, language: AppLanguage) {
+        context.getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putString("app_language", language.name)
+            .apply()
+        _uiState.update { it.copy(appLanguage = language) }
     }
 
     fun checkForAppUpdate(forceFeedback: Boolean = false) {
@@ -371,7 +400,11 @@ class MainViewModel : ViewModel() {
 
     fun updateConfig(context: Context, config: NamingConfig) {
         _uiState.update { state ->
-            val updatedConfigs = state.configs.map { if (it.id == config.id) config else it }
+            val updatedConfigs = if (state.configs.any { it.id == config.id }) {
+                state.configs.map { if (it.id == config.id) config else it }
+            } else {
+                state.configs + config
+            }
             saveConfigs(context, updatedConfigs)
             state.copy(
                 configs = updatedConfigs,
@@ -430,6 +463,8 @@ class MainViewModel : ViewModel() {
 data class UiState(
     val currentScreen: AppScreen = AppScreen.HOME,
     val editingConfigId: String? = null,
+    val appLanguage: AppLanguage = GameTextRepository.resolveLanguage(),
+    val configsLoaded: Boolean = false,
     val showBubbleOption: Boolean = true,
     val rawText: String? = null,
     val parsedData: PokemonScreenData? = null,
