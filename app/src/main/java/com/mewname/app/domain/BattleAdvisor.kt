@@ -238,6 +238,11 @@ object BattleAdvisor {
             "RAID PASS",
             "REMOTE RAID"
         ).any { it in normalized }
+        val hasPassSignal = listOf(
+            "PASSE DE REIDE",
+            "RAID PASS",
+            "REMOTE RAID"
+        ).any { it in normalized }
         val hasLobbySignal = listOf(
             "GRUPO PRIVADO",
             "PRIVATE GROUP",
@@ -270,15 +275,35 @@ object BattleAdvisor {
             "GYMS AND RAIDS",
             "TRAINER BATTLES"
         ).any { it in normalized }
+        val hasCaughtPokemonSignal = listOf(
+            "FOI PEGO",
+            "FOI CAPTURADO",
+            "WAS CAUGHT",
+            "POKEMON FOI",
+            "THE POKEMON",
+            "THIS POKEMON"
+        ).any { it in normalized }
+        val hasAppraisalSignal = listOf(
+            "ATAQUE",
+            "DEFESA",
+            "VALORACAO",
+            "APPRAISAL",
+            "ATTACK",
+            "DEFENSE"
+        ).any { it in normalized }
+        val hasMaxBattleSignal = listOf("MAX BATTLE", "BATALHA MAX").any { it in normalized }
         val hasRealRaidStartSignal = hasBattleAction ||
             hasLobbySignal ||
-            listOf("PASSE DE REIDE", "RAID PASS", "REMOTE RAID").any { it in normalized }
+            hasPassSignal
         val hasBattleEvolutionFlag = data?.evolutionFlags.orEmpty().any {
             it == EvolutionFlag.DYNAMAX || it == EvolutionFlag.GIGANTAMAX || it == EvolutionFlag.MEGA
         }
         val hasTimerLikeText = Regex("""\b\d{1,2}\s*:\s*\d{2}\s*:\s*\d{2}\b""").containsMatchIn(rawText) ||
             Regex("""\b\d{1,2}\s*:\s*\d{2}\b""").containsMatchIn(rawText)
-        if (hasPokemonDetailSignal && !hasMaxSignal && !hasRealRaidStartSignal) {
+        if (hasCaughtPokemonSignal || hasAppraisalSignal) {
+            return false
+        }
+        if (hasPokemonDetailSignal && !hasLobbySignal && !hasPassSignal && !hasMaxBattleSignal) {
             return false
         }
         return hasMaxSignal ||
@@ -311,15 +336,35 @@ object BattleAdvisor {
         return GameInfoRepository.loadBattlePokemonIndex(context)
             .asSequence()
             .flatMap { entry -> entry.normalizedNames.asSequence().map { alias -> entry.name to alias } }
-            .filter { (_, alias) ->
-                alias.length >= 4 && (
-                    alias in normalizedRaw ||
-                        alias.replace(" ", "") in compactRaw ||
-                        rawTokens.any { token -> isOneCharacterOcrMiss(token, alias) }
-                    )
+            .mapNotNull { (name, alias) ->
+                bossNameMatchRank(alias, normalizedRaw, compactRaw, rawTokens)?.let { rank ->
+                    Triple(name, alias, rank)
+                }
             }
-            .maxByOrNull { (_, alias) -> alias.length }
+            .sortedWith(
+                compareBy<Triple<String, String, Int>> { (_, _, rank) -> rank }
+                    .thenByDescending { (_, alias, _) -> alias.length }
+            )
+            .firstOrNull()
             ?.first
+    }
+
+    private fun bossNameMatchRank(
+        alias: String,
+        normalizedRaw: String,
+        compactRaw: String,
+        rawTokens: List<String>
+    ): Int? {
+        if (alias.length < 4) return null
+        val compactAlias = alias.replace(" ", "")
+        if (alias in normalizedRaw || compactAlias in compactRaw) return 0
+        if (rawTokens.any { token -> isOneCharacterOcrMiss(token, alias) || isOneCharacterOcrMiss(token, compactAlias) }) {
+            return 1
+        }
+        if (rawTokens.any { token -> isLikelyCompactBossOcrMatch(token, compactAlias) }) {
+            return 2
+        }
+        return null
     }
 
     private fun isOneCharacterOcrMiss(text: String, expected: String): Boolean {
@@ -347,6 +392,37 @@ object BattleAdvisor {
         }
         misses += (text.length - textIndex) + (expected.length - expectedIndex)
         return misses <= 1
+    }
+
+    private fun isLikelyCompactBossOcrMatch(text: String, expected: String): Boolean {
+        if (expected.length < 7 || text.length < 6) return false
+        if (text.count { it in 'A'..'Z' } < 5) return false
+        if (kotlin.math.abs(text.length - expected.length) > 2) return false
+        return editDistanceAtMost(text, expected, maxDistance = 2) <= 2
+    }
+
+    private fun editDistanceAtMost(left: String, right: String, maxDistance: Int): Int {
+        if (kotlin.math.abs(left.length - right.length) > maxDistance) return maxDistance + 1
+        var previous = IntArray(right.length + 1) { it }
+        var current = IntArray(right.length + 1)
+        for (leftIndex in 1..left.length) {
+            current[0] = leftIndex
+            var rowMin = current[0]
+            for (rightIndex in 1..right.length) {
+                val cost = if (left[leftIndex - 1] == right[rightIndex - 1]) 0 else 1
+                current[rightIndex] = minOf(
+                    previous[rightIndex] + 1,
+                    current[rightIndex - 1] + 1,
+                    previous[rightIndex - 1] + cost
+                )
+                rowMin = minOf(rowMin, current[rightIndex])
+            }
+            if (rowMin > maxDistance) return maxDistance + 1
+            val swap = previous
+            previous = current
+            current = swap
+        }
+        return previous[right.length]
     }
 
     private fun stripBattlePrefixes(text: String): String {

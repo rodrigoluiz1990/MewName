@@ -13,6 +13,7 @@ class PokemonFamilySuggester {
     private var familyMap: Map<String, List<String>>? = null
 
     fun suggestionsFor(context: Context, candyFamilyName: String?, currentName: String?): List<String> {
+        meowthFamily(candyFamilyName, currentName)?.let { return it }
         val mappedFamily = listOfNotNull(candyFamilyName, currentName)
             .map(::normalize)
             .firstNotNullOfOrNull { loadFamilyMap(context)[it] }
@@ -42,12 +43,36 @@ class PokemonFamilySuggester {
     }
 
     fun familyMembersFor(context: Context, candyFamilyName: String?, currentName: String?): List<String> {
+        meowthFamily(candyFamilyName, currentName)?.let { return it }
         val mappedFamily = listOfNotNull(candyFamilyName, currentName)
             .map(::normalize)
             .firstNotNullOfOrNull { loadFamilyMap(context)[it] }
         return mappedFamily
             ?: listOfNotNull(currentName?.takeIf { it.isNotBlank() }, candyFamilyName?.takeIf { it.isNotBlank() })
                 .distinct()
+    }
+
+    private fun meowthFamily(candyFamilyName: String?, currentName: String?): List<String>? {
+        val isMeowthFamily = listOfNotNull(candyFamilyName, currentName)
+            .map(::normalize)
+            .any { normalized ->
+                normalized == "MEOWTH" ||
+                    normalized == "PERSIAN" ||
+                    normalized == "ALOLAN MEOWTH" ||
+                    normalized == "ALOLAN PERSIAN" ||
+                    normalized == "GALARIAN MEOWTH" ||
+                    normalized == "PERRSERKER" ||
+                    normalized == "PERRSERKER GALARIAN"
+            }
+        if (!isMeowthFamily) return null
+        return listOf(
+            "Meowth",
+            "Persian",
+            "Alolan Meowth",
+            "Alolan Persian",
+            "Galarian Meowth",
+            "Perrserker"
+        )
     }
 
     private fun loadFamilyMap(context: Context): Map<String, List<String>> {

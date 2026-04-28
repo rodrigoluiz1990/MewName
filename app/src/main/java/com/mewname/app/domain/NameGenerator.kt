@@ -85,8 +85,11 @@ class NameGenerator {
                 }
                 (if (shouldUsePvpSpecies) data.pvpPokemonName else null)
                     ?.takeIf { it.isNotBlank() }
+                    ?.let { formatPokemonNameForNaming(it, data, config) }
                     ?.take(14)
-                    ?: data.pokemonName?.take(14)
+                    ?: data.pokemonName
+                        ?.let { formatPokemonNameForNaming(it, data, config) }
+                        ?.take(14)
             }
             NamingField.UNOWN_LETTER -> data.unownLetter?.takeIf { it.isNotBlank() }?.uppercase()
             NamingField.UNIQUE_FORM -> {
@@ -188,6 +191,21 @@ class NameGenerator {
         return when (name?.trim()?.uppercase()) {
             "SCATTERBUG", "SPEWPA", "VIVILLON" -> true
             else -> false
+        }
+    }
+
+    private fun formatPokemonNameForNaming(name: String, data: PokemonScreenData, config: NamingConfig): String {
+        val femaleSymbol = config.symbols["FEMALE"]?.takeIf { it.isNotBlank() } ?: "♀"
+        val maleSymbol = config.symbols["MALE"]?.takeIf { it.isNotBlank() } ?: "♂"
+        return when (name.trim().uppercase()) {
+            "NIDORANF", "NIDORAN FEMALE", "NIDORAN F", "NIDORAN♀" -> "Nidoran$femaleSymbol"
+            "NIDORANM", "NIDORAN MALE", "NIDORAN M", "NIDORAN♂" -> "Nidoran$maleSymbol"
+            "NIDORAN" -> when (data.gender) {
+                Gender.FEMALE -> "Nidoran$femaleSymbol"
+                Gender.MALE -> "Nidoran$maleSymbol"
+                else -> name
+            }
+            else -> name
         }
     }
 

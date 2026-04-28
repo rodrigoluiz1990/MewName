@@ -1170,19 +1170,24 @@ private fun TypeSelectorSingle(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp)
+                    .height(48.dp)
                     .clickable { onSelect(if (selectedType == type) null else type) },
                 shape = RoundedCornerShape(999.dp),
                 color = Color.Transparent,
                 tonalElevation = if (selectedType == type) 2.dp else 0.dp
             ) {
-                TypeBadge(
-                    type = type,
-                    language = language,
-                    modifier = Modifier.fillMaxWidth(),
-                    showAssetIcon = true,
-                    filled = selectedType == type
-                )
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    TypeBadge(
+                        type = type,
+                        language = language,
+                        modifier = Modifier.fillMaxWidth(),
+                        showAssetIcon = true,
+                        filled = true
+                    )
+                }
             }
         }
     }
@@ -1486,7 +1491,7 @@ private fun MoveCard(
 @Composable
 private fun MoveDetailBlock(
     title: String,
-    details: String,
+    details: List<String>,
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start
 ) {
@@ -1501,15 +1506,18 @@ private fun MoveDetailBlock(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Text(
-            details,
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = textAlign,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        val detailLines = details.ifEmpty { listOf("-") }
+        detailLines.forEach { detail ->
+            Text(
+                detail,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = textAlign,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -1518,12 +1526,12 @@ private fun moveDetailsText(
     damage: Int?,
     energy: Int?,
     duration: String?
-): String {
+): List<String> {
     return listOf(
         damage?.let { t(language, "dano $it", "damage $it", "dano $it") },
         energy?.let { t(language, "energia $it", "energy $it", "energia $it") },
         duration?.let { t(language, "duracao $it", "duration $it", "duracion $it") }
-    ).joinToString("  •  ").ifBlank { t(language, "sem detalhes", "no details", "sin detalles") }
+    ).filterNotNull().ifEmpty { listOf(t(language, "sem detalhes", "no details", "sin detalles")) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -1666,14 +1674,9 @@ private fun RaidHistorySection(
                             ) {
                                 Text(
                                     item.name,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    "Pokebattler",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
