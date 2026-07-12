@@ -585,7 +585,6 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     reviewableFields = reviewFields,
                     generatedResults = generatedResults
                 )
-                val reviewRecommended = shouldOpenReview(merged, reviewFields)
                 val hasIdentifiedPokemon = !merged.pokemonName.isNullOrBlank() || !merged.candyFamilyName.isNullOrBlank()
                 if (battleAdvice != null) {
                     lastBattleLogSnapshot = BattleLogSnapshot(
@@ -601,13 +600,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 } else if (!hasIdentifiedPokemon && generatedResults.isEmpty()) {
                     showUnsupportedBubbleScreenOverlay()
                 } else {
-                    showResultsOverlay(
-                        results = generatedResults,
-                        reviewRecommended = reviewRecommended,
-                        onOpenReview = {
-                            showReviewOverlay(merged, reviewFields, savedConfigs, bitmap)
-                        }
-                    )
+                    showReviewOverlay(merged, reviewFields, savedConfigs, bitmap)
                 }
 
                 isCaptureInProgress = false
@@ -1295,19 +1288,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                                     val generatedName = generator.generate(reviewed, config).trim()
                                     generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
                                 }
-                                val reviewRecommended = shouldOpenReview(reviewed, fields)
                                 lastBubbleLogSnapshot = lastBubbleLogSnapshot?.copy(
                                     reviewedData = reviewed,
                                     generatedResults = results
                                 )
                                 removeResultsOverlay()
-                                showResultsOverlay(
-                                    results = results,
-                                    reviewRecommended = reviewRecommended,
-                                    onOpenReview = {
-                                        showReviewOverlay(reviewed, fields, configs, bitmap)
-                                    }
-                                )
                             },
                             modifier = Modifier.fillMaxWidth()
                         )

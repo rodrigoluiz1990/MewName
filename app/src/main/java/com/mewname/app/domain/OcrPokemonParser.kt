@@ -357,13 +357,34 @@ class OcrPokemonParser {
             name = "Unown"
         }
 
+        var familyMembers = if (name != null || candyFamilyName != null) {
+            familySuggester.familyMembersFor(context, candyFamilyName, name)
+        } else {
+            emptyList()
+        }
+
         onAnalysisStep?.invoke("Estimando nível")
 
-        val curveLevel = if (name != null && cp != null && att != null && def != null && sta != null) {
-            rankCalculator.estimateLevel(context, name, cp, att, def, sta)
+        val curveEstimate = if (name != null && cp != null && att != null && def != null && sta != null) {
+            rankCalculator.estimateLevelForCandidates(
+                context = context,
+                pokemonNames = curveLevelCandidatesFor(context, name, familyMembers),
+                cp = cp,
+                atk = att,
+                def = def,
+                sta = sta
+            )
         } else {
             null
         }
+        val curveAdjustedPokemonName = curveEstimate?.pokemonName
+            ?.takeIf { estimatedName -> name != null && !estimatedName.equals(name, ignoreCase = true) }
+        if (curveAdjustedPokemonName != null) {
+            name = curveAdjustedPokemonName
+            familyMembers = familySuggester.familyMembersFor(context, candyFamilyName, name)
+        }
+        val curveLevel = curveEstimate?.level
+        val curveCandidateDistance = curveEstimate?.cpDistance
         val levelMismatch = if (ocrLevel != null && curveLevel != null) abs(ocrLevel - curveLevel) else null
         val level = when {
             ocrLevel != null && curveLevel != null && levelMismatch != null && levelMismatch > 2.5 -> curveLevel
@@ -387,6 +408,12 @@ class OcrPokemonParser {
             notes = buildList {
                 if (ocrLevel != null && (curveLevel == null || (levelMismatch != null && levelMismatch <= 2.5))) add("nível encontrado no texto OCR")
                 if (curveLevel != null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pela curva de CP")
+                if (curveAdjustedPokemonName != null) {
+                    add("forma ajustada pela curva de CP: $curveAdjustedPokemonName")
+                }
+                if (curveCandidateDistance != null && curveCandidateDistance > 0) {
+                    add("curva de CP com diferença de $curveCandidateDistance ponto(s)")
+                }
                 if (ocrLevel != null && curveLevel != null && levelMismatch != null && levelMismatch > 2.5) {
                     add("nível OCR descartado por divergência com a curva de CP")
                 }
@@ -395,17 +422,14 @@ class OcrPokemonParser {
                 if (curveLevel == null && cp != null && listOf(att, def, sta).any { it == null }) {
                     add("estimativa pela curva de CP exige os três IVs; nesta captura eles não foram lidos")
                 }
+                if (curveLevel == null && cp != null && name != null && listOf(att, def, sta).all { it != null }) {
+                    add("nenhuma espécie/forma candidata bateu com o CP observado")
+                }
                 if (ocrLevel == null && curveLevel == null) add("sem dados suficientes para estimar o nível")
             }.joinToString("; ")
         )
 
         onAnalysisStep?.invoke("Calculando PvP")
-
-        val familyMembers = if (name != null || candyFamilyName != null) {
-            familySuggester.familyMembersFor(context, candyFamilyName, name)
-        } else {
-            emptyList()
-        }
         val familySpeciesRanks = if (familyMembers.isNotEmpty() && att != null && def != null && sta != null) {
             rankCalculator.calculateFamilySpeciesLeagueRanks(context, familyMembers, att, def, sta)
         } else {
@@ -3383,6 +3407,30 @@ class OcrPokemonParser {
         }
 
         return null
+    }
+
+    private fun curveLevelCandidatesFor(
+        context: Context,
+        pokemonName: String?,
+        familyMembers: List<String>
+    ): List<String> {
+        val currentName = pokemonName?.takeIf { it.isNotBlank() } ?: return emptyList()
+        val currentEntry = findPokemonNameEntry(context, currentName) ?: return listOf(currentName)
+        val currentDex = currentEntry.dex
+        return buildList {
+            add(currentEntry.name)
+            familyMembers.forEach { member ->
+                val entry = findPokemonNameEntry(context, member) ?: return@forEach
+                if (entry.dex == currentDex) add(entry.name)
+            }
+        }.distinctBy(::normalizeText)
+    }
+
+    private fun findPokemonNameEntry(context: Context, name: String): PokemonNameEntry? {
+        val normalizedName = normalizeText(name)
+        return loadPokemonNames(context).firstOrNull { entry ->
+            entry.normalizedName == normalizedName || normalizedName in entry.normalizedAliases
+        }
     }
 
     private fun inferPokemonNameFromFooter(

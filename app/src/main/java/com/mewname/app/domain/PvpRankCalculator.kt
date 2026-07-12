@@ -30,6 +30,7 @@ class PvpRankCalculator {
     )
 
     data class StatProduct(val atk: Int, val def: Int, val sta: Int, val product: Double, val cp: Int, val level: Double)
+    data class LevelEstimate(val pokemonName: String, val level: Double, val cpDistance: Int)
 
     private data class RankTable(
         val byIv: Map<String, StatProduct>,
@@ -50,6 +51,26 @@ class PvpRankCalculator {
     ): Double? {
         val baseStats = loadBaseStats(context, pokemonName) ?: return null
         return estimateLevel(baseStats, cp, atk, def, sta)
+    }
+
+    fun estimateLevelForCandidates(
+        context: Context,
+        pokemonNames: List<String>,
+        cp: Int,
+        atk: Int,
+        def: Int,
+        sta: Int
+    ): LevelEstimate? {
+        return pokemonNames
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .mapNotNull { pokemonName ->
+                val baseStats = loadBaseStats(context, pokemonName) ?: return@mapNotNull null
+                estimateLevelWithDistance(baseStats, cp, atk, def, sta)?.copy(pokemonName = pokemonName)
+            }
+            .filter { it.cpDistance <= 1 }
+            .minWithOrNull(compareBy<LevelEstimate> { it.cpDistance }.thenBy { it.pokemonName })
     }
 
     fun estimateCpAtLevel(
@@ -213,6 +234,18 @@ class PvpRankCalculator {
         def: Int,
         sta: Int
     ): Double? {
+        return estimateLevelWithDistance(baseStats, observedCp, atk, def, sta)
+            ?.takeIf { it.cpDistance <= 1 }
+            ?.level
+    }
+
+    private fun estimateLevelWithDistance(
+        baseStats: JSONObject,
+        observedCp: Int,
+        atk: Int,
+        def: Int,
+        sta: Int
+    ): LevelEstimate? {
         val bAtk = baseStats.getInt("attack")
         val bDef = baseStats.getInt("defense")
         val bSta = baseStats.getInt("stamina")
@@ -232,7 +265,7 @@ class PvpRankCalculator {
             }
         }
 
-        return bestLevel?.takeIf { bestDistance <= 1 }
+        return bestLevel?.let { LevelEstimate(pokemonName = "", level = it, cpDistance = bestDistance) }
     }
 
     private fun getBestStatProduct(

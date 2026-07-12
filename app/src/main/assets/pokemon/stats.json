@@ -151,7 +151,7 @@
   "DRATINI": {"attack":119,"defense":91,"stamina":121},
   "DRAGONAIR": {"attack":163,"defense":135,"stamina":156},
   "DRAGONITE": {"attack":263,"defense":198,"stamina":209},
-  "MEWTWO": {"attack":182,"defense":278,"stamina":214},
+  "MEWTWO": {"attack":300,"defense":182,"stamina":214},
   "MEW": {"attack":210,"defense":210,"stamina":225},
   "NIDORAN": {"attack":86,"defense":89,"stamina":146},
   "MR. MIME": {"attack":192,"defense":205,"stamina":120},

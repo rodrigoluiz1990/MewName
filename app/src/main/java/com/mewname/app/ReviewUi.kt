@@ -1,8 +1,10 @@
 ﻿package com.mewname.app
 
 import android.content.Intent
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
@@ -30,7 +32,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -39,15 +40,20 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -57,13 +63,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import com.mewname.app.domain.AppLanguage
+import com.mewname.app.domain.MasterIvBadgeCatalog
+import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.PokemonFamilySuggester
+import com.mewname.app.domain.PvpRankCalculator
 import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.EvolutionFlag
 import com.mewname.app.model.Gender
@@ -76,6 +87,7 @@ import com.mewname.app.model.GenderDebugInfo
 import com.mewname.app.model.IvDebugInfo
 import com.mewname.app.model.LegacyDebugInfo
 import com.mewname.app.model.LevelDebugInfo
+import com.mewname.app.model.MasterIvBadgeDebugInfo
 import com.mewname.app.model.NamingConfig
 import com.mewname.app.model.NamingField
 import com.mewname.app.model.NormalizedDebugRect
@@ -86,7 +98,21 @@ import com.mewname.app.model.PvpLeagueRankInfo
 import com.mewname.app.model.PvpSpeciesRankInfo
 import com.mewname.app.model.VivillonPattern
 import com.mewname.app.model.hasVisibleSizeSymbol
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+
+private enum class ReviewTab {
+    BASIC,
+    PVP,
+    EXTRAS
+}
+
+private enum class ReviewIvMode {
+    NORMAL,
+    SHADOW,
+    PURIFIED
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -102,11 +128,26 @@ fun ReviewEditorCard(
 ) {
     val context = LocalContext.current
     val language = appLanguage()
+    val generator = remember { NameGenerator() }
+    val pvpRankCalculator = remember { PvpRankCalculator() }
+    val masterIvBadgeCatalog = remember { MasterIvBadgeCatalog() }
     var draft by remember(initialData, fields) {
         mutableStateOf(
             initialData.copy(
                 pokemonName = initialData.pokemonName ?: initialData.candyFamilyName
             ).recalculateIvPercent()
+        )
+    }
+    var baseAttackIv by remember(initialData) { mutableStateOf(initialData.attIv) }
+    var baseDefenseIv by remember(initialData) { mutableStateOf(initialData.defIv) }
+    var baseStaminaIv by remember(initialData) { mutableStateOf(initialData.staIv) }
+    var ivMode by remember(initialData) {
+        mutableStateOf(
+            when {
+                initialData.isPurified -> ReviewIvMode.PURIFIED
+                initialData.isShadow -> ReviewIvMode.SHADOW
+                else -> ReviewIvMode.NORMAL
+            }
         )
     }
     var pokemonExpanded by remember { mutableStateOf(false) }
@@ -133,17 +174,52 @@ fun ReviewEditorCard(
         familySuggester.suggestionsFor(context, initialData.candyFamilyName, initialData.pokemonName)
     }
     val uniqueFormOptions = remember(draft.pokemonName) { UniquePokemonCatalog.optionsFor(draft.pokemonName) }
-    val familyRankCards = remember(draft.familyPvpRanks, draft.pvpLeague) {
-        speciesRankCardsForLeague(draft.familyPvpRanks, selectedLeague = draft.pvpLeague)
+    val pvpFamilyCandidates = remember(draft.familyPvpRanks, draft.pvpPokemonName, draft.pokemonName, draft.candyFamilyName) {
+        buildList {
+            addAll(draft.familyPvpRanks.map { it.pokemonName })
+            draft.pvpPokemonName?.let(::add)
+            draft.pokemonName?.let(::add)
+            draft.candyFamilyName?.let(::add)
+        }.map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+    var derivedData by remember(draft, ivMode, pvpFamilyCandidates) {
+        mutableStateOf(draft.applyIvMode(ivMode))
+    }
+    var derivedLoading by remember(draft, ivMode, pvpFamilyCandidates) { mutableStateOf(false) }
+    LaunchedEffect(draft, ivMode, pvpFamilyCandidates) {
+        val base = draft.applyIvMode(ivMode)
+        derivedData = base
+        val atk = base.attIv
+        val def = base.defIv
+        val sta = base.staIv
+        if (atk != null && def != null && sta != null && pvpFamilyCandidates.isNotEmpty()) {
+            derivedLoading = true
+            derivedData = withContext(Dispatchers.Default) {
+                buildDerivedReviewData(
+                    context = context.applicationContext,
+                    data = base,
+                    familyMembers = pvpFamilyCandidates,
+                    rankCalculator = pvpRankCalculator,
+                    masterIvBadgeCatalog = masterIvBadgeCatalog
+                )
+            }
+            derivedLoading = false
+        }
+    }
+    val reviewData = derivedData
+    val familyRankCards = remember(reviewData.familyPvpRanks, reviewData.pvpLeague) {
+        speciesRankCardsForLeague(reviewData.familyPvpRanks, selectedLeague = reviewData.pvpLeague)
     }
     fun selectPvpLeague(league: PvpLeague?) {
         val selectedSpeciesRank = league?.let { selected ->
-            draft.familyPvpRanks
+            reviewData.familyPvpRanks
                 .filter { it.league == selected && it.eligible && it.rank != null }
                 .minByOrNull { it.rank ?: Int.MAX_VALUE }
         }
         val selectedLeagueRank = if (selectedSpeciesRank == null && league != null) {
-            draft.pvpLeagueRanks.firstOrNull { it.league == league && it.eligible }
+            reviewData.pvpLeagueRanks.firstOrNull { it.league == league && it.eligible }
         } else {
             null
         }
@@ -156,10 +232,60 @@ fun ReviewEditorCard(
     val bestMasterLabel = lt(language, "Melhor combinacao", "Best combination", "Mejor combinacion")
     val otherMasterLabel = lt(language, "Outra combinacao", "Other combination", "Otra combinacion")
     val unknownLabel = lt(language, "Nao identificado", "Not identified", "No identificado")
+    val generatedSuggestions = remember(reviewData, configs) {
+        val reviewedDraft = reviewData.recalculateIvPercent().normalizeReviewData()
+        configs.mapNotNull { config ->
+            generator.generate(reviewedDraft, config)
+                .trim()
+                .takeIf { it.isNotEmpty() }
+                ?.let { config.name to it }
+        }
+    }
+    val hasPvpTab = listOf(NamingField.PVP_LEAGUE, NamingField.PVP_RANK).any { it in fields }
+    val hasIvModeField = listOf(NamingField.MASTER_IV_BADGE, NamingField.SHADOW, NamingField.PURIFIED).any { it in fields }
+    val hasExtrasTab = listOf(
+        NamingField.TYPE,
+        NamingField.FAVORITE,
+        NamingField.LUCKY,
+        NamingField.SIZE,
+        NamingField.SPECIAL_BACKGROUND,
+        NamingField.ADVENTURE_EFFECT,
+        NamingField.LEGACY_MOVE,
+        NamingField.LEGACY_MOVE_NAME,
+        NamingField.EVOLUTION_TYPE
+    ).any { it in fields }
+    val reviewTabs = remember(fields, hasPvpTab, hasExtrasTab) {
+        buildList {
+            add(ReviewTab.BASIC)
+            if (hasPvpTab) add(ReviewTab.PVP)
+            if (hasExtrasTab) add(ReviewTab.EXTRAS)
+        }
+    }
+    var selectedReviewTab by remember(fields) { mutableStateOf(ReviewTab.BASIC) }
+    val activeReviewTab = selectedReviewTab.takeIf { it in reviewTabs } ?: ReviewTab.BASIC
+    val selectedReviewTabIndex = reviewTabs.indexOf(activeReviewTab).coerceAtLeast(0)
+    LaunchedEffect(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv) {
+        val effectiveAttack = effectiveIvForMode(baseAttackIv, ivMode)
+        val effectiveDefense = effectiveIvForMode(baseDefenseIv, ivMode)
+        val effectiveStamina = effectiveIvForMode(baseStaminaIv, ivMode)
+        if (draft.attIv != effectiveAttack || draft.defIv != effectiveDefense || draft.staIv != effectiveStamina) {
+            draft = draft.copy(
+                attIv = effectiveAttack,
+                defIv = effectiveDefense,
+                staIv = effectiveStamina
+            ).recalculateIvPercent()
+        }
+    }
+    val maxCardHeight = (LocalConfiguration.current.screenHeightDp.dp - 32.dp).coerceAtLeast(360.dp)
+    val confirmReviewedData = {
+        onConfirm(reviewData.recalculateIvPercent().normalizeReviewData())
+    }
 
-    Box(modifier = modifier.widthIn(max = 560.dp)) {
+    Box(modifier = modifier.widthIn(max = 560.dp).heightIn(max = maxCardHeight)) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = maxCardHeight),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.68f))
         ) {
@@ -167,17 +293,50 @@ fun ReviewEditorCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                SuggestedNamesBlock(
+                    suggestions = generatedSuggestions,
+                    language = language,
+                    onSuggestionSelected = { confirmReviewedData() },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                    tonalElevation = 1.dp
+                ) {
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedReviewTabIndex,
+                        edgePadding = 0.dp,
+                        divider = {}
+                    ) {
+                        reviewTabs.forEach { tab ->
+                            Tab(
+                                selected = activeReviewTab == tab,
+                                onClick = { selectedReviewTab = tab },
+                                text = {
+                                    Text(
+                                        text = when (tab) {
+                                            ReviewTab.BASIC -> lt(language, "Nome e IV", "Name and IV", "Nombre e IV")
+                                            ReviewTab.PVP -> lt(language, "Liga e ranking", "League and rank", "Liga y ranking")
+                                            ReviewTab.EXTRAS -> lt(language, "Extras", "Extras", "Extras")
+                                        },
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
             Column(
                 modifier = Modifier
-                    .heightIn(max = 620.dp)
+                    .weight(1f, fill = false)
+                    .heightIn(max = 430.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(lt(language, "Dados Detectados", "Detected Data", "Datos Detectados"), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                }
-
+            if (activeReviewTab == ReviewTab.BASIC) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 ReviewTextRow {
                     PokemonSuggestionField(
@@ -269,7 +428,9 @@ fun ReviewEditorCard(
                     )
                 }
             }
+            }
 
+            if (activeReviewTab == ReviewTab.BASIC) {
             if (NamingField.IV_PERCENT in fields || NamingField.IV_COMBINATION in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
@@ -318,36 +479,56 @@ fun ReviewEditorCard(
                     }
                 }
             }
-            if (NamingField.MASTER_IV_BADGE in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FieldHeaderRow(
-                        label = "IV Master",
-                        selected = NamingField.MASTER_IV_BADGE in selectedDebugFields,
-                        onMarkerClick = {
-                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.MASTER_IV_BADGE)
-                        }
-                    )
+            if (hasIvModeField) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    if (NamingField.MASTER_IV_BADGE in fields) {
+                        SelectionDropdownField(
+                            label = "IV Master",
+                            value = when (reviewData.masterIvBadgeMatch) {
+                                true -> bestMasterLabel
+                                false -> otherMasterLabel
+                                null -> "-"
+                            },
+                            options = listOf("-", bestMasterLabel, otherMasterLabel),
+                            onSelected = { value ->
+                                draft = draft.copy(
+                                    masterIvBadgeMatch = when (value) {
+                                        bestMasterLabel -> true
+                                        otherMasterLabel -> false
+                                        else -> null
+                                    }
+                                )
+                            },
+                            headerTrailing = {
+                                UnownHeaderIcon(
+                                    selected = NamingField.MASTER_IV_BADGE in selectedDebugFields,
+                                    onClick = {
+                                        selectedDebugFields = selectedDebugFields.toggleField(NamingField.MASTER_IV_BADGE)
+                                    },
+                                    contentDescription = "Selecionar log de IV Master"
+                                )
+                            },
+                            modifier = Modifier.weight(1.45f)
+                        )
+                    }
                     SelectionDropdownField(
-                        label = "",
-                        value = when (draft.masterIvBadgeMatch) {
-                            true -> bestMasterLabel
-                            false -> otherMasterLabel
-                            null -> "-"
-                        },
-                        options = listOf("-", bestMasterLabel, otherMasterLabel),
+                        label = lt(language, "Forma", "Form", "Forma"),
+                        value = ivMode.localizedLabel(language),
+                        options = ReviewIvMode.entries.map { it.localizedLabel(language) },
                         onSelected = { value ->
-                            draft = draft.copy(
-                                masterIvBadgeMatch = when (value) {
-                                    bestMasterLabel -> true
-                                    otherMasterLabel -> false
-                                    else -> null
-                                }
-                            )
+                            ReviewIvMode.entries.firstOrNull { it.localizedLabel(language) == value }?.let { selected ->
+                                ivMode = selected
+                                draft = draft.copy(
+                                    isShadow = selected == ReviewIvMode.SHADOW,
+                                    isPurified = selected == ReviewIvMode.PURIFIED
+                                )
+                            }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.weight(1f)
                     )
+                }
                     if (NamingField.MASTER_IV_BADGE in selectedDebugFields) {
-                        draft.masterIvBadgeDebugInfo?.let { info ->
+                        reviewData.masterIvBadgeDebugInfo?.let { info ->
                             Text(
                                 text = buildString {
                                     append("${lt(language, "Detectado", "Detected", "Detectado")}: ")
@@ -370,16 +551,15 @@ fun ReviewEditorCard(
                             )
                         }
                     }
-                }
+            }
             }
 
             val hasAttributeSection = listOf(
                 NamingField.TYPE,
                 NamingField.FAVORITE,
-                NamingField.LUCKY,
-                NamingField.SHADOW,
-                NamingField.PURIFIED
+                NamingField.LUCKY
             ).any { it in fields }
+            if (activeReviewTab == ReviewTab.EXTRAS) {
             if (hasAttributeSection) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
@@ -431,32 +611,6 @@ fun ReviewEditorCard(
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
-                    ReviewTextRow {
-                        var cellsInSecondRow = 0
-                        if (NamingField.SHADOW in fields) {
-                            ToggleChip(
-                                label = NamingField.SHADOW.localizedLabel(language),
-                                selected = draft.isShadow,
-                                onClick = { draft = draft.copy(isShadow = !draft.isShadow) },
-                                compact = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            cellsInSecondRow++
-                        }
-                        if (NamingField.PURIFIED in fields) {
-                            ToggleChip(
-                                label = NamingField.PURIFIED.localizedLabel(language),
-                                selected = draft.isPurified,
-                                onClick = { draft = draft.copy(isPurified = !draft.isPurified) },
-                                compact = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            cellsInSecondRow++
-                        }
-                        repeat((3 - cellsInSecondRow).coerceAtLeast(0)) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
                     if (showAttributeHelp) {
                         AttributeHelpPanel(
                             info = draft.attributeDebugInfo,
@@ -471,7 +625,9 @@ fun ReviewEditorCard(
                     }
                 }
             }
+            }
 
+            if (activeReviewTab == ReviewTab.EXTRAS) {
             if (NamingField.SIZE in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
@@ -505,7 +661,9 @@ fun ReviewEditorCard(
                     }
                 }
             }
+            }
 
+            if (activeReviewTab == ReviewTab.PVP) {
             if (NamingField.PVP_LEAGUE in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
@@ -518,22 +676,29 @@ fun ReviewEditorCard(
                     )
                     WeightedToggleRow(
                         items = listOf(
-                            WeightedToggleItem("Copinha", draft.pvpLeague == PvpLeague.LITTLE) {
-                                selectPvpLeague(if (draft.pvpLeague == PvpLeague.LITTLE) null else PvpLeague.LITTLE)
+                            WeightedToggleItem("Copinha", reviewData.pvpLeague == PvpLeague.LITTLE) {
+                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.LITTLE) null else PvpLeague.LITTLE)
                             },
-                            WeightedToggleItem("Great", draft.pvpLeague == PvpLeague.GREAT) {
-                                selectPvpLeague(if (draft.pvpLeague == PvpLeague.GREAT) null else PvpLeague.GREAT)
+                            WeightedToggleItem("Great", reviewData.pvpLeague == PvpLeague.GREAT) {
+                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.GREAT) null else PvpLeague.GREAT)
                             },
-                            WeightedToggleItem("Ultra", draft.pvpLeague == PvpLeague.ULTRA) {
-                                selectPvpLeague(if (draft.pvpLeague == PvpLeague.ULTRA) null else PvpLeague.ULTRA)
+                            WeightedToggleItem("Ultra", reviewData.pvpLeague == PvpLeague.ULTRA) {
+                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.ULTRA) null else PvpLeague.ULTRA)
                             },
-                            WeightedToggleItem("Master", draft.pvpLeague == PvpLeague.MASTER) {
-                                selectPvpLeague(if (draft.pvpLeague == PvpLeague.MASTER) null else PvpLeague.MASTER)
+                            WeightedToggleItem("Master", reviewData.pvpLeague == PvpLeague.MASTER) {
+                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.MASTER) null else PvpLeague.MASTER)
                             }
                         )
                     )
+                    if (derivedLoading) {
+                        Text(
+                            lt(language, "Recalculando rankings...", "Recalculating rankings...", "Recalculando rankings..."),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     if (showLeagueHelp) {
-                        PvpHelpPanel(leagueRanks = draft.pvpLeagueRanks, speciesRanks = draft.familyPvpRanks)
+                        PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
                     }
                 }
             }
@@ -551,7 +716,7 @@ fun ReviewEditorCard(
                     if (familyRankCards.isEmpty()) {
                         CompactField(
                             label = "",
-                            value = draft.pvpRank?.toString().orEmpty(),
+                            value = reviewData.pvpRank?.toString().orEmpty(),
                             onValueChange = { draft = draft.copy(pvpRank = it.toIntOrNull()) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -563,9 +728,9 @@ fun ReviewEditorCard(
                                     value = rankCard.value,
                                     onValueChange = {},
                                     readOnly = true,
-                                    active = draft.pvpLeague == rankCard.league &&
-                                        draft.pvpRank == rankCard.rank &&
-                                        draft.pvpPokemonName == rankCard.pokemonName,
+                                    active = reviewData.pvpLeague == rankCard.league &&
+                                        reviewData.pvpRank == rankCard.rank &&
+                                        reviewData.pvpPokemonName == rankCard.pokemonName,
                                     onClick = {
                                         if (rankCard.eligible) {
                                             draft = draft.copy(
@@ -590,11 +755,13 @@ fun ReviewEditorCard(
                         }
                     }
                     if (showPvpHelp) {
-                        PvpHelpPanel(leagueRanks = draft.pvpLeagueRanks, speciesRanks = draft.familyPvpRanks)
+                        PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
                     }
                 }
             }
+            }
 
+            if (activeReviewTab == ReviewTab.BASIC) {
             if (isVivillonReviewFamily(draft.pokemonName)) {
                 Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                     FieldHeaderRow(
@@ -621,6 +788,7 @@ fun ReviewEditorCard(
                     }
                 }
             }
+            }
 
             val hasBooleanSection = listOf(
                 NamingField.SPECIAL_BACKGROUND,
@@ -628,6 +796,7 @@ fun ReviewEditorCard(
                 NamingField.LEGACY_MOVE,
                 NamingField.LEGACY_MOVE_NAME
             ).any { it in fields }
+            if (activeReviewTab == ReviewTab.EXTRAS) {
             if (hasBooleanSection) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
@@ -745,6 +914,7 @@ fun ReviewEditorCard(
                     }
                 }
             }
+            }
 
                 }
 
@@ -762,17 +932,11 @@ fun ReviewEditorCard(
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                             if (onExportLog != null) {
-                                TextButton(onClick = { onExportLog(selectedDebugFields) }, modifier = Modifier.weight(0.9f)) {
+                                TextButton(onClick = { onExportLog(selectedDebugFields) }, modifier = Modifier.weight(1f)) {
                                     Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
-                            Button(
-                                onClick = { onConfirm(draft.recalculateIvPercent().normalizeReviewData()) },
-                                modifier = Modifier.weight(1.2f)
-                            ) {
-                                Text(lt(language, "Continuar", "Continue", "Continuar"), fontSize = 14.sp, maxLines = 1)
-                            }
-                            TextButton(onClick = onCancel, modifier = Modifier.weight(0.9f)) {
+                            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
                                 Text(lt(language, "Cancelar", "Cancel", "Cancelar"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
@@ -781,7 +945,7 @@ fun ReviewEditorCard(
             }
         }
 
-        if (activeIvPicker != null) {
+                        if (activeIvPicker != null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -801,10 +965,15 @@ fun ReviewEditorCard(
                         else -> draft.staIv
                     },
                     onValueSelected = { selected ->
+                        when (activeIvPicker) {
+                            "atk" -> baseAttackIv = displayIvToBaseIv(selected, ivMode)
+                            "def" -> baseDefenseIv = displayIvToBaseIv(selected, ivMode)
+                            else -> baseStaminaIv = displayIvToBaseIv(selected, ivMode)
+                        }
                         draft = when (activeIvPicker) {
-                            "atk" -> draft.copy(attIv = selected)
-                            "def" -> draft.copy(defIv = selected)
-                            else -> draft.copy(staIv = selected)
+                            "atk" -> draft.copy(attIv = effectiveIvForMode(baseAttackIv, ivMode))
+                            "def" -> draft.copy(defIv = effectiveIvForMode(baseDefenseIv, ivMode))
+                            else -> draft.copy(staIv = effectiveIvForMode(baseStaminaIv, ivMode))
                         }.recalculateIvPercent()
                         activeIvPicker = null
                     },
@@ -1115,6 +1284,87 @@ private fun EvolutionIconHelpPanel(info: EvolutionIconDebugInfo?) {
             }
             if (!info?.notes.isNullOrBlank()) {
                 Text("Obs: ${info?.notes}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestedNamesBlock(
+    suggestions: List<Pair<String, String>>,
+    language: AppLanguage,
+    onSuggestionSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Text(
+                lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (suggestions.isEmpty()) {
+                Text(
+                    lt(
+                        language,
+                        "Nenhum nome foi gerado com os dados atuais.",
+                        "No name was generated with the current data.",
+                        "No se genero ningun nombre con los datos actuales."
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    suggestions.forEach { (configName, generatedName) ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    clipboard.setText(AnnotatedString(generatedName))
+                                    Toast.makeText(context, "Copiado!", Toast.LENGTH_SHORT).show()
+                                    onSuggestionSelected(generatedName)
+                                },
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.50f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    configName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    generatedName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1785,7 +2035,9 @@ private fun FieldLabelRow(
     trailing: (@Composable (() -> Unit))? = null
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2071,6 +2323,138 @@ private fun attributeDebugFields(): Set<NamingField> = linkedSetOf(
     NamingField.SHADOW,
     NamingField.PURIFIED
 )
+
+private fun ReviewIvMode.localizedLabel(language: AppLanguage): String {
+    return when (this) {
+        ReviewIvMode.NORMAL -> lt(language, "Normal", "Normal", "Normal")
+        ReviewIvMode.SHADOW -> lt(language, "Sombroso", "Shadow", "Oscuro")
+        ReviewIvMode.PURIFIED -> lt(language, "Purificado", "Purified", "Purificado")
+    }
+}
+
+private fun PokemonScreenData.applyIvMode(mode: ReviewIvMode): PokemonScreenData {
+    return copy(
+        isShadow = mode == ReviewIvMode.SHADOW,
+        isPurified = mode == ReviewIvMode.PURIFIED
+    ).recalculateIvPercent()
+}
+
+private fun effectiveIvForMode(value: Int?, mode: ReviewIvMode): Int? {
+    return if (mode == ReviewIvMode.PURIFIED) {
+        value?.plus(2)?.coerceAtMost(15)
+    } else {
+        value
+    }
+}
+
+private fun displayIvToBaseIv(value: Int, mode: ReviewIvMode): Int {
+    return if (mode == ReviewIvMode.PURIFIED) {
+        (value - 2).coerceIn(0, 15)
+    } else {
+        value
+    }
+}
+
+private fun buildDerivedReviewData(
+    context: Context,
+    data: PokemonScreenData,
+    familyMembers: List<String>,
+    rankCalculator: PvpRankCalculator,
+    masterIvBadgeCatalog: MasterIvBadgeCatalog
+): PokemonScreenData {
+    val attack = data.attIv ?: return data
+    val defense = data.defIv ?: return data
+    val stamina = data.staIv ?: return data
+    val familyRanks = runCatching {
+        rankCalculator.calculateFamilySpeciesLeagueRanks(context, familyMembers, attack, defense, stamina)
+    }.getOrElse { emptyList() }
+    val leagueRanks = bestLeagueRanksFromSpecies(familyRanks)
+    val selectedLeague = data.pvpLeague
+        ?.takeIf { league -> familyRanks.any { it.league == league && it.eligible && it.rank != null } }
+        ?: bestLeagueFromRanks(familyRanks, leagueRanks)
+    val selectedSpeciesRank = selectedLeague?.let { league ->
+        familyRanks
+            .filter { it.league == league && it.eligible && it.rank != null }
+            .minWithOrNull(compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.pokemonName })
+    }
+    val selectedLeagueRank = if (selectedSpeciesRank == null && selectedLeague != null) {
+        leagueRanks.firstOrNull { it.league == selectedLeague && it.eligible }
+    } else {
+        null
+    }
+    val masterResult = runCatching {
+        masterIvBadgeCatalog.resolve(
+            context = context,
+            familyMembers = familyMembers,
+            ivPercent = data.ivPercent,
+            attack = attack,
+            defense = defense,
+            stamina = stamina
+        )
+    }.getOrNull()
+    return data.copy(
+        familyPvpRanks = familyRanks,
+        pvpLeagueRanks = leagueRanks,
+        pvpLeague = selectedLeague,
+        pvpRank = selectedSpeciesRank?.rank ?: selectedLeagueRank?.rank,
+        pvpPokemonName = selectedSpeciesRank?.pokemonName ?: selectedLeagueRank?.pokemonName,
+        masterIvBadgeMatch = masterResult?.isBestMatch,
+        masterIvBadgeDebugInfo = masterResult?.let { result ->
+            MasterIvBadgeDebugInfo(
+                supportedIvPercent = result.notes != "iv_percent_fora_do_escopo",
+                familyMembers = familyMembers,
+                expectedAttack = result.expectedAttack,
+                expectedDefense = result.expectedDefense,
+                expectedStamina = result.expectedStamina,
+                isBestMatch = result.isBestMatch,
+                notes = result.notes
+            )
+        }
+    )
+}
+
+private fun bestLeagueRanksFromSpecies(speciesRanks: List<PvpSpeciesRankInfo>): List<PvpLeagueRankInfo> {
+    return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).mapNotNull { league ->
+        val best = selectBestFamilyOption(speciesRanks.filter { it.league == league }) ?: return@mapNotNull null
+        PvpLeagueRankInfo(
+            league = best.league,
+            pokemonName = best.pokemonName,
+            eligible = best.eligible,
+            rank = best.rank,
+            bestCp = best.bestCp,
+            bestLevel = best.bestLevel,
+            bestStatProduct = best.bestStatProduct,
+            stadiumUrl = best.stadiumUrl,
+            description = best.description
+        )
+    }
+}
+
+private fun selectBestFamilyOption(options: List<PvpSpeciesRankInfo>): PvpSpeciesRankInfo? {
+    val eligible = options.filter { it.eligible && it.bestStatProduct != null }
+    if (eligible.isNotEmpty()) {
+        return eligible.maxWithOrNull(
+            compareBy<PvpSpeciesRankInfo> { it.bestStatProduct ?: Double.NEGATIVE_INFINITY }
+                .thenByDescending { it.bestLevel ?: 0.0 }
+                .thenByDescending { it.bestCp ?: 0 }
+        )
+    }
+    return options.firstOrNull()
+}
+
+private fun bestLeagueFromRanks(
+    speciesRanks: List<PvpSpeciesRankInfo>,
+    leagueRanks: List<PvpLeagueRankInfo>
+): PvpLeague? {
+    return speciesRanks
+        .filter { it.eligible && it.rank != null }
+        .minWithOrNull(compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.league.ordinal })
+        ?.league
+        ?: leagueRanks
+            .filter { it.eligible && it.rank != null }
+            .minWithOrNull(compareBy<PvpLeagueRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.league.ordinal })
+            ?.league
+}
 
 private fun PokemonScreenData.normalizeReviewData(): PokemonScreenData {
     val att = attIv
