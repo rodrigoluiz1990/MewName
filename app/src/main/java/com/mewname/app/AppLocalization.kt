@@ -41,6 +41,8 @@ fun NamingField.localizedLabel(language: AppLanguage): String = when (this) {
     NamingField.PURIFIED -> lt(language, "Purificado", "Purified", "Purificado")
     NamingField.SPECIAL_BACKGROUND -> lt(language, "Fundo Especial", "Special Background", "Fondo Especial")
     NamingField.ADVENTURE_EFFECT -> lt(language, "Efeito Aventura", "Adventure Effect", "Efecto Aventura")
+    NamingField.EVOLVE_MARKER -> lt(language, "Evoluir", "Evolve", "Evolucionar")
+    NamingField.PURIFY_MARKER -> lt(language, "Purificar", "Purify", "Purificar")
     NamingField.SIZE -> lt(language, "Tamanho", "Size", "Tamano")
     NamingField.MASTER_IV_BADGE -> "IV Master"
     NamingField.PVP_LEAGUE -> lt(language, "Liga PvP", "PvP League", "Liga PvP")

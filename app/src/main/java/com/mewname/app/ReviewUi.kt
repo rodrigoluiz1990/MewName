@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -242,7 +244,7 @@ fun ReviewEditorCard(
         }
     }
     val hasPvpTab = listOf(NamingField.PVP_LEAGUE, NamingField.PVP_RANK).any { it in fields }
-    val hasIvModeField = listOf(NamingField.MASTER_IV_BADGE, NamingField.SHADOW, NamingField.PURIFIED).any { it in fields }
+    val hasIvModeField = listOf(NamingField.MASTER_IV_BADGE, NamingField.SHADOW, NamingField.PURIFIED, NamingField.PURIFY_MARKER).any { it in fields }
     val hasExtrasTab = listOf(
         NamingField.TYPE,
         NamingField.FAVORITE,
@@ -339,15 +341,39 @@ fun ReviewEditorCard(
             if (activeReviewTab == ReviewTab.BASIC) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 ReviewTextRow {
-                    PokemonSuggestionField(
-                        label = NamingField.POKEMON_NAME.localizedLabel(language),
-                        value = draft.pokemonName.orEmpty(),
-                        suggestions = pokemonSuggestions,
-                        expanded = pokemonExpanded,
-                        onExpandedChange = { pokemonExpanded = it },
-                        onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
-                        modifier = Modifier.weight(2f)
-                    )
+                    if (NamingField.EVOLVE_MARKER in fields) {
+                        Row(
+                            modifier = Modifier.weight(2f),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            PokemonSuggestionField(
+                                label = NamingField.POKEMON_NAME.localizedLabel(language),
+                                value = draft.pokemonName.orEmpty(),
+                                suggestions = pokemonSuggestions,
+                                expanded = pokemonExpanded,
+                                onExpandedChange = { pokemonExpanded = it },
+                                onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            MarkerCheckboxField(
+                                label = NamingField.EVOLVE_MARKER.localizedLabel(language),
+                                checked = draft.shouldEvolve,
+                                onCheckedChange = { draft = draft.copy(shouldEvolve = it) },
+                                modifier = Modifier.width(52.dp)
+                            )
+                        }
+                    } else {
+                        PokemonSuggestionField(
+                            label = NamingField.POKEMON_NAME.localizedLabel(language),
+                            value = draft.pokemonName.orEmpty(),
+                            suggestions = pokemonSuggestions,
+                            expanded = pokemonExpanded,
+                            onExpandedChange = { pokemonExpanded = it },
+                            onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
+                            modifier = Modifier.weight(2f)
+                        )
+                    }
                     SelectionDropdownField(
                         label = NamingField.GENDER.localizedLabel(language),
                         value = when (draft.gender) {
@@ -526,6 +552,14 @@ fun ReviewEditorCard(
                         },
                         modifier = Modifier.weight(1f)
                     )
+                    if (NamingField.PURIFY_MARKER in fields) {
+                        MarkerCheckboxField(
+                            label = NamingField.PURIFY_MARKER.localizedLabel(language),
+                            checked = draft.shouldPurify,
+                            onCheckedChange = { draft = draft.copy(shouldPurify = it) },
+                            modifier = Modifier.width(56.dp)
+                        )
+                    }
                 }
                     if (NamingField.MASTER_IV_BADGE in selectedDebugFields) {
                         reviewData.masterIvBadgeDebugInfo?.let { info ->
@@ -1648,6 +1682,35 @@ private fun PokemonSuggestionField(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MarkerCheckboxField(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+    ) {
+        FieldLabelRow(label = label)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 36.dp)
+                .clickable { onCheckedChange(!checked) },
+            contentAlignment = Alignment.Center
+        ) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.size(30.dp)
+            )
         }
     }
 }

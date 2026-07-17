@@ -822,7 +822,7 @@ class OcrPokemonParser {
                 }
                 entry to score
             }
-            .filter { (_, score) -> score <= 2 || normalizedFamily.length >= 4 }
+            .filter { (_, score) -> score <= fuzzyCandyFamilyThreshold(normalizedFamily.length) }
             .minByOrNull { (_, score) -> score }
             ?.first
             ?.name
@@ -843,6 +843,15 @@ class OcrPokemonParser {
             resolvedFamilyName = resolved,
             notes = resolutionNotes
         )
+    }
+
+    private fun fuzzyCandyFamilyThreshold(length: Int): Int {
+        return when {
+            length <= 5 -> 1
+            length <= 8 -> 2
+            length <= 12 -> 3
+            else -> 4
+        }
     }
 
     private fun chooseCandyFamilyResolution(

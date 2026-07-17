@@ -1663,6 +1663,8 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             NamingField.TYPE,
             NamingField.SPECIAL_BACKGROUND,
             NamingField.ADVENTURE_EFFECT,
+            NamingField.EVOLVE_MARKER,
+            NamingField.PURIFY_MARKER,
             NamingField.LEGACY_MOVE,
             NamingField.LEGACY_MOVE_NAME,
             NamingField.EVOLUTION_TYPE,
@@ -1728,6 +1730,8 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             isPurified = true,
             hasSpecialBackground = true,
             hasAdventureEffect = true,
+            shouldEvolve = true,
+            shouldPurify = true,
             size = PokemonSize.XXL,
             pvpLeague = PvpLeague.GREAT,
             pvpRank = 1,
@@ -1888,9 +1892,21 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                     },
                     fields = groupFields.filter { it in availableVariableFields },
                     onFieldClick = { selectedField = it },
-                    extraActionLabel = if (groupTitle == "Especial") lt(language, "Texto Livre", "Free Text", "Texto Libre") else null,
-                    onExtraActionClick = if (groupTitle == "Especial") {
-                        { showFixedTextDialog = true }
+                    extraActions = if (groupTitle == "Especial") {
+                        listOf(
+                            VariableExtraAction(
+                                label = lt(language, "Texto Livre", "Free Text", "Texto Libre"),
+                                onClick = { showFixedTextDialog = true }
+                            ),
+                            VariableExtraAction(
+                                label = NamingField.EVOLVE_MARKER.localizedLabel(language),
+                                onClick = { selectedField = NamingField.EVOLVE_MARKER }
+                            ),
+                            VariableExtraAction(
+                                label = NamingField.PURIFY_MARKER.localizedLabel(language),
+                                onClick = { selectedField = NamingField.PURIFY_MARKER }
+                            )
+                        )
                     } else {
                         null
                     }
@@ -2140,14 +2156,18 @@ private data class FieldSymbolOption(
     val value: String
 )
 
+private data class VariableExtraAction(
+    val label: String,
+    val onClick: () -> Unit
+)
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun VariableFieldGroupCard(
     title: String,
     fields: List<NamingField>,
     onFieldClick: (NamingField) -> Unit,
-    extraActionLabel: String? = null,
-    onExtraActionClick: (() -> Unit)? = null
+    extraActions: List<VariableExtraAction>? = null
 ) {
     val language = appLanguage()
     Card(
@@ -2159,50 +2179,62 @@ private fun VariableFieldGroupCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            val rows = fields.chunked(3)
-            rows.forEachIndexed { rowIndex, rowFields ->
-                val shouldAppendExtraAction =
-                    rowIndex == rows.lastIndex &&
-                        rowFields.size < 3 &&
-                        !extraActionLabel.isNullOrBlank() &&
-                        onExtraActionClick != null
+            val rows = buildList {
+                addAll(fields.map { field ->
+                    VariableActionItem.Field(field)
+                })
+                extraActions.orEmpty().forEach { action ->
+                    add(VariableActionItem.Extra(action))
+                }
+            }.chunked(3)
+            rows.forEach { rowFields ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    rowFields.forEach { field ->
-                        VariableActionCard(
-                            label = field.localizedLabel(language),
-                            leadingIcon = if (field == NamingField.MASTER_IV_BADGE) {
-                                {
-                                    Text(
-                                        "+",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                            modifier = Modifier.weight(1f),
-                            onClick = { onFieldClick(field) }
-                        )
+                    rowFields.forEach { item ->
+                        when (item) {
+                            is VariableActionItem.Field -> {
+                                val field = item.field
+                                VariableActionCard(
+                                    label = field.localizedLabel(language),
+                                    leadingIcon = if (field == NamingField.MASTER_IV_BADGE) {
+                                        {
+                                            Text(
+                                                "+",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { onFieldClick(field) }
+                                )
+                            }
+                            is VariableActionItem.Extra -> {
+                                VariableActionCard(
+                                    label = item.action.label,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = item.action.onClick
+                                )
+                            }
+                        }
                     }
-                    if (shouldAppendExtraAction) {
-                        VariableActionCard(
-                            label = extraActionLabel!!,
-                            modifier = Modifier.weight(1f),
-                            onClick = onExtraActionClick!!
-                        )
-                    }
-                    repeat(3 - rowFields.size - if (shouldAppendExtraAction) 1 else 0) {
+                    repeat(3 - rowFields.size) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
         }
     }
+}
+
+private sealed interface VariableActionItem {
+    data class Field(val field: NamingField) : VariableActionItem
+    data class Extra(val action: VariableExtraAction) : VariableActionItem
 }
 
 @Composable
@@ -2259,6 +2291,8 @@ private fun fieldDescription(field: NamingField, language: AppLanguage): String 
         NamingField.LEGACY_MOVE_NAME -> lt(language, "Exibir o nome do ataque legado detectado.", "Show the detected legacy move name.", "Mostrar el nombre del ataque legado detectado.")
         NamingField.TYPE -> lt(language, "Adicionar o tipo principal do Pokemon usando uma sigla configuravel.", "Add the main type using a configurable abbreviation.", "Agregar el tipo principal usando una abreviatura configurable.")
         NamingField.ADVENTURE_EFFECT -> lt(language, "Exibir o marcador de efeito aventura.", "Show the adventure effect marker.", "Mostrar el marcador de efecto aventura.")
+        NamingField.EVOLVE_MARKER -> lt(language, "Exibir o simbolo configurado quando o checkbox Evoluir estiver marcado.", "Show the configured symbol when the Evolve checkbox is checked.", "Mostrar el simbolo configurado cuando el checkbox Evolucionar este marcado.")
+        NamingField.PURIFY_MARKER -> lt(language, "Exibir o simbolo configurado quando o checkbox Purificar estiver marcado.", "Show the configured symbol when the Purify checkbox is checked.", "Mostrar el simbolo configurado cuando el checkbox Purificar este marcado.")
         NamingField.EVOLUTION_TYPE -> lt(language, "Mostrar Baby, Estagio 1, Estagio 2, Mega, Dynamax e Gigantamax.", "Show Baby, Stage 1, Stage 2, Mega, Dynamax and Gigantamax.", "Mostrar Baby, Etapa 1, Etapa 2, Mega, Dynamax y Gigamax.")
         NamingField.SHADOW -> lt(language, "Exibir o simbolo se o Pokemon for sombrio.", "Show the symbol if the Pokemon is shadow.", "Mostrar el simbolo si el Pokemon es oscuro.")
         NamingField.PURIFIED -> lt(language, "Exibir o simbolo se o Pokemon for purificado.", "Show the symbol if the Pokemon is purified.", "Mostrar el simbolo si el Pokemon es purificado.")
@@ -2270,7 +2304,8 @@ private fun fieldDescription(field: NamingField, language: AppLanguage): String 
 }
 
 private fun symbolOptionsForField(field: NamingField, config: NamingConfig): List<FieldSymbolOption> {
-    fun option(key: String, label: String) = FieldSymbolOption(key, label, config.symbols[key].orEmpty())
+    val fallbackSymbols = defaultSymbols()
+    fun option(key: String, label: String) = FieldSymbolOption(key, label, config.symbols[key] ?: fallbackSymbols[key].orEmpty())
 
     return when (field) {
         NamingField.GENDER -> listOf(
@@ -2283,6 +2318,8 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
         NamingField.PURIFIED -> listOf(option("PURIFIED", "Purificado"))
         NamingField.SPECIAL_BACKGROUND -> listOf(option("SPECIAL_BACKGROUND", "Fundo especial"))
         NamingField.ADVENTURE_EFFECT -> listOf(option("ADVENTURE_EFFECT", "Efeito aventura"))
+        NamingField.EVOLVE_MARKER -> listOf(option("EVOLVE", "Evoluir"))
+        NamingField.PURIFY_MARKER -> listOf(option("PURIFY", "Purificar"))
         NamingField.TYPE -> listOf(
             option("TYPE_NORMAL", "Normal"),
             option("TYPE_FIRE", "Fogo"),
@@ -2343,7 +2380,7 @@ fun SymbolPickerDialog(
 ) {
     val language = appLanguage()
     val commonSymbols = listOf(
-        "\u2642", "\u2640", "M", "F", "*", "+", "SH", "PU", "FE", "AV", "XXL", "XXS",
+        "\u2642", "\u2640", "M", "F", "#", "\u00B6", "*", "+", "SH", "PU", "FE", "AV", "XXL", "XXS",
         "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY", "tm", "●"
     )
     var customText by remember(title, initialValue) { mutableStateOf(initialValue) }

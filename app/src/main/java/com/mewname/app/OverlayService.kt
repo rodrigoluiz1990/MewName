@@ -1339,6 +1339,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 NamingField.MASTER_IV_BADGE -> false
                 NamingField.PVP_LEAGUE -> data.pvpLeague == null
                 NamingField.PVP_RANK -> data.pvpRank == null
+                NamingField.EVOLVE_MARKER -> true
+                NamingField.PURIFY_MARKER -> true
                 NamingField.EVOLUTION_TYPE -> data.evolutionFlags.isEmpty()
                 else -> false
             }
@@ -1550,7 +1552,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         if (wants(NamingField.SIZE)) {
             appendLine("Tamanho: ${data.size.name}")
         }
-        if (wants(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE, NamingField.LEGACY_MOVE_NAME, NamingField.EVOLUTION_TYPE)) {
+        if (wants(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.EVOLVE_MARKER, NamingField.PURIFY_MARKER, NamingField.LEGACY_MOVE, NamingField.LEGACY_MOVE_NAME, NamingField.EVOLUTION_TYPE)) {
             appendLine("Flags: ${buildFlagSummary(data)}")
         }
         if (wants(NamingField.IV_PERCENT, NamingField.IV_COMBINATION) || includeMasterIv) {
@@ -1772,6 +1774,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             if (data.isPurified) add("purified")
             if (data.hasSpecialBackground) add("special_background")
             if (data.hasAdventureEffect) add("adventure_effect")
+            if (data.shouldEvolve) add("evolve")
+            if (data.shouldPurify) add("purify")
             if (data.hasLegacyMove) add("legacy_move")
             addAll(data.evolutionFlags.map { it.name.lowercase(Locale.US) })
         }.ifEmpty { listOf("none") }.joinToString(", ")

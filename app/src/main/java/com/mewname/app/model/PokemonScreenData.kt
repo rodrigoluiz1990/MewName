@@ -34,6 +34,8 @@ data class PokemonScreenData(
     val isPurified: Boolean = false,
     val hasSpecialBackground: Boolean = false,
     val hasAdventureEffect: Boolean = false,
+    val shouldEvolve: Boolean = false,
+    val shouldPurify: Boolean = false,
     val size: PokemonSize = PokemonSize.NORMAL,
     val sizeDebugInfo: SizeDebugInfo? = null,
     val pvpLeague: PvpLeague? = null,

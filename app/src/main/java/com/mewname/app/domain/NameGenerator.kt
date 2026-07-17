@@ -9,6 +9,7 @@ import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.PvpLeague
 import com.mewname.app.model.PokemonSize
 import com.mewname.app.model.VivillonPattern
+import com.mewname.app.model.defaultSymbols
 import com.mewname.app.model.effectiveBlocks
 
 class NameGenerator {
@@ -138,6 +139,8 @@ class NameGenerator {
             NamingField.PURIFIED -> if (data.isPurified) config.symbols["PURIFIED"] else null
             NamingField.SPECIAL_BACKGROUND -> if (data.hasSpecialBackground) config.symbols["SPECIAL_BACKGROUND"] else null
             NamingField.ADVENTURE_EFFECT -> if (data.hasAdventureEffect) config.symbols["ADVENTURE_EFFECT"] else null
+            NamingField.EVOLVE_MARKER -> if (data.shouldEvolve) config.symbols["EVOLVE"] ?: defaultSymbols()["EVOLVE"] else null
+            NamingField.PURIFY_MARKER -> if (data.shouldPurify) config.symbols["PURIFY"] ?: defaultSymbols()["PURIFY"] else null
             NamingField.SIZE -> when (data.size) {
                 PokemonSize.XXL -> config.symbols["XXL"]
                 PokemonSize.XL -> config.symbols["XL"]
