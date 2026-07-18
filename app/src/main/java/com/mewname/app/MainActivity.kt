@@ -501,10 +501,31 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
-                    title = lt(language, "Tipos", "Types", "Tipos"),
+                    title = lt(language, "Equipe GO Rocket", "GO Rocket Team", "Equipo GO Rocket"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("types") },
-                    onClick = onGoToTypes,
+                    customIcon = { HomeMenuGlyph("rocket") },
+                    onClick = { openExternalUrl(context, "https://leekduck.com/rocket-lineups/") },
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("research") },
+                    onClick = { openExternalUrl(context, "https://leekduck.com/research/") },
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Ovos", "Eggs", "Huevos"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("eggs") },
+                    onClick = { openExternalUrl(context, "https://leekduck.com/eggs/") },
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("promo") },
+                    onClick = { openExternalUrl(context, "https://leekduck.com/promo-codes/") },
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
@@ -522,17 +543,24 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
-                    title = lt(language, "Ataques", "Moves", "Ataques"),
+                    title = lt(language, "Ataques rapidos/carregados", "Fast/Charged Moves", "Ataques rapidos/cargados"),
                     iconRes = null,
                     customIcon = { HomeMenuGlyph("moves") },
                     onClick = onGoToMoves,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
-                    title = lt(language, "Teste", "Test", "Prueba"),
+                    title = lt(language, "Tipos", "Types", "Tipos"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("test") },
-                    onClick = onGoToTestMenu,
+                    customIcon = { HomeMenuGlyph("types") },
+                    onClick = onGoToTypes,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Ajuda", "Help", "Ayuda"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("help") },
+                    onClick = onGoToHelp,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
@@ -547,10 +575,10 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
-                    title = lt(language, "Ajuda", "Help", "Ayuda"),
+                    title = lt(language, "Teste", "Test", "Prueba"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("help") },
-                    onClick = onGoToHelp,
+                    customIcon = { HomeMenuGlyph("test") },
+                    onClick = onGoToTestMenu,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
             }
@@ -1000,7 +1028,11 @@ private fun HelpMenuScreen(
                         HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
                         HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Use a leitura da bolha ou selecione o chefe manualmente. Escolha os tipos do chefe, copie o filtro e compare as colunas Atacantes e Defensores.", "Use the bubble reading or manually select the boss. Pick the boss types, copy the filter, and compare the Attackers and Defenders columns.", "Usa la lectura de la burbuja o selecciona el jefe manualmente. Elige los tipos del jefe, copia el filtro y compara las columnas Atacantes y Defensores."))
                         HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
-                        HelpLine(lt(language, "Ataques", "Moves", "Ataques"), lt(language, "Pesquise ataques por nome, tipo e categoria. Cada registro mostra dados de ginasio e PvP para comparar dano, energia e duracao.", "Search moves by name, type, and category. Each row shows Gym and PvP data so you can compare damage, energy, and duration.", "Busca ataques por nombre, tipo y categoria. Cada registro muestra datos de gimnasio y PvP para comparar dano, energia y duracion."))
+                        HelpLine(lt(language, "Ataques rapidos/carregados", "Fast/Charged Moves", "Ataques rapidos/cargados"), lt(language, "Pesquise ataques por nome, tipo e categoria. Cada registro mostra dados de ginasio e PvP para comparar dano, energia e duracao.", "Search moves by name, type, and category. Each row shows Gym and PvP data so you can compare damage, energy, and duration.", "Busca ataques por nombre, tipo y categoria. Cada registro muestra datos de gimnasio y PvP para comparar dano, energia y duracion."))
+                        HelpLine(lt(language, "Equipe GO Rocket", "GO Rocket Team", "Equipo GO Rocket"), lt(language, "Abre a pagina externa com as lineups atuais da Equipe GO Rocket para consultar Grunts, Lideres e Giovanni rapidamente.", "Opens the external page with current Team GO Rocket lineups so you can quickly check Grunts, Leaders, and Giovanni.", "Abre la pagina externa con las alineaciones actuales del Equipo GO Rocket para consultar Reclutas, Lideres y Giovanni rapidamente."))
+                        HelpLine(lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), lt(language, "Abre a lista externa de codigos promocionais para resgatar recompensas disponiveis no momento.", "Opens the external promo code list so you can redeem rewards currently available.", "Abre la lista externa de codigos promocionales para canjear recompensas disponibles en este momento."))
+                        HelpLine(lt(language, "Ovos", "Eggs", "Huevos"), lt(language, "Abre a pagina externa de ovos para verificar tabelas de eclosao e pools atualizados.", "Opens the external eggs page so you can check hatch tables and updated pools.", "Abre la pagina externa de huevos para revisar tablas de eclosion y pools actualizados."))
+                        HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Abre a pagina externa de pesquisas para consultar tarefas de campo, recompensas e pesquisas especiais.", "Opens the external research page so you can check field tasks, rewards, and special research.", "Abre la pagina externa de investigaciones para consultar tareas de campo, recompensas e investigaciones especiales."))
                         HelpLine(lt(language, "Teste", "Test", "Prueba"), lt(language, "Agrupa ferramentas de manutencao: gerar nome a partir de imagem, validar amostras e abrir a tela de doacao.", "Groups maintenance tools: generate a name from an image, validate samples, and open the donation screen.", "Agrupa herramientas de mantenimiento: generar nombre desde imagen, validar muestras y abrir la pantalla de donacion."))
                         HelpLine(lt(language, "Atualizar", "Update", "Actualizar"), lt(language, "Consulta releases do app e mostra a versao instalada. Use quando quiser verificar se ha APK mais recente.", "Checks app releases and shows the installed version. Use it when you want to see whether a newer APK exists.", "Consulta releases de la app y muestra la version instalada. Usalo cuando quieras verificar si hay un APK mas reciente."))
                         HelpLine(lt(language, "Privacidade", "Privacy", "Privacidad"), lt(language, "Explica permissoes, captura de tela, processamento local, armazenamento e direitos da Pokemon Company.", "Explains permissions, screen capture, local processing, storage, and Pokemon Company rights.", "Explica permisos, captura de pantalla, procesamiento local, almacenamiento y derechos de Pokemon Company."))
@@ -1179,7 +1211,7 @@ private fun HomeActionSquare(
 ) {
     Card(
         modifier = modifier
-            .aspectRatio(1f)
+            .aspectRatio(0.94f)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
         shape = RoundedCornerShape(24.dp)
@@ -1187,7 +1219,7 @@ private fun HomeActionSquare(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 12.dp),
+                .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -1207,9 +1239,9 @@ private fun HomeActionSquare(
             Spacer(Modifier.height(10.dp))
             Text(
                 title,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
