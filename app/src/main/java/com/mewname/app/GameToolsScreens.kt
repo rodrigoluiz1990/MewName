@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -68,6 +69,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -87,6 +89,7 @@ import com.mewname.app.domain.TypeMatchupEntry
 import com.mewname.app.model.EvolutionFlag
 import com.mewname.app.model.PokemonScreenData
 import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -810,6 +813,15 @@ private data class FilterSelection(
     val joinerBefore: String = "&"
 )
 
+private data class SavedFilterEntry(
+    val id: String,
+    val value: String
+)
+
+private const val FILTER_PREFS = "mewname_prefs"
+private const val SAVED_POKEMON_FILTERS_KEY = "saved_pokemon_filters"
+private const val SAVED_PEOPLE_FILTERS_KEY = "saved_people_filters"
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun PokemonFilterBuilder(
@@ -817,8 +829,18 @@ private fun PokemonFilterBuilder(
     language: AppLanguage
 ) {
     var names by rememberSaveable { mutableStateOf("") }
+    var nameDraft by rememberSaveable { mutableStateOf("") }
+    var moveDraft by rememberSaveable { mutableStateOf("") }
+    var moveFilters by rememberSaveable { mutableStateOf("") }
+    var manualDraft by rememberSaveable { mutableStateOf("") }
+    var manualFilters by rememberSaveable { mutableStateOf("") }
     val typeSelections = remember { mutableStateMapOf<String, FilterSelection>() }
     val tokenSelections = remember { mutableStateMapOf<String, FilterSelection>() }
+    val savedFilters = remember {
+        mutableStateListOf<SavedFilterEntry>().apply {
+            addAll(loadSavedFilters(context, SAVED_POKEMON_FILTERS_KEY))
+        }
+    }
     val sections = remember {
         linkedMapOf(
             "Status" to listOf(
@@ -827,30 +849,54 @@ private fun PokemonFilterBuilder(
                 FilterTokenOption("Purificado", "Purified", "Purificado", "purified", tokenPt = "purificado", tokenEs = "purificado"),
                 FilterTokenOption("Sortudo", "Lucky", "Suerte", "lucky", tokenPt = "sortudo", tokenEs = "suerte"),
                 FilterTokenOption("Favorito", "Favorite", "Favorito", "favorite", tokenPt = "favorito", tokenEs = "favorito"),
-                FilterTokenOption("Defensor", "Defender", "Defensor", "defender", tokenPt = "defensor", tokenEs = "defensor")
+                FilterTokenOption("Defensor", "Defender", "Defensor", "defender", tokenPt = "defensor", tokenEs = "defensor"),
+                FilterTokenOption("Evoluivel", "Can evolve", "Puede evolucionar", "evolve", tokenPt = "evoluir", tokenEs = "evolucionar"),
+                FilterTokenOption("Hipertreinamento", "Hyper Training", "Hiperentrenamiento", "hypertrained", tokenPt = "hipertreinamento", tokenEs = "hiperentrenamiento"),
+                FilterTokenOption("Evolui com item", "Item evolution", "Evolucion con objeto", "item", tokenPt = "item", tokenEs = "objeto"),
+                FilterTokenOption("Nova evolucao", "New evolution", "Nueva evolucion", "canevolve", tokenPt = "evoluirnovo", tokenEs = "evolucionarnuevo"),
+                FilterTokenOption("Evolui por missao", "Task evolution", "Evolucion por mision", "evolvequest", tokenPt = "evoluirpormissão", tokenEs = "evolucionarpormision"),
+                FilterTokenOption("Evolui por troca", "Trade evolution", "Evolucion por intercambio", "traded", tokenPt = "evoluirportroca", tokenEs = "evolucionarporintercambio"),
+                FilterTokenOption("Clima", "Weather boosted move", "Movimiento con clima", "weather", tokenPt = "@clima", tokenEs = "@clima"),
+                FilterTokenOption("Fundo", "Background", "Fondo", "background", tokenPt = "fundo", tokenEs = "fondo"),
+                FilterTokenOption("Fundo local", "Location background", "Fondo de ubicacion", "locationbackground", tokenPt = "fundodelocalidade", tokenEs = "fondodelugar")
             ),
             "Colecao" to listOf(
-                FilterTokenOption("Lendario", "Legendary", "Legendario", "legendary", tokenPt = "lendario", tokenEs = "legendario"),
-                FilterTokenOption("Mitico", "Mythical", "Singular", "mythical", tokenPt = "mitico", tokenEs = "singular"),
-                FilterTokenOption("Evento", "Event", "Evento", "event", tokenPt = "evento", tokenEs = "evento"),
-                FilterTokenOption("Fantasia", "Costume", "Disfraz", "costume", tokenPt = "fantasia", tokenEs = "disfraz"),
-                FilterTokenOption("Trocado", "Traded", "Intercambiado", "traded", tokenPt = "trocado", tokenEs = "intercambiado")
+                FilterTokenOption("Lendario", "Legendary", "Legendario", "legendary", tokenPt = "lendário", tokenEs = "legendario"),
+                FilterTokenOption("Mitico", "Mythical", "Singular", "mythical", tokenPt = "mítico", tokenEs = "singular"),
+                FilterTokenOption("Traje", "Costume", "Disfraz", "costume", tokenPt = "traje", tokenEs = "disfraz"),
+                FilterTokenOption("Trocado", "Traded", "Intercambiado", "traded", tokenPt = "trocado", tokenEs = "intercambiado"),
+                FilterTokenOption("Fusao", "Fusion", "Fusion", "fusion", tokenPt = "fusão", tokenEs = "fusion"),
+                FilterTokenOption("Apenas ovos", "Egg only", "Solo huevos", "eggsonly", tokenPt = "apenasovos", tokenEs = "solohuevos"),
+                FilterTokenOption("Chocado", "Hatched", "Eclosionado", "hatched", tokenPt = "chocado", tokenEs = "eclosionado"),
+                FilterTokenOption("Ultracriatura", "Ultra Beast", "Ultracriatura", "ultrabeast", tokenPt = "ultracriatura", tokenEs = "ultraente")
             ),
             "Batalha" to listOf(
-                FilterTokenOption("Mega", "Mega", "Mega", "megaevolve"),
-                FilterTokenOption("Pode Mega", "Can Mega", "Puede Mega", "canmegaevolve", tokenPt = "pode megaevoluir", tokenEs = "puede megaevolucionar"),
+                FilterTokenOption("Mega", "Mega", "Mega", "megaevolve", tokenPt = "mega", tokenEs = "mega"),
                 FilterTokenOption("Dynamax", "Dynamax", "Dynamax", "dmax", tokenPt = "dinamax", tokenEs = "dinamax"),
                 FilterTokenOption("Gigantamax", "Gigantamax", "Gigamax", "gmax", tokenPt = "gigamax", tokenEs = "gigamax"),
-                FilterTokenOption("Ataque legado", "Legacy move", "Ataque legado", "@special"),
-                FilterTokenOption("Ataque rapido", "Fast move", "Ataque rapido", "@move"),
-                FilterTokenOption("Carregado", "Charged move", "Ataque cargado", "@charge")
+                FilterTokenOption("Ataque legado", "Legacy move", "Ataque legado", "@special", tokenPt = "@especial", tokenEs = "@especial"),
+                FilterTokenOption("Mega nivel 1", "Mega level 1", "Mega nivel 1", "mega1", tokenPt = "mega1", tokenEs = "mega1"),
+                FilterTokenOption("Mega nivel 2", "Mega level 2", "Mega nivel 2", "mega2", tokenPt = "mega2", tokenEs = "mega2"),
+                FilterTokenOption("Mega nivel 3", "Mega level 3", "Mega nivel 3", "mega3", tokenPt = "mega3", tokenEs = "mega3")
             ),
             "Avaliacao" to listOf(
                 FilterTokenOption("0 estrelas", "0 stars", "0 estrellas", "0*"),
                 FilterTokenOption("1 estrela", "1 star", "1 estrella", "1*"),
                 FilterTokenOption("2 estrelas", "2 stars", "2 estrellas", "2*"),
                 FilterTokenOption("3 estrelas", "3 stars", "3 estrellas", "3*"),
-                FilterTokenOption("4 estrelas", "4 stars", "4 estrellas", "4*")
+                FilterTokenOption("4 estrelas", "4 stars", "4 estrellas", "4*"),
+                FilterTokenOption("0 Ataque", "0 Attack", "0 Ataque", "0attack", tokenPt = "0ataque", tokenEs = "0ataque"),
+                FilterTokenOption("1 Ataque", "1 Attack", "1 Ataque", "1attack", tokenPt = "1ataque", tokenEs = "1ataque"),
+                FilterTokenOption("2 Ataque", "2 Attack", "2 Ataque", "2attack", tokenPt = "2ataque", tokenEs = "2ataque"),
+                FilterTokenOption("3 Ataque", "3 Attack", "3 Ataque", "3attack", tokenPt = "3ataque", tokenEs = "3ataque"),
+                FilterTokenOption("0 Defesa", "0 Defense", "0 Defensa", "0defense", tokenPt = "0defesa", tokenEs = "0defensa"),
+                FilterTokenOption("1 Defesa", "1 Defense", "1 Defensa", "1defense", tokenPt = "1defesa", tokenEs = "1defensa"),
+                FilterTokenOption("2 Defesa", "2 Defense", "2 Defensa", "2defense", tokenPt = "2defesa", tokenEs = "2defensa"),
+                FilterTokenOption("3 Defesa", "3 Defense", "3 Defensa", "3defense", tokenPt = "3defesa", tokenEs = "3defensa"),
+                FilterTokenOption("0 PS", "0 HP", "0 PS", "0hp", tokenPt = "0ps", tokenEs = "0ps"),
+                FilterTokenOption("1 PS", "1 HP", "1 PS", "1hp", tokenPt = "1ps", tokenEs = "1ps"),
+                FilterTokenOption("2 PS", "2 HP", "2 PS", "2hp", tokenPt = "2ps", tokenEs = "2ps"),
+                FilterTokenOption("3 PS", "3 HP", "3 PS", "3hp", tokenPt = "3ps", tokenEs = "3ps")
             ),
             "Tamanho" to listOf(
                 FilterTokenOption("XXS", "XXS", "XXS", "xxs"),
@@ -865,16 +911,44 @@ private fun PokemonFilterBuilder(
                 FilterTokenOption("Buddy 3", "Buddy 3", "Buddy 3", "buddy3", tokenPt = "companheiro3", tokenEs = "companero3"),
                 FilterTokenOption("Buddy 4", "Buddy 4", "Buddy 4", "buddy4", tokenPt = "companheiro4", tokenEs = "companero4"),
                 FilterTokenOption("Buddy 5", "Buddy 5", "Buddy 5", "buddy5", tokenPt = "companheiro5", tokenEs = "companero5")
-            )
+            ),
+            "Regiao" to listOf(
+                FilterTokenOption("Kanto", "Kanto", "Kanto", "kanto"),
+                FilterTokenOption("Johto", "Johto", "Johto", "johto"),
+                FilterTokenOption("Hoenn", "Hoenn", "Hoenn", "hoenn"),
+                FilterTokenOption("Sinnoh", "Sinnoh", "Sinnoh", "sinnoh"),
+                FilterTokenOption("Unova", "Unova", "Unova", "unova"),
+                FilterTokenOption("Kalos", "Kalos", "Kalos", "kalos"),
+                FilterTokenOption("Alola", "Alola", "Alola", "alola"),
+                FilterTokenOption("Galar", "Galar", "Galar", "galar"),
+                FilterTokenOption("Hisui", "Hisui", "Hisui", "hisui"),
+                FilterTokenOption("Paldea", "Paldea", "Paldea", "paldea")
+            ),
+            "Avancado" to emptyList()
         )
     }
     val sectionEntries = remember(sections) { sections.entries.toList() }
     var sectionTabIndex by rememberSaveable { mutableStateOf(0) }
-    val output = remember(names, typeSelections.toMap(), tokenSelections.toMap()) {
+    val output = remember(names, moveFilters, manualFilters, typeSelections.toMap(), tokenSelections.toMap()) {
         buildPokemonFilter(
             names = names,
             selectedType = null,
-            selectedTokens = resolveTypeExpressions(typeSelections, language) + resolveTokenExpressions(tokenSelections, sections.values.flatten(), language)
+            selectedTokens = buildList {
+                addAll(resolveTypeExpressions(typeSelections, language))
+                addAll(resolveTokenExpressions(tokenSelections, sections.values.flatten(), language))
+                addAll(
+                    moveFilters.lineSequence()
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+                        .map { FilterExpression(it) }
+                )
+                addAll(
+                    manualFilters.lineSequence()
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+                        .map { FilterExpression(it) }
+                )
+            }
         )
     }
     val allTypes = remember {
@@ -882,12 +956,35 @@ private fun PokemonFilterBuilder(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SavedFiltersSection(
+            title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
+            filters = savedFilters,
+            onCopy = { entry -> copyPlainText(context, entry.value, language) },
+            onRemove = { entry ->
+                savedFilters.remove(entry)
+                persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, savedFilters)
+            }
+        )
         CopyableField(
             title = t(language, "Filtro copiavel", "Copyable filter", "Filtro copiable"),
             value = output,
+            onSave = {
+                val updated = addSavedFilter(savedFilters, output)
+                persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, updated)
+                Toast.makeText(
+                    context,
+                    t(language, "Filtro salvo", "Filter saved", "Filtro guardado"),
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
             onCopy = { copyPlainText(context, output, language) },
             onClear = {
                 names = ""
+                nameDraft = ""
+                moveDraft = ""
+                moveFilters = ""
+                manualDraft = ""
+                manualFilters = ""
                 typeSelections.clear()
                 tokenSelections.clear()
             }
@@ -928,15 +1025,85 @@ private fun PokemonFilterBuilder(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                when (entry.key) {
+                    "Status" -> {
+                        OutlinedTextField(
+                            value = nameDraft,
+                            onValueChange = { nameDraft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(t(language, "Nome do Pokemon", "Pokemon name", "Nombre del Pokemon")) },
+                            supportingText = { Text(t(language, "Digite um nome e toque em Adicionar para enviar ao filtro copiavel.", "Type a name and tap Add to send it to the copyable filter.", "Escribe un nombre y toca Agregar para enviarlo al filtro copiable.")) }
+                        )
+                        Button(
+                            onClick = {
+                                val trimmed = nameDraft.trim()
+                                if (trimmed.isNotBlank()) {
+                                    names = appendCommaSeparatedValue(names, trimmed)
+                                    nameDraft = ""
+                                }
+                            },
+                            enabled = nameDraft.trim().isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(t(language, "Adicionar", "Add", "Agregar"))
+                        }
+                    }
+                    "Batalha" -> {
+                        OutlinedTextField(
+                            value = moveDraft,
+                            onValueChange = { moveDraft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(t(language, "Ataque rapido / carregado", "Fast / charged move", "Ataque rapido / cargado")) },
+                            supportingText = { Text(t(language, "Digite o nome do movimento e toque em Adicionar para gerar @nome_do_movimento.", "Type the move name and tap Add to generate @move_name.", "Escribe el nombre del movimiento y toca Agregar para generar @nombre_del_movimiento.")) }
+                        )
+                        Button(
+                            onClick = {
+                                val trimmed = moveDraft.trim()
+                                if (trimmed.isNotBlank()) {
+                                    moveFilters = appendLineSeparatedValue(moveFilters, "@$trimmed")
+                                    moveDraft = ""
+                                }
+                            },
+                            enabled = moveDraft.trim().isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(t(language, "Adicionar", "Add", "Agregar"))
+                        }
+                    }
+                    "Avancado" -> {
+                        OutlinedTextField(
+                            value = manualDraft,
+                            onValueChange = { manualDraft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(t(language, "Filtro manual", "Manual filter", "Filtro manual")) },
+                            supportingText = {
+                                Text(
+                                    t(
+                                        language,
+                                        "Ex.: pc300, ps150, idade0, ano2016, distância1000, #batalha, @planta, @1fantasma, 25, +Pikachu.",
+                                        "Examples: cp300, hp150, age0, year2016, distance1000, #battle, @grass, @1ghost, 25, +Pikachu.",
+                                        "Ej.: pc300, ps150, edad0, ano2016, distancia1000, #batalla, @planta, @1fantasma, 25, +Pikachu."
+                                    )
+                                )
+                            }
+                        )
+                        Button(
+                            onClick = {
+                                val trimmed = manualDraft.trim()
+                                if (trimmed.isNotBlank()) {
+                                    manualFilters = appendLineSeparatedValue(manualFilters, trimmed)
+                                    manualDraft = ""
+                                }
+                            },
+                            enabled = manualDraft.trim().isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(t(language, "Adicionar", "Add", "Agregar"))
+                        }
+                    }
+                }
             }
         }
-        OutlinedTextField(
-            value = names,
-            onValueChange = { names = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(t(language, "Pokemon ou termos", "Pokemon or terms", "Pokemon o terminos")) },
-            supportingText = { Text(t(language, "Use virgula para varios nomes, ex.: machamp,rayquaza", "Use commas for multiple names, e.g. machamp,rayquaza", "Usa comas para varios nombres, ej.: machamp,rayquaza")) }
-        )
     }
 }
 
@@ -948,65 +1115,62 @@ private fun PeopleFilterBuilder(
 ) {
     var names by rememberSaveable { mutableStateOf("") }
     val tokenSelections = remember { mutableStateMapOf<String, FilterSelection>() }
-    val sections = remember {
-        linkedMapOf(
-            "Busca rapida" to listOf(
-                FilterTokenOption("Nivel de amizade 1 a 4", "Friendship level 1 to 4", "Nivel de amistad 1 a 4", "friendlevel1,friendlevel2,friendlevel3,friendlevel4", tokenPt = "nivel de amizade 1,nivel de amizade 2,nivel de amizade 3,nivel de amizade 4", tokenEs = "nivel de amistad 1,nivel de amistad 2,nivel de amistad 3,nivel de amistad 4"),
-                FilterTokenOption("Amizade sortuda", "Lucky friends", "Amistad con suerte", "lucky", tokenPt = "amizade sortuda", tokenEs = "amistad con suerte"),
-                FilterTokenOption("Interagir", "Interact", "Interactuar", "interactable", tokenPt = "interagir", tokenEs = "interactuar")
-            ),
-            "Interacao" to listOf(
-                FilterTokenOption("Interagir", "Interact", "Interactuar", "interactable", tokenPt = "interagir", tokenEs = "interactuar"),
-                FilterTokenOption("Pode receber presente", "Can receive gift", "Puede recibir regalo", "canreceivegift", tokenPt = "pode receber presente", tokenEs = "puede recibir regalo"),
-                FilterTokenOption("Pode enviar presente", "Giftable", "Regalable", "giftable", tokenPt = "pode enviar presente", tokenEs = "puede enviar regalo")
-            ),
-            "Nivel de amizade" to listOf(
-                FilterTokenOption("Nivel 0", "Friendship 0", "Amistad 0", "friendlevel0", tokenPt = "nivel de amizade 0", tokenEs = "nivel de amistad 0"),
-                FilterTokenOption("Nivel 1", "Friendship 1", "Amistad 1", "friendlevel1", tokenPt = "nivel de amizade 1", tokenEs = "nivel de amistad 1"),
-                FilterTokenOption("Nivel 2", "Friendship 2", "Amistad 2", "friendlevel2", tokenPt = "nivel de amizade 2", tokenEs = "nivel de amistad 2"),
-                FilterTokenOption("Nivel 3", "Friendship 3", "Amistad 3", "friendlevel3", tokenPt = "nivel de amizade 3", tokenEs = "nivel de amistad 3"),
-                FilterTokenOption("Nivel 4", "Friendship 4", "Amistad 4", "friendlevel4", tokenPt = "nivel de amizade 4", tokenEs = "nivel de amistad 4")
-            ),
-            "Troca" to listOf(
-                FilterTokenOption("Amizade sortuda", "Lucky friends", "Amistad con suerte", "lucky", tokenPt = "amizade sortuda", tokenEs = "amistad con suerte"),
-                FilterTokenOption("Com troca pendente", "Trade", "Intercambio", "trade", tokenPt = "troca", tokenEs = "intercambio"),
-                FilterTokenOption("Distancia 10km+", "Distance 10km+", "Distancia 10km+", "distance10-", tokenPt = "distancia10-", tokenEs = "distancia10-"),
-                FilterTokenOption("Distancia 100km+", "Distance 100km+", "Distancia 100km+", "distance100-", tokenPt = "distancia100-", tokenEs = "distancia100-")
-            )
+    val savedFilters = remember {
+        mutableStateListOf<SavedFilterEntry>().apply {
+            addAll(loadSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY))
+        }
+    }
+    val options = remember {
+        listOf(
+            FilterTokenOption("Pode receber presente", "Can receive gift", "Puede recibir regalo", "canreceivegift", tokenPt = "presenteável", tokenEs = "puede recibir regalo"),
+            FilterTokenOption("Amigo sortudo", "Lucky friend", "Amigo con suerte", "lucky", tokenPt = "sortudo", tokenEs = "amistad con suerte"),
+            FilterTokenOption("Interagir", "Interact", "Interactuar", "interactable", tokenPt = "interagir", tokenEs = "interactuar"),
+            FilterTokenOption("Nivel 0", "Friendship 0", "Amistad 0", "friendlevel0", tokenPt = "níveldeamizade0", tokenEs = "nivel de amistad 0"),
+            FilterTokenOption("Nivel 1", "Friendship 1", "Amistad 1", "friendlevel1", tokenPt = "níveldeamizade1", tokenEs = "nivel de amistad 1"),
+            FilterTokenOption("Nivel 2", "Friendship 2", "Amistad 2", "friendlevel2", tokenPt = "níveldeamizade2", tokenEs = "nivel de amistad 2"),
+            FilterTokenOption("Nivel 3", "Friendship 3", "Amistad 3", "friendlevel3", tokenPt = "níveldeamizade3", tokenEs = "nivel de amistad 3"),
+            FilterTokenOption("Nivel 4", "Friendship 4", "Amistad 4", "friendlevel4", tokenPt = "níveldeamizade4", tokenEs = "nivel de amistad 4"),
+            FilterTokenOption("Nivel 5", "Friendship 5", "Amistad 5", "friendlevel5", tokenPt = "níveldeamizade5", tokenEs = "nivel de amistad 5")
         )
     }
-    val sectionEntries = remember(sections) { sections.entries.toList() }
-    var sectionTabIndex by rememberSaveable { mutableStateOf(0) }
     val output = remember(names, tokenSelections.toMap()) {
         buildPeopleFilter(
             names = names,
-            selectedTokens = resolveTokenExpressions(tokenSelections, sections.values.flatten(), language)
+            selectedTokens = resolveTokenExpressions(tokenSelections, options, language)
         )
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SavedFiltersSection(
+            title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
+            filters = savedFilters,
+            onCopy = { entry -> copyPlainText(context, entry.value, language) },
+            onRemove = { entry ->
+                savedFilters.remove(entry)
+                persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, savedFilters)
+            }
+        )
         CopyableField(
             title = t(language, "Texto copiavel", "Copyable text", "Texto copiable"),
             value = output,
+            onSave = {
+                val updated = addSavedFilter(savedFilters, output)
+                persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, updated)
+                Toast.makeText(
+                    context,
+                    t(language, "Filtro salvo", "Filter saved", "Filtro guardado"),
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
             onCopy = { copyPlainText(context, output, language) },
             onClear = {
                 names = ""
                 tokenSelections.clear()
             }
         )
-        ScrollableTabRow(selectedTabIndex = sectionTabIndex, edgePadding = 0.dp, divider = {}) {
-            sectionEntries.forEachIndexed { index, entry ->
-                Tab(
-                    selected = index == sectionTabIndex,
-                    onClick = { sectionTabIndex = index },
-                    text = { Text(entry.key) }
-                )
-            }
-        }
-        val activeSection = sectionEntries[sectionTabIndex]
-        Text(activeSection.key, fontWeight = FontWeight.Bold)
-        UniformOptionGrid(count = activeSection.value.size) { index ->
-            val option = activeSection.value[index]
+        Text(t(language, "Filtros de pessoas", "People filters", "Filtros de personas"), fontWeight = FontWeight.Bold)
+        UniformOptionGrid(count = options.size) { index ->
+            val option = options[index]
             TriStateTokenChip(
                 option = option,
                 language = language,
@@ -1019,9 +1183,9 @@ private fun PeopleFilterBuilder(
         Text(
             t(
                 language,
-                "Os chips alternam entre incluir, excluir e limpar. Ex.: toque em Amizade sortuda para gerar lucky e depois !lucky.",
-                "Chips cycle between include, exclude, and clear. Example: tap Lucky friends to generate lucky and then !lucky.",
-                "Los chips alternan entre incluir, excluir y limpiar. Ej.: toca Amistad con suerte para generar lucky y luego !lucky."
+                "Os chips alternam entre incluir, excluir e limpar. Ex.: toque em Amigo sortudo para gerar sortudo e depois !sortudo.",
+                "Chips cycle between include, exclude, and clear. Example: tap Lucky friend to generate sortudo and then !sortudo.",
+                "Los chips alternan entre incluir, excluir y limpiar. Ej.: toca Amigo con suerte para generar sortudo y luego !sortudo."
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1032,8 +1196,8 @@ private fun PeopleFilterBuilder(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp),
-            label = { Text(t(language, "Apelidos ou nomes", "Nicknames or names", "Apodos o nombres")) },
-            supportingText = { Text(t(language, "Um por linha para combinar com os filtros abaixo.", "One per line to combine with the filters below.", "Uno por linea para combinar con los filtros abajo.")) }
+            label = { Text(t(language, "Apelido", "Nickname", "Apodo")) },
+            supportingText = { Text(t(language, "Um por linha. Ex.: [nome_da_pessoa]", "One per line. Example: [person_name]", "Uno por linea. Ej.: [nombre_de_la_persona]")) }
         )
     }
 }
@@ -1784,6 +1948,7 @@ private fun BattleSuggestionCard(
 private fun CopyableField(
     title: String,
     value: String,
+    onSave: (() -> Unit)? = null,
     onCopy: () -> Unit,
     onClear: (() -> Unit)? = null
 ) {
@@ -1809,6 +1974,15 @@ private fun CopyableField(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            if (onSave != null) {
+                Button(
+                    onClick = onSave,
+                    enabled = value.isNotBlank(),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(t(language, "Salvar", "Save", "Guardar"))
+                }
+            }
             Button(
                 onClick = {
                     onCopy()
@@ -1828,9 +2002,56 @@ private fun CopyableField(
             if (onClear != null) {
                 Button(
                     onClick = onClear,
-                modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(t(language, "Limpar", "Clear", "Limpiar"))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedFiltersSection(
+    title: String,
+    filters: List<SavedFilterEntry>,
+    onCopy: (SavedFilterEntry) -> Unit,
+    onRemove: (SavedFilterEntry) -> Unit
+) {
+    if (filters.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        filters.forEach { entry ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        entry.value,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    IconButton(onClick = { onCopy(entry) }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_filter_copy),
+                            contentDescription = "Copiar filtro salvo"
+                        )
+                    }
+                    IconButton(onClick = { onRemove(entry) }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_filter_trash),
+                            contentDescription = "Remover filtro salvo"
+                        )
+                    }
                 }
             }
         }
@@ -2493,6 +2714,69 @@ private fun copyPlainText(context: Context, value: String, language: AppLanguage
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("MewName", value))
     Toast.makeText(context, t(language, "Copiado", "Copied", "Copiado"), Toast.LENGTH_SHORT).show()
+}
+
+private fun loadSavedFilters(context: Context, key: String): List<SavedFilterEntry> {
+    val prefs = context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE)
+    return prefs.getStringSet(key, emptySet()).orEmpty()
+        .mapNotNull { raw ->
+            val separator = raw.indexOf('|')
+            if (separator <= 0 || separator == raw.lastIndex) {
+                null
+            } else {
+                SavedFilterEntry(
+                    id = raw.substring(0, separator),
+                    value = raw.substring(separator + 1)
+                )
+            }
+        }
+        .sortedByDescending { it.id }
+}
+
+private fun persistSavedFilters(
+    context: Context,
+    key: String,
+    filters: List<SavedFilterEntry>
+) {
+    val encoded = filters.map { "${it.id}|${it.value}" }.toSet()
+    context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .putStringSet(key, encoded)
+        .apply()
+}
+
+private fun addSavedFilter(
+    filters: MutableList<SavedFilterEntry>,
+    value: String
+): List<SavedFilterEntry> {
+    if (value.isBlank()) return filters
+    filters.removeAll { it.value == value }
+    filters.add(
+        0,
+        SavedFilterEntry(
+            id = UUID.randomUUID().toString(),
+            value = value
+        )
+    )
+    return filters
+}
+
+private fun appendCommaSeparatedValue(current: String, value: String): String {
+    val items = current.split(',')
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .toMutableList()
+    if (value !in items) items += value
+    return items.joinToString(",")
+}
+
+private fun appendLineSeparatedValue(current: String, value: String): String {
+    val items = current.lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .toMutableList()
+    if (value !in items) items += value
+    return items.joinToString("\n")
 }
 
 private fun normalizeSearch(text: String): String {
