@@ -12,6 +12,16 @@ data class NamingConfig(
     val customSeparator: String = ""
 )
 
+enum class SpecialBackgroundType(
+    val symbolKey: String
+) {
+    SPECIAL("SPECIAL_BACKGROUND"),
+    GO_FEST("SPECIAL_BACKGROUND_GO_FEST"),
+    WILD_AREA("SPECIAL_BACKGROUND_WILD_AREA"),
+    LOCATION("SPECIAL_BACKGROUND_LOCATION"),
+    COMMUNITY_DAY("SPECIAL_BACKGROUND_COMMUNITY_DAY")
+}
+
 data class NamingBlock(
     val id: String = UUID.randomUUID().toString(),
     val type: NamingBlockType,
@@ -94,6 +104,10 @@ fun defaultSymbols() = mapOf(
     "SHADOW" to "SH",
     "PURIFIED" to "PU",
     "SPECIAL_BACKGROUND" to "\u2605FE",
+    "SPECIAL_BACKGROUND_GO_FEST" to "\u2605GF",
+    "SPECIAL_BACKGROUND_WILD_AREA" to "\u2605WA",
+    "SPECIAL_BACKGROUND_LOCATION" to "\u2605LO",
+    "SPECIAL_BACKGROUND_COMMUNITY_DAY" to "\u2605CD",
     "ADVENTURE_EFFECT" to "\u2605AV",
     "EVOLVE" to "#",
     "PURIFY" to "\u00B6",

@@ -8,6 +8,7 @@ import com.mewname.app.model.NamingField
 import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.PvpLeague
 import com.mewname.app.model.PokemonSize
+import com.mewname.app.model.SpecialBackgroundType
 import com.mewname.app.model.VivillonPattern
 import com.mewname.app.model.defaultSymbols
 import com.mewname.app.model.effectiveBlocks
@@ -137,7 +138,7 @@ class NameGenerator {
             NamingField.LUCKY -> if (data.isLucky) config.symbols["LUCKY"] else null
             NamingField.SHADOW -> if (data.isShadow) config.symbols["SHADOW"] else null
             NamingField.PURIFIED -> if (data.isPurified) config.symbols["PURIFIED"] else null
-            NamingField.SPECIAL_BACKGROUND -> if (data.hasSpecialBackground) config.symbols["SPECIAL_BACKGROUND"] else null
+            NamingField.SPECIAL_BACKGROUND -> resolveSpecialBackgroundSymbol(data, config)
             NamingField.ADVENTURE_EFFECT -> if (data.hasAdventureEffect) config.symbols["ADVENTURE_EFFECT"] else null
             NamingField.EVOLVE_MARKER -> if (data.shouldEvolve) config.symbols["EVOLVE"] ?: defaultSymbols()["EVOLVE"] else null
             NamingField.PURIFY_MARKER -> if (data.shouldPurify) config.symbols["PURIFY"] ?: defaultSymbols()["PURIFY"] else null
@@ -181,6 +182,14 @@ class NameGenerator {
 
         return parts.joinToString("")
             .ifBlank { null }
+    }
+
+    private fun resolveSpecialBackgroundSymbol(data: PokemonScreenData, config: NamingConfig): String? {
+        if (!data.hasSpecialBackground) return null
+        val type = data.specialBackgroundType ?: SpecialBackgroundType.SPECIAL
+        return config.symbols[type.symbolKey]
+            ?.takeIf { it.isNotBlank() }
+            ?: config.symbols["SPECIAL_BACKGROUND"]?.takeIf { it.isNotBlank() }
     }
 
     private fun vivillonPatternSymbol(pattern: VivillonPattern?, config: NamingConfig): String? {

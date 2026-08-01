@@ -110,6 +110,7 @@ class OcrPokemonParser {
 
     private val cpRegex = Regex("""\b(?:CP|PC|GP|OP|DP)\s*[:.-]?\s*(\d{2,5})\b""", RegexOption.IGNORE_CASE)
     private val looseCpRegex = Regex("""(?:^|[^A-Z])P\s*[:.-]?\s*(\d{2,5})\b""", RegexOption.IGNORE_CASE)
+    private val hpRegex = Regex("""\b(\d{2,3})\s*/\s*(\d{2,3})\s*(?:HP|PS)\b""", RegexOption.IGNORE_CASE)
     private val ivPercentRegex = Regex("""(\d{1,3})\s*[%©]""")
     private val ivCombinationRegex = Regex("""(\d{1,2})\s*[/|\\-]\s*(\d{1,2})\s*[/|\\-]\s*(\d{1,2})""")
     private val levelRegex = Regex("""^(?:L(?:V(?:L)?)?|NIVEL|LEVEL|NIV|LEV)\s*[:.]?\s*(\d{1,2}(?:[.,]5)?)$""", RegexOption.IGNORE_CASE)
@@ -365,13 +366,25 @@ class OcrPokemonParser {
 
         onAnalysisStep?.invoke("Estimando nível")
 
+        val displayedMaxHp = extractDisplayedMaxHp(orderedLines, referenceBounds)
+        val curveLevelCandidates = curveLevelCandidatesFor(context, name, familyMembers)
         val curveEstimate = if (name != null && cp != null && att != null && def != null && sta != null) {
             rankCalculator.estimateLevelForCandidates(
                 context = context,
-                pokemonNames = curveLevelCandidatesFor(context, name, familyMembers),
+                pokemonNames = curveLevelCandidates,
                 cp = cp,
                 atk = att,
                 def = def,
+                sta = sta
+            )
+        } else {
+            null
+        }
+        val hpEstimate = if (name != null && displayedMaxHp != null && sta != null) {
+            rankCalculator.estimateLevelFromHpForCandidates(
+                context = context,
+                pokemonNames = curveLevelCandidates,
+                observedHp = displayedMaxHp,
                 sta = sta
             )
         } else {
@@ -384,38 +397,64 @@ class OcrPokemonParser {
             familyMembers = familySuggester.familyMembersFor(context, candyFamilyName, name)
         }
         val curveLevel = curveEstimate?.level
+        val hpLevel = hpEstimate?.level
         val curveCandidateDistance = curveEstimate?.cpDistance
-        val levelMismatch = if (ocrLevel != null && curveLevel != null) abs(ocrLevel - curveLevel) else null
+        val hpCandidateDistance = hpEstimate?.hpDistance
+        val curveHpMismatch = if (curveLevel != null && hpLevel != null) abs(curveLevel - hpLevel) else null
+        val suspiciousLowCpReading = cp != null && cp < 1000
+        val preferHpOverCurve = hpLevel != null &&
+            hpCandidateDistance == 0 &&
+            suspiciousLowCpReading &&
+            curveHpMismatch != null &&
+            curveHpMismatch >= 8.0
+        val supportingLevel = when {
+            preferHpOverCurve -> hpLevel
+            curveLevel != null -> curveLevel
+            else -> hpLevel
+        }
+        val levelMismatch = if (ocrLevel != null && supportingLevel != null) abs(ocrLevel - supportingLevel) else null
         val level = when {
-            ocrLevel != null && curveLevel != null && levelMismatch != null && levelMismatch > 2.5 -> curveLevel
+            ocrLevel != null && supportingLevel != null && levelMismatch != null && levelMismatch > 2.5 -> supportingLevel
             ocrLevel != null -> ocrLevel
-            else -> curveLevel
+            else -> supportingLevel
         }
         val levelDebugInfo = LevelDebugInfo(
             source = when {
-                ocrLevel != null && (curveLevel == null || (levelMismatch != null && levelMismatch <= 2.5)) -> "ocr"
+                ocrLevel != null && (supportingLevel == null || (levelMismatch != null && levelMismatch <= 2.5)) -> "ocr"
+                preferHpOverCurve -> "hp"
                 curveLevel != null -> "curva_cp"
+                hpLevel != null -> "hp"
                 else -> "indisponivel"
             },
             ocrLevel = ocrLevel,
             curveLevel = curveLevel,
+            hpLevel = hpLevel,
             finalLevel = level,
             pokemonName = name,
             cp = cp,
+            maxHp = displayedMaxHp,
             attackIv = att,
             defenseIv = def,
             staminaIv = sta,
             notes = buildList {
-                if (ocrLevel != null && (curveLevel == null || (levelMismatch != null && levelMismatch <= 2.5))) add("nível encontrado no texto OCR")
+                if (ocrLevel != null && (supportingLevel == null || (levelMismatch != null && levelMismatch <= 2.5))) add("nível encontrado no texto OCR")
                 if (curveLevel != null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pela curva de CP")
+                if (hpLevel != null && curveLevel == null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pelo HP máximo")
+                if (preferHpOverCurve) add("estimativa por HP priorizada porque o CP lido parece truncado e divergiu fortemente da curva de HP")
                 if (curveAdjustedPokemonName != null) {
                     add("forma ajustada pela curva de CP: $curveAdjustedPokemonName")
                 }
                 if (curveCandidateDistance != null && curveCandidateDistance > 0) {
                     add("curva de CP com diferença de $curveCandidateDistance ponto(s)")
                 }
-                if (ocrLevel != null && curveLevel != null && levelMismatch != null && levelMismatch > 2.5) {
-                    add("nível OCR descartado por divergência com a curva de CP")
+                if (hpCandidateDistance != null && hpCandidateDistance > 0) {
+                    add("HP com diferença de $hpCandidateDistance ponto(s)")
+                }
+                if (curveHpMismatch != null && curveHpMismatch >= 8.0) {
+                    add("CP e HP apontaram níveis incompatíveis (${curveLevel ?: "-"} vs ${hpLevel ?: "-"})")
+                }
+                if (ocrLevel != null && supportingLevel != null && levelMismatch != null && levelMismatch > 2.5) {
+                    add("nível OCR descartado por divergência com a estimativa complementar")
                 }
                 if (ocrLevel == null) add("nenhuma linha com nível explícito foi encontrada no OCR")
                 if (curveLevel == null && cp == null) add("CP ausente para estimativa por curva")
@@ -425,7 +464,11 @@ class OcrPokemonParser {
                 if (curveLevel == null && cp != null && name != null && listOf(att, def, sta).all { it != null }) {
                     add("nenhuma espécie/forma candidata bateu com o CP observado")
                 }
-                if (ocrLevel == null && curveLevel == null) add("sem dados suficientes para estimar o nível")
+                if (hpLevel == null && displayedMaxHp == null) add("HP ausente para estimativa por HP")
+                if (hpLevel == null && displayedMaxHp != null && (name == null || sta == null)) {
+                    add("estimativa por HP exige espécie reconhecida e IV de PS")
+                }
+                if (ocrLevel == null && curveLevel == null && hpLevel == null) add("sem dados suficientes para estimar o nível")
             }.joinToString("; ")
         )
 
@@ -3009,6 +3052,15 @@ class OcrPokemonParser {
 
         return candidateLines.firstNotNullOfOrNull { line ->
             levelRegex.matchEntire(line)?.groupValues?.getOrNull(1)?.replace(",", ".")?.toDoubleOrNull()
+        }
+    }
+
+    private fun extractDisplayedMaxHp(lines: List<OcrTextLine>, referenceBounds: Rect?): Int? {
+        val candidateLines = rawLinesInRegion(lines, 0.15f, 0.85f, 0.18f, 0.58f, referenceBounds)
+            .map { normalizeText(it.text).trim() }
+
+        return candidateLines.firstNotNullOfOrNull { line ->
+            hpRegex.find(line)?.groupValues?.getOrNull(2)?.toIntOrNull()
         }
     }
 

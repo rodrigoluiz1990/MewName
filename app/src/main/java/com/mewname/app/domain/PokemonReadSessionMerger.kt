@@ -59,6 +59,8 @@ class PokemonReadSessionMerger {
             pvpLeague = current.pvpLeague ?: previous.pvpLeague,
             pvpRank = current.pvpRank ?: previous.pvpRank,
             pvpPokemonName = current.pvpPokemonName ?: previous.pvpPokemonName,
+            selectedFastMove = current.selectedFastMove ?: previous.selectedFastMove,
+            selectedChargedMove = current.selectedChargedMove ?: previous.selectedChargedMove,
             pvpLeagueRanks = if (current.pvpLeagueRanks.isNotEmpty()) current.pvpLeagueRanks else previous.pvpLeagueRanks,
             familyPvpRanks = if (current.familyPvpRanks.isNotEmpty()) current.familyPvpRanks else previous.familyPvpRanks,
             masterIvBadgeMatch = mergedMasterIvBadgeMatch,

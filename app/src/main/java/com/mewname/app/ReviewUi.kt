@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -73,6 +74,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.mewname.app.domain.AppLanguage
+import com.mewname.app.domain.AssetPaths
 import com.mewname.app.domain.MasterIvBadgeCatalog
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.PokemonFamilySuggester
@@ -98,10 +100,15 @@ import com.mewname.app.model.PokemonSize
 import com.mewname.app.model.PvpLeague
 import com.mewname.app.model.PvpLeagueRankInfo
 import com.mewname.app.model.PvpSpeciesRankInfo
+import com.mewname.app.model.SpecialBackgroundType
 import com.mewname.app.model.VivillonPattern
+import com.mewname.app.model.effectiveBlocks
 import com.mewname.app.model.hasVisibleSizeSymbol
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import java.text.Normalizer
+import java.util.Locale
 import kotlin.math.roundToInt
 
 private enum class ReviewTab {
@@ -115,6 +122,27 @@ private enum class ReviewIvMode {
     SHADOW,
     PURIFIED
 }
+
+private data class ReviewPokemonMove(
+    val name: String,
+    val legacy: Boolean
+)
+
+private data class ReviewPokemonMoveSet(
+    val fastMoves: List<ReviewPokemonMove>,
+    val chargedMoves: List<ReviewPokemonMove>
+)
+
+private data class ReviewPokemonMoveOption(
+    val value: String,
+    val label: String
+)
+
+@Volatile
+private var reviewEvolutionStageOrderCache: Map<String, Int>? = null
+
+@Volatile
+private var reviewPokemonMoveCache: Map<String, ReviewPokemonMoveSet>? = null
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -212,7 +240,46 @@ fun ReviewEditorCard(
     }
     val reviewData = derivedData
     val familyRankCards = remember(reviewData.familyPvpRanks, reviewData.pvpLeague) {
-        speciesRankCardsForLeague(reviewData.familyPvpRanks, selectedLeague = reviewData.pvpLeague)
+        speciesRankCardsForLeague(
+            context = context,
+            speciesRanks = reviewData.familyPvpRanks,
+            selectedLeague = reviewData.pvpLeague
+        )
+    }
+    val selectedPvpSpecies = remember(reviewData.pvpPokemonName, reviewData.pokemonName, reviewData.candyFamilyName) {
+        reviewData.pvpPokemonName
+            ?: reviewData.pokemonName
+            ?: reviewData.candyFamilyName
+    }
+    val moveSet = remember(context, selectedPvpSpecies) {
+        selectedPvpSpecies?.let { loadReviewPokemonMoveSet(context, it) }
+            ?: ReviewPokemonMoveSet(emptyList(), emptyList())
+    }
+    val previewUsesLegacyMove = remember(configs) {
+        configs.any { config ->
+            config.effectiveBlocks().any { block ->
+                block.field == NamingField.LEGACY_MOVE || block.field == NamingField.LEGACY_MOVE_NAME
+            }
+        }
+    }
+    val legacyMoveSymbol = remember(configs) {
+        configs.firstNotNullOfOrNull { config ->
+            config.symbols["LEGACY"]?.takeIf { it.isNotBlank() }
+        } ?: com.mewname.app.model.defaultSymbols()["LEGACY"].orEmpty()
+    }
+    LaunchedEffect(selectedPvpSpecies, moveSet.fastMoves, moveSet.chargedMoves) {
+        val nextFastMove = draft.selectedFastMove?.takeIf { selected ->
+            moveSet.fastMoves.any { it.name == selected }
+        }
+        val nextChargedMove = draft.selectedChargedMove?.takeIf { selected ->
+            moveSet.chargedMoves.any { it.name == selected }
+        }
+        if (nextFastMove != draft.selectedFastMove || nextChargedMove != draft.selectedChargedMove) {
+            draft = draft.copy(
+                selectedFastMove = nextFastMove,
+                selectedChargedMove = nextChargedMove
+            )
+        }
     }
     fun selectPvpLeague(league: PvpLeague?) {
         val selectedSpeciesRank = league?.let { selected ->
@@ -755,36 +822,40 @@ fun ReviewEditorCard(
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
-                        ReviewTextRow {
-                            familyRankCards.take(3).forEach { rankCard ->
-                                CompactField(
-                                    label = rankCard.label,
-                                    value = rankCard.value,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    active = reviewData.pvpLeague == rankCard.league &&
-                                        reviewData.pvpRank == rankCard.rank &&
-                                        reviewData.pvpPokemonName == rankCard.pokemonName,
-                                    onClick = {
-                                        if (rankCard.eligible) {
-                                            draft = draft.copy(
-                                                pvpLeague = rankCard.league,
-                                                pvpRank = rankCard.rank,
-                                                pvpPokemonName = rankCard.pokemonName
-                                            )
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            repeat((3 - familyRankCards.take(3).size).coerceAtLeast(0)) {
-                                CompactField(
-                                    label = "",
-                                    value = "",
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    modifier = Modifier.weight(1f)
-                                )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            familyRankCards.chunked(3).forEach { rankRow ->
+                                ReviewTextRow {
+                                    rankRow.forEach { rankCard ->
+                                        CompactField(
+                                            label = rankCard.label,
+                                            value = rankCard.value,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            active = reviewData.pvpLeague == rankCard.league &&
+                                                reviewData.pvpRank == rankCard.rank &&
+                                                reviewData.pvpPokemonName == rankCard.pokemonName,
+                                            onClick = {
+                                                if (rankCard.eligible) {
+                                                    draft = draft.copy(
+                                                        pvpLeague = rankCard.league,
+                                                        pvpRank = rankCard.rank,
+                                                        pvpPokemonName = rankCard.pokemonName
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    repeat((3 - rankRow.size).coerceAtLeast(0)) {
+                                        CompactField(
+                                            label = "",
+                                            value = "",
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -792,6 +863,43 @@ fun ReviewEditorCard(
                         PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
                     }
                 }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+                val fastMoveOptions = remember(moveSet.fastMoves, legacyMoveSymbol) {
+                    moveDropdownOptions(moveSet.fastMoves, legacyMoveSymbol)
+                }
+                val chargedMoveOptions = remember(moveSet.chargedMoves, legacyMoveSymbol) {
+                    moveDropdownOptions(moveSet.chargedMoves, legacyMoveSymbol)
+                }
+                MoveDropdownField(
+                    label = lt(language, "Ataque rapido", "Fast move", "Ataque rapido"),
+                    selectedValue = draft.selectedFastMove,
+                    options = fastMoveOptions,
+                    emptyLabel = unknownLabel,
+                    onSelected = { moveName ->
+                        draft = draft.copy(selectedFastMove = moveName).applySelectedLegacyMove(
+                            selectedMoveName = moveName,
+                            availableMoves = moveSet.fastMoves,
+                            previewUsesLegacyMove = previewUsesLegacyMove
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                MoveDropdownField(
+                    label = lt(language, "Ataque carregado", "Charged move", "Ataque cargado"),
+                    selectedValue = draft.selectedChargedMove,
+                    options = chargedMoveOptions,
+                    emptyLabel = unknownLabel,
+                    onSelected = { moveName ->
+                        draft = draft.copy(selectedChargedMove = moveName).applySelectedLegacyMove(
+                            selectedMoveName = moveName,
+                            availableMoves = moveSet.chargedMoves,
+                            previewUsesLegacyMove = previewUsesLegacyMove
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                )
             }
             }
 
@@ -833,39 +941,55 @@ fun ReviewEditorCard(
             if (activeReviewTab == ReviewTab.EXTRAS) {
             if (hasBooleanSection) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FieldHeaderRow(
-                        label = lt(language, "Marcadores", "Markers", "Marcadores"),
-                        selected = selectedDebugFields.any {
-                            it in setOf(NamingField.SPECIAL_BACKGROUND, NamingField.ADVENTURE_EFFECT, NamingField.LEGACY_MOVE, NamingField.LEGACY_MOVE_NAME)
-                        },
-                        onMarkerClick = {
-                            selectedDebugFields = selectedDebugFields.toggleAll(
-                                linkedSetOf(
-                                    NamingField.SPECIAL_BACKGROUND,
-                                    NamingField.ADVENTURE_EFFECT,
-                                    NamingField.LEGACY_MOVE,
-                                    NamingField.LEGACY_MOVE_NAME
-                                ).intersect(fields.toSet())
-                            )
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+                        val markerFields = linkedSetOf(
+                            NamingField.SPECIAL_BACKGROUND,
+                            NamingField.ADVENTURE_EFFECT,
+                            NamingField.LEGACY_MOVE,
+                            NamingField.LEGACY_MOVE_NAME
+                        ).intersect(fields.toSet())
+                        val markerSectionSelected = selectedDebugFields.any { it in markerFields }
+                        val toggleMarkerSection = {
+                            selectedDebugFields = selectedDebugFields.toggleAll(markerFields)
                             showBackgroundHelp = !showBackgroundHelp
                         }
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
                         if (NamingField.SPECIAL_BACKGROUND in fields) {
-                            ToggleChip(
+                            SelectionDropdownField(
                                 label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
-                                selected = draft.hasSpecialBackground,
-                                onClick = { draft = draft.copy(hasSpecialBackground = !draft.hasSpecialBackground) },
-                                compact = true,
+                                value = draft.specialBackgroundSelectionLabel(language),
+                                options = specialBackgroundSelectionOptions(language),
+                                onSelected = { value ->
+                                    val selectedType = specialBackgroundTypeFromSelection(value, language)
+                                    draft = if (selectedType == null) {
+                                        draft.copy(
+                                            hasSpecialBackground = false,
+                                            specialBackgroundType = null
+                                        )
+                                    } else {
+                                        draft.copy(
+                                            hasSpecialBackground = true,
+                                            specialBackgroundType = selectedType
+                                        )
+                                    }
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                         }
                         if (NamingField.ADVENTURE_EFFECT in fields) {
-                            ToggleChip(
-                                label = NamingField.ADVENTURE_EFFECT.localizedLabel(language),
+                            LabeledToggleChipField(
+                                label = lt(language, "Marcadores", "Markers", "Marcadores"),
+                                chipLabel = NamingField.ADVENTURE_EFFECT.localizedLabel(language),
                                 selected = draft.hasAdventureEffect,
                                 onClick = { draft = draft.copy(hasAdventureEffect = !draft.hasAdventureEffect) },
-                                compact = true,
+                                headerSelected = markerSectionSelected,
+                                onHeaderClick = toggleMarkerSection,
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else if (NamingField.LEGACY_MOVE in fields) {
+                            FieldHeaderSpacer(
+                                label = lt(language, "Marcadores", "Markers", "Marcadores"),
+                                selected = markerSectionSelected,
+                                onMarkerClick = toggleMarkerSection,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -1768,6 +1892,116 @@ private fun SelectionDropdownField(
 }
 
 @Composable
+private fun MoveDropdownField(
+    label: String,
+    selectedValue: String?,
+    options: List<ReviewPokemonMoveOption>,
+    emptyLabel: String,
+    onSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.value == selectedValue }?.label ?: emptyLabel
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+        FieldLabelRow(label = label)
+        Box {
+            CompactTextInput(
+                value = selectedLabel,
+                onValueChange = {},
+                readOnly = true,
+                active = expanded,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                trailing = {
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = "Abrir opções",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .widthIn(min = 180.dp, max = 280.dp)
+                    .heightIn(max = 240.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
+            ) {
+                DropdownMenuItem(
+                    text = { Text(emptyLabel, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        onSelected(null)
+                        expanded = false
+                    }
+                )
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                option.label,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        onClick = {
+                            onSelected(option.value)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LabeledToggleChipField(
+    label: String,
+    chipLabel: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    headerSelected: Boolean,
+    onHeaderClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+        FieldHeaderRow(
+            label = label,
+            selected = headerSelected,
+            onMarkerClick = onHeaderClick
+        )
+        ToggleChip(
+            label = chipLabel,
+            selected = selected,
+            onClick = onClick,
+            compact = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun FieldHeaderSpacer(
+    label: String,
+    selected: Boolean,
+    onMarkerClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+        FieldHeaderRow(
+            label = label,
+            selected = selected,
+            onMarkerClick = onMarkerClick
+        )
+        Spacer(modifier = Modifier.height(34.dp))
+    }
+}
+
+@Composable
 private fun IvHelpPanel(
     info: IvDebugInfo?,
     bitmap: Bitmap?
@@ -1925,7 +2159,7 @@ private fun PvpHelpPanel(
     val orderedRanks = orderedLeagues.mapNotNull { league ->
         leagueRanks.firstOrNull { it.league == league }
     }
-    val bestBySpecies = speciesRankCardsForLeague(speciesRanks, selectedLeague = null)
+    val bestBySpecies = speciesRankCardsForLeague(context, speciesRanks, selectedLeague = null)
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
         Column(
             modifier = Modifier
@@ -2205,11 +2439,14 @@ private data class PvpRankCard(
 )
 
 private fun speciesRankCardsForLeague(
+    context: Context,
     speciesRanks: List<PvpSpeciesRankInfo>,
     selectedLeague: PvpLeague?
 ): List<PvpRankCard> {
     if (speciesRanks.isEmpty()) return emptyList()
     val orderedSpecies = speciesRanks.map { it.pokemonName }.distinct()
+    val familyOrder = orderedSpecies.withIndex().associate { it.value to it.index }
+    val stageOrder = loadReviewEvolutionStageOrder(context)
     return orderedSpecies.mapNotNull { pokemonName ->
         val ranksForSpecies = speciesRanks.filter { it.pokemonName == pokemonName }
         val best = if (selectedLeague != null) {
@@ -2233,11 +2470,132 @@ private fun speciesRankCardsForLeague(
             }
         )
     }.sortedWith(
-        compareBy<PvpRankCard> { if (it.eligible && it.rank != null) 0 else 1 }
-            .thenBy { it.rank ?: Int.MAX_VALUE }
-            .thenBy { it.league.ordinal }
+        compareBy<PvpRankCard> { reviewEvolutionStageRank(stageOrder, it.pokemonName) }
+            .thenBy { familyOrder[it.pokemonName] ?: Int.MAX_VALUE }
             .thenBy { it.label }
     )
+}
+
+private fun moveDropdownOptions(
+    moves: List<ReviewPokemonMove>,
+    legacyMoveSymbol: String
+): List<ReviewPokemonMoveOption> {
+    return moves.map { move ->
+        ReviewPokemonMoveOption(
+            value = move.name,
+            label = if (move.legacy && legacyMoveSymbol.isNotBlank()) {
+                "${move.name} $legacyMoveSymbol"
+            } else {
+                move.name
+            }
+        )
+    }
+}
+
+private fun loadReviewEvolutionStageOrder(context: Context): Map<String, Int> {
+    reviewEvolutionStageOrderCache?.let { return it }
+    return try {
+        val jsonArray = JSONArray(
+            context.assets.open(AssetPaths.POKEMON_EVOLUTION_STAGES).bufferedReader().use { it.readText() }
+        )
+        buildMap {
+            for (index in 0 until jsonArray.length()) {
+                val item = jsonArray.getJSONObject(index)
+                val normalizedName = normalizeReviewKey(item.optString("name"))
+                val order = when (item.optString("stage").uppercase(Locale.US)) {
+                    "BABY" -> 0
+                    "BASIC" -> 1
+                    "STAGE1" -> 2
+                    "STAGE2" -> 3
+                    else -> 4
+                }
+                if (normalizedName.isNotBlank()) {
+                    put(normalizedName, order)
+                }
+            }
+        }.also { reviewEvolutionStageOrderCache = it }
+    } catch (_: Exception) {
+        emptyMap()
+    }
+}
+
+private fun reviewEvolutionStageRank(stageOrder: Map<String, Int>, pokemonName: String): Int {
+    val normalizedName = normalizeReviewKey(pokemonName)
+    return stageOrder[normalizedName] ?: 4
+}
+
+private fun loadReviewPokemonMoveSet(context: Context, pokemonName: String): ReviewPokemonMoveSet {
+    val moveCatalog = loadReviewPokemonMoveCatalog(context)
+    val lookupKeys = reviewPokemonMoveLookupKeys(pokemonName)
+    return lookupKeys.firstNotNullOfOrNull { key -> moveCatalog[key] }
+        ?: ReviewPokemonMoveSet(emptyList(), emptyList())
+}
+
+private fun loadReviewPokemonMoveCatalog(context: Context): Map<String, ReviewPokemonMoveSet> {
+    reviewPokemonMoveCache?.let { return it }
+    return try {
+        val jsonArray = JSONArray(
+            context.assets.open(AssetPaths.POKEMON_CURRENT_MOVES).bufferedReader().use { it.readText() }
+        )
+        buildMap {
+            for (index in 0 until jsonArray.length()) {
+                val item = jsonArray.getJSONObject(index)
+                val name = item.optString("name")
+                val normalizedName = normalizeReviewKey(name)
+                if (normalizedName.isBlank()) continue
+                put(
+                    normalizedName,
+                    ReviewPokemonMoveSet(
+                        fastMoves = parseReviewMoves(item.optJSONArray("fastMoves")),
+                        chargedMoves = parseReviewMoves(item.optJSONArray("chargedMoves"))
+                    )
+                )
+            }
+        }.also { reviewPokemonMoveCache = it }
+    } catch (_: Exception) {
+        emptyMap()
+    }
+}
+
+private fun parseReviewMoves(array: JSONArray?): List<ReviewPokemonMove> {
+    array ?: return emptyList()
+    return buildList {
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val name = item.optString("name").trim()
+            if (name.isBlank()) continue
+            add(
+                ReviewPokemonMove(
+                    name = name,
+                    legacy = item.optBoolean("legacy", false)
+                )
+            )
+        }
+    }
+}
+
+private fun reviewPokemonMoveLookupKeys(pokemonName: String): List<String> {
+    val trimmed = pokemonName.trim()
+    if (trimmed.isBlank()) return emptyList()
+    val keys = linkedSetOf(normalizeReviewKey(trimmed))
+    reviewRegionalPrefixes().forEach { prefix ->
+        if (trimmed.startsWith(prefix, ignoreCase = true)) {
+            keys += normalizeReviewKey(trimmed.substring(prefix.length).trim())
+        }
+    }
+    return keys.filter { it.isNotBlank() }
+}
+
+private fun reviewRegionalPrefixes(): List<String> {
+    return listOf("Alolan ", "Galarian ", "Hisuian ", "Paldean ")
+}
+
+private fun normalizeReviewKey(text: String): String {
+    return Normalizer.normalize(text.trim(), Normalizer.Form.NFD)
+        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .replace(Regex("[^A-Za-z0-9]+"), " ")
+        .trim()
+        .uppercase(Locale.US)
 }
 
 private fun isVivillonReviewFamily(name: String?): Boolean {
@@ -2523,10 +2881,15 @@ private fun PokemonScreenData.normalizeReviewData(): PokemonScreenData {
     val att = attIv
     val def = defIv
     val sta = staIv
-    return if (ivPercent == null && att != null && def != null && sta != null) {
+    val normalized = if (ivPercent == null && att != null && def != null && sta != null) {
         copy(ivPercent = ((att + def + sta) * 100f / 45f).roundToInt())
     } else {
         this
+    }
+    return if (normalized.hasSpecialBackground) {
+        normalized.copy(specialBackgroundType = normalized.specialBackgroundType ?: SpecialBackgroundType.SPECIAL)
+    } else {
+        normalized.copy(specialBackgroundType = null)
     }
 }
 
@@ -2539,6 +2902,54 @@ private fun PokemonScreenData.recalculateIvPercent(): PokemonScreenData {
     } else {
         this
     }
+}
+
+private fun PokemonScreenData.applySelectedLegacyMove(
+    selectedMoveName: String?,
+    availableMoves: List<ReviewPokemonMove>,
+    previewUsesLegacyMove: Boolean
+): PokemonScreenData {
+    if (!previewUsesLegacyMove) return this
+    val selectedMove = selectedMoveName?.let { moveName ->
+        availableMoves.firstOrNull { it.name == moveName }
+    } ?: return this
+    if (!selectedMove.legacy) return this
+    return copy(
+        hasLegacyMove = true,
+        legacyDebugInfo = (legacyDebugInfo ?: LegacyDebugInfo()).copy(
+            matchedLegacyMove = selectedMove.name
+        )
+    )
+}
+
+private fun specialBackgroundSelectionOptions(language: AppLanguage): List<String> {
+    return listOf(
+        "-",
+        SpecialBackgroundType.SPECIAL.localizedLabel(language),
+        SpecialBackgroundType.GO_FEST.localizedLabel(language),
+        SpecialBackgroundType.WILD_AREA.localizedLabel(language),
+        SpecialBackgroundType.LOCATION.localizedLabel(language),
+        SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language)
+    )
+}
+
+private fun specialBackgroundTypeFromSelection(
+    value: String,
+    language: AppLanguage
+): SpecialBackgroundType? {
+    return when (value) {
+        SpecialBackgroundType.SPECIAL.localizedLabel(language) -> SpecialBackgroundType.SPECIAL
+        SpecialBackgroundType.GO_FEST.localizedLabel(language) -> SpecialBackgroundType.GO_FEST
+        SpecialBackgroundType.WILD_AREA.localizedLabel(language) -> SpecialBackgroundType.WILD_AREA
+        SpecialBackgroundType.LOCATION.localizedLabel(language) -> SpecialBackgroundType.LOCATION
+        SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language) -> SpecialBackgroundType.COMMUNITY_DAY
+        else -> null
+    }
+}
+
+private fun PokemonScreenData.specialBackgroundSelectionLabel(language: AppLanguage): String {
+    if (!hasSpecialBackground) return "-"
+    return (specialBackgroundType ?: SpecialBackgroundType.SPECIAL).localizedLabel(language)
 }
 
 

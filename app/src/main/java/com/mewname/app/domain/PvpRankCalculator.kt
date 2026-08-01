@@ -5,7 +5,10 @@ import android.content.Context
 import com.mewname.app.model.PvpLeague
 import com.mewname.app.model.PvpLeagueRankInfo
 import com.mewname.app.model.PvpSpeciesRankInfo
+import org.json.JSONArray
 import org.json.JSONObject
+import java.text.Normalizer
+import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -31,6 +34,7 @@ class PvpRankCalculator {
 
     data class StatProduct(val atk: Int, val def: Int, val sta: Int, val product: Double, val cp: Int, val level: Double)
     data class LevelEstimate(val pokemonName: String, val level: Double, val cpDistance: Int)
+    data class HpLevelEstimate(val pokemonName: String, val level: Double, val hpDistance: Int)
 
     private data class RankTable(
         val byIv: Map<String, StatProduct>,
@@ -39,6 +43,8 @@ class PvpRankCalculator {
 
     @Volatile
     private var baseStatsRoot: JSONObject? = null
+    @Volatile
+    private var canonicalNameByAlias: Map<String, String>? = null
     private val rankTableCache = mutableMapOf<String, RankTable>()
 
     fun estimateLevel(
@@ -91,6 +97,24 @@ class PvpRankCalculator {
             baseStats.getInt("stamina") + sta,
             cpm
         )
+    }
+
+    fun estimateLevelFromHpForCandidates(
+        context: Context,
+        pokemonNames: List<String>,
+        observedHp: Int,
+        sta: Int
+    ): HpLevelEstimate? {
+        return pokemonNames
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .mapNotNull { pokemonName ->
+                val baseStats = loadBaseStats(context, pokemonName) ?: return@mapNotNull null
+                estimateLevelFromHpWithDistance(baseStats, observedHp, sta)?.copy(pokemonName = pokemonName)
+            }
+            .filter { it.hpDistance == 0 }
+            .minWithOrNull(compareBy<HpLevelEstimate> { it.hpDistance }.thenByDescending { it.level }.thenBy { it.pokemonName })
     }
 
     fun calculateRank(context: Context, pokemonName: String, atk: Int, def: Int, sta: Int, league: PvpLeague): Int? {
@@ -268,6 +292,30 @@ class PvpRankCalculator {
         return bestLevel?.let { LevelEstimate(pokemonName = "", level = it, cpDistance = bestDistance) }
     }
 
+    private fun estimateLevelFromHpWithDistance(
+        baseStats: JSONObject,
+        observedHp: Int,
+        sta: Int
+    ): HpLevelEstimate? {
+        val baseStamina = baseStats.getInt("stamina")
+        var bestLevel: Double? = null
+        var bestDistance = Int.MAX_VALUE
+
+        for (i in cpmTable.indices) {
+            val cpm = cpmTable[i]
+            val level = 1.0 + (i * 0.5)
+            val hp = floor((baseStamina + sta) * cpm).toInt().coerceAtLeast(10)
+            val distance = kotlin.math.abs(hp - observedHp)
+
+            if (distance < bestDistance || (distance == bestDistance && level > (bestLevel ?: 0.0))) {
+                bestDistance = distance
+                bestLevel = level
+            }
+        }
+
+        return bestLevel?.let { HpLevelEstimate(pokemonName = "", level = it, hpDistance = bestDistance) }
+    }
+
     private fun getBestStatProduct(
         base: JSONObject,
         ivAtk: Int,
@@ -340,7 +388,9 @@ class PvpRankCalculator {
     private fun loadBaseStats(context: Context, name: String): JSONObject? {
         return try {
             val jsonObject = loadBaseStatsRoot(context)
-            jsonObject.optJSONObject(name.uppercase())
+            val canonicalName = resolveCanonicalPokemonName(context, name)
+            jsonObject.optJSONObject(normalizeKey(canonicalName))
+                ?: jsonObject.optJSONObject(normalizeKey(name))
         } catch (e: Exception) {
             null
         }
@@ -355,6 +405,50 @@ class PvpRankCalculator {
             baseStatsRoot = loaded
             return loaded
         }
+    }
+
+    private fun resolveCanonicalPokemonName(context: Context, name: String): String {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return name
+        val aliasMap = loadCanonicalNameByAlias(context)
+        return aliasMap[normalizeKey(trimmed)] ?: trimmed
+    }
+
+    private fun loadCanonicalNameByAlias(context: Context): Map<String, String> {
+        canonicalNameByAlias?.let { return it }
+        synchronized(this) {
+            canonicalNameByAlias?.let { return it }
+            val loaded = runCatching {
+                val jsonString = context.assets.open(AssetPaths.POKEMON_NAMES).bufferedReader().use { it.readText() }
+                val array = JSONArray(jsonString)
+                buildMap {
+                    for (index in 0 until array.length()) {
+                        val obj = array.getJSONObject(index)
+                        val canonicalName = obj.optString("name").trim()
+                        if (canonicalName.isBlank()) continue
+                        put(normalizeKey(canonicalName), canonicalName)
+                        val aliases = obj.optJSONArray("aliases")
+                        if (aliases != null) {
+                            for (aliasIndex in 0 until aliases.length()) {
+                                val alias = aliases.optString(aliasIndex).trim()
+                                if (alias.isNotBlank()) {
+                                    put(normalizeKey(alias), canonicalName)
+                                }
+                            }
+                        }
+                    }
+                }
+            }.getOrElse { emptyMap() }
+            canonicalNameByAlias = loaded
+            return loaded
+        }
+    }
+
+    private fun normalizeKey(text: String): String {
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .uppercase(Locale.US)
+            .trim()
     }
 
     private fun minimumCpAtLowestLevel(base: JSONObject, ivAtk: Int, ivDef: Int, ivSta: Int): Int {

@@ -6,6 +6,7 @@ import com.mewname.app.domain.AppLanguage
 import com.mewname.app.model.NamingBlock
 import com.mewname.app.model.NamingBlockType
 import com.mewname.app.model.NamingField
+import com.mewname.app.model.SpecialBackgroundType
 
 val LocalAppLanguage = staticCompositionLocalOf { AppLanguage.PT_BR }
 
@@ -55,6 +56,14 @@ fun NamingField.localizedLabel(language: AppLanguage): String = when (this) {
 fun NamingBlock.localizedLabel(language: AppLanguage): String = when (type) {
     NamingBlockType.VARIABLE -> field?.localizedLabel(language) ?: lt(language, "Campo", "Field", "Campo")
     NamingBlockType.FIXED_TEXT -> if (fixedText.isBlank()) lt(language, "Texto fixo", "Fixed text", "Texto fijo") else "\"$fixedText\""
+}
+
+fun SpecialBackgroundType.localizedLabel(language: AppLanguage): String = when (this) {
+    SpecialBackgroundType.SPECIAL -> lt(language, "Fundo especial", "Special background", "Fondo especial")
+    SpecialBackgroundType.GO_FEST -> "GO Fest"
+    SpecialBackgroundType.WILD_AREA -> "Wild Area"
+    SpecialBackgroundType.LOCATION -> lt(language, "Localidade", "Location", "Localidad")
+    SpecialBackgroundType.COMMUNITY_DAY -> lt(language, "Dia da Comunidade", "Community Day", "Dia de la Comunidad")
 }
 
 fun appLanguageLabel(language: AppLanguage, target: AppLanguage): String = when (target) {

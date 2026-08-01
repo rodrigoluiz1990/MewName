@@ -17,6 +17,7 @@ object AssetPaths {
     const val POKEMON_FAMILIES = "pokemon/families.json"
     const val POKEMON_STATS = "pokemon/stats.json"
     const val POKEMON_EVOLUTION_STAGES = "pokemon/evolution_stages.json"
+    const val POKEMON_CURRENT_MOVES = "pokemon/current_moves.json"
 
     const val PVP_IV_COMBINATIONS = "pvp/iv_combinations.json"
     const val PVP_MASTER_IV_TABLE = "pvp/master_iv_table.json"

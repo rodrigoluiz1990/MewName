@@ -55,14 +55,19 @@ import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
 import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.EvolutionFlag
+import com.mewname.app.model.EvolutionIconDebugInfo
 import com.mewname.app.model.Gender
 import com.mewname.app.model.IvDebugInfo
+import com.mewname.app.model.LevelDebugInfo
 import com.mewname.app.model.NamingConfig
 import com.mewname.app.model.NamingField
 import com.mewname.app.model.NormalizedDebugRect
 import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.PokemonSize
 import com.mewname.app.model.PvpLeague
+import com.mewname.app.model.AdventureEffectDebugInfo
+import com.mewname.app.model.BackgroundDebugInfo
+import com.mewname.app.model.LegacyDebugInfo
 import com.mewname.app.model.VivillonPattern
 import com.mewname.app.model.effectiveBlocks
 import com.mewname.app.ocr.OcrEngine
@@ -1626,9 +1631,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val includeMasterIv = wants(NamingField.MASTER_IV_BADGE)
         data.levelDebugInfo?.let { info ->
             if (wants(NamingField.LEVEL)) {
-                appendLine(
-                    "Level dbg: fonte=${info.source.ifBlank { "-" }} ocr=${info.ocrLevel ?: "-"} curva=${info.curveLevel ?: "-"} final=${info.finalLevel ?: "-"} pokemon=${info.pokemonName ?: "-"} cp=${info.cp ?: "-"} iv=${info.attackIv ?: "-"}/${info.defenseIv ?: "-"}/${info.staminaIv ?: "-"}"
-                )
+                appendLine("Level dbg: ${formatLevelDebugSummary(info)}")
                 if (info.notes.isNotBlank()) appendLine("Level obs: ${info.notes}")
             }
         }
@@ -1658,7 +1661,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
         data.candyDebugInfo?.let { info ->
             if (wants(NamingField.POKEMON_NAME)) {
-                appendLine("Candy dbg: linhas=${info.regionLineCount} familia=${info.resolvedFamilyName ?: "-"} raw=${info.extractedFamilyRaw ?: "-"}")
+                val hasCandySignal = info.resolvedFamilyName != null || info.extractedFamilyRaw != null || info.notes.isNotBlank()
+                if (hasCandySignal) {
+                    appendLine("Candy dbg: linhas=${info.regionLineCount} familia=${info.resolvedFamilyName ?: "-"} raw=${info.extractedFamilyRaw ?: "-"}")
+                }
                 if (info.notes.isNotBlank()) appendLine("Candy obs: ${info.notes}")
             }
         }
@@ -1695,9 +1701,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
         data.backgroundDebugInfo?.let { info ->
             if (wants(NamingField.SPECIAL_BACKGROUND) || data.hasSpecialBackground) {
-                appendLine(
-                    "Background dbg: texto=${info.textMatch} topo=${info.topRegionMatch} seloEvento=${info.eventBadgeVisualMatch} sortudoTexto=${info.luckyTextMatch} sortudoVisual=${info.luckyVisualMatch} shinyParticulas=${info.shinyParticleMatch} sombraTexto=${info.shadowTextMatch} sombraParticulas=${info.shadowParticleMatch} sombraTextura=${info.shadowTextureMatch} ref=${info.referenceDecision ?: "-"} nome=${info.referenceName ?: "-"} distancia=${info.referenceDistance?.formatDebugValue() ?: "-"} specialNome=${info.specialReferenceName ?: "-"} specialDist=${info.specialReferenceDistance?.formatDebugValue() ?: "-"} fallbackCor=${info.colorFallbackMatch}"
-                )
+                appendLine("Background dbg: ${formatBackgroundDebugSummary(info)}")
                 if (info.notes.isNotBlank()) appendLine("Background obs: ${info.notes}")
             }
         }
@@ -1725,9 +1729,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
         data.adventureEffectDebugInfo?.let { info ->
             if (wants(NamingField.ADVENTURE_EFFECT) || data.hasAdventureEffect) {
-                appendLine(
-                    "Adventure dbg: pokemon=${info.matchedPokemon ?: "-"} keyword=${info.matchedKeyword ?: "-"} golpe=${info.matchedMove ?: "-"} efeito=${info.matchedEffectName ?: "-"}"
-                )
+                appendLine("Adventure dbg: ${formatAdventureDebugSummary(info)}")
                 if (info.notes.isNotBlank()) appendLine("Adventure obs: ${info.notes}")
             }
         }
@@ -1736,25 +1738,81 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 if (wants(NamingField.LEGACY_MOVE_NAME)) {
                     appendLine("Ataque legado: ${info.matchedLegacyMove ?: "-"}")
                 }
-                appendLine(
-                    "Legacy dbg: pokemon=${info.matchedAgainstPokemon ?: "-"} keyword=${info.matchedKeyword ?: "-"} golpe=${info.matchedLegacyMove ?: "-"}"
-                )
+                appendLine("Legacy dbg: ${formatLegacyDebugSummary(info)}")
                 if (info.notes.isNotBlank()) appendLine("Legacy obs: ${info.notes}")
             }
         }
         data.evolutionIconDebugInfo?.let { info ->
             if (wants(NamingField.EVOLUTION_TYPE) || info.detectedFlags.isNotEmpty()) {
-                appendLine(
-                    "Icons dbg: mega=${info.megaKeyword ?: "-"} giga=${info.gigantamaxKeyword ?: "-"} dyna=${info.dynamaxKeyword ?: "-"} flags=${info.detectedFlags.joinToString(", ").ifBlank { "-" }}"
-                )
-                val hasIconSignal = info.megaKeyword != null || info.gigantamaxKeyword != null || info.dynamaxKeyword != null || info.detectedFlags.isNotEmpty()
-                if (hasIconSignal && info.titleLines.isNotEmpty()) appendLine("Icons topo: ${info.titleLines.joinToString(" | ")}")
-                if (hasIconSignal && info.badgeLines.isNotEmpty()) appendLine("Icons badge: ${info.badgeLines.joinToString(" | ")}")
-                if (hasIconSignal && info.centerLines.isNotEmpty()) appendLine("Icons centro: ${info.centerLines.joinToString(" | ")}")
-                if (hasIconSignal && info.actionLines.isNotEmpty()) appendLine("Icons acao: ${info.actionLines.joinToString(" | ")}")
+                appendLine("Icons dbg: ${formatEvolutionIconDebugSummary(info)}")
                 if (info.notes.isNotBlank()) appendLine("Icons obs: ${info.notes}")
             }
         }
+    }
+
+    private fun formatLevelDebugSummary(info: LevelDebugInfo): String {
+        return buildList {
+            add("fonte=${info.source.ifBlank { "-" }}")
+            add("final=${info.finalLevel ?: "-"}")
+            info.ocrLevel?.let { add("ocr=$it") }
+            info.curveLevel?.let { add("curva=$it") }
+            info.hpLevel?.let { add("hp=$it") }
+            info.cp?.let { add("cp=$it") }
+            info.maxHp?.let { add("hpMax=$it") }
+            info.pokemonName?.takeIf { it.isNotBlank() }?.let { add("pokemon=$it") }
+            if (listOf(info.attackIv, info.defenseIv, info.staminaIv).any { it != null }) {
+                add("iv=${info.attackIv ?: "-"}/${info.defenseIv ?: "-"}/${info.staminaIv ?: "-"}")
+            }
+        }.joinToString(" ")
+    }
+
+    private fun formatBackgroundDebugSummary(info: BackgroundDebugInfo): String {
+        val signals = buildList {
+            if (info.textMatch) add("texto")
+            if (info.topRegionMatch) add("topo")
+            if (info.eventBadgeVisualMatch) add("selo")
+            if (info.referenceDecision == true) add("referencia")
+            if (info.colorFallbackMatch) add("cor")
+            if (info.luckyTextMatch || info.luckyVisualMatch) add("sortudo")
+            if (info.shadowTextMatch || info.shadowParticleMatch || info.shadowTextureMatch) add("sombra")
+            if (info.shinyParticleMatch) add("shiny")
+        }.ifEmpty { listOf("nenhum") }
+        return buildList {
+            add("sinais=${signals.joinToString(",")}")
+            if (info.referenceDecision != null) add("ref=${info.referenceDecision}")
+            info.referenceName?.let { add("nome=$it") }
+            info.referenceDistance?.let { add("dist=${it.formatDebugValue()}") }
+            info.specialReferenceName?.let { add("special=$it") }
+            info.specialReferenceDistance?.let { add("specialDist=${it.formatDebugValue()}") }
+        }.joinToString(" ")
+    }
+
+    private fun formatAdventureDebugSummary(info: AdventureEffectDebugInfo): String {
+        return buildList {
+            info.matchedPokemon?.let { add("pokemon=$it") }
+            info.matchedMove?.let { add("golpe=$it") }
+            info.matchedEffectName?.let { add("efeito=$it") }
+            info.matchedKeyword?.let { add("keyword=$it") }
+            if (isEmpty()) add("sem sinal conclusivo")
+        }.joinToString(" ")
+    }
+
+    private fun formatLegacyDebugSummary(info: LegacyDebugInfo): String {
+        return buildList {
+            info.matchedAgainstPokemon?.let { add("pokemon=$it") }
+            info.matchedLegacyMove?.let { add("golpe=$it") }
+            info.matchedKeyword?.let { add("keyword=$it") }
+            if (isEmpty()) add("sem sinal conclusivo")
+        }.joinToString(" ")
+    }
+
+    private fun formatEvolutionIconDebugSummary(info: EvolutionIconDebugInfo): String {
+        return buildList {
+            add("flags=${info.detectedFlags.joinToString(", ").ifBlank { "-" }}")
+            info.megaKeyword?.let { add("mega=$it") }
+            info.gigantamaxKeyword?.let { add("giga=$it") }
+            info.dynamaxKeyword?.let { add("dyna=$it") }
+        }.joinToString(" ")
     }
 
     private fun formatGenderForLog(gender: Gender): String {

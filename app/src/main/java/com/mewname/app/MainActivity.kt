@@ -1613,6 +1613,7 @@ fun PresetListScreen(
             isShadow = true,
             isPurified = true,
             hasSpecialBackground = true,
+            specialBackgroundType = SpecialBackgroundType.GO_FEST,
             hasAdventureEffect = true,
             size = PokemonSize.XXL,
             pvpLeague = PvpLeague.GREAT,
@@ -1761,6 +1762,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             isShadow = true,
             isPurified = true,
             hasSpecialBackground = true,
+            specialBackgroundType = SpecialBackgroundType.GO_FEST,
             hasAdventureEffect = true,
             shouldEvolve = true,
             shouldPurify = true,
@@ -2316,7 +2318,7 @@ private fun fieldDescription(field: NamingField, language: AppLanguage): String 
         NamingField.GENDER -> lt(language, "Exibir um simbolo configuravel para macho ou femea.", "Show a configurable symbol for male or female.", "Mostrar un simbolo configurable para macho o hembra.")
         NamingField.SIZE -> lt(language, "Mostrar XXS, XS, XL ou XXL usando um simbolo para cada tamanho.", "Show XXS, XS, XL or XXL with one symbol each.", "Mostrar XXS, XS, XL o XXL usando un simbolo para cada tamano.")
         NamingField.MASTER_IV_BADGE -> lt(language, "Compara a combinacao A/D/S com a melhor da familia no ranking Master.", "Compare the A/D/S spread with the best family spread for Master ranking.", "Compara la combinacion A/D/S con la mejor de la familia en Master.")
-        NamingField.SPECIAL_BACKGROUND -> lt(language, "Exibir o simbolo se houver fundo especial.", "Show the symbol if there is a special background.", "Mostrar el simbolo si hay fondo especial.")
+        NamingField.SPECIAL_BACKGROUND -> lt(language, "Exibir uma sigla configuravel para o tipo de fundo especial selecionado.", "Show a configurable abbreviation for the selected special background type.", "Mostrar una abreviatura configurable para el tipo de fondo especial seleccionado.")
         NamingField.PVP_LEAGUE -> lt(language, "Mostrar a liga PvP estimada.", "Show the estimated PvP league.", "Mostrar la liga PvP estimada.")
         NamingField.PVP_RANK -> lt(language, "Mostrar o ranking PvP calculado.", "Show the calculated PvP rank.", "Mostrar el ranking PvP calculado.")
         NamingField.LEGACY_MOVE -> lt(language, "Exibir o simbolo se o Pokemon tiver movimento legado.", "Show a symbol if the Pokemon has a legacy move.", "Mostrar un simbolo si el Pokemon tiene movimiento legado.")
@@ -2348,7 +2350,13 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
         NamingField.LUCKY -> listOf(option("LUCKY", "Sortudo"))
         NamingField.SHADOW -> listOf(option("SHADOW", "Sombrio"))
         NamingField.PURIFIED -> listOf(option("PURIFIED", "Purificado"))
-        NamingField.SPECIAL_BACKGROUND -> listOf(option("SPECIAL_BACKGROUND", "Fundo especial"))
+        NamingField.SPECIAL_BACKGROUND -> listOf(
+            option("SPECIAL_BACKGROUND", "Fundo especial"),
+            option("SPECIAL_BACKGROUND_GO_FEST", "GO Fest"),
+            option("SPECIAL_BACKGROUND_WILD_AREA", "Wild Area"),
+            option("SPECIAL_BACKGROUND_LOCATION", "Localidade"),
+            option("SPECIAL_BACKGROUND_COMMUNITY_DAY", "Dia da Comunidade")
+        )
         NamingField.ADVENTURE_EFFECT -> listOf(option("ADVENTURE_EFFECT", "Efeito aventura"))
         NamingField.EVOLVE_MARKER -> listOf(option("EVOLVE", "Evoluir"))
         NamingField.PURIFY_MARKER -> listOf(option("PURIFY", "Purificar"))
