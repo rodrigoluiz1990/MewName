@@ -45,6 +45,14 @@ object GameCatalogRepository {
     @Volatile
     private var gameCatalogRootCache: JSONObject? = null
 
+    fun clearCache() {
+        synchronized(this) {
+            legacyMoveCatalogCache = null
+            adventureEffectCatalogCache = null
+            gameCatalogRootCache = null
+        }
+    }
+
     fun loadLegacyMoveCatalog(context: Context): List<LegacyMoveCatalogEntry> {
         legacyMoveCatalogCache?.let { return it }
         synchronized(this) {

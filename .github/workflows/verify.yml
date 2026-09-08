@@ -1,0 +1,22 @@
+name: Android verification
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Validate catalogs
+        run: ./gradlew :app:validateCatalogSemantics --no-daemon
+      - name: Compile debug app
+        run: ./gradlew :app:compileDebugKotlin --no-daemon
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --no-daemon

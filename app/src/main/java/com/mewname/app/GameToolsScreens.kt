@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,6 +38,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -46,10 +48,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -75,6 +79,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.mewname.app.domain.AppLanguage
 import com.mewname.app.domain.BattleAdvisor
 import com.mewname.app.domain.BattleMode
@@ -821,6 +826,146 @@ private data class SavedFilterEntry(
 private const val FILTER_PREFS = "mewname_prefs"
 private const val SAVED_POKEMON_FILTERS_KEY = "saved_pokemon_filters"
 private const val SAVED_PEOPLE_FILTERS_KEY = "saved_people_filters"
+private const val COLLECTIONS_PREFS_KEY = "collections_obtained_forms"
+
+private data class CollectionFormEntry(
+    val number: Int,
+    val pokemonName: String,
+    val localizedPokemonName: String,
+    val formName: String
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CollectionsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val language = appLanguage()
+    var tabIndex by rememberSaveable { mutableStateOf(0) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val entriesState = produceState<List<CollectionFormEntry>>(initialValue = emptyList(), context, language) {
+        value = withContext(Dispatchers.Default) {
+            GameInfoRepository.loadPokedexCatalog(context).flatMap { entry ->
+                val localizedName = entry.localizedName(language)
+                entry.forms.ifEmpty { listOf("Normal") }.map { form ->
+                    CollectionFormEntry(
+                        number = entry.number,
+                        pokemonName = entry.name,
+                        localizedPokemonName = localizedName,
+                        formName = form
+                    )
+                }
+            }
+        }
+    }
+    val obtained = remember {
+        mutableStateMapOf<String, Boolean>().apply {
+            loadCollectionObtained(context).forEach { put(it, true) }
+        }
+    }
+    val normalizedQuery = remember(query) { normalizeSearch(query) }
+    val filteredEntries = remember(entriesState.value, normalizedQuery) {
+        if (normalizedQuery.isBlank()) {
+            entriesState.value
+        } else {
+            entriesState.value.filter { entry ->
+                normalizeSearch(entry.localizedPokemonName).contains(normalizedQuery) ||
+                    normalizeSearch(entry.pokemonName).contains(normalizedQuery) ||
+                    normalizeSearch(entry.formName).contains(normalizedQuery)
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(t(language, "Coleções", "Collections", "Colecciones")) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ScrollableTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
+                listOf(
+                    t(language, "Brilhantes", "Shinies", "Brillantes"),
+                    t(language, "Fundos especiais", "Special backgrounds", "Fondos especiales")
+                ).forEachIndexed { index, title ->
+                    Tab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
+                }
+            }
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(t(language, "Buscar Pokémon ou forma", "Search Pokemon or form", "Buscar Pokemon o forma")) },
+                singleLine = true
+            )
+            Text(
+                t(
+                    language,
+                    "Marque as formas já obtidas para acompanhar sua coleção.",
+                    "Mark the forms you already obtained to track your collection.",
+                    "Marca las formas ya obtenidas para seguir tu colección."
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                filteredEntries.forEach { entry ->
+                    val key = collectionEntryKey(tabIndex, entry)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = obtained[key] == true,
+                                onCheckedChange = { checked ->
+                                    if (checked) obtained[key] = true else obtained.remove(key)
+                                    persistCollectionObtained(context, obtained.keys.toList())
+                                }
+                            )
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    "#${entry.number.toString().padStart(3, '0')} ${entry.localizedPokemonName}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (entry.localizedPokemonName != entry.pokemonName) {
+                                    Text(entry.pokemonName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text(
+                                    t(language, "Forma: ${entry.formName}", "Form: ${entry.formName}", "Forma: ${entry.formName}"),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -841,6 +986,7 @@ private fun PokemonFilterBuilder(
             addAll(loadSavedFilters(context, SAVED_POKEMON_FILTERS_KEY))
         }
     }
+    var showSavedFilters by rememberSaveable { mutableStateOf(false) }
     val sections = remember {
         linkedMapOf(
             "Status" to listOf(
@@ -956,6 +1102,11 @@ private fun PokemonFilterBuilder(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (savedFilters.isNotEmpty()) {
+            Button(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(t(language, "Abrir filtros salvos", "Open saved filters", "Abrir filtros guardados"))
+            }
+        }
         SavedFiltersSection(
             title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
             filters = savedFilters,
@@ -1105,6 +1256,18 @@ private fun PokemonFilterBuilder(
             }
         }
     }
+    if (showSavedFilters && savedFilters.isNotEmpty()) {
+        SavedFiltersDialog(
+            title = t(language, "Filtros salvos de Pokémon", "Saved Pokemon filters", "Filtros guardados de Pokemon"),
+            filters = savedFilters,
+            onDismiss = { showSavedFilters = false },
+            onCopy = { entry -> copyPlainText(context, entry.value, language) },
+            onRemove = { entry ->
+                savedFilters.remove(entry)
+                persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, savedFilters)
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -1120,6 +1283,7 @@ private fun PeopleFilterBuilder(
             addAll(loadSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY))
         }
     }
+    var showSavedFilters by rememberSaveable { mutableStateOf(false) }
     val options = remember {
         listOf(
             FilterTokenOption("Pode receber presente", "Can receive gift", "Puede recibir regalo", "canreceivegift", tokenPt = "presenteável", tokenEs = "puede recibir regalo"),
@@ -1141,6 +1305,11 @@ private fun PeopleFilterBuilder(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (savedFilters.isNotEmpty()) {
+            Button(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(t(language, "Abrir filtros salvos", "Open saved filters", "Abrir filtros guardados"))
+            }
+        }
         SavedFiltersSection(
             title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
             filters = savedFilters,
@@ -1198,6 +1367,18 @@ private fun PeopleFilterBuilder(
                 .height(160.dp),
             label = { Text(t(language, "Apelido", "Nickname", "Apodo")) },
             supportingText = { Text(t(language, "Um por linha. Ex.: [nome_da_pessoa]", "One per line. Example: [person_name]", "Uno por linea. Ej.: [nombre_de_la_persona]")) }
+        )
+    }
+    if (showSavedFilters && savedFilters.isNotEmpty()) {
+        SavedFiltersDialog(
+            title = t(language, "Filtros salvos de amigos", "Saved friend filters", "Filtros guardados de amigos"),
+            filters = savedFilters,
+            onDismiss = { showSavedFilters = false },
+            onCopy = { entry -> copyPlainText(context, entry.value, language) },
+            onRemove = { entry ->
+                savedFilters.remove(entry)
+                persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, savedFilters)
+            }
         )
     }
 }
@@ -2058,6 +2239,46 @@ private fun SavedFiltersSection(
     }
 }
 
+@Composable
+private fun SavedFiltersDialog(
+    title: String,
+    filters: List<SavedFilterEntry>,
+    onDismiss: () -> Unit,
+    onCopy: (SavedFilterEntry) -> Unit,
+    onRemove: (SavedFilterEntry) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SavedFiltersSection(
+                        title = "",
+                        filters = filters,
+                        onCopy = onCopy,
+                        onRemove = onRemove
+                    )
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text(t(appLanguage(), "Fechar", "Close", "Cerrar"))
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SimpleToolScreen(
@@ -2175,6 +2396,7 @@ private fun InlineLoadingRow(text: String) {
 fun HomeMenuGlyph(kind: String) {
     val assetPath = when (kind) {
         "capture" -> "menu/icon-gerar-nome.jpg"
+        "collections" -> "menu/icon-backgrounds.jpg"
         "presets" -> "menu/icon-definir-nome.jpg"
         "legacy" -> "menu/icon-ataque-legado.jpg"
         "adventure" -> "menu/icon-efeito-aventura.jpg"
@@ -2210,6 +2432,7 @@ fun HomeMenuGlyph(kind: String) {
 
     val accent = when (kind) {
         "capture" -> MaterialTheme.colorScheme.primary
+        "collections" -> Color(0xFF00838F)
         "presets" -> MaterialTheme.colorScheme.secondary
         "legacy" -> Color(0xFFB26A00)
         "adventure" -> Color(0xFF2E7D6B)
@@ -2245,6 +2468,35 @@ fun HomeMenuGlyph(kind: String) {
                         .size(5.dp)
                         .background(accent, RoundedCornerShape(999.dp))
                 )
+            }
+
+            "collections" -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        repeat(3) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .background(accent, RoundedCornerShape(999.dp))
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(18.dp)
+                            .height(3.dp)
+                            .background(accent.copy(alpha = 0.55f), RoundedCornerShape(2.dp))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(12.dp)
+                            .height(3.dp)
+                            .background(accent.copy(alpha = 0.30f), RoundedCornerShape(2.dp))
+                    )
+                }
             }
 
             "presets" -> {
@@ -2759,6 +3011,23 @@ private fun addSavedFilter(
         )
     )
     return filters
+}
+
+private fun collectionEntryKey(tabIndex: Int, entry: CollectionFormEntry): String {
+    return listOf(tabIndex.toString(), entry.number.toString(), entry.pokemonName, entry.formName).joinToString("|")
+}
+
+private fun loadCollectionObtained(context: Context): Set<String> {
+    return context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE)
+        .getStringSet(COLLECTIONS_PREFS_KEY, emptySet())
+        .orEmpty()
+}
+
+private fun persistCollectionObtained(context: Context, values: List<String>) {
+    context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .putStringSet(COLLECTIONS_PREFS_KEY, values.toSet())
+        .apply()
 }
 
 private fun appendCommaSeparatedValue(current: String, value: String): String {

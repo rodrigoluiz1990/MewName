@@ -41,10 +41,7 @@ class PokemonReadSessionMerger {
             staIv = if (trustCurrentIv) current.staIv ?: previous.staIv else previous.staIv,
             ivDebugInfo = if (trustCurrentIv) current.ivDebugInfo ?: previous.ivDebugInfo else previous.ivDebugInfo,
             level = current.level ?: previous.level,
-            gender = when (current.gender) {
-                Gender.UNKNOWN -> previous.gender
-                else -> current.gender
-            },
+            gender = current.gender,
             type1 = current.type1 ?: previous.type1,
             type2 = current.type2 ?: previous.type2,
             isFavorite = current.isFavorite || previous.isFavorite,

@@ -1,4 +1,4 @@
-﻿package com.mewname.app.model
+package com.mewname.app.model
 
 import java.util.UUID
 
@@ -75,8 +75,47 @@ fun defaultPatternBlocks() = listOf(
     NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.IV_PERCENT),
     NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.POKEMON_NAME),
     NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.EVOLUTION_TYPE),
-    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.LEGACY_MOVE)
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.LEGACY_MOVE),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.EVOLVE_MARKER),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.PURIFY_MARKER)
 )
+
+fun pvpPatternBlocks() = listOf(
+    NamingBlock(type = NamingBlockType.FIXED_TEXT, fixedText = "\u2605PvP"),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.POKEMON_NAME),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.PVP_LEAGUE),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.PVP_RANK),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.LEGACY_MOVE),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.EVOLVE_MARKER),
+    NamingBlock(type = NamingBlockType.VARIABLE, field = NamingField.PURIFY_MARKER)
+)
+
+fun defaultNamingConfigs() = listOf(
+    NamingConfig(name = "Padr\u00e3o"),
+    NamingConfig(name = "PvP", blocks = pvpPatternBlocks())
+)
+
+fun ensureBuiltInNamingConfigs(configs: List<NamingConfig>): List<NamingConfig> {
+    val legacyDefaultFields = defaultPatternBlocks().dropLast(2).map { it.field }
+    val migrated = configs.map { config ->
+        val blocks = config.effectiveBlocks()
+        val isLegacyDefault = config.name.equals("Padr\u00e3o", ignoreCase = true) &&
+            blocks.take(legacyDefaultFields.size).map { it.field } == legacyDefaultFields
+        if (!isLegacyDefault) {
+            config
+        } else {
+            val missingMarkers = defaultPatternBlocks().takeLast(2).filter { marker ->
+                blocks.none { it.type == marker.type && it.field == marker.field }
+            }
+            if (missingMarkers.isEmpty()) config else config.copy(blocks = blocks + missingMarkers)
+        }
+    }
+    return if (migrated.any { it.name.equals("PvP", ignoreCase = true) }) {
+        migrated
+    } else {
+        migrated + NamingConfig(name = "PvP", blocks = pvpPatternBlocks())
+    }
+}
 
 fun defaultSymbols() = mapOf(
     "MALE" to "\u2642",
@@ -115,7 +154,7 @@ fun defaultSymbols() = mapOf(
     "XL" to "\u2605XL",
     "XS" to "\u2605XS",
     "XXS" to "\u2605XXS",
-    "MASTER_IV_MATCH" to "tm",
+    "MASTER_IV_MATCH" to "\u2122",
     "MASTER_IV_OTHER" to "●",
     "GREAT_LEAGUE" to "GL",
     "ULTRA_LEAGUE" to "UL",

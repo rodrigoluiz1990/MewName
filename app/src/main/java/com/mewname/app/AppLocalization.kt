@@ -77,3 +77,27 @@ fun appLanguageFlag(target: AppLanguage): String = when (target) {
     AppLanguage.EN -> "🇺🇸"
     AppLanguage.ES -> "🇪🇸"
 }
+
+internal fun savedAppLanguage(context: android.content.Context): AppLanguage {
+    val saved = context.getSharedPreferences("mewname_prefs", android.content.Context.MODE_PRIVATE)
+        .getString("app_language", null)
+    return saved?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
+        ?: com.mewname.app.domain.GameTextRepository.resolveLanguage()
+}
+
+@Composable
+internal fun rememberSavedAppLanguage(context: android.content.Context): AppLanguage {
+    val state = androidx.compose.runtime.remember(context) {
+        androidx.compose.runtime.mutableStateOf(savedAppLanguage(context))
+    }
+    androidx.compose.runtime.DisposableEffect(context) {
+        val prefs = context.getSharedPreferences("mewname_prefs", android.content.Context.MODE_PRIVATE)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "app_language") state.value = savedAppLanguage(context)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        state.value = savedAppLanguage(context)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    return state.value
+}

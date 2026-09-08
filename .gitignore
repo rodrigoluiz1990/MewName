@@ -15,3 +15,10 @@ Thumbs.db
 *.keystore
 *.base64.txt
 KeyTool.txt
+
+# Local investigation artifacts and recovery snapshots
+/backups/
+/.tmp-*
+/.compile-*.log
+/.gradle-*.log
+/crash-log.txt

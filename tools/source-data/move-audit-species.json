@@ -1,0 +1,885 @@
+﻿[
+    {
+        "pokemonId":  "STARMIE",
+        "form":  null,
+        "quickMoves":  [
+                           "HIDDEN_POWER_FAST",
+                           "WATER_GUN_FAST",
+                           "PSYWAVE_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "HYDRO_PUMP",
+                               "POWER_GEM",
+                               "PSYCHIC",
+                               "THUNDER",
+                               "ICE_BEAM",
+                               "PSYBEAM",
+                               "SURF",
+                               "AQUA_JET"
+                           ],
+        "eliteQuickMove":  [
+                               "TACKLE_FAST"
+                           ],
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "STARMIE",
+        "form":  "STARMIE_NORMAL",
+        "quickMoves":  [
+                           "HIDDEN_POWER_FAST",
+                           "WATER_GUN_FAST",
+                           "PSYWAVE_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "HYDRO_PUMP",
+                               "POWER_GEM",
+                               "PSYCHIC",
+                               "THUNDER",
+                               "ICE_BEAM",
+                               "PSYBEAM",
+                               "SURF",
+                               "AQUA_JET"
+                           ],
+        "eliteQuickMove":  [
+                               "TACKLE_FAST"
+                           ],
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "AZUMARILL",
+        "form":  null,
+        "quickMoves":  [
+                           "ROCK_SMASH_FAST",
+                           "BUBBLE_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "PLAY_ROUGH",
+                               "HYDRO_PUMP",
+                               "ICE_BEAM"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "AZUMARILL",
+        "form":  "AZUMARILL_NORMAL",
+        "quickMoves":  [
+                           "ROCK_SMASH_FAST",
+                           "BUBBLE_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "PLAY_ROUGH",
+                               "HYDRO_PUMP",
+                               "ICE_BEAM"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "QUAGSIRE",
+        "form":  null,
+        "quickMoves":  [
+                           "WATER_GUN_FAST",
+                           "MUD_SHOT_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "SLUDGE_BOMB",
+                               "EARTHQUAKE",
+                               "STONE_EDGE",
+                               "ACID_SPRAY",
+                               "MUD_BOMB",
+                               "DRAIN_PUNCH"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   "AQUA_TAIL"
+                               ]
+    },
+    {
+        "pokemonId":  "QUAGSIRE",
+        "form":  "QUAGSIRE_NORMAL",
+        "quickMoves":  [
+                           "WATER_GUN_FAST",
+                           "MUD_SHOT_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "SLUDGE_BOMB",
+                               "EARTHQUAKE",
+                               "STONE_EDGE",
+                               "ACID_SPRAY",
+                               "MUD_BOMB",
+                               "DRAIN_PUNCH"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   "AQUA_TAIL"
+                               ]
+    },
+    {
+        "pokemonId":  "GRANBULL",
+        "form":  null,
+        "quickMoves":  [
+                           "BITE_FAST",
+                           "SNARL_FAST",
+                           "CHARM_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "CRUNCH",
+                               "PLAY_ROUGH",
+                               "CLOSE_COMBAT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "GRANBULL",
+        "form":  "GRANBULL_NORMAL",
+        "quickMoves":  [
+                           "BITE_FAST",
+                           "SNARL_FAST",
+                           "CHARM_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "CRUNCH",
+                               "PLAY_ROUGH",
+                               "CLOSE_COMBAT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "HERACROSS",
+        "form":  null,
+        "quickMoves":  [
+                           "COUNTER_FAST",
+                           "STRUGGLE_BUG_FAST",
+                           "FURY_CUTTER_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "MEGAHORN",
+                               "CLOSE_COMBAT",
+                               "EARTHQUAKE",
+                               "ROCK_BLAST",
+                               "UPPER_HAND",
+                               "ROCK_TOMB"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "HERACROSS",
+        "form":  "HERACROSS_NORMAL",
+        "quickMoves":  [
+                           "COUNTER_FAST",
+                           "STRUGGLE_BUG_FAST",
+                           "FURY_CUTTER_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "MEGAHORN",
+                               "CLOSE_COMBAT",
+                               "EARTHQUAKE",
+                               "ROCK_BLAST",
+                               "UPPER_HAND",
+                               "ROCK_TOMB"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "SMEARGLE",
+        "form":  null,
+        "quickMoves":  null,
+        "cinematicMoves":  null,
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "SMEARGLE",
+        "form":  "SMEARGLE_NORMAL",
+        "quickMoves":  null,
+        "cinematicMoves":  null,
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NINJASK",
+        "form":  null,
+        "quickMoves":  [
+                           "FURY_CUTTER_FAST",
+                           "METAL_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "SHADOW_BALL",
+                               "BUG_BUZZ",
+                               "AERIAL_ACE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NINJASK",
+        "form":  "NINJASK_NORMAL",
+        "quickMoves":  [
+                           "FURY_CUTTER_FAST",
+                           "METAL_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "SHADOW_BALL",
+                               "BUG_BUZZ",
+                               "AERIAL_ACE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "AGGRON",
+        "form":  null,
+        "quickMoves":  [
+                           "DRAGON_TAIL_FAST",
+                           "IRON_TAIL_FAST",
+                           "SMACK_DOWN_FAST",
+                           "METAL_SOUND_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "THUNDER",
+                               "STONE_EDGE",
+                               "HEAVY_SLAM",
+                               "ROCK_TOMB",
+                               "METEOR_BEAM"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "AGGRON",
+        "form":  "AGGRON_NORMAL",
+        "quickMoves":  [
+                           "DRAGON_TAIL_FAST",
+                           "IRON_TAIL_FAST",
+                           "SMACK_DOWN_FAST",
+                           "METAL_SOUND_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "THUNDER",
+                               "STONE_EDGE",
+                               "HEAVY_SLAM",
+                               "ROCK_TOMB",
+                               "METEOR_BEAM"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "RAYQUAZA",
+        "form":  null,
+        "quickMoves":  [
+                           "AIR_SLASH_FAST",
+                           "DRAGON_TAIL_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "OUTRAGE",
+                               "AERIAL_ACE",
+                               "ANCIENT_POWER"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   "HURRICANE",
+                                   "BREAKING_SWIPE"
+                               ]
+    },
+    {
+        "pokemonId":  "RAYQUAZA",
+        "form":  "RAYQUAZA_NORMAL",
+        "quickMoves":  [
+                           "AIR_SLASH_FAST",
+                           "DRAGON_TAIL_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "OUTRAGE",
+                               "AERIAL_ACE",
+                               "ANCIENT_POWER"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   "HURRICANE",
+                                   "BREAKING_SWIPE"
+                               ]
+    },
+    {
+        "pokemonId":  "DIALGA",
+        "form":  null,
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "METAL_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRACO_METEOR",
+                               "IRON_HEAD",
+                               "THUNDER"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "DIALGA",
+        "form":  "DIALGA_NORMAL",
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "METAL_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRACO_METEOR",
+                               "IRON_HEAD",
+                               "THUNDER"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "DIALGA",
+        "form":  "DIALGA_ORIGIN",
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "METAL_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRACO_METEOR",
+                               "IRON_HEAD",
+                               "THUNDER"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "PALKIA",
+        "form":  null,
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "DRAGON_TAIL_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRACO_METEOR",
+                               "FIRE_BLAST",
+                               "HYDRO_PUMP",
+                               "AQUA_TAIL"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "PALKIA",
+        "form":  "PALKIA_NORMAL",
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "DRAGON_TAIL_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRACO_METEOR",
+                               "FIRE_BLAST",
+                               "HYDRO_PUMP",
+                               "AQUA_TAIL"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "PALKIA",
+        "form":  "PALKIA_ORIGIN",
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "DRAGON_TAIL_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRACO_METEOR",
+                               "FIRE_BLAST",
+                               "HYDRO_PUMP",
+                               "AQUA_TAIL"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "STOUTLAND",
+        "form":  null,
+        "quickMoves":  [
+                           "LICK_FAST",
+                           "TAKE_DOWN_FAST",
+                           "ICE_FANG_FAST",
+                           "SAND_ATTACK_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "WILD_CHARGE",
+                               "PLAY_ROUGH",
+                               "CRUNCH"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "STOUTLAND",
+        "form":  "STOUTLAND_NORMAL",
+        "quickMoves":  [
+                           "LICK_FAST",
+                           "TAKE_DOWN_FAST",
+                           "ICE_FANG_FAST",
+                           "SAND_ATTACK_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "WILD_CHARGE",
+                               "PLAY_ROUGH",
+                               "CRUNCH"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "MUSHARNA",
+        "form":  null,
+        "quickMoves":  [
+                           "ZEN_HEADBUTT_FAST",
+                           "CHARGE_BEAM_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "FUTURESIGHT",
+                               "DAZZLING_GLEAM",
+                               "PSYSHOCK"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "MUSHARNA",
+        "form":  "MUSHARNA_NORMAL",
+        "quickMoves":  [
+                           "ZEN_HEADBUTT_FAST",
+                           "CHARGE_BEAM_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "FUTURESIGHT",
+                               "DAZZLING_GLEAM",
+                               "PSYSHOCK"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "SOLGALEO",
+        "form":  null,
+        "quickMoves":  [
+                           "ZEN_HEADBUTT_FAST",
+                           "FIRE_SPIN_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "IRON_HEAD",
+                               "PSYCHIC_FANGS",
+                               "SOLAR_BEAM",
+                               "FLAMETHROWER"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "SOLGALEO",
+        "form":  "SOLGALEO_NORMAL",
+        "quickMoves":  [
+                           "ZEN_HEADBUTT_FAST",
+                           "FIRE_SPIN_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "IRON_HEAD",
+                               "PSYCHIC_FANGS",
+                               "SOLAR_BEAM",
+                               "FLAMETHROWER"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "LUNALA",
+        "form":  null,
+        "quickMoves":  [
+                           "CONFUSION_FAST",
+                           "AIR_SLASH_FAST",
+                           "SHADOW_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "SHADOW_BALL",
+                               "PSYCHIC",
+                               "MOONBLAST",
+                               "FUTURESIGHT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "LUNALA",
+        "form":  "LUNALA_NORMAL",
+        "quickMoves":  [
+                           "CONFUSION_FAST",
+                           "AIR_SLASH_FAST",
+                           "SHADOW_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "SHADOW_BALL",
+                               "PSYCHIC",
+                               "MOONBLAST",
+                               "FUTURESIGHT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NIHILEGO",
+        "form":  null,
+        "quickMoves":  [
+                           "ACID_FAST",
+                           "POUND_FAST",
+                           "POISON_JAB_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "POWER_GEM",
+                               "GUNK_SHOT",
+                               "SLUDGE_BOMB",
+                               "ROCK_SLIDE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NIHILEGO",
+        "form":  "NIHILEGO_NORMAL",
+        "quickMoves":  [
+                           "ACID_FAST",
+                           "POUND_FAST",
+                           "POISON_JAB_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "POWER_GEM",
+                               "GUNK_SHOT",
+                               "SLUDGE_BOMB",
+                               "ROCK_SLIDE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NECROZMA",
+        "form":  null,
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "PSYCHO_CUT_FAST",
+                           "SHADOW_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DARK_PULSE",
+                               "FUTURESIGHT",
+                               "IRON_HEAD",
+                               "OUTRAGE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NECROZMA",
+        "form":  "NECROZMA_DAWN_WINGS",
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "PSYCHO_CUT_FAST",
+                           "SHADOW_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DARK_PULSE",
+                               "FUTURESIGHT",
+                               "IRON_HEAD",
+                               "OUTRAGE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NECROZMA",
+        "form":  "NECROZMA_DUSK_MANE",
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "PSYCHO_CUT_FAST",
+                           "SHADOW_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DARK_PULSE",
+                               "FUTURESIGHT",
+                               "IRON_HEAD",
+                               "OUTRAGE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NECROZMA",
+        "form":  "NECROZMA_NORMAL",
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "PSYCHO_CUT_FAST",
+                           "SHADOW_CLAW_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DARK_PULSE",
+                               "FUTURESIGHT",
+                               "IRON_HEAD",
+                               "OUTRAGE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "NECROZMA",
+        "form":  "NECROZMA_ULTRA",
+        "quickMoves":  [
+                           "SPLASH_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "STRUGGLE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "CINDERACE",
+        "form":  null,
+        "quickMoves":  [
+                           "TACKLE_FAST",
+                           "FIRE_SPIN_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "FLAME_CHARGE",
+                               "FLAMETHROWER",
+                               "FOCUS_BLAST",
+                               "PYROBALL"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   "BLAST_BURN"
+                               ]
+    },
+    {
+        "pokemonId":  "CINDERACE",
+        "form":  "CINDERACE_NORMAL",
+        "quickMoves":  [
+                           "TACKLE_FAST",
+                           "FIRE_SPIN_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "FLAME_CHARGE",
+                               "FLAMETHROWER",
+                               "FOCUS_BLAST",
+                               "PYROBALL"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   "BLAST_BURN"
+                               ]
+    },
+    {
+        "pokemonId":  "ZACIAN",
+        "form":  null,
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "SNARL_FAST",
+                           "QUICK_ATTACK_FAST",
+                           "FIRE_FANG_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "PLAY_ROUGH",
+                               "IRON_HEAD",
+                               "WILD_CHARGE",
+                               "CLOSE_COMBAT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "ZACIAN",
+        "form":  "ZACIAN_CROWNED_SWORD",
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "AIR_SLASH_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "PLAY_ROUGH",
+                               "CLOSE_COMBAT",
+                               "GIGA_IMPACT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "ZACIAN",
+        "form":  "ZACIAN_HERO",
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "SNARL_FAST",
+                           "QUICK_ATTACK_FAST",
+                           "FIRE_FANG_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "PLAY_ROUGH",
+                               "IRON_HEAD",
+                               "WILD_CHARGE",
+                               "CLOSE_COMBAT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "ZAMAZENTA",
+        "form":  null,
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "SNARL_FAST",
+                           "QUICK_ATTACK_FAST",
+                           "ICE_FANG_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "MOONBLAST",
+                               "IRON_HEAD",
+                               "CRUNCH",
+                               "CLOSE_COMBAT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "ZAMAZENTA",
+        "form":  "ZAMAZENTA_CROWNED_SHIELD",
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "ICE_FANG_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "MOONBLAST",
+                               "CLOSE_COMBAT",
+                               "GIGA_IMPACT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "ZAMAZENTA",
+        "form":  "ZAMAZENTA_HERO",
+        "quickMoves":  [
+                           "METAL_CLAW_FAST",
+                           "SNARL_FAST",
+                           "QUICK_ATTACK_FAST",
+                           "ICE_FANG_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "MOONBLAST",
+                               "IRON_HEAD",
+                               "CRUNCH",
+                               "CLOSE_COMBAT"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "ZARUDE",
+        "form":  null,
+        "quickMoves":  [
+                           "VINE_WHIP_FAST",
+                           "BITE_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "POWER_WHIP",
+                               "ENERGY_BALL",
+                               "DARK_PULSE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "ZARUDE",
+        "form":  "ZARUDE_NORMAL",
+        "quickMoves":  [
+                           "VINE_WHIP_FAST",
+                           "BITE_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "POWER_WHIP",
+                               "ENERGY_BALL",
+                               "DARK_PULSE"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "OVERQWIL",
+        "form":  null,
+        "quickMoves":  [
+                           "POISON_STING_FAST",
+                           "POISON_JAB_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "AQUA_TAIL",
+                               "ICE_BEAM",
+                               "SLUDGE_BOMB",
+                               "DARK_PULSE",
+                               "SHADOW_BALL"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "OVERQWIL",
+        "form":  "OVERQWIL_NORMAL",
+        "quickMoves":  [
+                           "POISON_STING_FAST",
+                           "POISON_JAB_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "AQUA_TAIL",
+                               "ICE_BEAM",
+                               "SLUDGE_BOMB",
+                               "DARK_PULSE",
+                               "SHADOW_BALL"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  null
+    },
+    {
+        "pokemonId":  "BAXCALIBUR",
+        "form":  null,
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "ICE_FANG_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRAGON_CLAW",
+                               "AVALANCHE",
+                               "OUTRAGE",
+                               "BLIZZARD",
+                               "ICY_WIND"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   590
+                               ]
+    },
+    {
+        "pokemonId":  "BAXCALIBUR",
+        "form":  "BAXCALIBUR_NORMAL",
+        "quickMoves":  [
+                           "DRAGON_BREATH_FAST",
+                           "ICE_FANG_FAST"
+                       ],
+        "cinematicMoves":  [
+                               "DRAGON_CLAW",
+                               "AVALANCHE",
+                               "OUTRAGE",
+                               "BLIZZARD",
+                               "ICY_WIND"
+                           ],
+        "eliteQuickMove":  null,
+        "eliteCinematicMove":  [
+                                   590
+                               ]
+    }
+]

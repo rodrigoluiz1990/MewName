@@ -1,0 +1,1962 @@
+{
+    "Thunder Shock":  {
+                          "EN":  "Thunder Shock",
+                          "PT_BR":  "Trovoada de Choques",
+                          "ES":  "Impactrueno"
+                      },
+    "Quick Attack":  {
+                         "EN":  "Quick Attack",
+                         "PT_BR":  "Ataque Rápido",
+                         "ES":  "Ataque Rápido"
+                     },
+    "Scratch":  {
+                    "EN":  "Scratch",
+                    "PT_BR":  "Arranhão",
+                    "ES":  "Arañazo"
+                },
+    "Ember":  {
+                  "EN":  "Ember",
+                  "PT_BR":  "Brasa",
+                  "ES":  "Brasas"
+              },
+    "Vine Whip":  {
+                      "EN":  "Vine Whip",
+                      "PT_BR":  "Chicote de Vinha",
+                      "ES":  "Látigo Cepa"
+                  },
+    "Tackle":  {
+                   "EN":  "Tackle",
+                   "PT_BR":  "Investida",
+                   "ES":  "Tacleada"
+               },
+    "Razor Leaf":  {
+                       "EN":  "Razor Leaf",
+                       "PT_BR":  "Folha Navalha",
+                       "ES":  "Hojas Navaja"
+                   },
+    "Take Down":  {
+                      "EN":  "Take Down",
+                      "PT_BR":  "Desmantelar",
+                      "ES":  "Derribo"
+                  },
+    "Water Gun":  {
+                      "EN":  "Water Gun",
+                      "PT_BR":  "Revólver d\u0027Água",
+                      "ES":  "Chorro de Agua"
+                  },
+    "Bite":  {
+                 "EN":  "Bite",
+                 "PT_BR":  "Mordida",
+                 "ES":  "Mordida"
+             },
+    "Pound":  {
+                  "EN":  "Pound",
+                  "PT_BR":  "Pancada",
+                  "ES":  "Destructor"
+              },
+    "Double Slap":  {
+                        "EN":  "Double Slap",
+                        "PT_BR":  "Tapa Duplo",
+                        "ES":  "Doble Bofetón"
+                    },
+    "Wrap":  {
+                 "EN":  "Wrap",
+                 "PT_BR":  "Embrulho",
+                 "ES":  "Constricción"
+             },
+    "Hyper Beam":  {
+                       "EN":  "Hyper Beam",
+                       "PT_BR":  "Hiper-raio",
+                       "ES":  "Hiperrayo"
+                   },
+    "Lick":  {
+                 "EN":  "Lick",
+                 "PT_BR":  "Lambida",
+                 "ES":  "Lengüetazo"
+             },
+    "Dark Pulse":  {
+                       "EN":  "Dark Pulse",
+                       "PT_BR":  "Pulso Sombrio",
+                       "ES":  "Pulso Oscuro"
+                   },
+    "Smog":  {
+                 "EN":  "Smog",
+                 "PT_BR":  "Nevoeiro de Fumaça",
+                 "ES":  "Humo"
+             },
+    "Sludge":  {
+                   "EN":  "Sludge",
+                   "PT_BR":  "Ataque de Lama",
+                   "ES":  "Residuos"
+               },
+    "Metal Claw":  {
+                       "EN":  "Metal Claw",
+                       "PT_BR":  "Garra de Metal",
+                       "ES":  "Garra de Metal"
+                   },
+    "Vise Grip":  {
+                      "EN":  "Vise Grip",
+                      "PT_BR":  "Agarramento Compressor",
+                      "ES":  "Fuerza de Garra"
+                  },
+    "Flame Wheel":  {
+                        "EN":  "Flame Wheel",
+                        "PT_BR":  "Roda de Fogo",
+                        "ES":  "Rueda Ígnea"
+                    },
+    "Megahorn":  {
+                     "EN":  "Megahorn",
+                     "PT_BR":  "Megachifre",
+                     "ES":  "Megacuerno"
+                 },
+    "Wing Attack":  {
+                        "EN":  "Wing Attack",
+                        "PT_BR":  "Ataque de Asa",
+                        "ES":  "Ataque de Ala"
+                    },
+    "Flamethrower":  {
+                         "EN":  "Flamethrower",
+                         "PT_BR":  "Lança-chamas",
+                         "ES":  "Lanzallamas"
+                     },
+    "Sucker Punch":  {
+                         "EN":  "Sucker Punch",
+                         "PT_BR":  "Soco Enganador",
+                         "ES":  "Golpe Bajo"
+                     },
+    "Dig":  {
+                "EN":  "Dig",
+                "PT_BR":  "Cavar",
+                "ES":  "Excavar"
+            },
+    "Low Kick":  {
+                     "EN":  "Low Kick",
+                     "PT_BR":  "Rasteira",
+                     "ES":  "Patada Baja"
+                 },
+    "Cross Chop":  {
+                       "EN":  "Cross Chop",
+                       "PT_BR":  "Golpe Cruzado",
+                       "ES":  "Golpe Cruzado"
+                   },
+    "Psycho Cut":  {
+                       "EN":  "Psycho Cut",
+                       "PT_BR":  "Corte Psíquico",
+                       "ES":  "Psicocorte"
+                   },
+    "Psybeam":  {
+                    "EN":  "Psybeam",
+                    "PT_BR":  "Feixe Psíquico",
+                    "ES":  "Psicorrayo"
+                },
+    "Earthquake":  {
+                       "EN":  "Earthquake",
+                       "PT_BR":  "Terremoto",
+                       "ES":  "Terremoto"
+                   },
+    "Stone Edge":  {
+                       "EN":  "Stone Edge",
+                       "PT_BR":  "Gume de Pedra",
+                       "ES":  "Roca Afilada"
+                   },
+    "Ice Punch":  {
+                      "EN":  "Ice Punch",
+                      "PT_BR":  "Soco de Gelo",
+                      "ES":  "Puño Hielo"
+                  },
+    "Heart Stamp":  {
+                        "EN":  "Heart Stamp",
+                        "PT_BR":  "Estampa de Coração",
+                        "ES":  "Sello de Corazón"
+                    },
+    "Discharge":  {
+                      "EN":  "Discharge",
+                      "PT_BR":  "Descarga",
+                      "ES":  "Chispazo"
+                  },
+    "Flash Cannon":  {
+                         "EN":  "Flash Cannon",
+                         "PT_BR":  "Canhão de Flash",
+                         "ES":  "Cañón Destello"
+                     },
+    "Peck":  {
+                 "EN":  "Peck",
+                 "PT_BR":  "Bicada",
+                 "ES":  "Picotazo"
+             },
+    "Drill Peck":  {
+                       "EN":  "Drill Peck",
+                       "PT_BR":  "Bico Broca",
+                       "ES":  "Pico Taladro"
+                   },
+    "Ice Beam":  {
+                     "EN":  "Ice Beam",
+                     "PT_BR":  "Raio Congelante",
+                     "ES":  "Rayo de Hielo"
+                 },
+    "Blizzard":  {
+                     "EN":  "Blizzard",
+                     "PT_BR":  "Nevasca",
+                     "ES":  "Ventisca"
+                 },
+    "Air Slash":  {
+                      "EN":  "Air Slash",
+                      "PT_BR":  "Golpe de Ar",
+                      "ES":  "Corte Aéreo"
+                  },
+    "Heat Wave":  {
+                      "EN":  "Heat Wave",
+                      "PT_BR":  "Onda de Calor",
+                      "ES":  "Onda Ígnea"
+                  },
+    "Twineedle":  {
+                      "EN":  "Twineedle",
+                      "PT_BR":  "Agulha Dupla",
+                      "ES":  "Doble Aguijón"
+                  },
+    "Poison Jab":  {
+                       "EN":  "Poison Jab",
+                       "PT_BR":  "Golpe Envenenado",
+                       "ES":  "Golpe Venenoso"
+                   },
+    "Aerial Ace":  {
+                       "EN":  "Aerial Ace",
+                       "PT_BR":  "Ás dos Ares",
+                       "ES":  "As Aéreo"
+                   },
+    "Drill Run":  {
+                      "EN":  "Drill Run",
+                      "PT_BR":  "Furação",
+                      "ES":  "Taladradora"
+                  },
+    "Petal Blizzard":  {
+                           "EN":  "Petal Blizzard",
+                           "PT_BR":  "Nevasca de Pétalas",
+                           "ES":  "Tormenta de Pétalos"
+                       },
+    "Mega Drain":  {
+                       "EN":  "Mega Drain",
+                       "PT_BR":  "Megadreno",
+                       "ES":  "Megadrenado"
+                   },
+    "Bug Buzz":  {
+                     "EN":  "Bug Buzz",
+                     "PT_BR":  "Zumbido de Inseto",
+                     "ES":  "Zumbido"
+                 },
+    "Poison Fang":  {
+                        "EN":  "Poison Fang",
+                        "PT_BR":  "Presa Venenosa",
+                        "ES":  "Colmillo Veneno"
+                    },
+    "Night Slash":  {
+                        "EN":  "Night Slash",
+                        "PT_BR":  "Talho Noturno",
+                        "ES":  "Corte Umbrío"
+                    },
+    "Slash":  {
+                  "EN":  "Slash",
+                  "PT_BR":  "Talho",
+                  "ES":  "Cuchillada"
+              },
+    "Bubble Beam":  {
+                        "EN":  "Bubble Beam",
+                        "PT_BR":  "Jato de Bolhas",
+                        "ES":  "Rayo Burbuja"
+                    },
+    "Submission":  {
+                       "EN":  "Submission",
+                       "PT_BR":  "Submissão",
+                       "ES":  "Sumisión"
+                   },
+    "Karate Chop":  {
+                        "EN":  "Karate Chop",
+                        "PT_BR":  "Golpe de Caratê",
+                        "ES":  "Golpe Karate"
+                    },
+    "Low Sweep":  {
+                      "EN":  "Low Sweep",
+                      "PT_BR":  "Movimento Baixo",
+                      "ES":  "Barredora"
+                  },
+    "Aqua Jet":  {
+                     "EN":  "Aqua Jet",
+                     "PT_BR":  "Aqua Jato",
+                     "ES":  "Acuajet"
+                 },
+    "Aqua Tail":  {
+                      "EN":  "Aqua Tail",
+                      "PT_BR":  "Aqua Cauda",
+                      "ES":  "Cola de Agua"
+                  },
+    "Seed Bomb":  {
+                      "EN":  "Seed Bomb",
+                      "PT_BR":  "Bomba de Sementes",
+                      "ES":  "Bomba Semilla"
+                  },
+    "Psyshock":  {
+                     "EN":  "Psyshock",
+                     "PT_BR":  "Choque Psíquico",
+                     "ES":  "Choque Psíquico"
+                 },
+    "Rock Throw":  {
+                       "EN":  "Rock Throw",
+                       "PT_BR":  "Lançamento de Rocha",
+                       "ES":  "Lanzarrocas"
+                   },
+    "Ancient Power":  {
+                          "EN":  "Ancient Power",
+                          "PT_BR":  "Poder Ancestral",
+                          "ES":  "Poder Antiguo"
+                      },
+    "Rock Tomb":  {
+                      "EN":  "Rock Tomb",
+                      "PT_BR":  "Tumba de Rochas",
+                      "ES":  "Tumba de Rocas"
+                  },
+    "Rock Slide":  {
+                       "EN":  "Rock Slide",
+                       "PT_BR":  "Deslize de Pedras",
+                       "ES":  "Avalancha"
+                   },
+    "Power Gem":  {
+                      "EN":  "Power Gem",
+                      "PT_BR":  "Gema Poderosa",
+                      "ES":  "Joya de Luz"
+                  },
+    "Shadow Sneak":  {
+                         "EN":  "Shadow Sneak",
+                         "PT_BR":  "Furtividade nas Sombras",
+                         "ES":  "Sombra Vil"
+                     },
+    "Shadow Punch":  {
+                         "EN":  "Shadow Punch",
+                         "PT_BR":  "Soco Sombrio",
+                         "ES":  "Puño Sombra"
+                     },
+    "Shadow Claw":  {
+                        "EN":  "Shadow Claw",
+                        "PT_BR":  "Garra Sombria",
+                        "ES":  "Garra de Sombra"
+                    },
+    "Ominous Wind":  {
+                         "EN":  "Ominous Wind",
+                         "PT_BR":  "Vento Ominoso",
+                         "ES":  "Viento Ominoso"
+                     },
+    "Shadow Ball":  {
+                        "EN":  "Shadow Ball",
+                        "PT_BR":  "Bola Sombria",
+                        "ES":  "Bola Sombra"
+                    },
+    "Bullet Punch":  {
+                         "EN":  "Bullet Punch",
+                         "PT_BR":  "Soco Projétil",
+                         "ES":  "Puño Bala"
+                     },
+    "Magnet Bomb":  {
+                        "EN":  "Magnet Bomb",
+                        "PT_BR":  "Bomba Ímã",
+                        "ES":  "Magnetobomba"
+                    },
+    "Steel Wing":  {
+                       "EN":  "Steel Wing",
+                       "PT_BR":  "Asa de Aço",
+                       "ES":  "Ala de Acero"
+                   },
+    "Iron Head":  {
+                      "EN":  "Iron Head",
+                      "PT_BR":  "Cabeça de Ferro",
+                      "ES":  "Cabeza de Hierro"
+                  },
+    "Parabolic Charge":  {
+                             "EN":  "Parabolic Charge",
+                             "PT_BR":  "Ataque Parabólico",
+                             "ES":  "Carga Parabólica"
+                         },
+    "Spark":  {
+                  "EN":  "Spark",
+                  "PT_BR":  "Faísca",
+                  "ES":  "Chispa"
+              },
+    "Thunder Punch":  {
+                          "EN":  "Thunder Punch",
+                          "PT_BR":  "Soco Trovoada",
+                          "ES":  "Puño Trueno"
+                      },
+    "Thunder":  {
+                    "EN":  "Thunder",
+                    "PT_BR":  "Trovão",
+                    "ES":  "Trueno"
+                },
+    "Thunderbolt":  {
+                        "EN":  "Thunderbolt",
+                        "PT_BR":  "Relâmpago",
+                        "ES":  "Atactrueno"
+                    },
+    "Twister":  {
+                    "EN":  "Twister",
+                    "PT_BR":  "Twister",
+                    "ES":  "Tornado"
+                },
+    "Dragon Breath":  {
+                          "EN":  "Dragon Breath",
+                          "PT_BR":  "Sopro do Dragão",
+                          "ES":  "Aliento de Dragón"
+                      },
+    "Dragon Pulse":  {
+                         "EN":  "Dragon Pulse",
+                         "PT_BR":  "Pulso do Dragão",
+                         "ES":  "Pulso Dragón"
+                     },
+    "Dragon Claw":  {
+                        "EN":  "Dragon Claw",
+                        "PT_BR":  "Garra de Dragão",
+                        "ES":  "Garra Dragón"
+                    },
+    "Disarming Voice":  {
+                            "EN":  "Disarming Voice",
+                            "PT_BR":  "Voz Desarmante",
+                            "ES":  "Voz Encantadora"
+                        },
+    "Draining Kiss":  {
+                          "EN":  "Draining Kiss",
+                          "PT_BR":  "Beijo Drenante",
+                          "ES":  "Beso Drenador"
+                      },
+    "Dazzling Gleam":  {
+                           "EN":  "Dazzling Gleam",
+                           "PT_BR":  "Clarão Deslumbrante",
+                           "ES":  "Brillo Mágico"
+                       },
+    "Moonblast":  {
+                      "EN":  "Moonblast",
+                      "PT_BR":  "Explosão Lunar",
+                      "ES":  "Fuerza Lunar"
+                  },
+    "Play Rough":  {
+                       "EN":  "Play Rough",
+                       "PT_BR":  "Jogo Duro",
+                       "ES":  "Juego Rudo"
+                   },
+    "Cross Poison":  {
+                         "EN":  "Cross Poison",
+                         "PT_BR":  "Corte-veneno",
+                         "ES":  "Veneno X"
+                     },
+    "Sludge Bomb":  {
+                        "EN":  "Sludge Bomb",
+                        "PT_BR":  "Bomba de Lodo",
+                        "ES":  "Bomba Lodo"
+                    },
+    "Sludge Wave":  {
+                        "EN":  "Sludge Wave",
+                        "PT_BR":  "Onda de Lama",
+                        "ES":  "Ola de Lodo"
+                    },
+    "Gunk Shot":  {
+                      "EN":  "Gunk Shot",
+                      "PT_BR":  "Tiro de Sujeira",
+                      "ES":  "Lanzamugre"
+                  },
+    "Mud Shot":  {
+                     "EN":  "Mud Shot",
+                     "PT_BR":  "Tiro de Lama",
+                     "ES":  "Disparo de Lodo"
+                 },
+    "Bone Club":  {
+                      "EN":  "Bone Club",
+                      "PT_BR":  "Bastão de Osso",
+                      "ES":  "Maza de Hueso"
+                  },
+    "Bulldoze":  {
+                     "EN":  "Bulldoze",
+                     "PT_BR":  "Tremor",
+                     "ES":  "Terratemblor"
+                 },
+    "Mud Bomb":  {
+                     "EN":  "Mud Bomb",
+                     "PT_BR":  "Bomba de Lama",
+                     "ES":  "Bomba Fango"
+                 },
+    "Fury Cutter":  {
+                        "EN":  "Fury Cutter",
+                        "PT_BR":  "Cortador de Fúria",
+                        "ES":  "Corte Furia"
+                    },
+    "Bug Bite":  {
+                     "EN":  "Bug Bite",
+                     "PT_BR":  "Picada",
+                     "ES":  "Picadura"
+                 },
+    "Signal Beam":  {
+                        "EN":  "Signal Beam",
+                        "PT_BR":  "Feixe Sinalizador",
+                        "ES":  "Rayo Señal"
+                    },
+    "X-Scissor":  {
+                      "EN":  "X-Scissor",
+                      "PT_BR":  "Tesoura X",
+                      "ES":  "Tijera X"
+                  },
+    "Flame Charge":  {
+                         "EN":  "Flame Charge",
+                         "PT_BR":  "Ataque de Chamas",
+                         "ES":  "Carga de Fuego"
+                     },
+    "Flame Burst":  {
+                        "EN":  "Flame Burst",
+                        "PT_BR":  "Rajada de Chamas",
+                        "ES":  "Golpe de Fuego"
+                    },
+    "Fire Blast":  {
+                       "EN":  "Fire Blast",
+                       "PT_BR":  "Rajada de Fogo",
+                       "ES":  "Llamarada"
+                   },
+    "Brine":  {
+                  "EN":  "Brine",
+                  "PT_BR":  "Salmoura",
+                  "ES":  "Agua Salada"
+              },
+    "Water Pulse":  {
+                        "EN":  "Water Pulse",
+                        "PT_BR":  "Pulso d\u0027Água",
+                        "ES":  "Pulso de Agua"
+                    },
+    "Scald":  {
+                  "EN":  "Scald",
+                  "PT_BR":  "Escaldada",
+                  "ES":  "Escaldar"
+              },
+    "Hydro Pump":  {
+                       "EN":  "Hydro Pump",
+                       "PT_BR":  "Jato d\u0027Água",
+                       "ES":  "Hidrobomba"
+                   },
+    "Psychic":  {
+                    "EN":  "Psychic",
+                    "PT_BR":  "Psíquico",
+                    "ES":  "Fuerza Psíquica"
+                },
+    "Psystrike":  {
+                      "EN":  "Psystrike",
+                      "PT_BR":  "Golpe Psíquico",
+                      "ES":  "Onda Mental"
+                  },
+    "Ice Shard":  {
+                      "EN":  "Ice Shard",
+                      "PT_BR":  "Caco de Gelo",
+                      "ES":  "Esquirla Helada"
+                  },
+    "Icy Wind":  {
+                     "EN":  "Icy Wind",
+                     "PT_BR":  "Vento Congelante",
+                     "ES":  "Viento Helado"
+                 },
+    "Frost Breath":  {
+                         "EN":  "Frost Breath",
+                         "PT_BR":  "Respiração de Gelo",
+                         "ES":  "Vaho Helado"
+                     },
+    "Absorb":  {
+                   "EN":  "Absorb",
+                   "PT_BR":  "Absorção",
+                   "ES":  "Absorción"
+               },
+    "Giga Drain":  {
+                       "EN":  "Giga Drain",
+                       "PT_BR":  "Gigadreno",
+                       "ES":  "Gigadrenado"
+                   },
+    "Fire Punch":  {
+                       "EN":  "Fire Punch",
+                       "PT_BR":  "Soco de Fogo",
+                       "ES":  "Puño Fuego"
+                   },
+    "Solar Beam":  {
+                       "EN":  "Solar Beam",
+                       "PT_BR":  "Raio Solar",
+                       "ES":  "Rayo Solar"
+                   },
+    "Leaf Blade":  {
+                       "EN":  "Leaf Blade",
+                       "PT_BR":  "Lâmina de Folha",
+                       "ES":  "Hoja Aguda"
+                   },
+    "Power Whip":  {
+                       "EN":  "Power Whip",
+                       "PT_BR":  "Chicote Poderoso",
+                       "ES":  "Latigazo"
+                   },
+    "Splash":  {
+                   "EN":  "Splash",
+                   "PT_BR":  "Borrifada",
+                   "ES":  "Salpicadura"
+               },
+    "Acid":  {
+                 "EN":  "Acid",
+                 "PT_BR":  "Ácido",
+                 "ES":  "Ácido"
+             },
+    "Air Cutter":  {
+                       "EN":  "Air Cutter",
+                       "PT_BR":  "Cortador de Ar",
+                       "ES":  "Aire Cortante"
+                   },
+    "Hurricane":  {
+                      "EN":  "Hurricane",
+                      "PT_BR":  "Furacão",
+                      "ES":  "Huracán"
+                  },
+    "Brick Break":  {
+                        "EN":  "Brick Break",
+                        "PT_BR":  "Quebra-telha",
+                        "ES":  "Karatazo"
+                    },
+    "Cut":  {
+                "EN":  "Cut",
+                "PT_BR":  "Cortar",
+                "ES":  "Corte"
+            },
+    "Swift":  {
+                  "EN":  "Swift",
+                  "PT_BR":  "Ataque Veloz",
+                  "ES":  "Meteoros"
+              },
+    "Horn Attack":  {
+                        "EN":  "Horn Attack",
+                        "PT_BR":  "Ataque de Chifre",
+                        "ES":  "Ataque Cuerno"
+                    },
+    "Stomp":  {
+                  "EN":  "Stomp",
+                  "PT_BR":  "Pisotear",
+                  "ES":  "Pisotón"
+              },
+    "Headbutt":  {
+                     "EN":  "Headbutt",
+                     "PT_BR":  "Cabeçada",
+                     "ES":  "Golpe Cabeza"
+                 },
+    "Hyper Fang":  {
+                       "EN":  "Hyper Fang",
+                       "PT_BR":  "Hiperpresa",
+                       "ES":  "Hipercolmillo"
+                   },
+    "Slam":  {
+                 "EN":  "Slam",
+                 "PT_BR":  "Pancada Brusca",
+                 "ES":  "Golpazo"
+             },
+    "Body Slam":  {
+                      "EN":  "Body Slam",
+                      "PT_BR":  "Pancada Corporal",
+                      "ES":  "Golpe de Cuerpo"
+                  },
+    "Rest":  {
+                 "EN":  "Rest",
+                 "PT_BR":  "Descansar",
+                 "ES":  "Descanso"
+             },
+    "Struggle":  {
+                     "EN":  "Struggle",
+                     "PT_BR":  "Insistência",
+                     "ES":  "Forcejeo"
+                 },
+    "Mud-Slap":  {
+                     "EN":  "Mud-Slap",
+                     "PT_BR":  "Tapa de Lama",
+                     "ES":  "Bofetón Lodo"
+                 },
+    "Zen Headbutt":  {
+                         "EN":  "Zen Headbutt",
+                         "PT_BR":  "Cabeçada Zen",
+                         "ES":  "Cabezazo Zen"
+                     },
+    "Confusion":  {
+                      "EN":  "Confusion",
+                      "PT_BR":  "Confusão",
+                      "ES":  "Confusión"
+                  },
+    "Poison Sting":  {
+                         "EN":  "Poison Sting",
+                         "PT_BR":  "Ferrão Venenoso",
+                         "ES":  "Picotazo Veneno"
+                     },
+    "Bubble":  {
+                   "EN":  "Bubble",
+                   "PT_BR":  "Bolha",
+                   "ES":  "Burbuja"
+               },
+    "Feint Attack":  {
+                         "EN":  "Feint Attack",
+                         "PT_BR":  "Ataque Dissimulado",
+                         "ES":  "Ataque Finta"
+                     },
+    "Fire Fang":  {
+                      "EN":  "Fire Fang",
+                      "PT_BR":  "Presas de Fogo",
+                      "ES":  "Colmillo de Fuego"
+                  },
+    "Rock Smash":  {
+                       "EN":  "Rock Smash",
+                       "PT_BR":  "Esmagamento de Pedras",
+                       "ES":  "Golpe Roca"
+                   },
+    "Transform":  {
+                      "EN":  "Transform",
+                      "PT_BR":  "Transformação",
+                      "ES":  "Transformación"
+                  },
+    "Counter":  {
+                    "EN":  "Counter",
+                    "PT_BR":  "Contra-atacar",
+                    "ES":  "Contraataque"
+                },
+    "Powder Snow":  {
+                        "EN":  "Powder Snow",
+                        "PT_BR":  "Neve em Pó",
+                        "ES":  "Polvo de Nieve"
+                    },
+    "Close Combat":  {
+                         "EN":  "Close Combat",
+                         "PT_BR":  "Corpo-a-corpo",
+                         "ES":  "Cuerpo a Cuerpo"
+                     },
+    "Dynamic Punch":  {
+                          "EN":  "Dynamic Punch",
+                          "PT_BR":  "Soco Dinâmico",
+                          "ES":  "Puño Dinámico"
+                      },
+    "Focus Blast":  {
+                        "EN":  "Focus Blast",
+                        "PT_BR":  "Explosão Focalizada",
+                        "ES":  "Ataque Centrado"
+                    },
+    "Aurora Beam":  {
+                        "EN":  "Aurora Beam",
+                        "PT_BR":  "Raio Aurora",
+                        "ES":  "Rayo Aurora"
+                    },
+    "Charge Beam":  {
+                        "EN":  "Charge Beam",
+                        "PT_BR":  "Carga de Raio",
+                        "ES":  "Rayo Carga"
+                    },
+    "Volt Switch":  {
+                        "EN":  "Volt Switch",
+                        "PT_BR":  "Troca Elétrica",
+                        "ES":  "Cambiavoltaje"
+                    },
+    "Wild Charge":  {
+                        "EN":  "Wild Charge",
+                        "PT_BR":  "Ataque Selvagem",
+                        "ES":  "Carga Salvaje"
+                    },
+    "Zap Cannon":  {
+                       "EN":  "Zap Cannon",
+                       "PT_BR":  "Canhão Zap",
+                       "ES":  "Electrocañón"
+                   },
+    "Dragon Tail":  {
+                        "EN":  "Dragon Tail",
+                        "PT_BR":  "Cauda do Dragão",
+                        "ES":  "Cola de Dragón"
+                    },
+    "Avalanche":  {
+                      "EN":  "Avalanche",
+                      "PT_BR":  "Avalanche",
+                      "ES":  "Alud"
+                  },
+    "Brave Bird":  {
+                       "EN":  "Brave Bird",
+                       "PT_BR":  "Pássaro Bravo",
+                       "ES":  "Ave Brava"
+                   },
+    "Sky Attack":  {
+                       "EN":  "Sky Attack",
+                       "PT_BR":  "Ataque do Céu",
+                       "ES":  "Ataque Celestial"
+                   },
+    "Sand Tomb":  {
+                      "EN":  "Sand Tomb",
+                      "PT_BR":  "Fosso de Areia",
+                      "ES":  "Tumba de Arena"
+                  },
+    "Rock Blast":  {
+                       "EN":  "Rock Blast",
+                       "PT_BR":  "Explosão de Rocha",
+                       "ES":  "Pedrada"
+                   },
+    "Infestation":  {
+                        "EN":  "Infestation",
+                        "PT_BR":  "Infestação",
+                        "ES":  "Infestación"
+                    },
+    "Struggle Bug":  {
+                         "EN":  "Struggle Bug",
+                         "PT_BR":  "Ira de Inseto",
+                         "ES":  "Lucha Insecto"
+                     },
+    "Silver Wind":  {
+                        "EN":  "Silver Wind",
+                        "PT_BR":  "Vento Prateado",
+                        "ES":  "Viento Plateado"
+                    },
+    "Astonish":  {
+                     "EN":  "Astonish",
+                     "PT_BR":  "Abismar",
+                     "ES":  "Impresión"
+                 },
+    "Hex":  {
+                "EN":  "Hex",
+                "PT_BR":  "Feitiço",
+                "ES":  "Infortunio"
+            },
+    "Night Shade":  {
+                        "EN":  "Night Shade",
+                        "PT_BR":  "Sombra Noturna",
+                        "ES":  "Tinieblas"
+                    },
+    "Iron Tail":  {
+                      "EN":  "Iron Tail",
+                      "PT_BR":  "Cauda de Ferro",
+                      "ES":  "Cola de Hierro"
+                  },
+    "Gyro Ball":  {
+                      "EN":  "Gyro Ball",
+                      "PT_BR":  "Girobola",
+                      "ES":  "Giro Bola"
+                  },
+    "Heavy Slam":  {
+                       "EN":  "Heavy Slam",
+                       "PT_BR":  "Golpe Pesado",
+                       "ES":  "Golpe Pesado"
+                   },
+    "Fire Spin":  {
+                      "EN":  "Fire Spin",
+                      "PT_BR":  "Chama Furacão",
+                      "ES":  "Giro Fuego"
+                  },
+    "Overheat":  {
+                     "EN":  "Overheat",
+                     "PT_BR":  "Superaquecimento",
+                     "ES":  "Supercalor"
+                 },
+    "Bullet Seed":  {
+                        "EN":  "Bullet Seed",
+                        "PT_BR":  "Projétil de Semente",
+                        "ES":  "Bala Semilla"
+                    },
+    "Grass Knot":  {
+                       "EN":  "Grass Knot",
+                       "PT_BR":  "Nó de Grama",
+                       "ES":  "Nudo de Pasto"
+                   },
+    "Energy Ball":  {
+                        "EN":  "Energy Ball",
+                        "PT_BR":  "Bola de Energia",
+                        "ES":  "Bola de Energía"
+                    },
+    "Extrasensory":  {
+                         "EN":  "Extrasensory",
+                         "PT_BR":  "Extrassensorial",
+                         "ES":  "Extrasensorial"
+                     },
+    "Future Sight":  {
+                         "EN":  "Future Sight",
+                         "PT_BR":  "Visão do Futuro",
+                         "ES":  "Premonición"
+                     },
+    "Mirror Coat":  {
+                        "EN":  "Mirror Coat",
+                        "PT_BR":  "Casaco Espelhado",
+                        "ES":  "Escudo Espejo"
+                    },
+    "Outrage":  {
+                    "EN":  "Outrage",
+                    "PT_BR":  "Ultraje",
+                    "ES":  "Enfado"
+                },
+    "Snarl":  {
+                  "EN":  "Snarl",
+                  "PT_BR":  "Rosnado",
+                  "ES":  "Alarido"
+              },
+    "Crunch":  {
+                   "EN":  "Crunch",
+                   "PT_BR":  "Mastigada",
+                   "ES":  "Triturar"
+               },
+    "Foul Play":  {
+                      "EN":  "Foul Play",
+                      "PT_BR":  "Jogo Sujo",
+                      "ES":  "Juego Sucio"
+                  },
+    "Hidden Power":  {
+                         "EN":  "Hidden Power",
+                         "PT_BR":  "Poder Oculto",
+                         "ES":  "Poder Oculto"
+                     },
+    "Waterfall":  {
+                      "EN":  "Waterfall",
+                      "PT_BR":  "Cachoeira",
+                      "ES":  "Cascada"
+                  },
+    "Surf":  {
+                 "EN":  "Surf",
+                 "PT_BR":  "Surfar",
+                 "ES":  "Surf"
+             },
+    "Draco Meteor":  {
+                         "EN":  "Draco Meteor",
+                         "PT_BR":  "Meteoro do Dragão",
+                         "ES":  "Meteoro Dragón"
+                     },
+    "Doom Desire":  {
+                        "EN":  "Doom Desire",
+                        "PT_BR":  "Desejo Cruel",
+                        "ES":  "Deseo Final"
+                    },
+    "Yawn":  {
+                 "EN":  "Yawn",
+                 "PT_BR":  "Bocejo",
+                 "ES":  "Bostezo"
+             },
+    "Psycho Boost":  {
+                         "EN":  "Psycho Boost",
+                         "PT_BR":  "Impulso Psíquico",
+                         "ES":  "Psicoimpulso"
+                     },
+    "Origin Pulse":  {
+                         "EN":  "Origin Pulse",
+                         "PT_BR":  "Pulso Original",
+                         "ES":  "Pulso Primigenio"
+                     },
+    "Precipice Blades":  {
+                             "EN":  "Precipice Blades",
+                             "PT_BR":  "Lâmina Abissal",
+                             "ES":  "Filo del Abismo"
+                         },
+    "Present":  {
+                    "EN":  "Present",
+                    "PT_BR":  "Presente",
+                    "ES":  "Obsequio"
+                },
+    "Weather Ball":  {
+                         "EN":  "Weather Ball",
+                         "PT_BR":  "Esfera Climática",
+                         "ES":  "Meteorobola"
+                     },
+    "Frenzy Plant":  {
+                         "EN":  "Frenzy Plant",
+                         "PT_BR":  "Planta Mortal",
+                         "ES":  "Planta Feroz"
+                     },
+    "Smack Down":  {
+                       "EN":  "Smack Down",
+                       "PT_BR":  "Derrubada",
+                       "ES":  "Antiaéreo"
+                   },
+    "Blast Burn":  {
+                       "EN":  "Blast Burn",
+                       "PT_BR":  "Queimadura Explosiva",
+                       "ES":  "Anillo de Fuego"
+                   },
+    "Hydro Cannon":  {
+                         "EN":  "Hydro Cannon",
+                         "PT_BR":  "Hidro Canhão",
+                         "ES":  "Hidrocañón"
+                     },
+    "Last Resort":  {
+                        "EN":  "Last Resort",
+                        "PT_BR":  "Último Recurso",
+                        "ES":  "Último Recurso"
+                    },
+    "Meteor Mash":  {
+                        "EN":  "Meteor Mash",
+                        "PT_BR":  "Meteoro Esmagador",
+                        "ES":  "Puño Meteoro"
+                    },
+    "Skull Bash":  {
+                       "EN":  "Skull Bash",
+                       "PT_BR":  "Quebra-crânio",
+                       "ES":  "Cabezazo"
+                   },
+    "Acid Spray":  {
+                       "EN":  "Acid Spray",
+                       "PT_BR":  "Spray Ácido",
+                       "ES":  "Bomba Ácida"
+                   },
+    "Earth Power":  {
+                        "EN":  "Earth Power",
+                        "PT_BR":  "Poder da Terra",
+                        "ES":  "Poder Terrestre"
+                    },
+    "Crabhammer":  {
+                       "EN":  "Crabhammer",
+                       "PT_BR":  "Martelo Caranguejo",
+                       "ES":  "Martillazo"
+                   },
+    "Lunge":  {
+                  "EN":  "Lunge",
+                  "PT_BR":  "Estocada",
+                  "ES":  "Plancha"
+              },
+    "Crush Claw":  {
+                       "EN":  "Crush Claw",
+                       "PT_BR":  "Garra Esmagadora",
+                       "ES":  "Garra Brutal"
+                   },
+    "Octazooka":  {
+                      "EN":  "Octazooka",
+                      "PT_BR":  "Polvo-canhão",
+                      "ES":  "Octazuca"
+                  },
+    "Mirror Shot":  {
+                        "EN":  "Mirror Shot",
+                        "PT_BR":  "Tiro no Espelho",
+                        "ES":  "Disparo Espejo"
+                    },
+    "Superpower":  {
+                       "EN":  "Superpower",
+                       "PT_BR":  "Superpoder",
+                       "ES":  "Fuerza Bruta"
+                   },
+    "Fell Stinger":  {
+                         "EN":  "Fell Stinger",
+                         "PT_BR":  "Ferrão Letal",
+                         "ES":  "Aguijón Letal"
+                     },
+    "Leaf Tornado":  {
+                         "EN":  "Leaf Tornado",
+                         "PT_BR":  "Tornado de Folhas",
+                         "ES":  "Ciclón de Hojas"
+                     },
+    "Leech Life":  {
+                       "EN":  "Leech Life",
+                       "PT_BR":  "Suga-vidas",
+                       "ES":  "Chupavidas"
+                   },
+    "Drain Punch":  {
+                        "EN":  "Drain Punch",
+                        "PT_BR":  "Soco Dreno",
+                        "ES":  "Puño Drenador"
+                    },
+    "Shadow Bone":  {
+                        "EN":  "Shadow Bone",
+                        "PT_BR":  "Osso Sombrio",
+                        "ES":  "Hueso Sombrío"
+                    },
+    "Muddy Water":  {
+                        "EN":  "Muddy Water",
+                        "PT_BR":  "Água Barrenta",
+                        "ES":  "Agua Lodosa"
+                    },
+    "Blaze Kick":  {
+                       "EN":  "Blaze Kick",
+                       "PT_BR":  "Chute Labareda",
+                       "ES":  "Patada Ígnea"
+                   },
+    "Razor Shell":  {
+                        "EN":  "Razor Shell",
+                        "PT_BR":  "Concha Navalha",
+                        "ES":  "Coraza Afilada"
+                    },
+    "Power-Up Punch":  {
+                           "EN":  "Power-Up Punch",
+                           "PT_BR":  "Soco Empoderador",
+                           "ES":  "Puño Incremento"
+                       },
+    "Charm":  {
+                  "EN":  "Charm",
+                  "PT_BR":  "Encantar",
+                  "ES":  "Encanto"
+              },
+    "Giga Impact":  {
+                        "EN":  "Giga Impact",
+                        "PT_BR":  "Gigaimpacto",
+                        "ES":  "Gigaimpacto"
+                    },
+    "Frustration":  {
+                        "EN":  "Frustration",
+                        "PT_BR":  "Frustração",
+                        "ES":  "Frustración"
+                    },
+    "Return":  {
+                   "EN":  "Return",
+                   "PT_BR":  "Retorno",
+                   "ES":  "Retribución"
+               },
+    "Synchronoise":  {
+                         "EN":  "Synchronoise",
+                         "PT_BR":  "Barulho Sincronizado",
+                         "ES":  "Sincrorruido"
+                     },
+    "Lock-On":  {
+                    "EN":  "Lock-On",
+                    "PT_BR":  "Mirar",
+                    "ES":  "Fijar Blanco"
+                },
+    "Thunder Fang":  {
+                         "EN":  "Thunder Fang",
+                         "PT_BR":  "Presa Trovejante",
+                         "ES":  "Colmillo de Trueno"
+                     },
+    "Ice Fang":  {
+                     "EN":  "Ice Fang",
+                     "PT_BR":  "Presa de Gelo",
+                     "ES":  "Colmillo de Hielo"
+                 },
+    "Horn Drill":  {
+                       "EN":  "Horn Drill",
+                       "PT_BR":  "Chifre Broca",
+                       "ES":  "Cuerno Taladro"
+                   },
+    "Fissure":  {
+                    "EN":  "Fissure",
+                    "PT_BR":  "Fissura",
+                    "ES":  "Fisura"
+                },
+    "Sacred Sword":  {
+                         "EN":  "Sacred Sword",
+                         "PT_BR":  "Espada Sagrada",
+                         "ES":  "Espada Sagrada"
+                     },
+    "Flying Press":  {
+                         "EN":  "Flying Press",
+                         "PT_BR":  "Aperto Voador",
+                         "ES":  "Plancha Voladora"
+                     },
+    "Aura Sphere":  {
+                        "EN":  "Aura Sphere",
+                        "PT_BR":  "Aura Esférica",
+                        "ES":  "Aura Esfera"
+                    },
+    "Payback":  {
+                    "EN":  "Payback",
+                    "PT_BR":  "Revide",
+                    "ES":  "Revancha"
+                },
+    "Rock Wrecker":  {
+                         "EN":  "Rock Wrecker",
+                         "PT_BR":  "Demolidor de Pedras",
+                         "ES":  "Romperrocas"
+                     },
+    "Aeroblast":  {
+                      "EN":  "Aeroblast",
+                      "PT_BR":  "Explosão Aérea",
+                      "ES":  "Aerochorro"
+                  },
+    "Techno Blast":  {
+                         "EN":  "Techno Blast",
+                         "PT_BR":  "Rajada Tecnológica",
+                         "ES":  "Tecno Shock"
+                     },
+    "Fly":  {
+                "EN":  "Fly",
+                "PT_BR":  "Voar",
+                "ES":  "Vuelo"
+            },
+    "V-create":  {
+                     "EN":  "V-create",
+                     "PT_BR":  "Criação V",
+                     "ES":  "V de Fuego"
+                 },
+    "Leaf Storm":  {
+                       "EN":  "Leaf Storm",
+                       "PT_BR":  "Tempestade de Folhas",
+                       "ES":  "Tormenta de Hojas"
+                   },
+    "Tri Attack":  {
+                       "EN":  "Tri Attack",
+                       "PT_BR":  "Triataque",
+                       "ES":  "Triataque"
+                   },
+    "Gust":  {
+                 "EN":  "Gust",
+                 "PT_BR":  "Lufada de Vento",
+                 "ES":  "Ráfaga de Aire"
+             },
+    "Incinerate":  {
+                       "EN":  "Incinerate",
+                       "PT_BR":  "Incinerar",
+                       "ES":  "Incinerar"
+                   },
+    "Feather Dance":  {
+                          "EN":  "Feather Dance",
+                          "PT_BR":  "Dança das Penas",
+                          "ES":  "Danza de Plumas"
+                      },
+    "Fairy Wind":  {
+                       "EN":  "Fairy Wind",
+                       "PT_BR":  "Vento de Fada",
+                       "ES":  "Viento Feérico"
+                   },
+    "Psychic Fangs":  {
+                          "EN":  "Psychic Fangs",
+                          "PT_BR":  "Caninos Psíquicos",
+                          "ES":  "Psicocolmillo"
+                      },
+    "Hyperspace Fury":  {
+                            "EN":  "Hyperspace Fury",
+                            "PT_BR":  "Fúria de Hiperespaço",
+                            "ES":  "Cerco Dimensión"
+                        },
+    "Hyperspace Hole":  {
+                            "EN":  "Hyperspace Hole",
+                            "PT_BR":  "Fenda de Hiperespaço",
+                            "ES":  "Paso Dimensional"
+                        },
+    "Double Kick":  {
+                        "EN":  "Double Kick",
+                        "PT_BR":  "Chute Duplo",
+                        "ES":  "Doble Patada"
+                    },
+    "Magical Leaf":  {
+                         "EN":  "Magical Leaf",
+                         "PT_BR":  "Folha Mágica",
+                         "ES":  "Hojas Mágicas"
+                     },
+    "Sacred Fire":  {
+                        "EN":  "Sacred Fire",
+                        "PT_BR":  "Fogo Sagrado",
+                        "ES":  "Fuego Sagrado"
+                    },
+    "Icicle Spear":  {
+                         "EN":  "Icicle Spear",
+                         "PT_BR":  "Lança Congelada",
+                         "ES":  "Lanza de Hielo"
+                     },
+    "Aeroblast+":  {
+                       "EN":  "Aeroblast+",
+                       "PT_BR":  "Explosão Aérea+",
+                       "ES":  "Aerochorro+"
+                   },
+    "Aeroblast++":  {
+                        "EN":  "Aeroblast++",
+                        "PT_BR":  "Explosão Aérea++",
+                        "ES":  "Aerochorro++"
+                    },
+    "Sacred Fire+":  {
+                         "EN":  "Sacred Fire+",
+                         "PT_BR":  "Fogo Sagrado+",
+                         "ES":  "Fuego Sagrado+"
+                     },
+    "Sacred Fire++":  {
+                          "EN":  "Sacred Fire++",
+                          "PT_BR":  "Fogo Sagrado++",
+                          "ES":  "Fuego Sagrado++"
+                      },
+    "Acrobatics":  {
+                       "EN":  "Acrobatics",
+                       "PT_BR":  "Acrobático",
+                       "ES":  "Acrobacia"
+                   },
+    "Luster Purge":  {
+                         "EN":  "Luster Purge",
+                         "PT_BR":  "Purga de Esplendor",
+                         "ES":  "Resplandor"
+                     },
+    "Mist Ball":  {
+                      "EN":  "Mist Ball",
+                      "PT_BR":  "Bola de Névoa",
+                      "ES":  "Bola Neblina"
+                  },
+    "Brutal Swing":  {
+                         "EN":  "Brutal Swing",
+                         "PT_BR":  "Balanço Violento",
+                         "ES":  "Giro Vil"
+                     },
+    "Rollout":  {
+                    "EN":  "Rollout",
+                    "PT_BR":  "Rolagem",
+                    "ES":  "Rodada"
+                },
+    "Seed Flare":  {
+                       "EN":  "Seed Flare",
+                       "PT_BR":  "Semente Ofuscante",
+                       "ES":  "Fulgor Semilla"
+                   },
+    "Obstruct":  {
+                     "EN":  "Obstruct",
+                     "PT_BR":  "Obstruir",
+                     "ES":  "Obstrucción"
+                 },
+    "Shadow Force":  {
+                         "EN":  "Shadow Force",
+                         "PT_BR":  "Força das Sombras",
+                         "ES":  "Golpe Umbrío"
+                     },
+    "Meteor Beam":  {
+                        "EN":  "Meteor Beam",
+                        "PT_BR":  "Raio Meteórico",
+                        "ES":  "Rayo Meteórico"
+                    },
+    "Water Shuriken":  {
+                           "EN":  "Water Shuriken",
+                           "PT_BR":  "Estrela Ninja de Água",
+                           "ES":  "Shuriken de Agua"
+                       },
+    "Fusion Bolt":  {
+                        "EN":  "Fusion Bolt",
+                        "PT_BR":  "Raio de Fusão",
+                        "ES":  "Rayo Fusión"
+                    },
+    "Fusion Flare":  {
+                         "EN":  "Fusion Flare",
+                         "PT_BR":  "Chama da Fusão",
+                         "ES":  "Llama Fusión"
+                     },
+    "Poltergeist":  {
+                        "EN":  "Poltergeist",
+                        "PT_BR":  "Poltergeist",
+                        "ES":  "Poltergeist"
+                    },
+    "High Horsepower":  {
+                            "EN":  "High Horsepower",
+                            "PT_BR":  "Potência Equina",
+                            "ES":  "Fuerza Equina"
+                        },
+    "Glaciate":  {
+                     "EN":  "Glaciate",
+                     "PT_BR":  "Glaciar",
+                     "ES":  "Mundo Gélido"
+                 },
+    "Breaking Swipe":  {
+                           "EN":  "Breaking Swipe",
+                           "PT_BR":  "Golpe Deslizante",
+                           "ES":  "Vasto Impacto"
+                       },
+    "Boomburst":  {
+                      "EN":  "Boomburst",
+                      "PT_BR":  "Rajada Explosiva",
+                      "ES":  "Estruendo"
+                  },
+    "Double Iron Bash":  {
+                             "EN":  "Double Iron Bash",
+                             "PT_BR":  "Pancada de Ferro Dupla",
+                             "ES":  "Ferropuño Doble"
+                         },
+    "Mystical Fire":  {
+                          "EN":  "Mystical Fire",
+                          "PT_BR":  "Fogo Místico",
+                          "ES":  "Fuego Místico"
+                      },
+    "Liquidation":  {
+                        "EN":  "Liquidation",
+                        "PT_BR":  "Aquaríete",
+                        "ES":  "Hidroariete"
+                    },
+    "Dragon Ascent":  {
+                          "EN":  "Dragon Ascent",
+                          "PT_BR":  "Ascenção do Dragão",
+                          "ES":  "Ascenso Dracónico"
+                      },
+    "Leafage":  {
+                    "EN":  "Leafage",
+                    "PT_BR":  "Folhagem",
+                    "ES":  "Follaje"
+                },
+    "Magma Storm":  {
+                        "EN":  "Magma Storm",
+                        "PT_BR":  "Tempestade de Magma",
+                        "ES":  "Lluvia Ígnea"
+                    },
+    "Geomancy":  {
+                     "EN":  "Geomancy",
+                     "PT_BR":  "Geomancia",
+                     "ES":  "Geocontrol"
+                 },
+    "Spacial Rend":  {
+                         "EN":  "Spacial Rend",
+                         "PT_BR":  "Laceração Espacial",
+                         "ES":  "Corte Espacial"
+                     },
+    "Oblivion Wing":  {
+                          "EN":  "Oblivion Wing",
+                          "PT_BR":  "Asa do Esquecimento",
+                          "ES":  "Ala del Olvido"
+                      },
+    "Nature’s Madness":  {
+                             "EN":  "Nature’s Madness",
+                             "PT_BR":  "Ira da Natureza",
+                             "ES":  "Ira Natural"
+                         },
+    "Triple Axel":  {
+                        "EN":  "Triple Axel",
+                        "PT_BR":  "Pinote Triplo",
+                        "ES":  "Triple Axel"
+                    },
+    "Trailblaze":  {
+                       "EN":  "Trailblaze",
+                       "PT_BR":  "Desbravar",
+                       "ES":  "Abrecaminos"
+                   },
+    "Scorching Sands":  {
+                            "EN":  "Scorching Sands",
+                            "PT_BR":  "Areias Ardentes",
+                            "ES":  "Arenas Ardientes"
+                        },
+    "Roar Of Time":  {
+                         "EN":  "Roar Of Time",
+                         "PT_BR":  "Rugido do Tempo",
+                         "ES":  "Rugido Temporal"
+                     },
+    "Bleakwind Storm":  {
+                            "EN":  "Bleakwind Storm",
+                            "PT_BR":  "Tempestade Álgida",
+                            "ES":  "Vendaval Gélido"
+                        },
+    "Sandsear Storm":  {
+                           "EN":  "Sandsear Storm",
+                           "PT_BR":  "Tempestade Saibrosa",
+                           "ES":  "Tifón de Arena"
+                       },
+    "Wildbolt Storm":  {
+                           "EN":  "Wildbolt Storm",
+                           "PT_BR":  "Tempestade Chocante",
+                           "ES":  "Electormenta"
+                       },
+    "Spirit Shackle":  {
+                           "EN":  "Spirit Shackle",
+                           "PT_BR":  "Manilha Sombria",
+                           "ES":  "Puntada Sombría"
+                       },
+    "Volt Tackle":  {
+                        "EN":  "Volt Tackle",
+                        "PT_BR":  "Investida Trovão",
+                        "ES":  "Tacleada de Voltios"
+                    },
+    "Darkest Lariat":  {
+                           "EN":  "Darkest Lariat",
+                           "PT_BR":  "Lariat Escuro",
+                           "ES":  "Lariat Oscuro"
+                       },
+    "Psywave":  {
+                    "EN":  "Psywave",
+                    "PT_BR":  "Onda Psíquica",
+                    "ES":  "Psicoonda"
+                },
+    "Metal Sound":  {
+                        "EN":  "Metal Sound",
+                        "PT_BR":  "Som de Metal",
+                        "ES":  "Sonido Metálico"
+                    },
+    "Sand Attack":  {
+                        "EN":  "Sand Attack",
+                        "PT_BR":  "Ataque de Areia",
+                        "ES":  "Ataque Arena"
+                    },
+    "Sunsteel Strike":  {
+                            "EN":  "Sunsteel Strike",
+                            "PT_BR":  "Ataque Solaraço",
+                            "ES":  "Meteoimpacto"
+                        },
+    "Moongeist Beam":  {
+                           "EN":  "Moongeist Beam",
+                           "PT_BR":  "Feixe Espectral",
+                           "ES":  "Rayo Umbrío"
+                       },
+    "Aura Wheel":  {
+                       "EN":  "Aura Wheel",
+                       "PT_BR":  "Roda de Aura",
+                       "ES":  "Rueda Aural"
+                   },
+    "High Jump Kick":  {
+                           "EN":  "High Jump Kick",
+                           "PT_BR":  "Chute de Pulo Alto",
+                           "ES":  "Patada Salto Alto"
+                       },
+    "Max Flare":  {
+                      "EN":  "Max Flare",
+                      "PT_BR":  "Chama Max",
+                      "ES":  "Maxignición"
+                  },
+    "Max Flutterby":  {
+                          "EN":  "Max Flutterby",
+                          "PT_BR":  "Nuvem de Inseto Max",
+                          "ES":  "Maxinsecto"
+                      },
+    "Max Lightning":  {
+                          "EN":  "Max Lightning",
+                          "PT_BR":  "Raio Max",
+                          "ES":  "Maxitormenta"
+                      },
+    "Max Strike":  {
+                       "EN":  "Max Strike",
+                       "PT_BR":  "Golpe Max",
+                       "ES":  "Maxiataque"
+                   },
+    "Max Knuckle":  {
+                        "EN":  "Max Knuckle",
+                        "PT_BR":  "Punho Max",
+                        "ES":  "Maxipuño"
+                    },
+    "Max Phantasm":  {
+                         "EN":  "Max Phantasm",
+                         "PT_BR":  "Espectro Max",
+                         "ES":  "Maxiespectro"
+                     },
+    "Max Hailstorm":  {
+                          "EN":  "Max Hailstorm",
+                          "PT_BR":  "Temporal de Granizo Max",
+                          "ES":  "Maxihelada"
+                      },
+    "Max Ooze":  {
+                     "EN":  "Max Ooze",
+                     "PT_BR":  "Corrosão Max",
+                     "ES":  "Maxiácido"
+                 },
+    "Max Geyser":  {
+                       "EN":  "Max Geyser",
+                       "PT_BR":  "Gêiser Max",
+                       "ES":  "Maxichorro"
+                   },
+    "Max Airstream":  {
+                          "EN":  "Max Airstream",
+                          "PT_BR":  "Corrente de Ar Max",
+                          "ES":  "Maxiciclón"
+                      },
+    "Max Starfall":  {
+                         "EN":  "Max Starfall",
+                         "PT_BR":  "Queda Estelar Max",
+                         "ES":  "Maxiestela"
+                     },
+    "Max Wyrmwind":  {
+                         "EN":  "Max Wyrmwind",
+                         "PT_BR":  "Bafo Dracônico Max",
+                         "ES":  "Maxidraco"
+                     },
+    "Max Mindstorm":  {
+                          "EN":  "Max Mindstorm",
+                          "PT_BR":  "Tempestade Mental Max",
+                          "ES":  "Maxionda"
+                      },
+    "Max Rockfall":  {
+                         "EN":  "Max Rockfall",
+                         "PT_BR":  "Desabamento Max",
+                         "ES":  "Maxirroca"
+                     },
+    "Max Quake":  {
+                      "EN":  "Max Quake",
+                      "PT_BR":  "Oscilação Max",
+                      "ES":  "Maxitemblor"
+                  },
+    "Max Darkness":  {
+                         "EN":  "Max Darkness",
+                         "PT_BR":  "Escuridão Max",
+                         "ES":  "Maxisombra"
+                     },
+    "Max Overgrowth":  {
+                           "EN":  "Max Overgrowth",
+                           "PT_BR":  "Flora Max",
+                           "ES":  "Maxiflora"
+                       },
+    "Max Steelspike":  {
+                           "EN":  "Max Steelspike",
+                           "PT_BR":  "Espinho de Aço Max",
+                           "ES":  "Maximetal"
+                       },
+    "G-Max Wildfire":  {
+                           "EN":  "G-Max Wildfire",
+                           "PT_BR":  "Queimada G-Max",
+                           "ES":  "Gigallamarada"
+                       },
+    "G-Max Befuddle":  {
+                           "EN":  "G-Max Befuddle",
+                           "PT_BR":  "Perturbação G-Max",
+                           "ES":  "Gigaestupor"
+                       },
+    "G-Max Volt Crash":  {
+                             "EN":  "G-Max Volt Crash",
+                             "PT_BR":  "Trovoada G-Max",
+                             "ES":  "Gigatrueno"
+                         },
+    "G-Max Gold Rush":  {
+                            "EN":  "G-Max Gold Rush",
+                            "PT_BR":  "Corrida do Ouro G-Max",
+                            "ES":  "Gigamonedas"
+                        },
+    "G-Max Chi Strike":  {
+                             "EN":  "G-Max Chi Strike",
+                             "PT_BR":  "Golpe Chi G-Max",
+                             "ES":  "Gigapuño"
+                         },
+    "G-Max Terror":  {
+                         "EN":  "G-Max Terror",
+                         "PT_BR":  "Terror G-Max",
+                         "ES":  "Gigaaparición"
+                     },
+    "G-Max Foam Burst":  {
+                             "EN":  "G-Max Foam Burst",
+                             "PT_BR":  "Explosão de Espuma G-Max",
+                             "ES":  "Gigaespuma"
+                         },
+    "G-Max Resonance":  {
+                            "EN":  "G-Max Resonance",
+                            "PT_BR":  "Ressonância G-Max",
+                            "ES":  "Gigamelodía"
+                        },
+    "G-Max Cuddle":  {
+                         "EN":  "G-Max Cuddle",
+                         "PT_BR":  "Ternura G-Max",
+                         "ES":  "Gigaternura"
+                     },
+    "G-Max Replenish":  {
+                            "EN":  "G-Max Replenish",
+                            "PT_BR":  "Reabastecer G-Max",
+                            "ES":  "Gigarreciclaje"
+                        },
+    "G-Max Malodor":  {
+                          "EN":  "G-Max Malodor",
+                          "PT_BR":  "Pestilência G-Max",
+                          "ES":  "Gigapestilencia"
+                      },
+    "G-Max Meltdown":  {
+                           "EN":  "G-Max Meltdown",
+                           "PT_BR":  "Derretimento G-Max",
+                           "ES":  "Gigafundido"
+                       },
+    "G-Max Wind Rage":  {
+                            "EN":  "G-Max Wind Rage",
+                            "PT_BR":  "Intempérie G-Max",
+                            "ES":  "Gigahuracán"
+                        },
+    "G-Max Gravitas":  {
+                           "EN":  "G-Max Gravitas",
+                           "PT_BR":  "Seriedade G-Max",
+                           "ES":  "Gigabóveda"
+                       },
+    "G-Max Stonesurge":  {
+                             "EN":  "G-Max Stonesurge",
+                             "PT_BR":  "Enxurrada de Rochas",
+                             "ES":  "Gigatrampa Rocas"
+                         },
+    "G-Max Volcalith":  {
+                            "EN":  "G-Max Volcalith",
+                            "PT_BR":  "Rocha Vulcânica G-Max",
+                            "ES":  "Gigarroca Ígnea"
+                        },
+    "G-Max Tartness":  {
+                           "EN":  "G-Max Tartness",
+                           "PT_BR":  "Acidez G-Max",
+                           "ES":  "Gigacorrosión"
+                       },
+    "G-Max Sweetness":  {
+                            "EN":  "G-Max Sweetness",
+                            "PT_BR":  "Néctar G-Max",
+                            "ES":  "Giganéctar"
+                        },
+    "G-Max Sandblast":  {
+                            "EN":  "G-Max Sandblast",
+                            "PT_BR":  "Jorro de Areia G-Max",
+                            "ES":  "Gigapolvareda"
+                        },
+    "G-Max Stun Shock":  {
+                             "EN":  "G-Max Stun Shock",
+                             "PT_BR":  "Eletrocutar G-Max",
+                             "ES":  "Gigadescarga"
+                         },
+    "G-Max Centiferno":  {
+                             "EN":  "G-Max Centiferno",
+                             "PT_BR":  "Centiferno G-Max",
+                             "ES":  "Gigacienfuegos"
+                         },
+    "G-Max Smite":  {
+                        "EN":  "G-Max Smite",
+                        "PT_BR":  "Castigo G-Max",
+                        "ES":  "Gigacastigo"
+                    },
+    "G-Max Snooze":  {
+                         "EN":  "G-Max Snooze",
+                         "PT_BR":  "Cochilo G-Max",
+                         "ES":  "Gigasopor"
+                     },
+    "G-Max Finale":  {
+                         "EN":  "G-Max Finale",
+                         "PT_BR":  "Grande Final G-Max",
+                         "ES":  "Gigafinal"
+                     },
+    "G-Max Steelsurge":  {
+                             "EN":  "G-Max Steelsurge",
+                             "PT_BR":  "Enxurrada de Aço G-Max",
+                             "ES":  "Gigatrampa Acero"
+                         },
+    "G-Max Depletion":  {
+                            "EN":  "G-Max Depletion",
+                            "PT_BR":  "Esgotamento G-Max",
+                            "ES":  "Gigadesgaste"
+                        },
+    "G-Max Vine Lash":  {
+                            "EN":  "G-Max Vine Lash",
+                            "PT_BR":  "Chicotada G-Max",
+                            "ES":  "Gigalianas"
+                        },
+    "G-Max Cannonade":  {
+                            "EN":  "G-Max Cannonade",
+                            "PT_BR":  "Bombardeamento G-Max",
+                            "ES":  "Gigacañonazo"
+                        },
+    "G-Max Drum Solo":  {
+                            "EN":  "G-Max Drum Solo",
+                            "PT_BR":  "Solo de Tambores G-Max",
+                            "ES":  "Gigarredoble"
+                        },
+    "G-Max Fireball":  {
+                           "EN":  "G-Max Fireball",
+                           "PT_BR":  "Bola de Chamas G-Max",
+                           "ES":  "Gigaesfera Ígnea"
+                       },
+    "G-Max Hydrosnipe":  {
+                             "EN":  "G-Max Hydrosnipe",
+                             "PT_BR":  "Hidroatirador G-Max",
+                             "ES":  "Gigadisparo"
+                         },
+    "G-Max One Blow":  {
+                           "EN":  "G-Max One Blow",
+                           "PT_BR":  "Golpe Único G-Max",
+                           "ES":  "Gigagolpe Brusco"
+                       },
+    "G-Max Rapid Flow":  {
+                             "EN":  "G-Max Rapid Flow",
+                             "PT_BR":  "Fluxo Veloz G-Max",
+                             "ES":  "Gigagolpe Fluido"
+                         },
+    "Force Palm":  {
+                       "EN":  "Force Palm",
+                       "PT_BR":  "Palma da Força",
+                       "ES":  "Fuerza de Palma"
+                   },
+    "Sparkling Aria":  {
+                           "EN":  "Sparkling Aria",
+                           "PT_BR":  "Aria Cintilante",
+                           "ES":  "Aria Burbuja"
+                       },
+    "Rage Fist":  {
+                      "EN":  "Rage Fist",
+                      "PT_BR":  "Punho Feroz",
+                      "ES":  "Puño Furia"
+                  },
+    "Flower Trick":  {
+                         "EN":  "Flower Trick",
+                         "PT_BR":  "Truque Floral",
+                         "ES":  "Truco Floral"
+                     },
+    "Freeze Shock":  {
+                         "EN":  "Freeze Shock",
+                         "PT_BR":  "Choque Congelante",
+                         "ES":  "Rayo Gélido"
+                     },
+    "Ice Burn":  {
+                     "EN":  "Ice Burn",
+                     "PT_BR":  "Queimadura de Gelo",
+                     "ES":  "Llama Gélida"
+                 },
+    "Torch Song":  {
+                       "EN":  "Torch Song",
+                       "PT_BR":  "Canção Ardente",
+                       "ES":  "Canto Ígneo"
+                   },
+    "Behemoth Blade":  {
+                           "EN":  "Behemoth Blade",
+                           "PT_BR":  "Espada Colossal",
+                           "ES":  "Corte Supremo"
+                       },
+    "Behemoth Bash":  {
+                          "EN":  "Behemoth Bash",
+                          "PT_BR":  "Pancada Colossal",
+                          "ES":  "Golpe Supremo"
+                      },
+    "Upper Hand":  {
+                       "EN":  "Upper Hand",
+                       "PT_BR":  "Supermão",
+                       "ES":  "Palma Rauda"
+                   },
+    "Thunder Cage":  {
+                         "EN":  "Thunder Cage",
+                         "PT_BR":  "Prisão Elétrica",
+                         "ES":  "Electrojaula"
+                     },
+    "Guard":  {
+                  "EN":  "Guard",
+                  "PT_BR":  "Indefeso",
+                  "ES":  "Barrera"
+              },
+    "Spirit":  {
+                   "EN":  "Spirit",
+                   "PT_BR":  "Espírito",
+                   "ES":  "Ánimo"
+               },
+    "Dynamax Cannon":  {
+                           "EN":  "Dynamax Cannon",
+                           "PT_BR":  "Canhão Dinamax",
+                           "ES":  "Cañón Dinamax"
+                       },
+    "Clanging Scales":  {
+                            "EN":  "Clanging Scales",
+                            "PT_BR":  "Batida de Escamas",
+                            "ES":  "Fragor Escamas"
+                        },
+    "Crush Grip":  {
+                       "EN":  "Crush Grip",
+                       "PT_BR":  "Aperto Esmagador",
+                       "ES":  "Garra Aplastante"
+                   },
+    "Dragon Energy":  {
+                          "EN":  "Dragon Energy",
+                          "PT_BR":  "Energia Dracônica",
+                          "ES":  "Dracoenergía"
+                      },
+    "Aqua Step":  {
+                      "EN":  "Aqua Step",
+                      "PT_BR":  "Passo Aquático",
+                      "ES":  "Danza Acuática"
+                  },
+    "Mud Slap":  {
+                     "EN":  "Mud Slap",
+                     "PT_BR":  "Tapa de Lama",
+                     "ES":  "Bofetón Lodo"
+                 },
+    "Lock On":  {
+                    "EN":  "Lock On",
+                    "PT_BR":  "Mirar",
+                    "ES":  "Fijar Blanco"
+                },
+    "Vice Grip":  {
+                      "EN":  "Vice Grip",
+                      "PT_BR":  "Agarramento Compressor",
+                      "ES":  "Fuerza de Garra"
+                  },
+    "X Scissor":  {
+                      "EN":  "X Scissor",
+                      "PT_BR":  "Tesoura X",
+                      "ES":  "Tijera X"
+                  },
+    "Scald Blastoise":  {
+                            "EN":  "Scald Blastoise",
+                            "PT_BR":  "Escaldada",
+                            "ES":  "Escaldar"
+                        },
+    "Hydro Pump Blastoise":  {
+                                 "EN":  "Hydro Pump Blastoise",
+                                 "PT_BR":  "Jato d\u0027Água",
+                                 "ES":  "Hidrobomba"
+                             },
+    "Wrap Green":  {
+                       "EN":  "Wrap Green",
+                       "PT_BR":  "Embrulho",
+                       "ES":  "Constricción"
+                   },
+    "Wrap Pink":  {
+                      "EN":  "Wrap Pink",
+                      "PT_BR":  "Embrulho",
+                      "ES":  "Constricción"
+                  },
+    "Water Gun Blastoise":  {
+                                "EN":  "Water Gun Blastoise",
+                                "PT_BR":  "Revólver d\u0027Água",
+                                "ES":  "Chorro de Agua"
+                            },
+    "Futuresight":  {
+                        "EN":  "Futuresight",
+                        "PT_BR":  "Visão do Futuro",
+                        "ES":  "Premonición"
+                    },
+    "Weather Ball Fire":  {
+                              "EN":  "Weather Ball Fire",
+                              "PT_BR":  "Esfera Climática",
+                              "ES":  "Meteorobola"
+                          },
+    "Weather Ball Ice":  {
+                             "EN":  "Weather Ball Ice",
+                             "PT_BR":  "Esfera Climática",
+                             "ES":  "Meteorobola"
+                         },
+    "Weather Ball Rock":  {
+                              "EN":  "Weather Ball Rock",
+                              "PT_BR":  "Esfera Climática",
+                              "ES":  "Meteorobola"
+                          },
+    "Weather Ball Water":  {
+                               "EN":  "Weather Ball Water",
+                               "PT_BR":  "Esfera Climática",
+                               "ES":  "Meteorobola"
+                           },
+    "Super Power":  {
+                        "EN":  "Super Power",
+                        "PT_BR":  "Superpoder",
+                        "ES":  "Fuerza Bruta"
+                    },
+    "Power Up Punch":  {
+                           "EN":  "Power Up Punch",
+                           "PT_BR":  "Soco Empoderador",
+                           "ES":  "Puño Incremento"
+                       },
+    "Techno Blast Normal":  {
+                                "EN":  "Techno Blast Normal",
+                                "PT_BR":  "Rajada Tecnológica",
+                                "ES":  "Tecno Shock"
+                            },
+    "Techno Blast Burn":  {
+                              "EN":  "Techno Blast Burn",
+                              "PT_BR":  "Rajada Tecnológica",
+                              "ES":  "Tecno Shock"
+                          },
+    "Techno Blast Chill":  {
+                               "EN":  "Techno Blast Chill",
+                               "PT_BR":  "Rajada Tecnológica",
+                               "ES":  "Tecno Shock"
+                           },
+    "Techno Blast Water":  {
+                               "EN":  "Techno Blast Water",
+                               "PT_BR":  "Rajada Tecnológica",
+                               "ES":  "Tecno Shock"
+                           },
+    "Techno Blast Shock":  {
+                               "EN":  "Techno Blast Shock",
+                               "PT_BR":  "Rajada Tecnológica",
+                               "ES":  "Tecno Shock"
+                           },
+    "V Create":  {
+                     "EN":  "V Create",
+                     "PT_BR":  "Criação V",
+                     "ES":  "V de Fuego"
+                 },
+    "Weather Ball Normal":  {
+                                "EN":  "Weather Ball Normal",
+                                "PT_BR":  "Esfera Climática",
+                                "ES":  "Meteorobola"
+                            },
+    "Myst Fire":  {
+                      "EN":  "Myst Fire",
+                      "PT_BR":  "Fogo Místico",
+                      "ES":  "Fuego Místico"
+                  },
+    "Natures Madness":  {
+                            "EN":  "Natures Madness",
+                            "PT_BR":  "Ira da Natureza",
+                            "ES":  "Ira Natural"
+                        },
+    "Wildbold Storm":  {
+                           "EN":  "Wildbold Storm",
+                           "PT_BR":  "Tempestade Chocante",
+                           "ES":  "Electormenta"
+                       },
+    "Aura Wheel Electric":  {
+                                "EN":  "Aura Wheel Electric",
+                                "PT_BR":  "Roda de Aura",
+                                "ES":  "Rueda Aural"
+                            },
+    "Chilling Water":  {
+                           "EN":  "Chilling Water",
+                           "PT_BR":  "Chilling Water",
+                           "ES":  "Chilling Water"
+                       },
+    "Secret Sword":  {
+                         "EN":  "Secret Sword",
+                         "PT_BR":  "Secret Sword",
+                         "ES":  "Secret Sword"
+                     }
+}

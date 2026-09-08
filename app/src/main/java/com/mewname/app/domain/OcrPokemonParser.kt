@@ -1,4 +1,4 @@
-﻿package com.mewname.app.domain
+package com.mewname.app.domain
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -345,7 +345,7 @@ class OcrPokemonParser {
         val detectedTypes = ocrDetectedTypes.ifEmpty { lookupPokemonTypesByName(context, name) }
         val typeFallbackUsed = ocrDetectedTypes.isEmpty() && detectedTypes.isNotEmpty()
         name = resolveRegionalMeowthName(name, detectedTypes)
-        val (candyFamilyName, candyDebugInfo) = extractCandyFamilyName(context, orderedLines, referenceBounds, name)
+        var (candyFamilyName, candyDebugInfo) = extractCandyFamilyName(context, orderedLines, referenceBounds, name)
         val hasUnownTitleSignal = detectUnownTitleSignal(orderedLines, referenceBounds)
         val hasUnownCandySignal = candyFamilyName.equals("Unown", ignoreCase = true)
         val hasUnownNameSignal = name.equals("Unown", ignoreCase = true)
@@ -356,6 +356,12 @@ class OcrPokemonParser {
             (unownLetter != null && (hasUnownTitleSignal || hasUnownCandySignal))
         if (shouldForceUnownName) {
             name = "Unown"
+        }
+
+        val genderDetection = detectGender(normalizedRaw, orderedLines, referenceBounds, name, bitmap)
+        resolveGenderedNidoranIdentity(name, candyFamilyName, genderDetection.first).let { (resolvedName, resolvedFamily) ->
+            name = resolvedName
+            candyFamilyName = resolvedFamily
         }
 
         var familyMembers = if (name != null || candyFamilyName != null) {
@@ -554,13 +560,19 @@ class OcrPokemonParser {
         val size = sizeDetection.first
         val legacyDetection = detectLegacyMove(context, name, familyMembers, moves, orderedLines, loadLegacyMoves(context), detectedTypes, referenceBounds)
         val hasLegacyMove = legacyDetection.first
-        val genderDetection = detectGender(normalizedRaw, orderedLines, referenceBounds, name, bitmap)
-        val isFavorite = bitmap?.let(::detectFavoriteStarFilled) ?: false
+       val isFavorite = bitmap?.let(::detectFavoriteStarFilled) ?: false
         val favoriteRatio = bitmap?.let(::measureFavoriteStarYellowRatio)
         val purifiedTextMatch = normalizedRaw.lowercase().let { it.contains("purified") || it.contains("purificado") }
         val vivillonDetection = detectVivillonPattern(context, bitmap, name)
         val uniqueFormDetection = detectUniqueForm(context, bitmap, name, detectedTypes, unownLetter)
-        val evolutionDetection = detectEvolutionFlags(normUpper, orderedLines, name, referenceBounds, bitmap)
+        val evolutionDetection = detectEvolutionFlags(
+            normalizedRaw = normUpper,
+            lines = orderedLines,
+            pokemonName = name,
+            referenceBounds = referenceBounds,
+            bitmap = bitmap,
+            masterIvBestMatch = masterIvBadgeResult.isBestMatch == true
+        )
 
         onAnalysisStep?.invoke("Finalizando dados detectados")
 
@@ -3064,7 +3076,25 @@ class OcrPokemonParser {
         }
     }
 
-    private fun detectGender(
+    internal fun resolveGenderedNidoranIdentity(
+        pokemonName: String?,
+        candyFamilyName: String?,
+        gender: Gender
+    ): Pair<String?, String?> {
+        if (gender != Gender.MALE && gender != Gender.FEMALE) {
+            return pokemonName to candyFamilyName
+        }
+        val nidoranBaseNames = setOf("NIDORAN", "NIDORAN♀", "NIDORAN♂", "NIDORANF", "NIDORANM")
+        val isNidoranBase = listOfNotNull(pokemonName, candyFamilyName)
+            .map(::normalizeText)
+            .any { it in nidoranBaseNames }
+        if (!isNidoranBase) return pokemonName to candyFamilyName
+
+        val canonicalName = if (gender == Gender.FEMALE) "Nidoran♀" else "Nidoran♂"
+        return canonicalName to canonicalName
+    }
+
+    internal fun detectGender(
         text: String,
         lines: List<OcrTextLine>,
         referenceBounds: Rect?,
@@ -3095,81 +3125,18 @@ class OcrPokemonParser {
             return Gender.FEMALE to GenderDebugInfo(detectedGender = Gender.FEMALE, notes = "símbolo/texto feminino encontrado na área do ícone")
         }
 
-        return bitmap?.let(::detectGenderFromIcon) ?: (Gender.UNKNOWN to null)
+        // Background colors are not reliable evidence of a gender icon.
+        return Gender.UNKNOWN to GenderDebugInfo(
+            detectedGender = Gender.UNKNOWN,
+            notes = "genero nao reconhecido pelo OCR; selecao neutra"
+        )
     }
 
     private fun isGenderlessPokemon(pokemonName: String?): Boolean {
         val normalized = normalizeText(pokemonName.orEmpty()).trim()
-        return normalized.isNotBlank() && normalized in genderlessPokemon
-    }
-
-    private fun detectGenderFromIcon(bitmap: Bitmap): Pair<Gender, GenderDebugInfo> {
-        val iconRect = normalizedBitmapRect(bitmap, 0.84f, 0.95f, 0.38f, 0.50f)
-        var maleHueScore = 0.0
-        var femaleHueScore = 0.0
-        var upperRightInk = 0.0
-        var lowerCenterInk = 0.0
-        var lowerBarInk = 0.0
-        val hsv = FloatArray(3)
-
-        var y = iconRect.top
-        while (y < iconRect.bottom) {
-            var x = iconRect.left
-            while (x < iconRect.right) {
-                val color = bitmap.getPixel(x, y)
-                Color.colorToHSV(color, hsv)
-                val hue = hsv[0]
-                val saturation = hsv[1]
-                val value = hsv[2]
-                val nx = (x - iconRect.left).toFloat() / iconRect.width().coerceAtLeast(1)
-                val ny = (y - iconRect.top).toFloat() / iconRect.height().coerceAtLeast(1)
-
-                if (saturation >= 0.18f && value >= 0.35f) {
-                    val weight = saturation.toDouble() * value.toDouble()
-                    if (hue in 175f..245f) {
-                        maleHueScore += weight
-                    }
-                    if (hue >= 300f || hue <= 15f) {
-                        femaleHueScore += weight
-                    }
-                }
-
-                val brightness = (Color.red(color) + Color.green(color) + Color.blue(color)) / 3f
-                val isInk = brightness <= 238f && value <= 0.96f
-                if (isInk) {
-                    if (nx >= 0.68f && ny <= 0.34f) {
-                        upperRightInk += 1.0
-                    }
-                    if (nx in 0.38f..0.62f && ny >= 0.56f) {
-                        lowerCenterInk += 1.0
-                    }
-                    if (nx in 0.26f..0.74f && ny >= 0.78f) {
-                        lowerBarInk += 1.0
-                    }
-                }
-                x += 2
-            }
-            y += 2
-        }
-
-        val femaleStructure = lowerCenterInk + (lowerBarInk * 1.6)
-        val maleArrowStructure = upperRightInk >= 120.0 && upperRightInk > lowerCenterInk * 0.70
-        val detected = when {
-            femaleHueScore >= 20.0 && femaleHueScore > maleHueScore * 1.10 -> Gender.FEMALE
-            maleHueScore >= 20.0 && maleHueScore > femaleHueScore * 1.20 -> Gender.MALE
-            maleArrowStructure -> Gender.MALE
-            lowerBarInk >= 3.0 && lowerCenterInk >= 3.0 && femaleStructure > upperRightInk -> Gender.FEMALE
-            femaleStructure >= 7.0 && femaleStructure > upperRightInk * 1.05 -> Gender.FEMALE
-            upperRightInk >= 9.0 && upperRightInk > femaleStructure * 1.8 -> Gender.MALE
-            femaleHueScore >= 10.0 && femaleHueScore > maleHueScore * 1.35 -> Gender.FEMALE
-            maleHueScore >= 10.0 && maleHueScore > femaleHueScore * 1.35 -> Gender.MALE
-            else -> Gender.UNKNOWN
-        }
-        return detected to GenderDebugInfo(
-            detectedGender = detected,
-            iconRect = normalizeDebugRect(iconRect, bitmap),
-            notes = "maleHue=${"%.2f".format(maleHueScore)} femaleHue=${"%.2f".format(femaleHueScore)} upperRightInk=${"%.1f".format(upperRightInk)} lowerCenterInk=${"%.1f".format(lowerCenterInk)} lowerBarInk=${"%.1f".format(lowerBarInk)} maleArrow=$maleArrowStructure"
-        )
+        val baseName = normalized.substringBefore(" (")
+        return normalized.isNotBlank() && (normalized in genderlessPokemon || baseName in genderlessPokemon ||
+            normalized in setOf("ZACIAN HERO", "ZACIAN CROWNED", "ZAMAZENTA HERO", "ZAMAZENTA CROWNED"))
     }
 
     private fun detectEvolutionFlags(
@@ -3177,7 +3144,8 @@ class OcrPokemonParser {
         lines: List<OcrTextLine>,
         pokemonName: String?,
         referenceBounds: Rect?,
-        bitmap: Bitmap?
+        bitmap: Bitmap?,
+        masterIvBestMatch: Boolean
     ): Pair<Set<EvolutionFlag>, EvolutionIconDebugInfo> {
         val flags = mutableSetOf<EvolutionFlag>()
 
@@ -3202,10 +3170,16 @@ class OcrPokemonParser {
         val dynamaxKeyword = findKeywordMatch(relevantText, collapsedText, dynamaxKeywords)
         val maxBadgeVisualMatch = bitmap?.let(::detectMaxBadgeVisual) == true
         val megaEligibleMatch = pokemonName?.let { normalizeText(it) in megaEligiblePokemon } == true
-        val megaDebugMatch = megaKeyword ?: if (megaEligibleMatch) "MEGA_ELIGIBLE_SPECIES" else null
-        val hasMega = megaKeyword != null ||
+        val megaAutomaticMatch = megaKeyword != null ||
             pokemonName?.startsWith("Mega ", ignoreCase = true) == true ||
             megaEligibleMatch
+        val megaDebugMatch = when {
+            !masterIvBestMatch && megaAutomaticMatch -> "MEGA_REQUIRES_BEST_IV"
+            megaKeyword != null -> megaKeyword
+            megaEligibleMatch -> "MEGA_ELIGIBLE_SPECIES"
+            else -> null
+        }
+        val hasMega = megaAutomaticMatch && masterIvBestMatch
         val hasGigantamax = gigantamaxKeyword != null
         val hasDynamax = dynamaxKeyword != null || (maxBadgeVisualMatch && !hasGigantamax && !hasMega)
         val dynamaxDebugMatch = dynamaxKeyword ?: if (maxBadgeVisualMatch && !hasGigantamax && !hasMega) "VISUAL_MAX_BADGE" else null
@@ -3227,6 +3201,9 @@ class OcrPokemonParser {
                     add("o nome do Pokémon já veio com prefixo Mega")
                 }
                 if (megaEligibleMatch) add("espécie cadastrada como apta a Mega")
+                if (megaAutomaticMatch && !masterIvBestMatch) {
+                    add("marcação automática de Mega bloqueada porque os IVs não são a melhor combinação")
+                }
                 if (maxBadgeVisualMatch && !hasMega) add("selo visual de Dynamax/Gigamax encontrado")
                 if (maxBadgeVisualMatch && hasMega) add("selo visual de Dynamax/Gigamax ignorado porque a tela indica Mega")
                 if (flags.isEmpty()) add("nenhum indicador textual de mega, gigantamax ou dynamax foi encontrado")

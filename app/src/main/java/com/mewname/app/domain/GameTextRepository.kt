@@ -14,6 +14,18 @@ object GameTextRepository {
     private val moveCache = mutableMapOf<AppLanguage, Map<Int, String>>()
     private val pokemonCache = mutableMapOf<AppLanguage, Map<Int, String>>()
 
+    fun clearCache(language: AppLanguage? = null) {
+        if (language == null) {
+            textCache.clear()
+            moveCache.clear()
+            pokemonCache.clear()
+        } else {
+            textCache.remove(language)
+            moveCache.remove(language)
+            pokemonCache.remove(language)
+        }
+    }
+
     fun resolveLanguage(): AppLanguage {
         val language = Locale.getDefault().language.lowercase(Locale.US)
         val country = Locale.getDefault().country.uppercase(Locale.US)

@@ -99,6 +99,18 @@ class PvpRankCalculator {
         )
     }
 
+    fun estimateHpAtLevel(
+        context: Context,
+        pokemonName: String,
+        sta: Int,
+        level: Double
+    ): Int? {
+        val baseStats = loadBaseStats(context, pokemonName) ?: return null
+        val index = ((level - 1.0) / 0.5).toInt().coerceIn(0, cpmTable.lastIndex)
+        val cpm = cpmTable.getOrNull(index) ?: return null
+        return floor((baseStats.getInt("stamina") + sta) * cpm).toInt().coerceAtLeast(10)
+    }
+
     fun estimateLevelFromHpForCandidates(
         context: Context,
         pokemonNames: List<String>,
@@ -138,7 +150,7 @@ class PvpRankCalculator {
         def: Int,
         sta: Int
     ): List<PvpLeagueRankInfo> {
-        val familyCandidates = pokemonNames.distinct().filter { it.isNotBlank() }
+        val familyCandidates = pokemonNames.filter { it.isNotBlank() }.map { resolveCanonicalPokemonName(context, it) }.distinct()
         if (familyCandidates.isEmpty()) return emptyList()
 
         return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).mapNotNull { league ->
@@ -155,15 +167,29 @@ class PvpRankCalculator {
         pokemonNames: List<String>,
         atk: Int,
         def: Int,
-        sta: Int
+        sta: Int,
+        currentPokemonName: String? = null,
+        currentLevel: Double? = null,
+        currentCp: Int? = null
     ): List<PvpSpeciesRankInfo> {
-        val familyCandidates = pokemonNames.distinct().filter { it.isNotBlank() }
+        val familyCandidates = pokemonNames.filter { it.isNotBlank() }.map { resolveCanonicalPokemonName(context, it) }.distinct()
         if (familyCandidates.isEmpty()) return emptyList()
 
         return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).flatMap { league ->
             familyCandidates.mapNotNull { name ->
                 val baseStats = loadBaseStats(context, name) ?: return@mapNotNull null
-                calculateSpeciesLeagueRankInfo(baseStats, name, atk, def, sta, league)
+                calculateSpeciesLeagueRankInfo(
+                    baseStats = baseStats,
+                    pokemonName = name,
+                    atk = atk,
+                    def = def,
+                    sta = sta,
+                    league = league,
+                    currentPokemonName = currentPokemonName,
+                    currentLevel = currentLevel,
+                    currentCp = currentCp,
+                    context = context
+                )
             }
         }
     }
@@ -235,19 +261,37 @@ class PvpRankCalculator {
         atk: Int,
         def: Int,
         sta: Int,
-        league: PvpLeague
+        league: PvpLeague,
+        currentPokemonName: String? = null,
+        currentLevel: Double? = null,
+        currentCp: Int? = null,
+        context: Context? = null
     ): PvpSpeciesRankInfo {
         val info = calculateLeagueRankInfo(baseStats, pokemonName, atk, def, sta, league)
+        val sameSpecies = context != null && currentPokemonName != null &&
+            normalizeKey(resolveCanonicalPokemonName(context, currentPokemonName)) ==
+                normalizeKey(resolveCanonicalPokemonName(context, pokemonName))
+        val levelCp = if (context != null && currentLevel != null) {
+            estimateCpAtLevel(context, pokemonName, atk, def, sta, currentLevel)
+        } else null
+        // A low OCR CP must not override the level constraint for the selected form.
+        val projectedCp = if (sameSpecies) listOfNotNull(currentCp, levelCp).maxOrNull() else levelCp
+        val evolutionEligible = projectedCp == null || projectedCp <= leagueCap(league)
+        val eligible = info.eligible && evolutionEligible
         return PvpSpeciesRankInfo(
             pokemonName = pokemonName,
             league = info.league,
-            eligible = info.eligible,
+            eligible = eligible,
             rank = info.rank,
             bestCp = info.bestCp,
             bestLevel = info.bestLevel,
             bestStatProduct = info.bestStatProduct,
             stadiumUrl = info.stadiumUrl,
-            description = info.description
+            description = if (eligible) {
+                info.description
+            } else {
+                "A evolução ultrapassa o limite da ${leagueLabel(league)} no nível atual."
+            }
         )
     }
 
@@ -392,6 +436,7 @@ class PvpRankCalculator {
             jsonObject.optJSONObject(normalizeKey(canonicalName))
                 ?: jsonObject.optJSONObject(normalizeKey(name))
         } catch (e: Exception) {
+            CatalogLoadFeedback.reportFailure(CatalogLoadArea.PVP, e)
             null
         }
     }
@@ -406,6 +451,8 @@ class PvpRankCalculator {
             return loaded
         }
     }
+
+    fun canonicalName(context: Context, name: String): String = resolveCanonicalPokemonName(context, name)
 
     private fun resolveCanonicalPokemonName(context: Context, name: String): String {
         val trimmed = name.trim()

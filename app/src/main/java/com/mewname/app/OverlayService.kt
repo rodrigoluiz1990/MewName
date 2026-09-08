@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.*
 import android.widget.Button
@@ -29,6 +30,7 @@ import android.widget.TextView
 import android.widget.Toast
 import android.widget.ArrayAdapter
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +56,7 @@ import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
 import com.mewname.app.domain.UniquePokemonCatalog
+import com.mewname.app.domain.ReviewPolicy
 import com.mewname.app.model.EvolutionFlag
 import com.mewname.app.model.EvolutionIconDebugInfo
 import com.mewname.app.model.Gender
@@ -70,6 +73,8 @@ import com.mewname.app.model.BackgroundDebugInfo
 import com.mewname.app.model.LegacyDebugInfo
 import com.mewname.app.model.VivillonPattern
 import com.mewname.app.model.effectiveBlocks
+import com.mewname.app.model.defaultNamingConfigs
+import com.mewname.app.model.ensureBuiltInNamingConfigs
 import com.mewname.app.ocr.OcrEngine
 import com.mewname.app.ocr.OcrResult
 import java.text.SimpleDateFormat
@@ -77,6 +82,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -85,11 +91,14 @@ import kotlin.math.abs
 
 class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
     companion object {
+        private val bubbleActive = kotlinx.coroutines.flow.MutableStateFlow(false)
+        val isBubbleActive: kotlinx.coroutines.flow.StateFlow<Boolean> = bubbleActive
         private const val TAG = "OverlayService"
         private const val CAPTURE_AFTER_HIDE_DELAY_MS = 260L
+        private const val OVERLAY_PERMISSION_CHECK_INTERVAL_MS = 2_500L
         const val ACTION_CAPTURE_PERMISSION_INVALID = "com.mewname.app.action.CAPTURE_PERMISSION_INVALID"
+        const val ACTION_OVERLAY_PERMISSION_INVALID = "com.mewname.app.action.OVERLAY_PERMISSION_INVALID"
     }
-
     private data class BubbleLogSnapshot(
         val capturedAtMillis: Long,
         val bitmapWidth: Int,
@@ -121,13 +130,27 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private var activeVirtualDisplay: VirtualDisplay? = null
     private var projectionCallbackRegistered = false
     private var isCaptureInProgress = false
+    private var closingForPermissionLoss = false
     private var loadingView: View? = null
     private var dismissTargetView: View? = null
     private var bubbleDismissMode = false
     private var loadingTitleView: TextView? = null
     private var loadingDetailView: TextView? = null
-    private val serviceScope = CoroutineScope(Dispatchers.Main)
+    private val serviceJob = kotlinx.coroutines.SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private val attachedOverlays = mutableSetOf<View>()
+    private var captureProcessingJob: kotlinx.coroutines.Job? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val overlayPermissionWatchdog = object : Runnable {
+        override fun run() {
+            if (!Settings.canDrawOverlays(this@OverlayService)) {
+                closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Permissao de sobreposicao revogada")
+                return
+            }
+            mainHandler.postDelayed(this, OVERLAY_PERMISSION_CHECK_INTERVAL_MS)
+        }
+    }
+
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateController = SavedStateRegistryController.create(this)
     private val overlayViewModelStore = ViewModelStore()
@@ -161,12 +184,21 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         startForegroundService()
+        if (!Settings.canDrawOverlays(this)) {
+            closeBubbleForPermissionLoss(
+                overlayPermissionLost = true,
+                reason = "Permissao de sobreposicao indisponivel ao iniciar"
+            )
+            return
+        }
         showFloatingButton()
+        bubbleActive.value = !closingForPermissionLoss && floatingButton in attachedOverlays
+        if (!closingForPermissionLoss) mainHandler.post(overlayPermissionWatchdog)
     }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (closingForPermissionLoss) return START_NOT_STICKY
         if (intent?.action == "STOP_SERVICE") {
-            stopSelf()
+            stopOverlayService()
             return START_NOT_STICKY
         }
         
@@ -186,7 +218,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        stopSelf()
+        stopOverlayService()
         super.onTaskRemoved(rootIntent)
     }
 
@@ -210,6 +242,55 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
     }
 
+    private fun addOverlayView(view: View, params: WindowManager.LayoutParams): Boolean {
+        if (closingForPermissionLoss) {
+            (view as? ComposeView)?.disposeComposition()
+            return false
+        }
+        if (!Settings.canDrawOverlays(this)) {
+            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Permissao de sobreposicao revogada")
+            return false
+        }
+        return try {
+            windowManager.addView(view, params)
+            attachedOverlays.add(view)
+            true
+        } catch (error: WindowManager.BadTokenException) {
+            Log.w(TAG, "Android recusou uma janela de sobreposicao", error)
+            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
+            false
+        } catch (error: SecurityException) {
+            Log.w(TAG, "Android recusou uma janela de sobreposicao", error)
+            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
+            false
+        }
+    }
+
+    private fun updateOverlayViewLayout(view: View?, params: WindowManager.LayoutParams): Boolean {
+        view ?: return false
+        if (closingForPermissionLoss) return false
+        return try {
+            windowManager.updateViewLayout(view, params)
+            true
+        } catch (error: WindowManager.BadTokenException) {
+            Log.w(TAG, "Android recusou a atualizacao da sobreposicao", error)
+            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
+            false
+        } catch (error: SecurityException) {
+            Log.w(TAG, "Android recusou a atualizacao da sobreposicao", error)
+            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
+            false
+        }
+    }
+
+    private fun closeBubbleForPermissionLoss(overlayPermissionLost: Boolean, reason: String) {
+        if (closingForPermissionLoss) return
+        Log.w(TAG, reason)
+        shutdownOverlays()
+        val action = if (overlayPermissionLost) ACTION_OVERLAY_PERMISSION_INVALID else ACTION_CAPTURE_PERMISSION_INVALID
+        sendBroadcast(Intent(action).setPackage(packageName))
+        stopOverlayService()
+    }
     private fun showFloatingButton() {
         floatingButton = LayoutInflater.from(this).inflate(R.layout.layout_floating_button, null)
 
@@ -258,7 +339,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         }
                         params.x = initialX + (event.rawX - initialTouchX).toInt()
                         params.y = initialY + (event.rawY - initialTouchY).toInt()
-                        windowManager.updateViewLayout(floatingButton, params)
+                        updateOverlayViewLayout(floatingButton, params)
                         if (bubbleDismissMode) {
                             updateDismissTargetHighlight(isBubbleOverDismissTarget(params, v))
                         }
@@ -273,7 +354,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                             hideDismissTarget()
                             bubbleDismissMode = false
                             if (shouldDismiss) {
-                                stopSelf()
+                                stopOverlayService()
                             }
                         } else if (!longPressTriggered && diffX < 15 && diffY < 15) {
                             captureAndProcess()
@@ -293,7 +374,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
         })
 
-        windowManager.addView(floatingButton, params)
+        floatingButton?.let { addOverlayView(it, params) }
     }
 
     private fun showDismissTarget() {
@@ -303,7 +384,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
@@ -333,14 +414,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
         container.addView(target)
         dismissTargetView = container
-        windowManager.addView(container, params)
+        addOverlayView(container, params)
         updateDismissTargetHighlight(false)
     }
 
     private fun hideDismissTarget() {
         dismissTargetView?.let {
             try {
-                windowManager.removeView(it)
+                detachOverlay(it)
             } catch (_: Exception) {
             }
         }
@@ -429,9 +510,19 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private fun captureAndProcess() {
         if (isCaptureInProgress) return
 
+        if (!Settings.canDrawOverlays(this)) {
+            closeBubbleForPermissionLoss(
+                overlayPermissionLost = true,
+                reason = "Permissao de sobreposicao revogada durante a captura"
+            )
+            return
+        }
+
         val reader = activeImageReader ?: run {
-            Toast.makeText(this, "Permissao de captura nao encontrada. Ative a bolha novamente.", Toast.LENGTH_SHORT).show()
-            notifyCapturePermissionUnavailable()
+            closeBubbleForPermissionLoss(
+                overlayPermissionLost = false,
+                reason = "Sessao de captura indisponivel"
+            )
             return
         }
 
@@ -450,7 +541,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
             if (image == null) {
                 isCaptureInProgress = false
-                Toast.makeText(this, "Falha momentânea na captura. Tente novamente.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Falha momentanea na captura. Tente novamente.", Toast.LENGTH_SHORT).show()
                 return@postDelayed
             }
 
@@ -478,7 +569,6 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
         }, CAPTURE_AFTER_HIDE_DELAY_MS)
     }
-
     private fun initializeProjectionSession() {
         val data = projectionData ?: return
         if (mediaProjection != null && activeVirtualDisplay != null && activeImageReader != null) return
@@ -492,10 +582,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             if (projection != null && !projectionCallbackRegistered) {
                 projection.registerCallback(object : MediaProjection.Callback() {
                     override fun onStop() {
-                        cleanupCaptureResources()
-                        isCaptureInProgress = false
-                        notifyCapturePermissionUnavailable()
-                        stopSelf()
+                        closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = "Autorizacao de captura encerrada pelo Android")
                     }
                 }, Handler(Looper.getMainLooper()))
                 projectionCallbackRegistered = true
@@ -519,15 +606,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             )
         } catch (e: Exception) {
             Log.e(TAG, "Falha ao iniciar sessao de MediaProjection", e)
-            cleanupCaptureResources()
-            notifyCapturePermissionUnavailable()
+            closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = "Falha ao iniciar a captura")
         }
     }
 
     private fun processCapturedBitmap(bitmap: Bitmap) {
         showLoadingOverlay()
         updateLoadingStatus(detail = "Lendo tela de batalha")
-        serviceScope.launch {
+        captureProcessingJob = serviceScope.launch {
             runCatching {
                 withTimeoutOrNull(5500L) {
                     ocrEngine.extractBattlePreview(bitmap)
@@ -560,11 +646,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 val ocrResult = withTimeoutOrNull(14000L) {
                     ocrEngine.extract(bitmap)
                 } ?: throw IllegalStateException("Tempo limite ao extrair texto da imagem")
-                val parsed = kotlinx.coroutines.withContext(Dispatchers.Default) {
-                    parser.parse(this@OverlayService, ocrResult) { step ->
-                        updateLoadingStatus(detail = step)
+                val parsed = withTimeoutOrNull(25_000L) {
+                    kotlinx.coroutines.withContext(Dispatchers.Default) {
+                        parser.parse(this@OverlayService, ocrResult) { step ->
+                            updateLoadingStatus(detail = step)
+                        }
                     }
-                }
+                } ?: throw IllegalStateException("Tempo limite ao analisar os dados da imagem")
                 updateLoadingStatus(detail = "Montando nomes sugeridos")
                 val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
                 lastCapturedData = merged
@@ -574,7 +662,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
                 }
 
-                val reviewFields = reviewableFields(savedConfigs)
+                val reviewFields = ReviewPolicy.reviewableFields(savedConfigs)
+                val needsReview = ReviewPolicy.shouldOpenReview(merged, reviewFields)
                 val battleAdvice = BattleAdvisor.adviceFor(
                     context = this@OverlayService,
                     data = merged,
@@ -604,15 +693,22 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     showBattleSuggestionsOverlay(battleAdvice)
                 } else if (!hasIdentifiedPokemon && generatedResults.isEmpty()) {
                     showUnsupportedBubbleScreenOverlay()
-                } else {
+                } else if (needsReview || generatedResults.isNotEmpty()) {
                     showReviewOverlay(merged, reviewFields, savedConfigs, bitmap)
+                } else {
+                    showResultsOverlay(generatedResults)
                 }
 
                 isCaptureInProgress = false
                 removeLoadingOverlay()
             }.onFailure { error ->
-                Log.e(TAG, "Falha no OCR da bolha", error)
-                Toast.makeText(this@OverlayService, "Nao foi possivel ler a imagem.", Toast.LENGTH_SHORT).show()
+                if (error !is CancellationException) {
+                    Log.e(TAG, "Falha no OCR da bolha", error)
+                    Toast.makeText(this@OverlayService, "Nao foi possivel ler a imagem.", Toast.LENGTH_SHORT).show()
+                }
+            }.also {
+                // Always release the overlay after errors and cancellations.
+                captureProcessingJob = null
                 isCaptureInProgress = false
                 removeLoadingOverlay()
             }
@@ -625,7 +721,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         )
 
@@ -654,13 +750,30 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             })
         }
 
-        windowManager.addView(layout, params)
+        layout.addView(TextView(this).apply {
+            text = "Cancelar"
+            setTextColor(Color.LTGRAY)
+            textSize = 13f
+            gravity = Gravity.CENTER
+            setPadding(0, 16, 0, 0)
+            isClickable = true
+            setOnClickListener { cancelCaptureProcessing() }
+        })
+        addOverlayView(layout, params)
         loadingView = layout
+    }
+
+    private fun cancelCaptureProcessing() {
+        captureProcessingJob?.cancel()
+        captureProcessingJob = null
+        isCaptureInProgress = false
+        removeLoadingOverlay()
+        Toast.makeText(this, "Processo cancelado.", Toast.LENGTH_SHORT).show()
     }
 
     private fun removeLoadingOverlay() {
         loadingView?.let {
-            try { windowManager.removeView(it) } catch (_: Exception) {}
+            try { detachOverlay(it) } catch (_: Exception) {}
         }
         loadingView = null
         loadingTitleView = null
@@ -700,18 +813,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun loadSavedConfigs(): List<NamingConfig> {
         val prefs = getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
-        val jsonString = prefs.getString("saved_presets", null) ?: return listOf(NamingConfig(name = "Padrão"))
-        
-        return try {
-            val jsonArray = JSONArray(jsonString)
-            val list = mutableListOf<NamingConfig>()
-            for (i in 0 until jsonArray.length()) {
-                list += jsonToNamingConfig(jsonArray.getJSONObject(i))
-            }
-            list
-        } catch (e: Exception) {
-            listOf(NamingConfig(name = "Padrão"))
-        }
+        val jsonString = prefs.getString(SAVED_PRESETS_KEY, null) ?: return defaultNamingConfigs()
+        return runCatching { decodeSavedPresets(jsonString).configs }
+            .map(::ensureBuiltInNamingConfigs)
+            .getOrElse { defaultNamingConfigs() }
     }
 
     private fun showResultsOverlay(
@@ -807,7 +912,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 setOnClickListener {
                     copyToClipboard(generatedName)
                     Toast.makeText(this@OverlayService, "Copiado!", Toast.LENGTH_SHORT).show()
-                    windowManager.removeView(layout)
+                    detachOverlay(layout)
                     resultsView = null
                 }
             }
@@ -875,14 +980,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
         actionsRow.addView(
             actionButton("Fechar", isLast = true) {
-                windowManager.removeView(layout)
+                detachOverlay(layout)
                 resultsView = null
             }
         )
 
         layout.addView(actionsRow)
 
-        windowManager.addView(layout, params)
+        addOverlayView(layout, params)
         resultsView = layout
     }
 
@@ -972,13 +1077,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             isClickable = true
             isFocusable = true
             setOnClickListener {
-                windowManager.removeView(layout)
+                detachOverlay(layout)
                 resultsView = null
             }
         }
         layout.addView(closeButton)
 
-        windowManager.addView(layout, params)
+        addOverlayView(layout, params)
         resultsView = layout
     }
 
@@ -1147,13 +1252,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         )
         actionsRow.addView(
             actionButton("Fechar", isLast = true) {
-                windowManager.removeView(layout)
+                detachOverlay(layout)
                 resultsView = null
             }
         )
         layout.addView(actionsRow)
 
-        windowManager.addView(layout, params)
+        addOverlayView(layout, params)
         resultsView = layout
     }
 
@@ -1258,9 +1363,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     ) {
         removeResultsOverlay()
 
+        // The review window must occupy the screen so nested Compose pickers can expand above the card.
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_DIM_BEHIND or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
@@ -1274,10 +1380,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             setViewTreeViewModelStoreOwner(this@OverlayService)
             setViewTreeSavedStateRegistryOwner(this@OverlayService)
             setContent {
+                val language = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language) {
                 MaterialTheme {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .padding(horizontal = 12.dp, vertical = 16.dp)
                     ) {
                         ReviewEditorCard(
@@ -1303,60 +1411,19 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         )
                     }
                 }
+                }
             }
         }
 
-        windowManager.addView(composeView, params)
+        addOverlayView(composeView, params)
         resultsView = composeView
     }
 
     private fun removeResultsOverlay() {
         resultsView?.let {
-            try { windowManager.removeView(it) } catch (_: Exception) {}
+            try { detachOverlay(it) } catch (_: Exception) {}
         }
         resultsView = null
-    }
-
-    private fun reviewableFields(configs: List<NamingConfig>): List<NamingField> {
-        return configs.flatMap { config ->
-            config.effectiveBlocks()
-                .filter { block -> block.type == com.mewname.app.model.NamingBlockType.VARIABLE }
-                .mapNotNull { block -> block.field }
-        }.distinct()
-    }
-
-    private fun shouldOpenReview(
-        data: com.mewname.app.model.PokemonScreenData,
-        fields: List<NamingField>
-    ): Boolean {
-        return fields.any { field ->
-            when (field) {
-                NamingField.POKEMON_NAME -> data.pokemonName.isNullOrBlank()
-                NamingField.UNOWN_LETTER -> false
-                NamingField.UNIQUE_FORM -> UniquePokemonCatalog.optionsFor(data.pokemonName).isNotEmpty() && data.uniqueForm.isNullOrBlank()
-                NamingField.VIVILLON_PATTERN -> isVivillonFamily(data.pokemonName) && data.vivillonPattern == null
-                NamingField.CP -> data.cp == null
-                NamingField.IV_PERCENT -> data.ivPercent == null
-                NamingField.IV_COMBINATION -> data.attIv == null || data.defIv == null || data.staIv == null
-                NamingField.LEVEL -> data.level == null
-                NamingField.GENDER -> data.gender == Gender.UNKNOWN
-                NamingField.SIZE -> data.size == PokemonSize.NORMAL
-                NamingField.MASTER_IV_BADGE -> false
-                NamingField.PVP_LEAGUE -> data.pvpLeague == null
-                NamingField.PVP_RANK -> data.pvpRank == null
-                NamingField.EVOLVE_MARKER -> true
-                NamingField.PURIFY_MARKER -> true
-                NamingField.EVOLUTION_TYPE -> data.evolutionFlags.isEmpty()
-                else -> false
-            }
-        }
-    }
-
-    private fun isVivillonFamily(name: String?): Boolean {
-        return when (name?.trim()?.uppercase()) {
-            "SCATTERBUG", "SPEWPA", "VIVILLON" -> true
-            else -> false
-        }
     }
 
     private fun copyToClipboard(text: String) {
@@ -1887,19 +1954,58 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private fun Double.formatDebugValue(): String = String.format(Locale.US, "%.3f", this)
 
     private fun notifyCapturePermissionUnavailable() {
-        sendBroadcast(Intent(ACTION_CAPTURE_PERMISSION_INVALID).setPackage(packageName))
+        closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = "Permissao de captura indisponivel")
+    }
+
+    private fun detachOverlay(view: View) {
+        try {
+            (view as? ComposeView)?.disposeComposition()
+        } catch (error: Exception) {
+            Log.w(TAG, "Falha ao descartar composicao da sobreposicao", error)
+        }
+        try {
+            windowManager.removeViewImmediate(view)
+            attachedOverlays.remove(view)
+        } catch (error: IllegalArgumentException) {
+            // Android may already have detached the window after permission revocation.
+            attachedOverlays.remove(view)
+            Log.d(TAG, "Janela de sobreposicao ja removida", error)
+        } catch (error: Exception) {
+            Log.e(TAG, "Falha ao remover janela de sobreposicao", error)
+        }
+    }
+
+    private fun shutdownOverlays() {
+        closingForPermissionLoss = true
+        bubbleActive.value = false
+        mainHandler.removeCallbacksAndMessages(null)
+        serviceJob.cancel()
+        captureProcessingJob?.cancel()
+        captureProcessingJob = null
+        isCaptureInProgress = false
+        // Dispose Compose first so its popup windows are dismissed with their owner.
+        (attachedOverlays.toList() + listOfNotNull(resultsView, loadingView, dismissTargetView, floatingButton))
+            .distinct().forEach(::detachOverlay)
+        resultsView = null
+        loadingView = null
+        dismissTargetView = null
+        floatingButton = null
+        loadingTitleView = null
+        loadingDetailView = null
+        cleanupCaptureResources()
+    }
+
+    private fun stopOverlayService() {
+        shutdownOverlays()
+        stopSelf()
     }
 
     override fun onDestroy() {
+        shutdownOverlays()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         overlayViewModelStore.clear()
         super.onDestroy()
-        floatingButton?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
-        resultsView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
-        loadingView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
-        dismissTargetView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
-        cleanupCaptureResources()
     }
 }

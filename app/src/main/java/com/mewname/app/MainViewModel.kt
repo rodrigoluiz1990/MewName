@@ -7,6 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mewname.app.BuildConfig
 import com.mewname.app.domain.AppLanguage
+import com.mewname.app.domain.CatalogCache
+import com.mewname.app.domain.CatalogLoadArea
+import com.mewname.app.domain.CatalogLoadFeedback
 import com.mewname.app.domain.AppUpdateInfo
 import com.mewname.app.domain.AppUpdateRepository
 import com.mewname.app.domain.GameTextRepository
@@ -14,6 +17,7 @@ import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
 import com.mewname.app.domain.UniquePokemonCatalog
+import com.mewname.app.domain.ReviewPolicy
 import com.mewname.app.model.NamingBlock
 import com.mewname.app.model.NamingBlockType
 import com.mewname.app.model.NamingConfig
@@ -21,19 +25,25 @@ import com.mewname.app.model.NamingField
 import com.mewname.app.model.PokemonSize
 import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.model.effectiveBlocks
+import com.mewname.app.model.defaultNamingConfigs
+import com.mewname.app.model.ensureBuiltInNamingConfigs
 import com.mewname.app.ocr.OcrEngine
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 
 enum class AppScreen {
     HOME,
+    COLLECTIONS,
     PRESET_LIST,
     PRESET_EDIT,
     LEGACY_MOVES,
@@ -51,13 +61,17 @@ enum class AppScreen {
     IV_VALIDATION
 }
 
-class MainViewModel : ViewModel() {
+class MainViewModel(
+    private val reviewOcrPipeline: ReviewOcrPipeline = AndroidReviewOcrPipeline()
+) : ViewModel() {
     private val parser = OcrPokemonParser()
     private val generator = NameGenerator()
     private val ocrEngine = OcrEngine()
     private val sessionMerger = PokemonReadSessionMerger()
     private val appUpdateRepository = AppUpdateRepository()
     private var lastCapturedData: PokemonScreenData? = null
+    private var imageProcessingJob: Job? = null
+    private var ivValidationJob: Job? = null
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -74,28 +88,38 @@ class MainViewModel : ViewModel() {
             return
         }
 
-        val loadedConfigs = runCatching {
-            val jsonArray = JSONArray(jsonString)
-            buildList {
-                for (i in 0 until jsonArray.length()) {
-                    add(jsonToNamingConfig(jsonArray.getJSONObject(i)))
-                }
+        val payload = runCatching { decodeSavedPresets(jsonString) }.getOrElse { error ->
+            CatalogLoadFeedback.reportFailure(CatalogLoadArea.PRESETS, error)
+            val fallbackConfigs = defaultNamingConfigs()
+            _uiState.update { state ->
+                state.copy(
+                    appLanguage = savedLanguage,
+                    configsLoaded = true,
+                    configs = fallbackConfigs,
+                    generatedResults = state.parsedData?.let { generateAll(it, fallbackConfigs) } ?: emptyList(),
+                    error = CatalogLoadFeedback.message(CatalogLoadArea.PRESETS, savedLanguage)
+                )
             }
-        }.getOrElse { return }
-
+            return
+        }
+        val loadedConfigs = payload.configs
+        val migratedConfigs = ensureBuiltInNamingConfigs(loadedConfigs)
+        if (payload.requiresMigration || migratedConfigs != loadedConfigs) {
+            saveConfigs(context, migratedConfigs, backupSource = jsonString)
+        }
         _uiState.update { state ->
-            if (loadedConfigs.isEmpty()) {
-                state.copy(appLanguage = savedLanguage, configsLoaded = true)
-            } else state.copy(
+            state.copy(
                 appLanguage = savedLanguage,
                 configsLoaded = true,
-                configs = loadedConfigs,
-                generatedResults = state.parsedData?.let { generateAll(it, loadedConfigs) } ?: emptyList()
+                configs = migratedConfigs.ifEmpty { defaultNamingConfigs() },
+                generatedResults = state.parsedData?.let { generateAll(it, migratedConfigs.ifEmpty { defaultNamingConfigs() }) } ?: emptyList()
             )
         }
     }
 
     fun setAppLanguage(context: Context, language: AppLanguage) {
+        if (_uiState.value.appLanguage == language) return
+        CatalogCache.invalidateLanguage(language)
         context.getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
             .edit()
             .putString("app_language", language.name)
@@ -151,7 +175,8 @@ class MainViewModel : ViewModel() {
     }
 
     fun processImage(context: Context, uri: Uri) {
-        viewModelScope.launch {
+        if (imageProcessingJob?.isActive == true) return
+        imageProcessingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     error = null,
@@ -159,43 +184,74 @@ class MainViewModel : ViewModel() {
                     processingStatusMessage = "Extraindo texto da imagem"
                 )
             }
-            runCatching {
-                ocrEngine.extract(context, uri)
-            }.onSuccess { ocrResult ->
-                val parsed = withContext(Dispatchers.Default) {
-                    parser.parse(context, ocrResult) { step ->
-                        _uiState.update { state -> state.copy(processingStatusMessage = step) }
+            try {
+                val ocrResult = reviewOcrPipeline.process(context, uri) { step ->
+                    _uiState.update { state -> state.copy(processingStatusMessage = step) }
+                }
+                _uiState.update { state -> state.copy(processingStatusMessage = "Montando nomes sugeridos") }
+                val configs = _uiState.value.configs
+                val processed = withTimeout(12_000L) {
+                    withContext(Dispatchers.Default) {
+                        val merged = sessionMerger.mergeIfSamePokemon(ocrResult.data, lastCapturedData)
+                        val reviewFields = ReviewPolicy.reviewableFields(configs)
+                        val generatedResults = generateAll(merged, configs)
+                        ProcessedImageData(merged, reviewFields, generatedResults)
                     }
                 }
-                val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
-                _uiState.update { state -> state.copy(processingStatusMessage = "Montando nomes sugeridos") }
+                val merged = processed.data
+                val reviewFields = processed.reviewFields
+                val generatedResults = processed.generatedResults
                 lastCapturedData = merged
-                val reviewFields = reviewableFields(_uiState.value.configs)
                 _uiState.update {
-                    val needsReview = shouldOpenReview(merged, reviewFields)
+                    val needsReview = ReviewPolicy.shouldOpenReview(merged, reviewFields)
+                    // Keep the generated-name preview and editable fields together after every successful scan.
+                    val showReview = needsReview || generatedResults.isNotEmpty()
                     it.copy(
-                        rawText = ocrResult.fullText,
+                        rawText = ocrResult.rawText,
                         parsedData = merged,
-                        generatedResults = if (needsReview) emptyList() else generateAll(merged, it.configs),
-                        pendingReview = if (needsReview) ReviewState(merged, reviewFields, ocrResult.bitmap) else null,
+                        generatedResults = generatedResults,
+                        pendingReview = if (showReview) ReviewState(merged, reviewFields, ocrResult.bitmap) else null,
                         isProcessing = false,
                         processingStatusMessage = null
                     )
                 }
-            }.onFailure { throwable ->
+            } catch (_: CancellationException) {
                 _uiState.update {
                     it.copy(
-                        error = throwable.message ?: "Falha no OCR",
                         isProcessing = false,
                         processingStatusMessage = null
                     )
                 }
+            } catch (throwable: Throwable) {
+                CatalogLoadFeedback.reportFailure(CatalogLoadArea.OCR, throwable)
+                _uiState.update {
+                    it.copy(
+                        error = CatalogLoadFeedback.message(CatalogLoadArea.OCR, it.appLanguage),
+                        isProcessing = false,
+                        processingStatusMessage = null
+                    )
+                }
+            } finally {
+                imageProcessingJob = null
             }
         }
     }
 
+    fun cancelImageProcessing() {
+        imageProcessingJob?.cancel()
+        imageProcessingJob = null
+        _uiState.update {
+            it.copy(
+                isProcessing = false,
+                processingStatusMessage = null,
+                error = "Processo cancelado."
+            )
+        }
+    }
+
     fun runDebugIvSampleValidation(context: Context) {
-        viewModelScope.launch {
+        if (ivValidationJob?.isActive == true) return
+        ivValidationJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     debugIvValidationRunning = true,
@@ -204,43 +260,41 @@ class MainViewModel : ViewModel() {
                 )
             }
 
-            runCatching {
-                val files = context.assets.list("iv_samples")
+            try {
+                val results = context.assets.list("iv_samples")
                     ?.filter { it.endsWith(".png", true) || it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) }
                     ?.sorted()
                     .orEmpty()
-
-                files.map { fileName ->
-                    val expected = parseExpectedIvFromFileName(fileName)
-                    val bitmap = ocrEngine.loadBitmapFromAsset(context, "iv_samples/$fileName")
-                    val ocrResult = bitmap?.let { ocrEngine.extract(it) }
-                    val parsed = ocrResult?.let { parser.parse(context, it) }
-                    DebugIvSampleResult(
-                        fileName = fileName,
-                        expectedAttack = expected?.first,
-                        expectedDefense = expected?.second,
-                        expectedStamina = expected?.third,
-                        detectedAttack = parsed?.attIv,
-                        detectedDefense = parsed?.defIv,
-                        detectedStamina = parsed?.staIv,
-                        detectedPercent = parsed?.ivPercent,
-                        attackDebug = parsed?.ivDebugInfo?.attackMeasurementDebug.orEmpty(),
-                        defenseDebug = parsed?.ivDebugInfo?.defenseMeasurementDebug.orEmpty(),
-                        staminaDebug = parsed?.ivDebugInfo?.staminaMeasurementDebug.orEmpty(),
-                        matched = expected != null && parsed != null &&
-                            expected.first == parsed.attIv &&
-                            expected.second == parsed.defIv &&
-                            expected.third == parsed.staIv,
-                        notes = buildString {
-                            if (bitmap == null) append("bitmap nao carregado")
-                            else if (ocrResult == null) append("ocr sem resultado")
-                            else if (parsed == null) append("parser sem resultado")
-                            else if (parsed.ivDebugInfo?.detectedBars == 0) append("barras detectadas: 0")
-                            if (isBlank()) append("ok")
-                        }
-                    )
-                }
-            }.onSuccess { results ->
+                    .map { fileName ->
+                        val expected = parseExpectedIvFromFileName(fileName)
+                        val bitmap = ocrEngine.loadBitmapFromAsset(context, "iv_samples/$fileName")
+                        val ocrResult = bitmap?.let { ocrEngine.extract(it) }
+                        val parsed = ocrResult?.let { parser.parse(context, it) }
+                        DebugIvSampleResult(
+                            fileName = fileName,
+                            expectedAttack = expected?.first,
+                            expectedDefense = expected?.second,
+                            expectedStamina = expected?.third,
+                            detectedAttack = parsed?.attIv,
+                            detectedDefense = parsed?.defIv,
+                            detectedStamina = parsed?.staIv,
+                            detectedPercent = parsed?.ivPercent,
+                            attackDebug = parsed?.ivDebugInfo?.attackMeasurementDebug.orEmpty(),
+                            defenseDebug = parsed?.ivDebugInfo?.defenseMeasurementDebug.orEmpty(),
+                            staminaDebug = parsed?.ivDebugInfo?.staminaMeasurementDebug.orEmpty(),
+                            matched = expected != null && parsed != null &&
+                                expected.first == parsed.attIv &&
+                                expected.second == parsed.defIv &&
+                                expected.third == parsed.staIv,
+                            notes = buildString {
+                                if (bitmap == null) append("bitmap nao carregado")
+                                else if (ocrResult == null) append("ocr sem resultado")
+                                else if (parsed == null) append("parser sem resultado")
+                                else if (parsed.ivDebugInfo?.detectedBars == 0) append("barras detectadas: 0")
+                                if (isBlank()) append("ok")
+                            }
+                        )
+                    }
                 _uiState.update {
                     it.copy(
                         debugIvValidationRunning = false,
@@ -248,7 +302,15 @@ class MainViewModel : ViewModel() {
                         debugIvValidationError = null
                     )
                 }
-            }.onFailure { error ->
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        debugIvValidationRunning = false,
+                        debugIvValidationError = "Validacao cancelada.",
+                        debugIvValidationResults = emptyList()
+                    )
+                }
+            } catch (error: Throwable) {
                 _uiState.update {
                     it.copy(
                         debugIvValidationRunning = false,
@@ -256,12 +318,15 @@ class MainViewModel : ViewModel() {
                         debugIvValidationResults = emptyList()
                     )
                 }
+            } finally {
+                ivValidationJob = null
             }
         }
     }
 
     fun runDebugIvUriValidation(context: Context, uris: List<Uri>) {
-        viewModelScope.launch {
+        if (ivValidationJob?.isActive == true) return
+        ivValidationJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     debugIvValidationRunning = true,
@@ -270,12 +335,18 @@ class MainViewModel : ViewModel() {
                 )
             }
 
-            runCatching {
-                uris.map { uri ->
+            try {
+                val results = uris.map { uri ->
                     val fileName = resolveDisplayName(context, uri)
                     val expected = parseExpectedIvFromFileName(fileName)
-                    val ocrResult = ocrEngine.extract(context, uri)
-                    val parsed = parser.parse(context, ocrResult)
+                    val ocrResult = withTimeout(20_000L) {
+                        ocrEngine.extract(context, uri)
+                    }
+                    val parsed = withTimeout(25_000L) {
+                        withContext(Dispatchers.Default) {
+                            parser.parse(context, ocrResult)
+                        }
+                    }
                     DebugIvSampleResult(
                         fileName = fileName,
                         expectedAttack = expected?.first,
@@ -303,7 +374,6 @@ class MainViewModel : ViewModel() {
                         }
                     )
                 }
-            }.onSuccess { results ->
                 _uiState.update {
                     it.copy(
                         debugIvValidationRunning = false,
@@ -311,7 +381,15 @@ class MainViewModel : ViewModel() {
                         debugIvValidationError = null
                     )
                 }
-            }.onFailure { error ->
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        debugIvValidationRunning = false,
+                        debugIvValidationError = "Validacao cancelada.",
+                        debugIvValidationResults = emptyList()
+                    )
+                }
+            } catch (error: Throwable) {
                 _uiState.update {
                     it.copy(
                         debugIvValidationRunning = false,
@@ -319,7 +397,21 @@ class MainViewModel : ViewModel() {
                         debugIvValidationResults = emptyList()
                     )
                 }
+            } finally {
+                ivValidationJob = null
             }
+        }
+    }
+
+    fun cancelIvValidation() {
+        ivValidationJob?.cancel()
+        ivValidationJob = null
+        _uiState.update {
+            it.copy(
+                debugIvValidationRunning = false,
+                debugIvValidationError = "Validacao cancelada.",
+                debugIvValidationResults = emptyList()
+            )
         }
     }
 
@@ -413,37 +505,19 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    private fun saveConfigs(context: Context, configs: List<NamingConfig>) {
+    private fun saveConfigs(
+        context: Context,
+        configs: List<NamingConfig>,
+        backupSource: String? = null
+    ) {
         val prefs = context.getSharedPreferences("mewname_prefs", Context.MODE_PRIVATE)
-        val jsonArray = JSONArray()
-        configs.forEach { config ->
-            val obj = JSONObject().apply {
-                put("id", config.id)
-                put("name", config.name)
-                put("maxLength", config.maxLength)
-                put("customSeparator", config.customSeparator)
-                val blocksArray = JSONArray()
-                config.blocks.forEach { block ->
-                    blocksArray.put(
-                        JSONObject().apply {
-                            put("id", block.id)
-                            put("type", block.type.name)
-                            put("field", block.field?.name)
-                            put("fixedText", block.fixedText)
-                        }
-                    )
-                }
-                put("blocks", blocksArray)
-                val fieldsArray = JSONArray()
-                config.fields.forEach { fieldsArray.put(it.name) }
-                put("fields", fieldsArray)
-                val symbolsObj = JSONObject()
-                config.symbols.forEach { (k, v) -> symbolsObj.put(k, v) }
-                put("symbols", symbolsObj)
+        val serialized = encodeSavedPresets(configs)
+        prefs.edit().apply {
+            if (backupSource != null && backupSource != serialized) {
+                putString(SAVED_PRESETS_BACKUP_KEY, backupSource)
             }
-            jsonArray.put(obj)
-        }
-        prefs.edit().putString("saved_presets", jsonArray.toString()).apply()
+            putString(SAVED_PRESETS_KEY, serialized)
+        }.apply()
     }
 
     private fun resolveDisplayName(context: Context, uri: Uri): String {
@@ -468,7 +542,7 @@ data class UiState(
     val showBubbleOption: Boolean = true,
     val rawText: String? = null,
     val parsedData: PokemonScreenData? = null,
-    val configs: List<NamingConfig> = listOf(NamingConfig(name = "Padrão")),
+    val configs: List<NamingConfig> = defaultNamingConfigs(),
     val generatedResults: List<GeneratedNameResult> = emptyList(),
     val error: String? = null,
     val pendingReview: ReviewState? = null,
@@ -483,6 +557,11 @@ data class UiState(
     val appUpdateError: String? = null
 )
 
+private data class ProcessedImageData(
+    val data: PokemonScreenData,
+    val reviewFields: List<NamingField>,
+    val generatedResults: List<GeneratedNameResult>
+)
 data class GeneratedNameResult(
     val configId: String,
     val configName: String,
@@ -511,43 +590,6 @@ data class DebugIvSampleResult(
     val comparable: Boolean = false,
     val notes: String = ""
 )
-
-private fun reviewableFields(configs: List<NamingConfig>): List<NamingField> {
-    return configs.flatMap { config ->
-        config.effectiveBlocks()
-            .filter { block -> block.type == NamingBlockType.VARIABLE }
-            .mapNotNull { block -> block.field }
-    }.distinct()
-}
-
-private fun shouldOpenReview(data: PokemonScreenData, fields: List<NamingField>): Boolean {
-    return fields.any { field ->
-        when (field) {
-            NamingField.POKEMON_NAME -> data.pokemonName.isNullOrBlank()
-            NamingField.UNOWN_LETTER -> false
-            NamingField.UNIQUE_FORM -> UniquePokemonCatalog.optionsFor(data.pokemonName).isNotEmpty() && data.uniqueForm.isNullOrBlank()
-            NamingField.VIVILLON_PATTERN -> isVivillonFamily(data.pokemonName) && data.vivillonPattern == null
-            NamingField.CP -> data.cp == null
-            NamingField.IV_PERCENT -> data.ivPercent == null
-            NamingField.IV_COMBINATION -> data.attIv == null || data.defIv == null || data.staIv == null
-            NamingField.LEVEL -> data.level == null
-            NamingField.GENDER -> data.gender == com.mewname.app.model.Gender.UNKNOWN
-            NamingField.SIZE -> data.size == PokemonSize.NORMAL
-            NamingField.MASTER_IV_BADGE -> false
-            NamingField.PVP_LEAGUE -> data.pvpLeague == null
-            NamingField.PVP_RANK -> data.pvpRank == null
-            NamingField.EVOLUTION_TYPE -> data.evolutionFlags.isEmpty()
-            else -> false
-        }
-    }
-}
-
-private fun isVivillonFamily(name: String?): Boolean {
-    return when (name?.trim()?.uppercase()) {
-        "SCATTERBUG", "SPEWPA", "VIVILLON" -> true
-        else -> false
-    }
-}
 
 private fun parseExpectedIvFromFileName(fileName: String): Triple<Int, Int, Int>? {
     val match = Regex("""(\d{1,2})-(\d{1,2})-(\d{1,2})""").find(fileName) ?: return null
@@ -601,7 +643,8 @@ fun jsonToNamingConfig(obj: JSONObject): NamingConfig {
     val defaultSymbols = com.mewname.app.model.defaultSymbols()
     val migratedSymbols = symbols.mapValues { (key, value) ->
         val legacyVivillonValue = legacyVivillonDefaultSymbols[key]
-        if (legacyVivillonValue != null && value == legacyVivillonValue) {
+        if ((legacyVivillonValue != null && value == legacyVivillonValue) ||
+            (key == "MASTER_IV_MATCH" && value == "tm")) {
             defaultSymbols[key].orEmpty()
         } else {
             value

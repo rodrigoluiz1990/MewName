@@ -1,4 +1,4 @@
-﻿package com.mewname.app
+package com.mewname.app
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
@@ -119,8 +119,9 @@ class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
     private val capturePermissionInvalidReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == OverlayService.ACTION_CAPTURE_PERMISSION_INVALID) {
-                viewModel.setBubbleOptionVisible(false)
+            when (intent?.action) {
+                OverlayService.ACTION_CAPTURE_PERMISSION_INVALID,
+                OverlayService.ACTION_OVERLAY_PERMISSION_INVALID -> viewModel.setBubbleOptionVisible(false)
             }
         }
     }
@@ -142,7 +143,10 @@ class MainActivity : ComponentActivity() {
         ContextCompat.registerReceiver(
             this,
             capturePermissionInvalidReceiver,
-            IntentFilter(OverlayService.ACTION_CAPTURE_PERMISSION_INVALID),
+            IntentFilter().apply {
+                addAction(OverlayService.ACTION_CAPTURE_PERMISSION_INVALID)
+                addAction(OverlayService.ACTION_OVERLAY_PERMISSION_INVALID)
+            },
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         enableEdgeToEdge()
@@ -159,6 +163,7 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = uiState.currentScreen != AppScreen.HOME) {
                     when (uiState.currentScreen) {
                         AppScreen.PRESET_EDIT -> viewModel.navigateTo(AppScreen.PRESET_LIST)
+                        AppScreen.COLLECTIONS,
                         AppScreen.PRESET_LIST,
                         AppScreen.LEGACY_MOVES,
                         AppScreen.ADVENTURE_EFFECTS,
@@ -182,6 +187,7 @@ class MainActivity : ComponentActivity() {
                     AppScreen.HOME -> HomeScreen(
                         uiState = uiState,
                         onClear = viewModel::clearResults,
+                        onGoToCollections = { viewModel.navigateTo(AppScreen.COLLECTIONS) },
                         onGoToPresets = { viewModel.navigateTo(AppScreen.PRESET_LIST) },
                         onGoToLegacyMoves = { viewModel.navigateTo(AppScreen.LEGACY_MOVES) },
                         onGoToAdventureEffects = { viewModel.navigateTo(AppScreen.ADVENTURE_EFFECTS) },
@@ -195,9 +201,14 @@ class MainActivity : ComponentActivity() {
                         onGoToAppUpdate = { viewModel.navigateTo(AppScreen.APP_UPDATE) },
                         onDismissReview = viewModel::dismissReview,
                         onApplyReview = viewModel::applyReview,
+                        onCancelProcessing = viewModel::cancelImageProcessing,
                         onBubbleOptionVisibleChange = viewModel::setBubbleOptionVisible,
                         onAppLanguageChange = { viewModel.setAppLanguage(appContext, it) }
                     )
+
+                    AppScreen.COLLECTIONS -> {
+                        CollectionsScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    }
 
                     AppScreen.PRESET_LIST -> {
                         val context = LocalContext.current
@@ -296,7 +307,8 @@ class MainActivity : ComponentActivity() {
                             uiState = uiState,
                             onBack = { viewModel.navigateTo(AppScreen.HOME) },
                             onPickImages = { pickValidationImages.launch("image/*") },
-                            onRunExistingValidation = { viewModel.runDebugIvSampleValidation(appContext) }
+                            onRunExistingValidation = { viewModel.runDebugIvSampleValidation(appContext) },
+                            onCancelValidation = viewModel::cancelIvValidation
                         )
                     }
                 }
@@ -305,6 +317,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (!Settings.canDrawOverlays(this)) {
+            viewModel.setBubbleOptionVisible(false)
+            stopService(Intent(this, OverlayService::class.java))
+        }
+    }
     override fun onDestroy() {
         runCatching { unregisterReceiver(capturePermissionInvalidReceiver) }
         super.onDestroy()
@@ -316,6 +335,7 @@ class MainActivity : ComponentActivity() {
 fun HomeScreen(
     uiState: UiState,
     onClear: () -> Unit,
+    onGoToCollections: () -> Unit,
     onGoToPresets: () -> Unit,
     onGoToLegacyMoves: () -> Unit,
     onGoToAdventureEffects: () -> Unit,
@@ -329,11 +349,13 @@ fun HomeScreen(
     onGoToAppUpdate: () -> Unit,
     onDismissReview: () -> Unit,
     onApplyReview: (PokemonScreenData) -> Unit,
+    onCancelProcessing: () -> Unit,
     onBubbleOptionVisibleChange: (Boolean) -> Unit,
     onAppLanguageChange: (AppLanguage) -> Unit
 ) {
     val context = LocalContext.current
     val language = appLanguage()
+    val bubbleActive by OverlayService.isBubbleActive.collectAsStateWithLifecycle()
     val releaseLabel = BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" } ?: "local"
     val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -422,17 +444,15 @@ fun HomeScreen(
         bottomBar = {
             Button(
                 onClick = {
-                    if (uiState.showBubbleOption) {
-                        if (!Settings.canDrawOverlays(context)) {
-                            val intent = Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:${context.packageName}")
-                            )
-                            context.startActivity(intent)
-                        } else {
-                            val mpManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                            projectionLauncher.launch(mpManager.createScreenCaptureIntent())
-                        }
+                    if (bubbleActive) {
+                        context.stopService(Intent(context, OverlayService::class.java))
+                    } else if (!Settings.canDrawOverlays(context)) {
+                        onBubbleOptionVisibleChange(false)
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                        context.startActivity(intent)
                     } else {
                         val mpManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                         projectionLauncher.launch(mpManager.createScreenCaptureIntent())
@@ -444,10 +464,16 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Text(
-                    if (uiState.showBubbleOption) {
-                        lt(language, "Iniciar sobreposicao", "Start overlay", "Iniciar superposicion")
-                    } else {
-                        lt(language, "Solicitar permissao de captura", "Request capture permission", "Solicitar permiso de captura")
+                    when {
+                        bubbleActive -> lt(language, "Remover modo bolha", "Remove bubble mode", "Quitar modo burbuja")
+                        !Settings.canDrawOverlays(context) -> lt(
+                            language,
+                            "Ativar permissao de sobreposicao",
+                            "Enable overlay permission",
+                            "Activar permiso de superposicion"
+                        )
+                        uiState.showBubbleOption -> lt(language, "Iniciar sobreposicao", "Start overlay", "Iniciar superposicion")
+                        else -> lt(language, "Solicitar permissao de captura", "Request capture permission", "Solicitar permiso de captura")
                     }
                 )
             }
@@ -491,6 +517,13 @@ fun HomeScreen(
                     iconRes = null,
                     customIcon = { HomeMenuGlyph("pokedex") },
                     onClick = onGoToPokedex,
+                    modifier = Modifier.fillMaxWidth(0.31f)
+                )
+                HomeActionSquare(
+                    title = lt(language, "Cole\u00e7\u00f5es", "Collections", "Colecciones"),
+                    iconRes = null,
+                    customIcon = { HomeMenuGlyph("collections") },
+                    onClick = onGoToCollections,
                     modifier = Modifier.fillMaxWidth(0.31f)
                 )
                 HomeActionSquare(
@@ -620,6 +653,13 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        TextButton(onClick = onCancelProcessing) {
+                            Text(
+                                lt(language, "Cancelar", "Cancel", "Cancelar"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -851,7 +891,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                     ) {
                         Text(entry.pokemon, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(
-                            entry.moves.joinToString(" • ").ifBlank { lt(language, "Sem golpes cadastrados", "No registered moves", "Sin ataques registrados") },
+                            entry.moves.joinToString(" \u2022 ").ifBlank { lt(language, "Sem golpes cadastrados", "No registered moves", "Sin ataques registrados") },
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -1332,7 +1372,7 @@ private fun HomeUpdateGlyph() {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                "↓",
+                "?",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
@@ -1409,7 +1449,8 @@ private fun IvValidationScreen(
     uiState: UiState,
     onBack: () -> Unit,
     onPickImages: () -> Unit,
-    onRunExistingValidation: () -> Unit
+    onRunExistingValidation: () -> Unit,
+    onCancelValidation: () -> Unit
 ) {
     val context = LocalContext.current
     val language = appLanguage()
@@ -1467,6 +1508,14 @@ private fun IvValidationScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(if (uiState.debugIvValidationRunning) lt(language, "Analisando...", "Analyzing...", "Analizando...") else lt(language, "Analisar imagens existentes", "Analyze existing images", "Analizar imagenes existentes"))
+                        }
+                        if (uiState.debugIvValidationRunning) {
+                            TextButton(
+                                onClick = onCancelValidation,
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text(lt(language, "Cancelar", "Cancel", "Cancelar"))
+                            }
                         }
                     }
                 }
@@ -1566,7 +1615,7 @@ private fun buildDebugIvValidationExport(
             appendLine("Detectado: ${result.detectedAttack ?: "-"}/${result.detectedDefense ?: "-"}/${result.detectedStamina ?: "-"}")
             appendLine(
                 "IV %: ${result.detectedPercent ?: "-"} | ${when {
-                                !result.comparable -> "Sem referência"
+                                !result.comparable -> "Sem refer\u00eancia"
                     result.matched -> "OK"
                     else -> "Erro"
                 }}"
@@ -1725,7 +1774,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 NamingField.PVP_LEAGUE,
                 NamingField.PVP_RANK
             ),
-            "Coleção" to listOf(
+            "Cole\u00e7\u00e3o" to listOf(
                 NamingField.POKEDEX_NUMBER,
                 NamingField.TYPE,
                 NamingField.SIZE,
@@ -1921,7 +1970,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                         "Principal" -> lt(language, "Principal", "Main", "Principal")
                         "Status" -> lt(language, "Status", "Status", "Estado")
                         "PvP" -> "PvP"
-                        "Coleção" -> lt(language, "Colecao", "Collection", "Coleccion")
+                        "Cole\u00e7\u00e3o" -> lt(language, "Colecao", "Collection", "Coleccion")
                         else -> lt(language, "Especial", "Special", "Especial")
                     },
                     fields = groupFields.filter { it in availableVariableFields },
@@ -2363,21 +2412,21 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
         NamingField.TYPE -> listOf(
             option("TYPE_NORMAL", "Normal"),
             option("TYPE_FIRE", "Fogo"),
-            option("TYPE_WATER", "Água"),
+            option("TYPE_WATER", "\u00c1gua"),
             option("TYPE_GRASS", "Planta"),
-            option("TYPE_ELECTRIC", "Elétrico"),
+            option("TYPE_ELECTRIC", "El\u00e9trico"),
             option("TYPE_ICE", "Gelo"),
             option("TYPE_FIGHTING", "Lutador"),
             option("TYPE_POISON", "Venenoso"),
             option("TYPE_GROUND", "Terrestre"),
             option("TYPE_FLYING", "Voador"),
-            option("TYPE_PSYCHIC", "Psíquico"),
+            option("TYPE_PSYCHIC", "Ps\u00edquico"),
             option("TYPE_BUG", "Inseto"),
             option("TYPE_ROCK", "Pedra"),
             option("TYPE_GHOST", "Fantasma"),
-            option("TYPE_DRAGON", "Dragão"),
+            option("TYPE_DRAGON", "Drag\u00e3o"),
             option("TYPE_DARK", "Sombrio"),
-            option("TYPE_STEEL", "Aço"),
+            option("TYPE_STEEL", "A\u00e7o"),
             option("TYPE_FAIRY", "Fada")
         )
         NamingField.SIZE -> listOf(
@@ -2387,8 +2436,8 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
             option("XXS", "XXS")
         )
         NamingField.MASTER_IV_BADGE -> listOf(
-            option("MASTER_IV_MATCH", "Melhor combinação"),
-            option("MASTER_IV_OTHER", "Outra combinação")
+            option("MASTER_IV_MATCH", "Melhor combina\u00e7\u00e3o"),
+            option("MASTER_IV_OTHER", "Outra combina\u00e7\u00e3o")
         )
         NamingField.PVP_LEAGUE -> listOf(
             option("LITTLE_LEAGUE", "Copinha"),
@@ -2400,8 +2449,8 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
         NamingField.LEGACY_MOVE_NAME -> emptyList()
         NamingField.EVOLUTION_TYPE -> listOf(
             option("BABY", "Baby"),
-            option("STAGE1", "Estágio 1"),
-            option("STAGE2", "Estágio 2"),
+            option("STAGE1", "Est\u00e1gio 1"),
+            option("STAGE2", "Est\u00e1gio 2"),
             option("MEGA", "Mega"),
             option("DYNAMAX", "Dynamax"),
             option("GIGANTAMAX", "Gigantamax")
@@ -2421,7 +2470,7 @@ fun SymbolPickerDialog(
     val language = appLanguage()
     val commonSymbols = listOf(
         "\u2642", "\u2640", "M", "F", "#", "\u00B6", "*", "+", "SH", "PU", "FE", "AV", "XXL", "XXS",
-        "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY", "tm", "●"
+        "XL", "XS", "GL", "UL", "ML", "CP", "L", "G", "D", "#", "!", "1", "2", "3", "BY", "tm", "?"
     )
     var customText by remember(title, initialValue) { mutableStateOf(initialValue) }
 

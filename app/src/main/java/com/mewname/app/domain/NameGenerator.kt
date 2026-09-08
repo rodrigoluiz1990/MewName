@@ -209,15 +209,16 @@ class NameGenerator {
     private fun formatPokemonNameForNaming(name: String, data: PokemonScreenData, config: NamingConfig): String {
         val femaleSymbol = config.symbols["FEMALE"]?.takeIf { it.isNotBlank() } ?: "♀"
         val maleSymbol = config.symbols["MALE"]?.takeIf { it.isNotBlank() } ?: "♂"
-        return when (name.trim().uppercase()) {
+        val nicknameName = pokemonDisplayName(name).replace(Regex("\\([^)]*\\)"), " ").trim().split(Regex("\\s+")).take(2).joinToString(" ")
+        return when (nicknameName.uppercase()) {
             "NIDORANF", "NIDORAN FEMALE", "NIDORAN F", "NIDORAN♀" -> "Nidoran$femaleSymbol"
             "NIDORANM", "NIDORAN MALE", "NIDORAN M", "NIDORAN♂" -> "Nidoran$maleSymbol"
             "NIDORAN" -> when (data.gender) {
                 Gender.FEMALE -> "Nidoran$femaleSymbol"
                 Gender.MALE -> "Nidoran$maleSymbol"
-                else -> name
+                else -> nicknameName
             }
-            else -> name
+            else -> nicknameName
         }
     }
 

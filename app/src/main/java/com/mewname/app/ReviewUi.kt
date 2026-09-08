@@ -1,4 +1,4 @@
-﻿package com.mewname.app
+package com.mewname.app
 
 import android.content.Intent
 import android.content.Context
@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -31,14 +32,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +49,10 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,15 +73,22 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
+
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+
 import com.mewname.app.domain.AppLanguage
 import com.mewname.app.domain.AssetPaths
 import com.mewname.app.domain.MasterIvBadgeCatalog
+import com.mewname.app.domain.LoadState
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.PokemonFamilySuggester
+import com.mewname.app.domain.PokemonMove
+import com.mewname.app.domain.PokemonMoveRepository
+import com.mewname.app.domain.PokemonMoveSet
 import com.mewname.app.domain.PvpRankCalculator
 import com.mewname.app.domain.UniquePokemonCatalog
 import com.mewname.app.model.EvolutionFlag
@@ -105,6 +116,7 @@ import com.mewname.app.model.VivillonPattern
 import com.mewname.app.model.effectiveBlocks
 import com.mewname.app.model.hasVisibleSizeSymbol
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.text.Normalizer
@@ -117,32 +129,36 @@ private enum class ReviewTab {
     EXTRAS
 }
 
-private enum class ReviewIvMode {
+internal enum class ReviewIvMode {
     NORMAL,
     SHADOW,
     PURIFIED
 }
 
-private data class ReviewPokemonMove(
-    val name: String,
-    val legacy: Boolean
-)
 
-private data class ReviewPokemonMoveSet(
-    val fastMoves: List<ReviewPokemonMove>,
-    val chargedMoves: List<ReviewPokemonMove>
-)
-
-private data class ReviewPokemonMoveOption(
+internal data class ReviewPokemonMoveOption(
     val value: String,
     val label: String
 )
+internal data class ReviewOptionPicker(
+    val title: String,
+    val options: List<String>,
+    val selectedValue: String?,
+    val message: String? = null,
+    val verticalOptions: Boolean = false,
+    val latestState: (() -> ReviewOptionPicker)? = null,
+    val onOptionSelected: (String) -> Unit
+)
+
+internal fun ReviewOptionPicker.current(): ReviewOptionPicker = latestState?.invoke() ?: this
+
+internal fun liveReviewOptionPicker(state: androidx.compose.runtime.State<ReviewOptionPicker>): ReviewOptionPicker =
+    state.value.copy(latestState = { state.value })
+internal val LocalReviewOptionPicker = staticCompositionLocalOf<((ReviewOptionPicker) -> Unit)?> { null }
 
 @Volatile
-private var reviewEvolutionStageOrderCache: Map<String, Int>? = null
+internal var reviewEvolutionStageOrderCache: Map<String, Int>? = null
 
-@Volatile
-private var reviewPokemonMoveCache: Map<String, ReviewPokemonMoveSet>? = null
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -164,7 +180,7 @@ fun ReviewEditorCard(
     var draft by remember(initialData, fields) {
         mutableStateOf(
             initialData.copy(
-                pokemonName = initialData.pokemonName ?: initialData.candyFamilyName
+                pokemonName = (initialData.pokemonName ?: initialData.candyFamilyName)?.let { com.mewname.app.domain.pokemonDisplayName(it) }
             ).recalculateIvPercent()
         )
     }
@@ -182,13 +198,13 @@ fun ReviewEditorCard(
     }
     var pokemonExpanded by remember { mutableStateOf(false) }
     var activeIvPicker by remember { mutableStateOf<String?>(null) }
+    var showLevelPicker by remember { mutableStateOf(false) }
     var showIvHelp by remember { mutableStateOf(false) }
     var showPokemonHelp by remember { mutableStateOf(false) }
     var showAdventureHelp by remember { mutableStateOf(false) }
     var showLegacyHelp by remember { mutableStateOf(false) }
     var showBackgroundHelp by remember { mutableStateOf(false) }
     var showSizeHelp by remember { mutableStateOf(false) }
-    var showLeagueHelp by remember { mutableStateOf(false) }
     var showPvpHelp by remember { mutableStateOf(false) }
     var showVivillonHelp by remember { mutableStateOf(false) }
     var showEvolutionHelp by remember { mutableStateOf(false) }
@@ -200,60 +216,155 @@ fun ReviewEditorCard(
             .filter { configs.hasVisibleSizeSymbol(it) || it == draft.size }
             .ifEmpty { listOf(PokemonSize.XXS, PokemonSize.XS, PokemonSize.XL, PokemonSize.XXL) }
     }
-    val pokemonSuggestions = remember(initialData.candyFamilyName, initialData.pokemonName) {
-        familySuggester.suggestionsFor(context, initialData.candyFamilyName, initialData.pokemonName)
+    // Extras are always reviewable; presets only decide whether they are emitted in a name.
+    val extrasFields = remember(fields) {
+        fields.toSet() + setOf(
+            NamingField.SPECIAL_BACKGROUND,
+            NamingField.ADVENTURE_EFFECT,
+            NamingField.LEGACY_MOVE,
+            NamingField.EVOLUTION_TYPE
+        )
+    }
+    val pokemonSuggestions = remember(draft.candyFamilyName, draft.pokemonName) {
+        familySuggester.suggestionsFor(context, draft.candyFamilyName, draft.pokemonName)
     }
     val uniqueFormOptions = remember(draft.pokemonName) { UniquePokemonCatalog.optionsFor(draft.pokemonName) }
-    val pvpFamilyCandidates = remember(draft.familyPvpRanks, draft.pvpPokemonName, draft.pokemonName, draft.candyFamilyName) {
-        buildList {
-            addAll(draft.familyPvpRanks.map { it.pokemonName })
-            draft.pvpPokemonName?.let(::add)
-            draft.pokemonName?.let(::add)
-            draft.candyFamilyName?.let(::add)
-        }.map { it.trim() }
+    val pvpFamilyCandidates = remember(draft.candyFamilyName, draft.pokemonName) {
+        familySuggester.familyMembersFor(context, draft.candyFamilyName, draft.pokemonName)
+            .ifEmpty {
+                listOfNotNull(draft.pokemonName, draft.candyFamilyName)
+            }
+            .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
     }
-    var derivedData by remember(draft, ivMode, pvpFamilyCandidates) {
+    var derivedData by remember(
+        draft.pokemonName,
+        draft.candyFamilyName,
+        draft.level,
+        draft.cp,
+        ivMode,
+        pvpFamilyCandidates,
+        baseAttackIv,
+        baseDefenseIv,
+        baseStaminaIv
+    ) {
         mutableStateOf(draft.applyIvMode(ivMode))
     }
-    var derivedLoading by remember(draft, ivMode, pvpFamilyCandidates) { mutableStateOf(false) }
-    LaunchedEffect(draft, ivMode, pvpFamilyCandidates) {
-        val base = draft.applyIvMode(ivMode)
-        derivedData = base
-        val atk = base.attIv
-        val def = base.defIv
-        val sta = base.staIv
-        if (atk != null && def != null && sta != null && pvpFamilyCandidates.isNotEmpty()) {
+    var derivedLoading by remember { mutableStateOf(false) }
+    LaunchedEffect(
+        draft.pokemonName,
+        draft.candyFamilyName,
+        draft.level,
+        draft.cp,
+        ivMode,
+        pvpFamilyCandidates,
+        baseAttackIv,
+        baseDefenseIv,
+        baseStaminaIv
+    ) {
+        val displayData = draft.applyIvMode(ivMode)
+        val rankingInput = displayData.copy(
+            attIv = baseAttackIv,
+            defIv = baseDefenseIv,
+            staIv = baseStaminaIv
+        ).recalculateIvPercent()
+        derivedData = displayData
+        derivedLoading = false
+        if (baseAttackIv != null && baseDefenseIv != null && baseStaminaIv != null && pvpFamilyCandidates.isNotEmpty()) {
             derivedLoading = true
-            derivedData = withContext(Dispatchers.Default) {
-                buildDerivedReviewData(
-                    context = context.applicationContext,
-                    data = base,
-                    familyMembers = pvpFamilyCandidates,
-                    rankCalculator = pvpRankCalculator,
-                    masterIvBadgeCatalog = masterIvBadgeCatalog
+            try {
+                val rankingResult = withContext(Dispatchers.Default) {
+                    buildDerivedReviewData(
+                        context = context.applicationContext,
+                        data = rankingInput,
+                        familyMembers = pvpFamilyCandidates,
+                        rankCalculator = pvpRankCalculator,
+                        masterIvBadgeCatalog = masterIvBadgeCatalog
+                    )
+                }
+                val hasRecalculatedRanks = rankingResult.familyPvpRanks.isNotEmpty()
+                derivedData = displayData.copy(
+                    familyPvpRanks = rankingResult.familyPvpRanks.ifEmpty { displayData.familyPvpRanks },
+                    pvpLeagueRanks = rankingResult.pvpLeagueRanks.ifEmpty { displayData.pvpLeagueRanks },
+                    pvpLeague = if (hasRecalculatedRanks) rankingResult.pvpLeague else displayData.pvpLeague,
+                    pvpRank = if (hasRecalculatedRanks) rankingResult.pvpRank else displayData.pvpRank,
+                    pvpPokemonName = if (hasRecalculatedRanks) rankingResult.pvpPokemonName else displayData.pvpPokemonName,
+                    masterIvBadgeMatch = rankingResult.masterIvBadgeMatch ?: displayData.masterIvBadgeMatch,
+                    masterIvBadgeDebugInfo = rankingResult.masterIvBadgeDebugInfo ?: displayData.masterIvBadgeDebugInfo
                 )
+            } finally {
+                derivedLoading = false
             }
-            derivedLoading = false
         }
     }
-    val reviewData = derivedData
-    val familyRankCards = remember(reviewData.familyPvpRanks, reviewData.pvpLeague) {
-        speciesRankCardsForLeague(
-            context = context,
-            speciesRanks = reviewData.familyPvpRanks,
-            selectedLeague = reviewData.pvpLeague
-        )
+    // Move and presentation changes stay responsive while rankings keep their last valid result.
+    val displayedData = draft.applyIvMode(ivMode)
+    val reviewData = displayedData.copy(
+        familyPvpRanks = derivedData.familyPvpRanks.ifEmpty { displayedData.familyPvpRanks },
+        pvpLeagueRanks = derivedData.pvpLeagueRanks.ifEmpty { displayedData.pvpLeagueRanks },
+        pvpLeague = displayedData.pvpLeague ?: derivedData.pvpLeague,
+        pvpRank = displayedData.pvpRank ?: derivedData.pvpRank,
+        pvpPokemonName = displayedData.pvpPokemonName ?: derivedData.pvpPokemonName,
+        masterIvBadgeMatch = displayedData.masterIvBadgeMatch ?: derivedData.masterIvBadgeMatch,
+        masterIvBadgeDebugInfo = displayedData.masterIvBadgeDebugInfo ?: derivedData.masterIvBadgeDebugInfo
+    )
+    fun sameRankSpecies(left: String?, right: String?): Boolean = left != null && right != null &&
+        pvpRankCalculator.canonicalName(context, left) == pvpRankCalculator.canonicalName(context, right)
+    val pvpRankSpecies = remember(reviewData.familyPvpRanks, reviewData.pvpLeagueRanks) {
+        reviewRankSpecies(context, reviewData, pvpRankCalculator)
     }
-    val selectedPvpSpecies = remember(reviewData.pvpPokemonName, reviewData.pokemonName, reviewData.candyFamilyName) {
-        reviewData.pvpPokemonName
-            ?: reviewData.pokemonName
-            ?: reviewData.candyFamilyName
+    val selectedPvpSpecies = reviewMoveSpecies(draft)
+    var moveSetState by remember(selectedPvpSpecies, language) {
+        mutableStateOf<LoadState<PokemonMoveSet>>(LoadState.Loading)
     }
-    val moveSet = remember(context, selectedPvpSpecies) {
-        selectedPvpSpecies?.let { loadReviewPokemonMoveSet(context, it) }
-            ?: ReviewPokemonMoveSet(emptyList(), emptyList())
+    val moveSet = (moveSetState as? LoadState.Success)?.value
+        ?: PokemonMoveSet(emptyList(), emptyList())
+    val moveStatusMessage = PokemonMoveLoadFeedback.message(
+        state = moveSetState,
+        pokemonName = selectedPvpSpecies,
+        language = language
+    )
+    LaunchedEffect(context, selectedPvpSpecies, language) {
+        moveSetState = LoadState.Loading
+        val pokemonName = selectedPvpSpecies?.trim().orEmpty()
+        if (pokemonName.isBlank()) {
+            moveSetState = LoadState.Empty
+        } else {
+            try {
+                val loadedMoves = withContext(Dispatchers.IO) {
+                    PokemonMoveRepository.load(context, pokemonName, language)
+                }
+                if (loadedMoves.fastMoves.isEmpty() && loadedMoves.chargedMoves.isEmpty()) {
+                    moveSetState = LoadState.Empty
+                } else {
+                    moveSetState = LoadState.Success(loadedMoves)
+                    // Options are usable before optional statistics finish loading.
+                    try {
+                        val enriched = withContext(Dispatchers.IO) {
+                            PokemonMoveRepository.enrich(context, loadedMoves, language)
+                        }
+                        moveSetState = LoadState.Success(enriched)
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        PokemonMoveLoadFeedback.reportFailure(pokemonName, exception)
+                    }
+
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                PokemonMoveLoadFeedback.reportFailure(pokemonName, exception)
+                moveSetState = LoadState.Error(exception)
+            }
+        }
+    }
+    val fastMoveRating = remember(draft.selectedFastMove, moveSet.fastMoves) {
+        moveSet.fastMoves.firstOrNull { it.name == draft.selectedFastMove }?.rating
+    }
+    val chargedMoveRating = remember(draft.selectedChargedMove, moveSet.chargedMoves) {
+        moveSet.chargedMoves.firstOrNull { it.name == draft.selectedChargedMove }?.rating
     }
     val previewUsesLegacyMove = remember(configs) {
         configs.any { config ->
@@ -267,7 +378,8 @@ fun ReviewEditorCard(
             config.symbols["LEGACY"]?.takeIf { it.isNotBlank() }
         } ?: com.mewname.app.model.defaultSymbols()["LEGACY"].orEmpty()
     }
-    LaunchedEffect(selectedPvpSpecies, moveSet.fastMoves, moveSet.chargedMoves) {
+    LaunchedEffect(selectedPvpSpecies, moveSetState) {
+        if (moveSetState !is LoadState.Success && moveSetState !is LoadState.Empty) return@LaunchedEffect
         val nextFastMove = draft.selectedFastMove?.takeIf { selected ->
             moveSet.fastMoves.any { it.name == selected }
         }
@@ -331,6 +443,7 @@ fun ReviewEditorCard(
         }
     }
     var selectedReviewTab by remember(fields) { mutableStateOf(ReviewTab.BASIC) }
+    var activeOptionPicker by remember(language) { mutableStateOf<ReviewOptionPicker?>(null) }
     val activeReviewTab = selectedReviewTab.takeIf { it in reviewTabs } ?: ReviewTab.BASIC
     val selectedReviewTabIndex = reviewTabs.indexOf(activeReviewTab).coerceAtLeast(0)
     LaunchedEffect(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv) {
@@ -350,11 +463,14 @@ fun ReviewEditorCard(
         onConfirm(reviewData.recalculateIvPercent().normalizeReviewData())
     }
 
-    Box(modifier = modifier.widthIn(max = 560.dp).heightIn(max = maxCardHeight)) {
+    Box(modifier = modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalReviewOptionPicker provides { activeOptionPicker = it }) {
         Card(
             modifier = Modifier
+                .widthIn(max = 560.dp)
                 .fillMaxWidth()
-                .heightIn(max = maxCardHeight),
+                .heightIn(max = maxCardHeight)
+                .align(Alignment.BottomCenter),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.68f))
         ) {
@@ -366,6 +482,8 @@ fun ReviewEditorCard(
                     suggestions = generatedSuggestions,
                     language = language,
                     onSuggestionSelected = { confirmReviewedData() },
+                    onCancel = onCancel,
+                    onExportLog = onExportLog?.let { export -> { export(selectedDebugFields) } },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Surface(
@@ -399,8 +517,8 @@ fun ReviewEditorCard(
                 }
             Column(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .weight(1f, fill = false)
-                    .heightIn(max = 430.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -421,6 +539,7 @@ fun ReviewEditorCard(
                                 expanded = pokemonExpanded,
                                 onExpandedChange = { pokemonExpanded = it },
                                 onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
+                                useOptionModal = false,
                                 modifier = Modifier.weight(1f)
                             )
                             MarkerCheckboxField(
@@ -438,32 +557,44 @@ fun ReviewEditorCard(
                             expanded = pokemonExpanded,
                             onExpandedChange = { pokemonExpanded = it },
                             onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
+                            useOptionModal = false,
                             modifier = Modifier.weight(2f)
                         )
                     }
-                    SelectionDropdownField(
-                        label = NamingField.GENDER.localizedLabel(language),
-                        value = when (draft.gender) {
-                            Gender.MALE -> "♂"
-                            Gender.FEMALE -> "♀"
-                            else -> "-"
-                        },
-                        options = listOf("-", "♂", "♀"),
-                        onSelected = { value ->
-                            draft = draft.copy(
-                                gender = when (value) {
-                                    "♂" -> Gender.MALE
-                                    "♀" -> Gender.FEMALE
-                                    else -> Gender.GENDERLESS
-                                }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        FieldLabelRow(label = NamingField.GENDER.localizedLabel(language))
+                        WeightedToggleRow(
+                            items = listOf(
+                                WeightedToggleItem(
+                                    label = "♂",
+                                    selected = draft.gender == Gender.MALE,
+                                    onClick = {
+                                        draft = draft.withSelectedGender(
+                                            if (draft.gender == Gender.MALE) Gender.GENDERLESS else Gender.MALE
+                                        )
+                                    }
+                                ),
+                                WeightedToggleItem(
+                                    label = "♀",
+                                    selected = draft.gender == Gender.FEMALE,
+                                    onClick = {
+                                        draft = draft.withSelectedGender(
+                                            if (draft.gender == Gender.FEMALE) Gender.GENDERLESS else Gender.FEMALE
+                                        )
+                                    }
+                                )
                             )
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
+                        )
+                    }
                     CompactField(
                         label = NamingField.LEVEL.localizedLabel(language),
                         value = draft.level?.formatLevelDebug().orEmpty(),
                         onValueChange = { draft = draft.copy(level = it.replace(",", ".").toDoubleOrNull()) },
+                        readOnly = true,
+                        onClick = { showLevelPicker = true },
                         headerTrailing = {
                             UnownHeaderIcon(
                                 selected = selectedDebugFields.any { it in pokemonDebugFields() },
@@ -508,6 +639,7 @@ fun ReviewEditorCard(
                                 draft.copy(uniqueForm = selected)
                             }
                         },
+                            useOptionModal = false,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -601,6 +733,7 @@ fun ReviewEditorCard(
                                     contentDescription = "Selecionar log de IV Master"
                                 )
                             },
+                            useOptionModal = false,
                             modifier = Modifier.weight(1.45f)
                         )
                     }
@@ -617,6 +750,7 @@ fun ReviewEditorCard(
                                 )
                             }
                         },
+                            useOptionModal = false,
                         modifier = Modifier.weight(1f)
                     )
                     if (NamingField.PURIFY_MARKER in fields) {
@@ -729,7 +863,118 @@ fun ReviewEditorCard(
             }
 
             if (activeReviewTab == ReviewTab.EXTRAS) {
-            if (NamingField.SIZE in fields) {
+                // Keep every extra control in one measured block so no section is dropped by the overlay layout.
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FieldHeaderRow(
+                        label = NamingField.SIZE.localizedLabel(language),
+                        selected = NamingField.SIZE in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.SIZE)
+                            showSizeHelp = !showSizeHelp
+                        }
+                    )
+                    WeightedToggleRow(
+                        items = visibleSizeOptions.map { size ->
+                            val label = when (size) {
+                                PokemonSize.XXS -> "XXS"
+                                PokemonSize.XS -> "XS"
+                                PokemonSize.XL -> "XL"
+                                PokemonSize.XXL -> "XXL"
+                                PokemonSize.NORMAL -> "Normal"
+                            }
+                            WeightedToggleItem(label, draft.size == size) {
+                                draft = draft.copy(size = if (draft.size == size) PokemonSize.NORMAL else size)
+                            }
+                        }
+                    )
+                    if (showSizeHelp) {
+                        SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
+                    }
+                    ReviewTextRow {
+                        SelectionDropdownField(
+                            label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
+                            value = draft.specialBackgroundSelectionLabel(language),
+                            options = specialBackgroundSelectionOptions(language),
+                            onSelected = { value ->
+                                val type = specialBackgroundTypeFromSelection(value, language)
+                                draft = if (type == null) {
+                                    draft.copy(hasSpecialBackground = false, specialBackgroundType = null)
+                                } else {
+                                    draft.copy(hasSpecialBackground = true, specialBackgroundType = type)
+                                }
+                            },
+                            useOptionModal = false,
+                            modifier = Modifier.weight(1f)
+                        )
+                        LabeledToggleChipField(
+                            label = lt(language, "Marcadores", "Markers", "Marcadores"),
+                            chipLabel = NamingField.ADVENTURE_EFFECT.localizedLabel(language),
+                            selected = draft.hasAdventureEffect,
+                            onClick = { draft = draft.copy(hasAdventureEffect = !draft.hasAdventureEffect) },
+                            headerSelected = NamingField.ADVENTURE_EFFECT in selectedDebugFields,
+                            onHeaderClick = {
+                                selectedDebugFields = selectedDebugFields.toggleField(NamingField.ADVENTURE_EFFECT)
+                                showAdventureHelp = !showAdventureHelp
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        LabeledToggleChipField(
+                            label = NamingField.LEGACY_MOVE.localizedLabel(language),
+                            chipLabel = draft.legacyDebugInfo?.matchedLegacyMove
+                                ?.takeIf { it.isNotBlank() }
+                                ?: NamingField.LEGACY_MOVE.localizedLabel(language),
+                            selected = draft.hasLegacyMove,
+                            onClick = { draft = draft.copy(hasLegacyMove = !draft.hasLegacyMove) },
+                            headerSelected = NamingField.LEGACY_MOVE in selectedDebugFields,
+                            onHeaderClick = {
+                                selectedDebugFields = selectedDebugFields.toggleField(NamingField.LEGACY_MOVE)
+                                showLegacyHelp = !showLegacyHelp
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    FieldHeaderRow(
+                        label = NamingField.EVOLUTION_TYPE.localizedLabel(language),
+                        selected = NamingField.EVOLUTION_TYPE in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.EVOLUTION_TYPE)
+                            showEvolutionHelp = !showEvolutionHelp
+                        }
+                    )
+                    WeightedToggleRow(
+                        items = listOf(
+                            WeightedToggleItem("Baby", EvolutionFlag.BABY in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.BABY))
+                            },
+                            WeightedToggleItem(lt(language, "Estagio 1", "Stage 1", "Etapa 1"), EvolutionFlag.STAGE1 in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE1))
+                            },
+                            WeightedToggleItem(lt(language, "Estagio 2", "Stage 2", "Etapa 2"), EvolutionFlag.STAGE2 in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE2))
+                            },
+                            WeightedToggleItem("Mega", EvolutionFlag.MEGA in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.MEGA))
+                            }
+                        )
+                    )
+                    WeightedToggleRow(
+                        items = listOf(
+                            WeightedToggleItem("Dynamax", EvolutionFlag.DYNAMAX in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.DYNAMAX))
+                            },
+                            WeightedToggleItem("Gigantamax", EvolutionFlag.GIGANTAMAX in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.GIGANTAMAX))
+                            },
+                            WeightedToggleItem("Terastal", EvolutionFlag.TERASTRAL in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.TERASTRAL))
+                            }
+                        )
+                    )
+                }
+            }
+
+            if (false) {
+                if (NamingField.SIZE in fields) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FieldHeaderRow(
                         label = NamingField.SIZE.localizedLabel(language),
@@ -763,146 +1008,172 @@ fun ReviewEditorCard(
                 }
             }
             }
-
             if (activeReviewTab == ReviewTab.PVP) {
-            if (NamingField.PVP_LEAGUE in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FieldHeaderRow(
-                        label = NamingField.PVP_LEAGUE.localizedLabel(language),
-                        selected = NamingField.PVP_LEAGUE in selectedDebugFields,
-                        onMarkerClick = {
-                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_LEAGUE)
-                            showLeagueHelp = !showLeagueHelp
+                if (NamingField.PVP_LEAGUE in fields || NamingField.PVP_RANK in fields) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        if (derivedLoading) {
+                            Text(
+                                lt(language, "Recalculando rankings...", "Recalculating rankings...", "Recalculando rankings..."),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    )
-                    WeightedToggleRow(
-                        items = listOf(
-                            WeightedToggleItem("Copinha", reviewData.pvpLeague == PvpLeague.LITTLE) {
-                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.LITTLE) null else PvpLeague.LITTLE)
-                            },
-                            WeightedToggleItem("Great", reviewData.pvpLeague == PvpLeague.GREAT) {
-                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.GREAT) null else PvpLeague.GREAT)
-                            },
-                            WeightedToggleItem("Ultra", reviewData.pvpLeague == PvpLeague.ULTRA) {
-                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.ULTRA) null else PvpLeague.ULTRA)
-                            },
-                            WeightedToggleItem("Master", reviewData.pvpLeague == PvpLeague.MASTER) {
-                                selectPvpLeague(if (reviewData.pvpLeague == PvpLeague.MASTER) null else PvpLeague.MASTER)
+                        if (pvpRankSpecies.isEmpty()) {
+                            if (NamingField.PVP_RANK in fields) {
+                                CompactField(
+                                    label = "",
+                                    value = reviewData.pvpRank?.toString().orEmpty(),
+                                    onValueChange = { draft = draft.copy(pvpRank = it.toIntOrNull()) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
-                        )
-                    )
-                    if (derivedLoading) {
-                        Text(
-                            lt(language, "Recalculando rankings...", "Recalculating rankings...", "Recalculando rankings..."),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (showLeagueHelp) {
-                        PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
-                    }
-                }
-            }
-
-            if (NamingField.PVP_RANK in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FieldHeaderRow(
-                        label = NamingField.PVP_RANK.localizedLabel(language),
-                        selected = NamingField.PVP_RANK in selectedDebugFields,
-                        onMarkerClick = {
-                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_RANK)
-                            showPvpHelp = !showPvpHelp
-                        }
-                    )
-                    if (familyRankCards.isEmpty()) {
-                        CompactField(
-                            label = "",
-                            value = reviewData.pvpRank?.toString().orEmpty(),
-                            onValueChange = { draft = draft.copy(pvpRank = it.toIntOrNull()) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            familyRankCards.chunked(3).forEach { rankRow ->
-                                ReviewTextRow {
-                                    rankRow.forEach { rankCard ->
-                                        CompactField(
-                                            label = rankCard.label,
-                                            value = rankCard.value,
-                                            onValueChange = {},
-                                            readOnly = true,
-                                            active = reviewData.pvpLeague == rankCard.league &&
-                                                reviewData.pvpRank == rankCard.rank &&
-                                                reviewData.pvpPokemonName == rankCard.pokemonName,
-                                            onClick = {
-                                                if (rankCard.eligible) {
-                                                    draft = draft.copy(
-                                                        pvpLeague = rankCard.league,
-                                                        pvpRank = rankCard.rank,
-                                                        pvpPokemonName = rankCard.pokemonName
-                                                    )
-                                                }
-                                            },
-                                            modifier = Modifier.weight(1f)
-                                        )
+                        } else {
+                            val leagueRows = listOf(
+                                PvpLeague.LITTLE to "Copinha",
+                                PvpLeague.GREAT to "Great",
+                                PvpLeague.ULTRA to "Ultra",
+                                PvpLeague.MASTER to "Master"
+                            )
+                            val leagueColumnWidth = 68.dp
+                            val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+                            val density = androidx.compose.ui.platform.LocalDensity.current
+                            val speciesColumnWidths = pvpRankSpecies.associateWith { pokemonName ->
+                                val titleWidth = textMeasurer.measure(
+                                    com.mewname.app.domain.pokemonDisplayName(pokemonName),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    softWrap = false
+                                ).size.width
+                                val rankWidth = leagueRows.maxOf { (league, _) ->
+                                    val speciesRank = reviewData.familyPvpRanks.firstOrNull { sameRankSpecies(it.pokemonName, pokemonName) && it.league == league }
+                                    val leagueRank = reviewData.pvpLeagueRanks.firstOrNull { it.league == league && sameRankSpecies(it.pokemonName, pokemonName) }
+                                    val rank = if (speciesRank != null) speciesRank.rank else leagueRank?.rank
+                                    textMeasurer.measure(rank?.toString() ?: "—", style = TextStyle(fontSize = 10.sp)).size.width
+                                }
+                                with(density) { maxOf(titleWidth, rankWidth).toDp() } + 16.dp
+                            }
+                            val tableWidth = speciesColumnWidths.values.fold(leagueColumnWidth) { total, width -> total + width } + (2.dp * pvpRankSpecies.size)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
+                            ) {
+                                Column(
+                                    modifier = Modifier.width(tableWidth),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(
+                                            modifier = Modifier.width(leagueColumnWidth),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = NamingField.PVP_LEAGUE.localizedLabel(language),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            UnownHeaderIcon(
+                                                selected = selectedDebugFields.any { it == NamingField.PVP_LEAGUE || it == NamingField.PVP_RANK },
+                                                onClick = {
+                                                    selectedDebugFields = selectedDebugFields.toggleAll(setOf(NamingField.PVP_LEAGUE, NamingField.PVP_RANK))
+                                                    showPvpHelp = !showPvpHelp
+                                                },
+                                                contentDescription = "Logs PvP"
+                                            )
+                                        }
+                                        pvpRankSpecies.forEach { pokemonName ->
+                                            Text(
+                                                text = com.mewname.app.domain.pokemonDisplayName(pokemonName),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                modifier = Modifier.width(speciesColumnWidths.getValue(pokemonName))
+                                            )
+                                        }
                                     }
-                                    repeat((3 - rankRow.size).coerceAtLeast(0)) {
-                                        CompactField(
-                                            label = "",
-                                            value = "",
-                                            onValueChange = {},
-                                            readOnly = true,
-                                            modifier = Modifier.weight(1f)
-                                        )
+                                    leagueRows.forEach { (league, leagueLabel) ->
+                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            CompactSelectableField(
+                                                value = leagueLabel,
+                                                active = reviewData.pvpLeague == league,
+                                                onClick = { selectPvpLeague(league) },
+                                                modifier = Modifier.width(leagueColumnWidth)
+                                            )
+                                            pvpRankSpecies.forEach { pokemonName ->
+                                                val speciesRank = reviewData.familyPvpRanks.firstOrNull { sameRankSpecies(it.pokemonName, pokemonName) && it.league == league }
+                                                val leagueRank = reviewData.pvpLeagueRanks.firstOrNull { it.league == league && sameRankSpecies(it.pokemonName, pokemonName) }
+                                                val rank = if (speciesRank != null) speciesRank.rank else leagueRank?.rank
+                                                val eligible = speciesRank?.eligible ?: leagueRank?.eligible ?: false
+                                                val rankedPokemon = speciesRank?.pokemonName ?: leagueRank?.pokemonName ?: pokemonName
+                                                CompactSelectableField(
+                                                    value = rank?.toString() ?: "—",
+                                                    active = reviewData.pvpLeague == league && reviewData.pvpRank == rank && sameRankSpecies(reviewData.pvpPokemonName, rankedPokemon),
+                                                    struckThrough = (speciesRank != null || leagueRank != null) && !eligible,
+                                                    onClick = {
+                                                        if (eligible && rank != null) {
+                                                            draft = draft.copy(pvpLeague = league, pvpRank = rank, pvpPokemonName = rankedPokemon)
+                                                        } else {
+                                                            showPvpHelp = true
+                                                        }
+                                                    },
+                                                    modifier = Modifier.width(speciesColumnWidths.getValue(pokemonName))
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
+                        if (showPvpHelp) {
+                            PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
                         }
                     }
-                    if (showPvpHelp) {
-                        PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
+                }
+
+                Text(
+                    text = lt(language, "Ataques de", "Moves for", "Ataques de") + " " +
+                        selectedPvpSpecies?.let { com.mewname.app.domain.pokemonDisplayName(it) }.orEmpty(),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+                    val fastMoveOptions = remember(moveSet.fastMoves, legacyMoveSymbol) {
+                        moveDropdownOptions(moveSet.fastMoves, legacyMoveSymbol)
                     }
+                    val chargedMoveOptions = remember(moveSet.chargedMoves, legacyMoveSymbol) {
+                        moveDropdownOptions(moveSet.chargedMoves, legacyMoveSymbol)
+                    }
+                    MoveDropdownField(
+                        label = lt(language, "Ataque rapido", "Fast move", "Ataque rapido"),
+                        selectedValue = draft.selectedFastMove,
+                        options = fastMoveOptions,
+                        emptyLabel = unknownLabel,
+                        onSelected = { moveName ->
+                            draft = draft.copy(selectedFastMove = moveName).applySelectedLegacyMove(
+                                selectedMoveName = moveName,
+                                availableMoves = moveSet.fastMoves,
+                                previewUsesLegacyMove = previewUsesLegacyMove
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        ratingLabel = fastMoveRating?.label,
+                        statusMessage = moveStatusMessage
+                    )
+                    MoveDropdownField(
+                        label = lt(language, "Ataque carregado", "Charged move", "Ataque cargado"),
+                        selectedValue = draft.selectedChargedMove,
+                        options = chargedMoveOptions,
+                        emptyLabel = unknownLabel,
+                        onSelected = { moveName ->
+                            draft = draft.copy(selectedChargedMove = moveName).applySelectedLegacyMove(
+                                selectedMoveName = moveName,
+                                availableMoves = moveSet.chargedMoves,
+                                previewUsesLegacyMove = previewUsesLegacyMove
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        ratingLabel = chargedMoveRating?.label,
+                        statusMessage = moveStatusMessage
+                    )
                 }
             }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
-                val fastMoveOptions = remember(moveSet.fastMoves, legacyMoveSymbol) {
-                    moveDropdownOptions(moveSet.fastMoves, legacyMoveSymbol)
-                }
-                val chargedMoveOptions = remember(moveSet.chargedMoves, legacyMoveSymbol) {
-                    moveDropdownOptions(moveSet.chargedMoves, legacyMoveSymbol)
-                }
-                MoveDropdownField(
-                    label = lt(language, "Ataque rapido", "Fast move", "Ataque rapido"),
-                    selectedValue = draft.selectedFastMove,
-                    options = fastMoveOptions,
-                    emptyLabel = unknownLabel,
-                    onSelected = { moveName ->
-                        draft = draft.copy(selectedFastMove = moveName).applySelectedLegacyMove(
-                            selectedMoveName = moveName,
-                            availableMoves = moveSet.fastMoves,
-                            previewUsesLegacyMove = previewUsesLegacyMove
-                        )
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                MoveDropdownField(
-                    label = lt(language, "Ataque carregado", "Charged move", "Ataque cargado"),
-                    selectedValue = draft.selectedChargedMove,
-                    options = chargedMoveOptions,
-                    emptyLabel = unknownLabel,
-                    onSelected = { moveName ->
-                        draft = draft.copy(selectedChargedMove = moveName).applySelectedLegacyMove(
-                            selectedMoveName = moveName,
-                            availableMoves = moveSet.chargedMoves,
-                            previewUsesLegacyMove = previewUsesLegacyMove
-                        )
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            }
-
             if (activeReviewTab == ReviewTab.BASIC) {
             if (isVivillonReviewFamily(draft.pokemonName)) {
                 Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -937,8 +1208,8 @@ fun ReviewEditorCard(
                 NamingField.ADVENTURE_EFFECT,
                 NamingField.LEGACY_MOVE,
                 NamingField.LEGACY_MOVE_NAME
-            ).any { it in fields }
-            if (activeReviewTab == ReviewTab.EXTRAS) {
+            ).any { it in extrasFields }
+            if (false) {
             if (hasBooleanSection) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
@@ -947,13 +1218,13 @@ fun ReviewEditorCard(
                             NamingField.ADVENTURE_EFFECT,
                             NamingField.LEGACY_MOVE,
                             NamingField.LEGACY_MOVE_NAME
-                        ).intersect(fields.toSet())
+                        ).intersect(extrasFields)
                         val markerSectionSelected = selectedDebugFields.any { it in markerFields }
                         val toggleMarkerSection = {
                             selectedDebugFields = selectedDebugFields.toggleAll(markerFields)
                             showBackgroundHelp = !showBackgroundHelp
                         }
-                        if (NamingField.SPECIAL_BACKGROUND in fields) {
+                        if (NamingField.SPECIAL_BACKGROUND in extrasFields) {
                             SelectionDropdownField(
                                 label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
                                 value = draft.specialBackgroundSelectionLabel(language),
@@ -972,10 +1243,11 @@ fun ReviewEditorCard(
                                         )
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                            useOptionModal = false,
+                                modifier = Modifier.width(112.dp)
                             )
                         }
-                        if (NamingField.ADVENTURE_EFFECT in fields) {
+                        if (NamingField.ADVENTURE_EFFECT in extrasFields) {
                             LabeledToggleChipField(
                                 label = lt(language, "Marcadores", "Markers", "Marcadores"),
                                 chipLabel = NamingField.ADVENTURE_EFFECT.localizedLabel(language),
@@ -983,31 +1255,36 @@ fun ReviewEditorCard(
                                 onClick = { draft = draft.copy(hasAdventureEffect = !draft.hasAdventureEffect) },
                                 headerSelected = markerSectionSelected,
                                 onHeaderClick = toggleMarkerSection,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.width(112.dp)
                             )
-                        } else if (NamingField.LEGACY_MOVE in fields) {
+                        } else if (NamingField.LEGACY_MOVE in extrasFields) {
                             FieldHeaderSpacer(
                                 label = lt(language, "Marcadores", "Markers", "Marcadores"),
                                 selected = markerSectionSelected,
                                 onMarkerClick = toggleMarkerSection,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.width(112.dp)
                             )
                         }
-                        if (NamingField.LEGACY_MOVE in fields) {
+                        if (NamingField.LEGACY_MOVE in extrasFields) {
                             val legacyMoveLabel = draft.legacyDebugInfo
                                 ?.matchedLegacyMove
                                 ?.takeIf { it.isNotBlank() }
                                 ?: NamingField.LEGACY_MOVE.localizedLabel(language)
-                            ToggleChip(
-                                label = legacyMoveLabel,
+                            LabeledToggleChipField(
+                                label = NamingField.LEGACY_MOVE.localizedLabel(language),
+                                chipLabel = legacyMoveLabel,
                                 selected = draft.hasLegacyMove,
                                 onClick = { draft = draft.copy(hasLegacyMove = !draft.hasLegacyMove) },
-                                compact = true,
-                                modifier = Modifier.weight(1f)
+                                headerSelected = NamingField.LEGACY_MOVE in selectedDebugFields,
+                                onHeaderClick = {
+                                    selectedDebugFields = selectedDebugFields.toggleField(NamingField.LEGACY_MOVE)
+                                    showLegacyHelp = !showLegacyHelp
+                                },
+                                modifier = Modifier.width(112.dp)
                             )
                         }
                     }
-                    if (NamingField.LEGACY_MOVE_NAME in fields) {
+                    if (NamingField.LEGACY_MOVE_NAME in extrasFields) {
                         CompactField(
                             label = NamingField.LEGACY_MOVE_NAME.localizedLabel(language),
                             value = draft.legacyDebugInfo?.matchedLegacyMove.orEmpty(),
@@ -1028,7 +1305,7 @@ fun ReviewEditorCard(
                 }
             }
 
-            if (NamingField.EVOLUTION_TYPE in fields) {
+            if (NamingField.EVOLUTION_TYPE in extrasFields) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     FieldHeaderRow(
                         label = NamingField.EVOLUTION_TYPE.localizedLabel(language),
@@ -1076,40 +1353,40 @@ fun ReviewEditorCard(
 
                 }
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    tonalElevation = 2.dp,
-                    shadowElevation = 6.dp,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-                            if (onExportLog != null) {
-                                TextButton(onClick = { onExportLog(selectedDebugFields) }, modifier = Modifier.weight(1f)) {
-                                    Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                                Text(lt(language, "Cancelar", "Cancel", "Cancelar"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                }
+
             }
         }
-
-                        if (activeIvPicker != null) {
+        }
+        activeOptionPicker?.current()?.let { picker ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight()
+                    .clickable { activeOptionPicker = null }
+                    .padding(12.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                SelectionModalDialog(
+                    title = picker.title,
+                    options = picker.options,
+                    selectedValue = picker.selectedValue,
+                    message = picker.message,
+                    onDismiss = { activeOptionPicker = null },
+                    onOptionSelected = { option ->
+                        picker.onOptionSelected(option)
+                        activeOptionPicker = null
+                    },
+                    verticalOptions = picker.verticalOptions
+                )
+            }
+        }
+        if (activeIvPicker != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
                     .clickable { activeIvPicker = null }
-                    .padding(18.dp),
-                contentAlignment = Alignment.Center
+                    .padding(12.dp),
+                contentAlignment = Alignment.BottomCenter
             ) {
                 IvPickerModal(
                     title = when (activeIvPicker) {
@@ -1139,7 +1416,33 @@ fun ReviewEditorCard(
                 )
             }
         }
+        if (showLevelPicker) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { showLevelPicker = false }
+                    .padding(12.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                LevelPickerDialog(
+                context = context,
+                language = language,
+                pokemonName = draft.pokemonName ?: draft.candyFamilyName,
+                level = draft.level,
+                attack = draft.attIv,
+                defense = draft.defIv,
+                stamina = draft.staIv,
+                rankCalculator = pvpRankCalculator,
+                onDismiss = { showLevelPicker = false },
+                onLevelSelected = { level ->
+                    draft = draft.copy(level = level)
+                    showLevelPicker = false
+                }
+                )
+            }
+        }
     }
+}
 }
 
 @Composable
@@ -1452,6 +1755,8 @@ private fun SuggestedNamesBlock(
     suggestions: List<Pair<String, String>>,
     language: AppLanguage,
     onSuggestionSelected: (String) -> Unit,
+    onCancel: () -> Unit,
+    onExportLog: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1467,11 +1772,26 @@ private fun SuggestedNamesBlock(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Text(
-                lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (onExportLog != null) {
+                    TextButton(onClick = onExportLog, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
+                        Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp)
+                    }
+                }
+                TextButton(onClick = onCancel, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
+                    Text(lt(language, "Cancelar", "Cancel", "Cancelar"), fontSize = 11.sp)
+                }
+            }
             if (suggestions.isEmpty()) {
                 Text(
                     lt(
@@ -1525,479 +1845,6 @@ private fun SuggestedNamesBlock(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ReviewTextRow(
-    content: @Composable RowScope.() -> Unit
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Bottom,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun CompactField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    readOnly: Boolean = false,
-    active: Boolean = false,
-    onClick: (() -> Unit)? = null,
-    headerTrailing: (@Composable (() -> Unit))? = null,
-    modifier: Modifier = Modifier
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = modifier) {
-        FieldLabelRow(label = label, trailing = headerTrailing)
-        if (onClick != null) {
-            CompactSelectableField(
-                value = value,
-                active = active,
-                onClick = onClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(min = 0.dp)
-            )
-        } else {
-            CompactTextInput(
-                value = value,
-                onValueChange = onValueChange,
-                readOnly = readOnly,
-                active = active,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(min = 0.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun CompactSelectableField(
-    value: String,
-    active: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
-        color = if (active) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
-        },
-        tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.outline
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = 34.dp)
-                .padding(horizontal = 8.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                value,
-                style = TextStyle(
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
-private fun IvValueButton(
-    label: String,
-    value: Int?,
-    selected: Boolean,
-    onClick: () -> Unit,
-    headerTrailing: (@Composable (() -> Unit))? = null,
-    modifier: Modifier = Modifier
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
-        FieldLabelRow(label = label, trailing = headerTrailing)
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-            tonalElevation = 0.dp,
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 34.dp)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    value?.toString().orEmpty(),
-                    style = TextStyle(fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
-                )
-                Icon(
-                    Icons.Default.ArrowDropDown,
-                    contentDescription = "Selecionar $label",
-                    modifier = Modifier.size(18.dp),
-                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun IvPickerModal(
-    title: String,
-    currentValue: Int?,
-    onValueSelected: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(max = 340.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                (0..15).forEach { option ->
-                    FilterChip(
-                        selected = currentValue == option,
-                        onClick = { onValueSelected(option) },
-                        label = { Text(option.toString(), style = MaterialTheme.typography.labelSmall) }
-                    )
-                }
-            }
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Fechar")
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactTextInput(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    readOnly: Boolean = false,
-    active: Boolean = false,
-    trailing: @Composable (() -> Unit)? = null
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = if (active) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
-        },
-        tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.outline
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = 34.dp)
-                .padding(horizontal = 8.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                readOnly = readOnly,
-                singleLine = true,
-                textStyle = TextStyle(
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                modifier = Modifier.weight(1f)
-            )
-            trailing?.invoke()
-        }
-    }
-}
-
-@Composable
-private fun PokemonSuggestionField(
-    label: String,
-    value: String,
-    suggestions: List<String>,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    onValueChange: (String) -> Unit,
-    headerTrailing: (@Composable (() -> Unit))? = null,
-    modifier: Modifier = Modifier
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
-        FieldLabelRow(label = label, trailing = headerTrailing)
-        Box {
-            CompactTextInput(
-                value = value,
-                onValueChange = onValueChange,
-                readOnly = suggestions.isNotEmpty(),
-                active = expanded,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = suggestions.isNotEmpty()) { onExpandedChange(!expanded) },
-                trailing = {
-                    if (suggestions.isNotEmpty()) {
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = "Abrir sugestoes",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            )
-            if (suggestions.isNotEmpty()) {
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { onExpandedChange(false) },
-                    modifier = Modifier
-                        .widthIn(min = 180.dp, max = 280.dp)
-                        .heightIn(max = 220.dp)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
-                ) {
-                    suggestions.forEach { suggestion ->
-                        DropdownMenuItem(
-                            text = { Text(suggestion, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall) },
-                            onClick = {
-                                onValueChange(suggestion)
-                                onExpandedChange(false)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MarkerCheckboxField(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-    ) {
-        FieldLabelRow(label = label)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 36.dp)
-                .clickable { onCheckedChange(!checked) },
-            contentAlignment = Alignment.Center
-        ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                modifier = Modifier.size(30.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SelectionDropdownField(
-    label: String,
-    value: String,
-    options: List<String>,
-    onSelected: (String) -> Unit,
-    headerTrailing: (@Composable (() -> Unit))? = null,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
-        FieldLabelRow(label = label, trailing = headerTrailing)
-        Box {
-            CompactTextInput(
-                value = value,
-                onValueChange = {},
-                readOnly = true,
-                active = expanded,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
-                trailing = {
-                    Icon(
-                        Icons.Default.ArrowDropDown,
-                        contentDescription = "Abrir opções",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .widthIn(min = 120.dp, max = 220.dp)
-                    .heightIn(max = 220.dp)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
-            ) {
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option, style = MaterialTheme.typography.bodySmall) },
-                        onClick = {
-                            onSelected(option)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MoveDropdownField(
-    label: String,
-    selectedValue: String?,
-    options: List<ReviewPokemonMoveOption>,
-    emptyLabel: String,
-    onSelected: (String?) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = options.firstOrNull { it.value == selectedValue }?.label ?: emptyLabel
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
-        FieldLabelRow(label = label)
-        Box {
-            CompactTextInput(
-                value = selectedLabel,
-                onValueChange = {},
-                readOnly = true,
-                active = expanded,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
-                trailing = {
-                    Icon(
-                        Icons.Default.ArrowDropDown,
-                        contentDescription = "Abrir opções",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .widthIn(min = 180.dp, max = 280.dp)
-                    .heightIn(max = 240.dp)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
-            ) {
-                DropdownMenuItem(
-                    text = { Text(emptyLabel, style = MaterialTheme.typography.bodySmall) },
-                    onClick = {
-                        onSelected(null)
-                        expanded = false
-                    }
-                )
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                option.label,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        },
-                        onClick = {
-                            onSelected(option.value)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LabeledToggleChipField(
-    label: String,
-    chipLabel: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    headerSelected: Boolean,
-    onHeaderClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
-        FieldHeaderRow(
-            label = label,
-            selected = headerSelected,
-            onMarkerClick = onHeaderClick
-        )
-        ToggleChip(
-            label = chipLabel,
-            selected = selected,
-            onClick = onClick,
-            compact = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun FieldHeaderSpacer(
-    label: String,
-    selected: Boolean,
-    onMarkerClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
-        FieldHeaderRow(
-            label = label,
-            selected = selected,
-            onMarkerClick = onMarkerClick
-        )
-        Spacer(modifier = Modifier.height(34.dp))
     }
 }
 
@@ -2316,640 +2163,3 @@ private fun SizeHelpPanel(size: PokemonSize, info: com.mewname.app.model.SizeDeb
         }
     }
 }
-
-@Composable
-private fun ReviewSectionTitle(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold
-    )
-}
-
-@Composable
-private fun FieldLabelRow(
-    label: String,
-    trailing: (@Composable (() -> Unit))? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (label.isNotBlank()) {
-            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-        }
-        trailing?.invoke()
-    }
-}
-
-@Composable
-private fun FieldHeaderRow(
-    label: String,
-    selected: Boolean,
-    onMarkerClick: () -> Unit
-) {
-    FieldLabelRow(
-        label = label,
-        trailing = {
-            UnownHeaderIcon(
-                selected = selected,
-                onClick = onMarkerClick,
-                contentDescription = "Selecionar log de $label"
-            )
-        }
-    )
-}
-
-@Composable
-private fun UnownHeaderIcon(
-    selected: Boolean,
-    onClick: () -> Unit,
-    contentDescription: String
-) {
-    IconButton(onClick = onClick, modifier = Modifier.size(20.dp)) {
-        UnownQuestionIcon(
-            selected = selected,
-            modifier = Modifier.size(16.dp),
-            contentDescription = contentDescription
-        )
-    }
-}
-
-private data class WeightedToggleItem(
-    val label: String,
-    val selected: Boolean,
-    val onClick: () -> Unit
-)
-
-private fun Float.formatDebug(): String = String.format("%.3f", this)
-private fun Double.formatDebugDouble(): String = String.format("%.3f", this)
-private fun Double.formatLevelDebug(): String = if (this % 1.0 == 0.0) this.toInt().toString() else this.toString().replace(".", ",")
-
-private fun leagueDisplayName(league: PvpLeague): String {
-    return when (league) {
-        PvpLeague.LITTLE -> "Little League"
-        PvpLeague.GREAT -> "Great League"
-        PvpLeague.ULTRA -> "Ultra League"
-        PvpLeague.MASTER -> "Master League"
-    }
-}
-
-private fun leagueShortName(league: PvpLeague): String {
-    return when (league) {
-        PvpLeague.LITTLE -> "CP"
-        PvpLeague.GREAT -> "GL"
-        PvpLeague.ULTRA -> "UL"
-        PvpLeague.MASTER -> "ML"
-    }
-}
-
-private fun sizeDisplayName(size: PokemonSize): String {
-    return when (size) {
-        PokemonSize.XXS -> "XXS"
-        PokemonSize.XS -> "XS"
-        PokemonSize.NORMAL -> "Normal"
-        PokemonSize.XL -> "XL"
-        PokemonSize.XXL -> "XXL"
-    }
-}
-
-private fun PokemonScreenData.displayTypes(): String {
-    return listOfNotNull(type1, type2).joinToString("/").ifBlank { "" }
-}
-
-private fun parseTypesForReview(value: String): List<String> {
-    return value.split("/", ",")
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
-        .map { it.uppercase() }
-        .distinct()
-        .take(2)
-}
-
-private data class PvpRankCard(
-    val pokemonName: String,
-    val league: PvpLeague,
-    val rank: Int?,
-    val eligible: Boolean,
-    val value: String,
-    val label: String
-)
-
-private fun speciesRankCardsForLeague(
-    context: Context,
-    speciesRanks: List<PvpSpeciesRankInfo>,
-    selectedLeague: PvpLeague?
-): List<PvpRankCard> {
-    if (speciesRanks.isEmpty()) return emptyList()
-    val orderedSpecies = speciesRanks.map { it.pokemonName }.distinct()
-    val familyOrder = orderedSpecies.withIndex().associate { it.value to it.index }
-    val stageOrder = loadReviewEvolutionStageOrder(context)
-    return orderedSpecies.mapNotNull { pokemonName ->
-        val ranksForSpecies = speciesRanks.filter { it.pokemonName == pokemonName }
-        val best = if (selectedLeague != null) {
-            ranksForSpecies.firstOrNull { it.league == selectedLeague }
-        } else {
-            ranksForSpecies
-                .filter { it.eligible && it.rank != null }
-                .minWithOrNull(compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.league.ordinal })
-                ?: ranksForSpecies.firstOrNull()
-        } ?: return@mapNotNull null
-        PvpRankCard(
-            pokemonName = pokemonName,
-            league = best.league,
-            rank = best.rank,
-            eligible = best.eligible,
-            label = pokemonName,
-            value = if (best.eligible && best.rank != null) {
-                if (selectedLeague != null) "Rank ${best.rank}" else "${leagueShortName(best.league)} • ${best.rank}"
-            } else {
-                "Não elegível"
-            }
-        )
-    }.sortedWith(
-        compareBy<PvpRankCard> { reviewEvolutionStageRank(stageOrder, it.pokemonName) }
-            .thenBy { familyOrder[it.pokemonName] ?: Int.MAX_VALUE }
-            .thenBy { it.label }
-    )
-}
-
-private fun moveDropdownOptions(
-    moves: List<ReviewPokemonMove>,
-    legacyMoveSymbol: String
-): List<ReviewPokemonMoveOption> {
-    return moves.map { move ->
-        ReviewPokemonMoveOption(
-            value = move.name,
-            label = if (move.legacy && legacyMoveSymbol.isNotBlank()) {
-                "${move.name} $legacyMoveSymbol"
-            } else {
-                move.name
-            }
-        )
-    }
-}
-
-private fun loadReviewEvolutionStageOrder(context: Context): Map<String, Int> {
-    reviewEvolutionStageOrderCache?.let { return it }
-    return try {
-        val jsonArray = JSONArray(
-            context.assets.open(AssetPaths.POKEMON_EVOLUTION_STAGES).bufferedReader().use { it.readText() }
-        )
-        buildMap {
-            for (index in 0 until jsonArray.length()) {
-                val item = jsonArray.getJSONObject(index)
-                val normalizedName = normalizeReviewKey(item.optString("name"))
-                val order = when (item.optString("stage").uppercase(Locale.US)) {
-                    "BABY" -> 0
-                    "BASIC" -> 1
-                    "STAGE1" -> 2
-                    "STAGE2" -> 3
-                    else -> 4
-                }
-                if (normalizedName.isNotBlank()) {
-                    put(normalizedName, order)
-                }
-            }
-        }.also { reviewEvolutionStageOrderCache = it }
-    } catch (_: Exception) {
-        emptyMap()
-    }
-}
-
-private fun reviewEvolutionStageRank(stageOrder: Map<String, Int>, pokemonName: String): Int {
-    val normalizedName = normalizeReviewKey(pokemonName)
-    return stageOrder[normalizedName] ?: 4
-}
-
-private fun loadReviewPokemonMoveSet(context: Context, pokemonName: String): ReviewPokemonMoveSet {
-    val moveCatalog = loadReviewPokemonMoveCatalog(context)
-    val lookupKeys = reviewPokemonMoveLookupKeys(pokemonName)
-    return lookupKeys.firstNotNullOfOrNull { key -> moveCatalog[key] }
-        ?: ReviewPokemonMoveSet(emptyList(), emptyList())
-}
-
-private fun loadReviewPokemonMoveCatalog(context: Context): Map<String, ReviewPokemonMoveSet> {
-    reviewPokemonMoveCache?.let { return it }
-    return try {
-        val jsonArray = JSONArray(
-            context.assets.open(AssetPaths.POKEMON_CURRENT_MOVES).bufferedReader().use { it.readText() }
-        )
-        buildMap {
-            for (index in 0 until jsonArray.length()) {
-                val item = jsonArray.getJSONObject(index)
-                val name = item.optString("name")
-                val normalizedName = normalizeReviewKey(name)
-                if (normalizedName.isBlank()) continue
-                put(
-                    normalizedName,
-                    ReviewPokemonMoveSet(
-                        fastMoves = parseReviewMoves(item.optJSONArray("fastMoves")),
-                        chargedMoves = parseReviewMoves(item.optJSONArray("chargedMoves"))
-                    )
-                )
-            }
-        }.also { reviewPokemonMoveCache = it }
-    } catch (_: Exception) {
-        emptyMap()
-    }
-}
-
-private fun parseReviewMoves(array: JSONArray?): List<ReviewPokemonMove> {
-    array ?: return emptyList()
-    return buildList {
-        for (index in 0 until array.length()) {
-            val item = array.optJSONObject(index) ?: continue
-            val name = item.optString("name").trim()
-            if (name.isBlank()) continue
-            add(
-                ReviewPokemonMove(
-                    name = name,
-                    legacy = item.optBoolean("legacy", false)
-                )
-            )
-        }
-    }
-}
-
-private fun reviewPokemonMoveLookupKeys(pokemonName: String): List<String> {
-    val trimmed = pokemonName.trim()
-    if (trimmed.isBlank()) return emptyList()
-    val keys = linkedSetOf(normalizeReviewKey(trimmed))
-    reviewRegionalPrefixes().forEach { prefix ->
-        if (trimmed.startsWith(prefix, ignoreCase = true)) {
-            keys += normalizeReviewKey(trimmed.substring(prefix.length).trim())
-        }
-    }
-    return keys.filter { it.isNotBlank() }
-}
-
-private fun reviewRegionalPrefixes(): List<String> {
-    return listOf("Alolan ", "Galarian ", "Hisuian ", "Paldean ")
-}
-
-private fun normalizeReviewKey(text: String): String {
-    return Normalizer.normalize(text.trim(), Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-        .replace(Regex("[^A-Za-z0-9]+"), " ")
-        .trim()
-        .uppercase(Locale.US)
-}
-
-private fun isVivillonReviewFamily(name: String?): Boolean {
-    val normalized = name?.trim()?.uppercase() ?: return false
-    return normalized in setOf("SCATTERBUG", "SPEWPA", "VIVILLON")
-}
-
-private fun debugRectSummary(
-    label: String,
-    rect: NormalizedDebugRect?,
-    bitmap: Bitmap
-): String? {
-    rect ?: return null
-    val left = (rect.left * bitmap.width).roundToInt()
-    val top = (rect.top * bitmap.height).roundToInt()
-    val right = (rect.right * bitmap.width).roundToInt()
-    val bottom = (rect.bottom * bitmap.height).roundToInt()
-    val width = (right - left).coerceAtLeast(0)
-    val height = (bottom - top).coerceAtLeast(0)
-    return "$label px: x=$left y=$top w=$width h=$height"
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ReviewChipSection(
-    label: String,
-    options: List<Pair<String, Boolean>>,
-    onSelect: (Int) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        ReviewSectionTitle(label)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            options.forEachIndexed { index, option ->
-                FilterChip(
-                    modifier = Modifier.heightIn(min = 27.dp),
-                    selected = option.second,
-                    onClick = { onSelect(index) },
-                    label = { Text(option.first, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WeightedToggleRow(items: List<WeightedToggleItem>) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        items.forEach { item ->
-            ToggleChip(
-                label = item.label,
-                selected = item.selected,
-                onClick = item.onClick,
-                compact = true,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ToggleChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    compact: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    val shape = RoundedCornerShape(10.dp)
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-    } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
-    }
-    val borderColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
-    } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)
-    }
-    Surface(
-        modifier = modifier
-            .heightIn(min = 34.dp)
-            .clickable(onClick = onClick),
-        shape = shape,
-        color = containerColor,
-        tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = 34.dp)
-                .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                label,
-                style = if (compact) MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp) else MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-private fun Set<EvolutionFlag>.toggle(flag: EvolutionFlag): Set<EvolutionFlag> {
-    return if (flag in this) this - flag else this + flag
-}
-
-private fun Set<EvolutionFlag>.toggleEvolutionStage(flag: EvolutionFlag): Set<EvolutionFlag> {
-    val stageFlags = setOf(EvolutionFlag.BABY, EvolutionFlag.STAGE1, EvolutionFlag.STAGE2)
-    return if (flag in this) {
-        this - flag
-    } else {
-        (this - stageFlags) + flag
-    }
-}
-
-private fun Set<NamingField>.toggleField(field: NamingField): Set<NamingField> {
-    return if (field in this) this - field else this + field
-}
-
-private fun Set<NamingField>.toggleAll(fields: Set<NamingField>): Set<NamingField> {
-    return if (fields.all { it in this }) this - fields else this + fields
-}
-
-private fun pokemonDebugFields(): Set<NamingField> = linkedSetOf(
-    NamingField.POKEMON_NAME,
-    NamingField.CP,
-    NamingField.LEVEL,
-    NamingField.GENDER,
-    NamingField.UNIQUE_FORM
-)
-
-private fun ivDebugFields(): Set<NamingField> = linkedSetOf(
-    NamingField.IV_PERCENT,
-    NamingField.IV_COMBINATION
-)
-
-private fun attributeDebugFields(): Set<NamingField> = linkedSetOf(
-    NamingField.TYPE,
-    NamingField.FAVORITE,
-    NamingField.LUCKY,
-    NamingField.SHADOW,
-    NamingField.PURIFIED
-)
-
-private fun ReviewIvMode.localizedLabel(language: AppLanguage): String {
-    return when (this) {
-        ReviewIvMode.NORMAL -> lt(language, "Normal", "Normal", "Normal")
-        ReviewIvMode.SHADOW -> lt(language, "Sombroso", "Shadow", "Oscuro")
-        ReviewIvMode.PURIFIED -> lt(language, "Purificado", "Purified", "Purificado")
-    }
-}
-
-private fun PokemonScreenData.applyIvMode(mode: ReviewIvMode): PokemonScreenData {
-    return copy(
-        isShadow = mode == ReviewIvMode.SHADOW,
-        isPurified = mode == ReviewIvMode.PURIFIED
-    ).recalculateIvPercent()
-}
-
-private fun effectiveIvForMode(value: Int?, mode: ReviewIvMode): Int? {
-    return if (mode == ReviewIvMode.PURIFIED) {
-        value?.plus(2)?.coerceAtMost(15)
-    } else {
-        value
-    }
-}
-
-private fun displayIvToBaseIv(value: Int, mode: ReviewIvMode): Int {
-    return if (mode == ReviewIvMode.PURIFIED) {
-        (value - 2).coerceIn(0, 15)
-    } else {
-        value
-    }
-}
-
-private fun buildDerivedReviewData(
-    context: Context,
-    data: PokemonScreenData,
-    familyMembers: List<String>,
-    rankCalculator: PvpRankCalculator,
-    masterIvBadgeCatalog: MasterIvBadgeCatalog
-): PokemonScreenData {
-    val attack = data.attIv ?: return data
-    val defense = data.defIv ?: return data
-    val stamina = data.staIv ?: return data
-    val familyRanks = runCatching {
-        rankCalculator.calculateFamilySpeciesLeagueRanks(context, familyMembers, attack, defense, stamina)
-    }.getOrElse { emptyList() }
-    val leagueRanks = bestLeagueRanksFromSpecies(familyRanks)
-    val selectedLeague = data.pvpLeague
-        ?.takeIf { league -> familyRanks.any { it.league == league && it.eligible && it.rank != null } }
-        ?: bestLeagueFromRanks(familyRanks, leagueRanks)
-    val selectedSpeciesRank = selectedLeague?.let { league ->
-        familyRanks
-            .filter { it.league == league && it.eligible && it.rank != null }
-            .minWithOrNull(compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.pokemonName })
-    }
-    val selectedLeagueRank = if (selectedSpeciesRank == null && selectedLeague != null) {
-        leagueRanks.firstOrNull { it.league == selectedLeague && it.eligible }
-    } else {
-        null
-    }
-    val masterResult = runCatching {
-        masterIvBadgeCatalog.resolve(
-            context = context,
-            familyMembers = familyMembers,
-            ivPercent = data.ivPercent,
-            attack = attack,
-            defense = defense,
-            stamina = stamina
-        )
-    }.getOrNull()
-    return data.copy(
-        familyPvpRanks = familyRanks,
-        pvpLeagueRanks = leagueRanks,
-        pvpLeague = selectedLeague,
-        pvpRank = selectedSpeciesRank?.rank ?: selectedLeagueRank?.rank,
-        pvpPokemonName = selectedSpeciesRank?.pokemonName ?: selectedLeagueRank?.pokemonName,
-        masterIvBadgeMatch = masterResult?.isBestMatch,
-        masterIvBadgeDebugInfo = masterResult?.let { result ->
-            MasterIvBadgeDebugInfo(
-                supportedIvPercent = result.notes != "iv_percent_fora_do_escopo",
-                familyMembers = familyMembers,
-                expectedAttack = result.expectedAttack,
-                expectedDefense = result.expectedDefense,
-                expectedStamina = result.expectedStamina,
-                isBestMatch = result.isBestMatch,
-                notes = result.notes
-            )
-        }
-    )
-}
-
-private fun bestLeagueRanksFromSpecies(speciesRanks: List<PvpSpeciesRankInfo>): List<PvpLeagueRankInfo> {
-    return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).mapNotNull { league ->
-        val best = selectBestFamilyOption(speciesRanks.filter { it.league == league }) ?: return@mapNotNull null
-        PvpLeagueRankInfo(
-            league = best.league,
-            pokemonName = best.pokemonName,
-            eligible = best.eligible,
-            rank = best.rank,
-            bestCp = best.bestCp,
-            bestLevel = best.bestLevel,
-            bestStatProduct = best.bestStatProduct,
-            stadiumUrl = best.stadiumUrl,
-            description = best.description
-        )
-    }
-}
-
-private fun selectBestFamilyOption(options: List<PvpSpeciesRankInfo>): PvpSpeciesRankInfo? {
-    val eligible = options.filter { it.eligible && it.bestStatProduct != null }
-    if (eligible.isNotEmpty()) {
-        return eligible.maxWithOrNull(
-            compareBy<PvpSpeciesRankInfo> { it.bestStatProduct ?: Double.NEGATIVE_INFINITY }
-                .thenByDescending { it.bestLevel ?: 0.0 }
-                .thenByDescending { it.bestCp ?: 0 }
-        )
-    }
-    return options.firstOrNull()
-}
-
-private fun bestLeagueFromRanks(
-    speciesRanks: List<PvpSpeciesRankInfo>,
-    leagueRanks: List<PvpLeagueRankInfo>
-): PvpLeague? {
-    return speciesRanks
-        .filter { it.eligible && it.rank != null }
-        .minWithOrNull(compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.league.ordinal })
-        ?.league
-        ?: leagueRanks
-            .filter { it.eligible && it.rank != null }
-            .minWithOrNull(compareBy<PvpLeagueRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.league.ordinal })
-            ?.league
-}
-
-private fun PokemonScreenData.normalizeReviewData(): PokemonScreenData {
-    val att = attIv
-    val def = defIv
-    val sta = staIv
-    val normalized = if (ivPercent == null && att != null && def != null && sta != null) {
-        copy(ivPercent = ((att + def + sta) * 100f / 45f).roundToInt())
-    } else {
-        this
-    }
-    return if (normalized.hasSpecialBackground) {
-        normalized.copy(specialBackgroundType = normalized.specialBackgroundType ?: SpecialBackgroundType.SPECIAL)
-    } else {
-        normalized.copy(specialBackgroundType = null)
-    }
-}
-
-private fun PokemonScreenData.recalculateIvPercent(): PokemonScreenData {
-    val att = attIv
-    val def = defIv
-    val sta = staIv
-    return if (att != null && def != null && sta != null) {
-        copy(ivPercent = ((att + def + sta) * 100f / 45f).roundToInt())
-    } else {
-        this
-    }
-}
-
-private fun PokemonScreenData.applySelectedLegacyMove(
-    selectedMoveName: String?,
-    availableMoves: List<ReviewPokemonMove>,
-    previewUsesLegacyMove: Boolean
-): PokemonScreenData {
-    if (!previewUsesLegacyMove) return this
-    val selectedMove = selectedMoveName?.let { moveName ->
-        availableMoves.firstOrNull { it.name == moveName }
-    } ?: return this
-    if (!selectedMove.legacy) return this
-    return copy(
-        hasLegacyMove = true,
-        legacyDebugInfo = (legacyDebugInfo ?: LegacyDebugInfo()).copy(
-            matchedLegacyMove = selectedMove.name
-        )
-    )
-}
-
-private fun specialBackgroundSelectionOptions(language: AppLanguage): List<String> {
-    return listOf(
-        "-",
-        SpecialBackgroundType.SPECIAL.localizedLabel(language),
-        SpecialBackgroundType.GO_FEST.localizedLabel(language),
-        SpecialBackgroundType.WILD_AREA.localizedLabel(language),
-        SpecialBackgroundType.LOCATION.localizedLabel(language),
-        SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language)
-    )
-}
-
-private fun specialBackgroundTypeFromSelection(
-    value: String,
-    language: AppLanguage
-): SpecialBackgroundType? {
-    return when (value) {
-        SpecialBackgroundType.SPECIAL.localizedLabel(language) -> SpecialBackgroundType.SPECIAL
-        SpecialBackgroundType.GO_FEST.localizedLabel(language) -> SpecialBackgroundType.GO_FEST
-        SpecialBackgroundType.WILD_AREA.localizedLabel(language) -> SpecialBackgroundType.WILD_AREA
-        SpecialBackgroundType.LOCATION.localizedLabel(language) -> SpecialBackgroundType.LOCATION
-        SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language) -> SpecialBackgroundType.COMMUNITY_DAY
-        else -> null
-    }
-}
-
-private fun PokemonScreenData.specialBackgroundSelectionLabel(language: AppLanguage): String {
-    if (!hasSpecialBackground) return "-"
-    return (specialBackgroundType ?: SpecialBackgroundType.SPECIAL).localizedLabel(language)
-}
-
-

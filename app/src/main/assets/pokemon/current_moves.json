@@ -4388,6 +4388,10 @@
                              {
                                  "name":  "Focus Blast",
                                  "legacy":  false
+                             },
+                             {
+                                 "name":  "Blast Burn",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -8623,7 +8627,7 @@
                          ]
     },
     {
-        "name":  "Farfetch’d",
+        "name":  "Farfetchï¿½d",
         "fastMoves":  [
                           {
                               "name":  "Air Slash",
@@ -12419,6 +12423,10 @@
                              },
                              {
                                  "name":  "Upper Hand",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Rock Tomb",
                                  "legacy":  false
                              }
                          ]
@@ -19234,7 +19242,7 @@
                          ]
     },
     {
-        "name":  "Nidoran?",
+        "name":  "Nidoranâ™€", "aliases": ["NidoranF", "Nidoran F", "Nidoran Female"],
         "fastMoves":  [
                           {
                               "name":  "Bite",
@@ -19261,7 +19269,7 @@
                          ]
     },
     {
-        "name":  "Nidoran?",
+        "name":  "Nidoranâ™‚", "aliases": ["NidoranM", "Nidoran M", "Nidoran Male"],
         "fastMoves":  [
                           {
                               "name":  "Peck",
@@ -22929,6 +22937,10 @@
                              {
                                  "name":  "Outrage",
                                  "legacy":  false
+                             },
+                             {
+                                 "name":  "Dragon Ascent",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -25670,7 +25682,7 @@
                          ]
     },
     {
-        "name":  "Sirfetch’d",
+        "name":  "Sirfetchï¿½d",
         "fastMoves":  [
                           {
                               "name":  "Counter",
@@ -32337,17 +32349,18 @@
     },
     {
         "name":  "Zacian",
+        "aliases":  [
+                        "Zacian Hero",
+                        "Zacian (Hero)",
+                        "Zacian Hero of Many Battles"
+                    ],
         "fastMoves":  [
                           {
-                              "name":  "Air Slash",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Fire Fang",
-                              "legacy":  false
-                          },
-                          {
                               "name":  "Metal Claw",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Snarl",
                               "legacy":  false
                           },
                           {
@@ -32355,17 +32368,13 @@
                               "legacy":  false
                           },
                           {
-                              "name":  "Snarl",
+                              "name":  "Fire Fang",
                               "legacy":  false
                           }
                       ],
         "chargedMoves":  [
                              {
-                                 "name":  "Close Combat",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Giga Impact",
+                                 "name":  "Play Rough",
                                  "legacy":  false
                              },
                              {
@@ -32373,24 +32382,29 @@
                                  "legacy":  false
                              },
                              {
-                                 "name":  "Play Rough",
+                                 "name":  "Wild Charge",
                                  "legacy":  false
                              },
                              {
-                                 "name":  "Wild Charge",
+                                 "name":  "Close Combat",
                                  "legacy":  false
                              }
                          ]
     },
     {
         "name":  "Zamazenta",
+        "aliases":  [
+                        "Zamazenta Hero",
+                        "Zamazenta (Hero)",
+                        "Zamazenta Hero of Many Battles"
+                    ],
         "fastMoves":  [
                           {
-                              "name":  "Ice Fang",
+                              "name":  "Metal Claw",
                               "legacy":  false
                           },
                           {
-                              "name":  "Metal Claw",
+                              "name":  "Snarl",
                               "legacy":  false
                           },
                           {
@@ -32398,13 +32412,17 @@
                               "legacy":  false
                           },
                           {
-                              "name":  "Snarl",
+                              "name":  "Ice Fang",
                               "legacy":  false
                           }
                       ],
         "chargedMoves":  [
                              {
-                                 "name":  "Close Combat",
+                                 "name":  "Moonblast",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Iron Head",
                                  "legacy":  false
                              },
                              {
@@ -32412,15 +32430,7 @@
                                  "legacy":  false
                              },
                              {
-                                 "name":  "Giga Impact",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Iron Head",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Moonblast",
+                                 "name":  "Close Combat",
                                  "legacy":  false
                              }
                          ]
@@ -32830,6 +32840,240 @@
                              {
                                  "name":  "Outrage",
                                  "legacy":  false
+                             }
+                         ]
+    },
+    {
+        "name":  "Zacian Crowned Sword",
+        "aliases":  [
+                        "Zacian (Coroado)",
+                        "Crowned Sword Zacian",
+                        "Zacian Espada Coroada"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Metal Claw",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Air Slash",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Play Rough",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Close Combat",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Giga Impact",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Behemoth Blade",
+                                 "legacy":  true
+                             }
+                         ]
+    },
+    {
+        "name":  "Zamazenta Crowned Shield",
+        "aliases":  [
+                        "Zamazenta (Coroado)",
+                        "Crowned Shield Zamazenta",
+                        "Zamazenta Escudo Coroado"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Metal Claw",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Ice Fang",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Moonblast",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Close Combat",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Giga Impact",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Behemoth Bash",
+                                 "legacy":  true
+                             }
+                         ]
+    },
+    {
+        "name":  "Dialga Origin",
+        "aliases":  [
+                        "Dialga (Origem)",
+                        "Dialga (Origin)",
+                        "Origin Forme Dialga"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Dragon Breath",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Metal Claw",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Draco Meteor",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Iron Head",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Thunder",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Roar Of Time",
+                                 "legacy":  true
+                             }
+                         ]
+    },
+    {
+        "name":  "Palkia Origin",
+        "aliases":  [
+                        "Palkia (Origem)",
+                        "Palkia (Origin)",
+                        "Origin Forme Palkia"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Dragon Breath",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Dragon Tail",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Draco Meteor",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Fire Blast",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Hydro Pump",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Aqua Tail",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Spacial Rend",
+                                 "legacy":  true
+                             }
+                         ]
+    },
+    {
+        "name":  "Necrozma Dusk Mane",
+        "aliases":  [
+                        "Necrozma (Juba do CrepÃºsculo)",
+                        "Dusk Mane Necrozma"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Metal Claw",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Psycho Cut",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Shadow Claw",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Dark Pulse",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Futuresight",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Iron Head",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Outrage",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Sunsteel Strike",
+                                 "legacy":  true
+                             }
+                         ]
+    },
+    {
+        "name":  "Necrozma Dawn Wings",
+        "aliases":  [
+                        "Necrozma (Asas da Alvorada)",
+                        "Dawn Wings Necrozma"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Metal Claw",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Psycho Cut",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Shadow Claw",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Dark Pulse",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Futuresight",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Iron Head",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Outrage",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Moongeist Beam",
+                                 "legacy":  true
                              }
                          ]
     }

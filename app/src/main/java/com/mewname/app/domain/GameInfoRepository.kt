@@ -132,6 +132,22 @@ object GameInfoRepository {
 
     private val localizedPokemonSearchTermCache = mutableMapOf<AppLanguage, Map<String, String>>()
 
+    fun clearCache(language: AppLanguage? = null) {
+        synchronized(this) {
+            if (language != null) {
+                localizedPokemonSearchTermCache.remove(language)
+                return
+            }
+            moveCatalogCache = null
+            pokedexCache = null
+            typeEffectivenessCache = null
+            battlePokemonIndexCache = null
+            raidHistoryCache = null
+            pokemonDexOrderCache = null
+            localizedPokemonSearchTermCache.clear()
+        }
+    }
+
     fun loadMoveCatalog(context: Context): List<MoveCatalogEntry> {
         moveCatalogCache?.let { return it }
         synchronized(this) {
