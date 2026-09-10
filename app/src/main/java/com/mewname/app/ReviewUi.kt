@@ -168,9 +168,11 @@ fun ReviewEditorCard(
     configs: List<NamingConfig> = listOf(NamingConfig()),
     bitmap: Bitmap? = null,
     onConfirm: (PokemonScreenData) -> Unit,
-    onExportLog: ((Set<NamingField>) -> Unit)? = null,
+    onExportLog: ((ReviewLogRequest, PokemonScreenData) -> Unit)? = null,
     onCancel: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    useLogSelectionModal: Boolean = false,
+    glassStyle: Boolean = false
 ) {
     val context = LocalContext.current
     val language = appLanguage()
@@ -209,6 +211,9 @@ fun ReviewEditorCard(
     var showVivillonHelp by remember { mutableStateOf(false) }
     var showEvolutionHelp by remember { mutableStateOf(false) }
     var showAttributeHelp by remember { mutableStateOf(false) }
+    var showLogSelection by remember { mutableStateOf(false) }
+    var includeLogOcr by remember { mutableStateOf(false) }
+    var includeLogNames by remember { mutableStateOf(false) }
     var selectedDebugFields by remember { mutableStateOf<Set<NamingField>>(emptySet()) }
     val familySuggester = remember { PokemonFamilySuggester() }
     val visibleSizeOptions = remember(configs, draft.size) {
@@ -464,7 +469,25 @@ fun ReviewEditorCard(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalReviewOptionPicker provides { activeOptionPicker = it }) {
+        CompositionLocalProvider(
+            LocalReviewOptionPicker provides { activeOptionPicker = it },
+            LocalHideReviewLogMarkers provides useLogSelectionModal,
+            LocalGlassReviewStyle provides glassStyle,
+            LocalGlassCapture provides bitmap,
+            LocalFieldLogMarker provides { label ->
+                val field = NamingField.entries.firstOrNull { it.localizedLabel(language) == label }
+                    ?: when (label) {
+                        "Atk", "Def", "HP" -> null
+                        "Ataque cargado", "Ataque carregado", "Charged move" -> NamingField.LEGACY_MOVE_NAME
+                        else -> null
+                    }
+                if (field != null) UnownHeaderIcon(
+                    selected = field in selectedDebugFields,
+                    onClick = { selectedDebugFields = selectedDebugFields.toggleField(field) },
+                    contentDescription = "Log: $label"
+                )
+            }
+        ) {
         Card(
             modifier = Modifier
                 .widthIn(max = 560.dp)
@@ -472,20 +495,39 @@ fun ReviewEditorCard(
                 .heightIn(max = maxCardHeight)
                 .align(Alignment.BottomCenter),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.68f))
+            border = if (glassStyle) androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.35f)) else null,
+            colors = CardDefaults.cardColors(containerColor = if (glassStyle) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.68f))
         ) {
+            GlassReviewBackdrop(bitmap, glassStyle) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
             ) {
                 SuggestedNamesBlock(
                     suggestions = generatedSuggestions,
                     language = language,
                     onSuggestionSelected = { confirmReviewedData() },
                     onCancel = onCancel,
-                    onExportLog = onExportLog?.let { export -> { export(selectedDebugFields) } },
+                    onExportLog = onExportLog?.let { export -> {
+                        if (useLogSelectionModal) {
+                            activeOptionPicker = null
+                            activeIvPicker = null
+                            showLogSelection = true
+                        } else export(ReviewLogRequest(selectedDebugFields), reviewData)
+                    } },
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (glassStyle) {
+                    GlassTabs(
+                        labels = reviewTabs.map { tab -> when (tab) {
+                            ReviewTab.BASIC -> lt(language, "Geral", "General", "General")
+                            ReviewTab.PVP -> "PVP"
+                            ReviewTab.EXTRAS -> "Extras"
+                        } },
+                        selected = selectedReviewTabIndex,
+                        onSelected = { selectedReviewTab = reviewTabs[it] }
+                    )
+                } else {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
@@ -503,8 +545,8 @@ fun ReviewEditorCard(
                                 text = {
                                     Text(
                                         text = when (tab) {
-                                            ReviewTab.BASIC -> lt(language, "Nome e IV", "Name and IV", "Nombre e IV")
-                                            ReviewTab.PVP -> lt(language, "Liga e ranking", "League and rank", "Liga y ranking")
+                                            ReviewTab.BASIC -> lt(language, "Geral", "General", "General")
+                                            ReviewTab.PVP -> "PVP"
                                             ReviewTab.EXTRAS -> lt(language, "Extras", "Extras", "Extras")
                                         },
                                         maxLines = 1,
@@ -515,18 +557,19 @@ fun ReviewEditorCard(
                         }
                     }
                 }
+                }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                    .padding(start = 12.dp, end = 12.dp, top = if (glassStyle) 0.dp else 9.dp, bottom = if (glassStyle) 4.5.dp else 9.dp),
+                verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
             ) {
             if (activeReviewTab == ReviewTab.BASIC) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                ReviewTextRow {
-                    if (NamingField.EVOLVE_MARKER in fields) {
+            Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
+                GlassFieldRow(weights = listOf(2f, 1.4f, 1f), legacyAlignment = Alignment.Bottom) {
+                    if (!glassStyle && NamingField.EVOLVE_MARKER in fields) {
                         Row(
                             modifier = Modifier.weight(2f),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -539,7 +582,7 @@ fun ReviewEditorCard(
                                 expanded = pokemonExpanded,
                                 onExpandedChange = { pokemonExpanded = it },
                                 onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
-                                useOptionModal = false,
+                                useOptionModal = glassStyle,
                                 modifier = Modifier.weight(1f)
                             )
                             MarkerCheckboxField(
@@ -557,15 +600,21 @@ fun ReviewEditorCard(
                             expanded = pokemonExpanded,
                             onExpandedChange = { pokemonExpanded = it },
                             onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
-                            useOptionModal = false,
+                            useOptionModal = glassStyle,
                             modifier = Modifier.weight(2f)
                         )
                     }
                     Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        modifier = Modifier.weight(if (glassStyle) 1.4f else 1f),
+                        verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
                     ) {
-                        FieldLabelRow(label = NamingField.GENDER.localizedLabel(language))
+                        FieldLabelRow(label = NamingField.GENDER.localizedLabel(language), trailing = {
+                            UnownHeaderIcon(
+                                selected = NamingField.GENDER in selectedDebugFields,
+                                onClick = { selectedDebugFields = selectedDebugFields.toggleField(NamingField.GENDER); showPokemonHelp = !showPokemonHelp },
+                                contentDescription = "Log de genero"
+                            )
+                        })
                         WeightedToggleRow(
                             items = listOf(
                                 WeightedToggleItem(
@@ -597,9 +646,9 @@ fun ReviewEditorCard(
                         onClick = { showLevelPicker = true },
                         headerTrailing = {
                             UnownHeaderIcon(
-                                selected = selectedDebugFields.any { it in pokemonDebugFields() },
+                                selected = NamingField.LEVEL in selectedDebugFields,
                                 onClick = {
-                                    selectedDebugFields = selectedDebugFields.toggleAll(pokemonDebugFields())
+                                    selectedDebugFields = selectedDebugFields.toggleField(NamingField.LEVEL)
                                     showPokemonHelp = !showPokemonHelp
                                 },
                                 contentDescription = "Log do Pokémon"
@@ -639,7 +688,7 @@ fun ReviewEditorCard(
                                 draft.copy(uniqueForm = selected)
                             }
                         },
-                            useOptionModal = false,
+                            useOptionModal = glassStyle,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -657,8 +706,8 @@ fun ReviewEditorCard(
 
             if (activeReviewTab == ReviewTab.BASIC) {
             if (NamingField.IV_PERCENT in fields || NamingField.IV_COMBINATION in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
+                    GlassFieldRow(weights = List(if (NamingField.IV_PERCENT in fields) 4 else 3) { 1f }, legacySpacing = 6.dp) {
                         if (NamingField.IV_PERCENT in fields) {
                             CompactField(
                                 label = "IV %",
@@ -688,9 +737,9 @@ fun ReviewEditorCard(
                             onClick = { activeIvPicker = if (activeIvPicker == "hp") null else "hp" },
                             headerTrailing = {
                                 UnownHeaderIcon(
-                                    selected = selectedDebugFields.any { it in ivDebugFields() },
+                                    selected = NamingField.IV_COMBINATION in selectedDebugFields,
                                     onClick = {
-                                        selectedDebugFields = selectedDebugFields.toggleAll(ivDebugFields())
+                                        selectedDebugFields = selectedDebugFields.toggleField(NamingField.IV_COMBINATION)
                                         showIvHelp = !showIvHelp
                                     },
                                     contentDescription = "Log de IV"
@@ -705,7 +754,7 @@ fun ReviewEditorCard(
                 }
             }
             if (hasIvModeField) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                GlassFieldRow(weights = if (NamingField.MASTER_IV_BADGE in fields) listOf(1.45f, 1f) else emptyList()) {
                     if (NamingField.MASTER_IV_BADGE in fields) {
                         SelectionDropdownField(
                             label = "IV Master",
@@ -733,7 +782,7 @@ fun ReviewEditorCard(
                                     contentDescription = "Selecionar log de IV Master"
                                 )
                             },
-                            useOptionModal = false,
+                            useOptionModal = glassStyle,
                             modifier = Modifier.weight(1.45f)
                         )
                     }
@@ -750,10 +799,10 @@ fun ReviewEditorCard(
                                 )
                             }
                         },
-                            useOptionModal = false,
+                            useOptionModal = glassStyle,
                         modifier = Modifier.weight(1f)
                     )
-                    if (NamingField.PURIFY_MARKER in fields) {
+                    if (!glassStyle && NamingField.PURIFY_MARKER in fields) {
                         MarkerCheckboxField(
                             label = NamingField.PURIFY_MARKER.localizedLabel(language),
                             checked = draft.shouldPurify,
@@ -762,7 +811,7 @@ fun ReviewEditorCard(
                         )
                     }
                 }
-                    if (NamingField.MASTER_IV_BADGE in selectedDebugFields) {
+                    if (!useLogSelectionModal && NamingField.MASTER_IV_BADGE in selectedDebugFields) {
                         reviewData.masterIvBadgeDebugInfo?.let { info ->
                             Text(
                                 text = buildString {
@@ -789,6 +838,20 @@ fun ReviewEditorCard(
             }
             }
 
+            if (glassStyle && activeReviewTab == ReviewTab.BASIC &&
+                (NamingField.EVOLVE_MARKER in fields || NamingField.PURIFY_MARKER in fields)) {
+                GlassFieldRow {
+                    if (NamingField.EVOLVE_MARKER in fields) {
+                        GlassSwitchField(NamingField.EVOLVE_MARKER.localizedLabel(language), draft.shouldEvolve,
+                            { draft = draft.copy(shouldEvolve = it) }, Modifier.weight(1f))
+                    }
+                    if (NamingField.PURIFY_MARKER in fields) {
+                        GlassSwitchField(NamingField.PURIFY_MARKER.localizedLabel(language), draft.shouldPurify,
+                            { draft = draft.copy(shouldPurify = it) }, Modifier.weight(1f))
+                    }
+                }
+            }
+
             val hasAttributeSection = listOf(
                 NamingField.TYPE,
                 NamingField.FAVORITE,
@@ -796,12 +859,12 @@ fun ReviewEditorCard(
             ).any { it in fields }
             if (activeReviewTab == ReviewTab.EXTRAS) {
             if (hasAttributeSection) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                GlassSection(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
                     FieldHeaderRow(
-                        label = lt(language, "Atributos", "Attributes", "Atributos"),
-                        selected = selectedDebugFields.any { it in attributeDebugFields() },
+                        label = NamingField.TYPE.localizedLabel(language),
+                        selected = NamingField.TYPE in selectedDebugFields,
                         onMarkerClick = {
-                            selectedDebugFields = selectedDebugFields.toggleAll(attributeDebugFields().intersect(fields.toSet()))
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.TYPE)
                             showAttributeHelp = !showAttributeHelp
                         }
                     )
@@ -864,7 +927,8 @@ fun ReviewEditorCard(
 
             if (activeReviewTab == ReviewTab.EXTRAS) {
                 // Keep every extra control in one measured block so no section is dropped by the overlay layout.
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(if (glassStyle) 2.dp else 4.dp)) {
+                    GlassSection {
                     FieldHeaderRow(
                         label = NamingField.SIZE.localizedLabel(language),
                         selected = NamingField.SIZE in selectedDebugFields,
@@ -890,6 +954,7 @@ fun ReviewEditorCard(
                     if (showSizeHelp) {
                         SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
                     }
+                    }
                     ReviewTextRow {
                         SelectionDropdownField(
                             label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
@@ -903,7 +968,7 @@ fun ReviewEditorCard(
                                     draft.copy(hasSpecialBackground = true, specialBackgroundType = type)
                                 }
                             },
-                            useOptionModal = false,
+                            useOptionModal = glassStyle,
                             modifier = Modifier.weight(1f)
                         )
                         LabeledToggleChipField(
@@ -933,6 +998,7 @@ fun ReviewEditorCard(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                    GlassSection {
                     FieldHeaderRow(
                         label = NamingField.EVOLUTION_TYPE.localizedLabel(language),
                         selected = NamingField.EVOLUTION_TYPE in selectedDebugFields,
@@ -957,6 +1023,7 @@ fun ReviewEditorCard(
                             }
                         )
                     )
+                    Spacer(Modifier.height(2.dp))
                     WeightedToggleRow(
                         items = listOf(
                             WeightedToggleItem("Dynamax", EvolutionFlag.DYNAMAX in draft.evolutionFlags) {
@@ -970,12 +1037,13 @@ fun ReviewEditorCard(
                             }
                         )
                     )
+                    }
                 }
             }
 
             if (false) {
                 if (NamingField.SIZE in fields) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
                     FieldHeaderRow(
                         label = NamingField.SIZE.localizedLabel(language),
                         selected = NamingField.SIZE in selectedDebugFields,
@@ -1010,7 +1078,7 @@ fun ReviewEditorCard(
             }
             if (activeReviewTab == ReviewTab.PVP) {
                 if (NamingField.PVP_LEAGUE in fields || NamingField.PVP_RANK in fields) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    GlassSection(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
                         if (derivedLoading) {
                             Text(
                                 lt(language, "Recalculando rankings...", "Recalculating rankings...", "Recalculando rankings..."),
@@ -1047,7 +1115,7 @@ fun ReviewEditorCard(
                                     val speciesRank = reviewData.familyPvpRanks.firstOrNull { sameRankSpecies(it.pokemonName, pokemonName) && it.league == league }
                                     val leagueRank = reviewData.pvpLeagueRanks.firstOrNull { it.league == league && sameRankSpecies(it.pokemonName, pokemonName) }
                                     val rank = if (speciesRank != null) speciesRank.rank else leagueRank?.rank
-                                    textMeasurer.measure(rank?.toString() ?: "—", style = TextStyle(fontSize = 10.sp)).size.width
+                                    textMeasurer.measure(rank?.toString() ?: "—", style = TextStyle(fontSize = if (glassStyle) 12.sp else 10.sp, fontWeight = if (glassStyle) FontWeight.Bold else FontWeight.Normal)).size.width
                                 }
                                 with(density) { maxOf(titleWidth, rankWidth).toDp() } + 16.dp
                             }
@@ -1059,7 +1127,7 @@ fun ReviewEditorCard(
                             ) {
                                 Column(
                                     modifier = Modifier.width(tableWidth),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
                                 ) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Row(
@@ -1068,13 +1136,14 @@ fun ReviewEditorCard(
                                         ) {
                                             Text(
                                                 text = NamingField.PVP_LEAGUE.localizedLabel(language),
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = if (glassStyle) FontWeight.Normal else FontWeight.Medium,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             UnownHeaderIcon(
-                                                selected = selectedDebugFields.any { it == NamingField.PVP_LEAGUE || it == NamingField.PVP_RANK },
+                                                selected = NamingField.PVP_LEAGUE in selectedDebugFields,
                                                 onClick = {
-                                                    selectedDebugFields = selectedDebugFields.toggleAll(setOf(NamingField.PVP_LEAGUE, NamingField.PVP_RANK))
+                                                    selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_LEAGUE)
                                                     showPvpHelp = !showPvpHelp
                                                 },
                                                 contentDescription = "Logs PvP"
@@ -1128,12 +1197,7 @@ fun ReviewEditorCard(
                     }
                 }
 
-                Text(
-                    text = lt(language, "Ataques de", "Moves for", "Ataques de") + " " +
-                        selectedPvpSpecies?.let { com.mewname.app.domain.pokemonDisplayName(it) }.orEmpty(),
-                    style = MaterialTheme.typography.labelLarge
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+                GlassFieldRow(legacySpacing = 2.dp) {
                     val fastMoveOptions = remember(moveSet.fastMoves, legacyMoveSymbol) {
                         moveDropdownOptions(moveSet.fastMoves, legacyMoveSymbol)
                     }
@@ -1211,17 +1275,11 @@ fun ReviewEditorCard(
             ).any { it in extrasFields }
             if (false) {
             if (hasBooleanSection) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
-                        val markerFields = linkedSetOf(
-                            NamingField.SPECIAL_BACKGROUND,
-                            NamingField.ADVENTURE_EFFECT,
-                            NamingField.LEGACY_MOVE,
-                            NamingField.LEGACY_MOVE_NAME
-                        ).intersect(extrasFields)
-                        val markerSectionSelected = selectedDebugFields.any { it in markerFields }
+                        val markerSectionSelected = NamingField.SPECIAL_BACKGROUND in selectedDebugFields
                         val toggleMarkerSection = {
-                            selectedDebugFields = selectedDebugFields.toggleAll(markerFields)
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.SPECIAL_BACKGROUND)
                             showBackgroundHelp = !showBackgroundHelp
                         }
                         if (NamingField.SPECIAL_BACKGROUND in extrasFields) {
@@ -1243,7 +1301,7 @@ fun ReviewEditorCard(
                                         )
                                     }
                                 },
-                            useOptionModal = false,
+                            useOptionModal = glassStyle,
                                 modifier = Modifier.width(112.dp)
                             )
                         }
@@ -1357,6 +1415,26 @@ fun ReviewEditorCard(
             }
         }
         }
+        }
+        CompositionLocalProvider(LocalGlassReviewStyle provides glassStyle, LocalGlassCapture provides bitmap) {
+        if (showLogSelection && useLogSelectionModal) {
+            Box(Modifier.fillMaxSize().clickable { showLogSelection = false }.padding(12.dp), contentAlignment = Alignment.Center) {
+                ReviewLogSelectionModal(
+                    language = language,
+                    selected = selectedDebugFields,
+                    onSelectionChange = { selectedDebugFields = it },
+                    includeOcr = includeLogOcr, onIncludeOcrChange = { includeLogOcr = it },
+                    includeNames = includeLogNames, onIncludeNamesChange = { includeLogNames = it },
+                    onDismiss = { showLogSelection = false },
+                    onExport = {
+                        if (selectedDebugFields.isNotEmpty()) {
+                            showLogSelection = false
+                            onExportLog?.invoke(ReviewLogRequest(selectedDebugFields, includeLogOcr, includeLogNames), reviewData)
+                        }
+                    }
+                )
+            }
+        }
         activeOptionPicker?.current()?.let { picker ->
             Box(
                 modifier = Modifier
@@ -1441,6 +1519,7 @@ fun ReviewEditorCard(
                 )
             }
         }
+        }
     }
 }
 }
@@ -1471,9 +1550,10 @@ private fun PokemonHelpPanel(
             Text("Gênero detectado: ${when (genderInfo?.detectedGender) {
                 Gender.MALE -> "♂"
                 Gender.FEMALE -> "♀"
-                Gender.GENDERLESS -> "-"
+                Gender.GENDERLESS -> "Sem genero (catalogo ou selecao)"
                 else -> "-"
             }}", style = MaterialTheme.typography.bodySmall)
+            Text("Origem: ${genderInfo?.source ?: "nao registrada"}; linhas examinadas: ${genderInfo?.candidateLines?.joinToString(" | ") ?: "-"}", style = MaterialTheme.typography.bodySmall)
             genderInfo?.notes?.takeIf { it.isNotBlank() }?.let { notes ->
                 Text("Obs gênero: $notes", style = MaterialTheme.typography.bodySmall)
             }
@@ -1763,13 +1843,13 @@ private fun SuggestedNamesBlock(
     val clipboard = LocalClipboardManager.current
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f),
+        color = if (LocalGlassReviewStyle.current) Color.Transparent else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f),
         tonalElevation = 2.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = if (LocalGlassReviewStyle.current) 5.dp else 10.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             Row(
@@ -1814,16 +1894,25 @@ private fun SuggestedNamesBlock(
                                     Toast.makeText(context, "Copiado!", Toast.LENGTH_SHORT).show()
                                     onSuggestionSelected(generatedName)
                                 },
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                            shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) 14.dp else 8.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = if (LocalGlassReviewStyle.current) 0.60f else 0.90f),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.50f)
+                                if (LocalGlassReviewStyle.current) Color.White.copy(alpha = 0.30f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.50f)
                             )
                         ) {
-                            Column(
+                            if (LocalGlassReviewStyle.current) {
+                                Row(Modifier.fillMaxWidth().heightIn(min = 36.dp).padding(horizontal = 12.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(configName, Modifier.weight(0.8f), style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(generatedName, Modifier.weight(1.8f), style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            } else Column(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
                             ) {
                                 Text(
                                     configName,

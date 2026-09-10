@@ -106,6 +106,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val rawText: String,
         val ocrLineLogs: List<String>,
         val parsedData: PokemonScreenData,
+        val capturedData: PokemonScreenData = parsedData,
         val reviewableFields: List<NamingField>,
         val generatedResults: List<Pair<String, String>>,
         val reviewedData: PokemonScreenData? = null
@@ -646,6 +647,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 val ocrResult = withTimeoutOrNull(14000L) {
                     ocrEngine.extract(bitmap)
                 } ?: throw IllegalStateException("Tempo limite ao extrair texto da imagem")
+                com.mewname.app.domain.FilterScreenDetector.detect(ocrResult.fullText)?.let { screen ->
+                    showSavedFiltersOverlay(screen)
+                    return@onSuccess
+                }
                 val parsed = withTimeoutOrNull(25_000L) {
                     kotlinx.coroutines.withContext(Dispatchers.Default) {
                         parser.parse(this@OverlayService, ocrResult) { step ->
@@ -676,6 +681,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     rawText = ocrResult.fullText,
                     ocrLineLogs = buildOcrLineLogs(ocrResult),
                     parsedData = merged,
+                    capturedData = parsed,
                     reviewableFields = reviewFields,
                     generatedResults = generatedResults
                 )
@@ -989,6 +995,74 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
         addOverlayView(layout, params)
         resultsView = layout
+    }
+
+    private fun showSavedFiltersOverlay(screen: com.mewname.app.domain.FilterScreen) {
+        if (closingForPermissionLoss) return
+        removeResultsOverlay()
+        val language = savedAppLanguage(this)
+        val friends = screen == com.mewname.app.domain.FilterScreen.FRIENDS
+        val filters = loadSavedFilters(this, if (friends) SAVED_PEOPLE_FILTERS_KEY else SAVED_POKEMON_FILTERS_KEY)
+        fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(12), dp(16), dp(16))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(20).toFloat()
+                setColor(Color.rgb(250, 248, 255))
+            }
+        }
+        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        header.addView(TextView(this).apply {
+            text = if (friends) lt(language, "Filtros de amigos", "Friend filters", "Filtros de amigos")
+                else lt(language, "Filtros de Pokémon", "Pokémon filters", "Filtros de Pokémon")
+            textSize = 18f
+            setTextColor(Color.BLACK)
+            setTypeface(null, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        header.addView(Button(this).apply {
+            text = lt(language, "Fechar", "Close", "Cerrar")
+            setOnClickListener { removeResultsOverlay() }
+        })
+        layout.addView(header)
+        layout.addView(TextView(this).apply {
+            text = if (filters.isEmpty()) lt(language,
+                "Nenhum filtro salvo nesta categoria. Salve filtros na tela inicial do MewName.",
+                "No saved filters in this category. Save filters from the MewName home screen.",
+                "No hay filtros guardados en esta categoría. Guarda filtros desde el inicio de MewName.")
+                else lt(language, "Toque para copiar e cole na busca do jogo.",
+                    "Tap to copy, then paste into the game search.", "Toca para copiar y pega en la búsqueda del juego.")
+            setTextColor(Color.DKGRAY)
+            setPadding(0, dp(8), 0, dp(8))
+        })
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        filters.forEach { filter ->
+            list.addView(Button(this).apply {
+                text = filter.value
+                isAllCaps = false
+                setOnClickListener {
+                    copyToClipboard(filter.value)
+                    removeResultsOverlay()
+                }
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        val scroll = ScrollView(this).apply { addView(list) }
+        layout.addView(scroll)
+        // Keep long saved lists scrollable within the available display height.
+        layout.measure(View.MeasureSpec.makeMeasureSpec(resources.displayMetrics.widthPixels - dp(32), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.7f).toInt()
+        if (layout.measuredHeight > maxHeight) {
+            scroll.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                (maxHeight - (layout.measuredHeight - scroll.measuredHeight)).coerceAtLeast(dp(48)))
+        }
+        val params = WindowManager.LayoutParams(resources.displayMetrics.widthPixels - dp(32),
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND, PixelFormat.TRANSLUCENT).apply {
+            gravity = Gravity.CENTER
+            dimAmount = 0.6f
+        }
+        if (addOverlayView(layout, params)) resultsView = layout
     }
 
     private fun showUnsupportedBubbleScreenOverlay() {
@@ -1393,7 +1467,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                             fields = fields,
                             configs = configs,
                             bitmap = bitmap,
-                            onExportLog = { selectedFields -> exportBubbleLog(selectedFields) },
+                            useLogSelectionModal = true,
+                            glassStyle = true,
+                            onExportLog = { request, currentData ->
+                                if (request.fields.isNotEmpty()) exportBubbleLog(request.fields, currentData, request)
+                            },
                             onCancel = { removeResultsOverlay() },
                             onConfirm = { reviewed ->
                                 lastCapturedData = reviewed
@@ -1432,14 +1510,15 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         clipboard.setPrimaryClip(clip)
     }
 
-    private fun exportBubbleLog(selectedFields: Set<NamingField>? = null) {
+    private fun exportBubbleLog(selectedFields: Set<NamingField>? = null, currentData: PokemonScreenData? = null, request: ReviewLogRequest? = null) {
+        if (request != null && request.fields.isEmpty()) return
         val snapshot = lastBubbleLogSnapshot
         if (snapshot == null) {
             Toast.makeText(this, "Nenhum log da bolha disponivel ainda.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val exportText = buildBubbleLogExport(snapshot, selectedFields)
+        val exportText = buildBubbleLogExport(snapshot.copy(reviewedData = currentData ?: snapshot.reviewedData), selectedFields?.takeIf { it.isNotEmpty() }, request)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, "MewName - Log do modo bolha")
@@ -1505,55 +1584,71 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun buildBubbleLogExport(
         snapshot: BubbleLogSnapshot,
-        selectedFields: Set<NamingField>? = null
+        selectedFields: Set<NamingField>? = null,
+        request: ReviewLogRequest? = null
     ): String {
-        val relevantFields = selectedFields?.toList() ?: snapshot.reviewableFields
-        val filteredExport = selectedFields != null
-        val includeAllWhenEmpty = selectedFields == null
+        val relevantFields = ReviewFieldDiagnostics.fields(selectedFields)
+        val filteredExport = !selectedFields.isNullOrEmpty()
         val includeScreenLogForFilteredExport = filteredExport && relevantFields.any {
             it == NamingField.MASTER_IV_BADGE || it == NamingField.SIZE || it in ivDebugFieldsForExport()
         }
         return buildString {
             val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
             appendLine("MewName - Log do modo bolha")
-            appendLine("Capturado em: ${formatter.format(Date(snapshot.capturedAtMillis))}")
-            appendLine("Bitmap: ${snapshot.bitmapWidth}x${snapshot.bitmapHeight}")
-            appendLine("Campos revisaveis: ${snapshot.reviewableFields.joinToString { it.name }}")
+            appendLine("Formato de log: 3; versao=${BuildConfig.VERSION_NAME}; build=${BuildConfig.VERSION_CODE}; idioma=${savedAppLanguage(this@OverlayService)}")
+            appendLine("Captura: ${snapshot.capturedAtMillis} | ${formatter.format(Date(snapshot.capturedAtMillis))} | ${snapshot.bitmapWidth}x${snapshot.bitmapHeight}")
+            if (selectedFields.isNullOrEmpty() || NamingField.LEGACY_MOVE in selectedFields || NamingField.LEGACY_MOVE_NAME in selectedFields) {
+                val moveSpecies = reviewMoveSpecies(snapshot.reviewedData ?: snapshot.parsedData)
+                appendLine("Ataques: especie solicitada=$moveSpecies; idioma=${savedAppLanguage(this@OverlayService)}")
+                if (moveSpecies != null) {
+                    runCatching { com.mewname.app.domain.PokemonMoveRepository.load(this@OverlayService, moveSpecies, savedAppLanguage(this@OverlayService)) }
+                        .onSuccess { moves ->
+                            appendLine("Rapidos disponiveis: ${moves.fastMoves}")
+                            appendLine("Carregados disponiveis: ${moves.chargedMoves}")
+                        }.onFailure { appendLine("Falha ao consultar ataques no momento da exportacao: ${it.message}") }
+                }
+            }
+            val current = snapshot.reviewedData ?: snapshot.parsedData
+            if (selectedFields.isNullOrEmpty() || NamingField.LEVEL in selectedFields) {
+                val from = snapshot.parsedData.level
+                val to = current.level
+                appendLine("Nivel: inicial=$from; exibido=$to; simulacao normal (sem desconto/modificador de custo)")
+                if (from != null && to != null && from in 1.0..51.0 && to in 1.0..51.0 && to > from) {
+                    var step = from
+                    while (step < to) {
+                        appendLine("Fortalecer $step -> ${step + 0.5}: ${powerUpCostAtLevel(step)}")
+                        step += 0.5
+                    }
+                    appendLine("Total: ${powerUpCostBetweenLevels(from, to)}")
+                }
+            }
+            appendLine(ReviewFieldDiagnostics.render(ReviewFieldDiagnostics.collect(snapshot.capturedData, snapshot.parsedData, current, selectedFields)))
+            if (selectedFields.isNullOrEmpty() || NamingField.PVP_RANK in selectedFields || NamingField.PVP_LEAGUE in selectedFields) {
+                appendLine("Todas as celulas PvP (incluindo inelegiveis):")
+                current.familyPvpRanks.forEach { rank ->
+                    appendLine("${rank.pokemonName} / ${rank.league}: rankTeorico=${rank.rank}; permitido=${rank.eligible}; CPAtual=${current.cp}; nivelAtual=${current.level}; CPNaLiga=${rank.bestCp}; nivelNaLiga=${rank.bestLevel}; motivo=${rank.description}; produto=${rank.bestStatProduct}; referencia=${rank.stadiumUrl}")
+                }
+            }
+            if (selectedFields.isNullOrEmpty() || NamingField.POKEMON_NAME in selectedFields) {
+                appendLine("Familia consultada: ${com.mewname.app.domain.PokemonFamilySuggester().familyMembersFor(this@OverlayService, current.candyFamilyName, current.pokemonName)}")
+                current.pokemonName?.let { appendLine("Nome canonico para estatisticas: ${com.mewname.app.domain.PvpRankCalculator().canonicalName(this@OverlayService, it)}") }
+            }
+
             if (filteredExport) {
                 appendLine("Blocos exportados: ${relevantFields.joinToString { it.name }}")
             }
             appendLine()
 
-            appendPokemonSection(
-                title = "Dados detectados",
-                data = snapshot.parsedData,
-                bitmapWidth = snapshot.bitmapWidth,
-                bitmapHeight = snapshot.bitmapHeight,
-                reviewableFields = relevantFields,
-                includeAllWhenEmpty = includeAllWhenEmpty
-            )
-
-            snapshot.reviewedData?.let { reviewed ->
-                appendLine()
-                appendPokemonSection(
-                    title = "Dados revisados",
-                    data = reviewed,
-                    bitmapWidth = snapshot.bitmapWidth,
-                    bitmapHeight = snapshot.bitmapHeight,
-                    reviewableFields = relevantFields,
-                    includeAllWhenEmpty = includeAllWhenEmpty
-                )
-            }
-
-            if (!filteredExport && snapshot.generatedResults.isNotEmpty()) {
+            if (request?.includeNames ?: !filteredExport) {
                 appendLine()
                 appendLine("Sugestoes de nome")
-                snapshot.generatedResults.forEach { (configName, generatedName) ->
-                    appendLine("- $configName: $generatedName")
+                loadSavedConfigs().forEach { config ->
+                    appendLine("Preset: ${config.name}")
+                    appendLine(generator.explain(current, config))
                 }
             }
 
-            if (!filteredExport || includeScreenLogForFilteredExport) {
+            if (request?.includeOcr ?: (!filteredExport || includeScreenLogForFilteredExport)) {
                 appendLine()
                 appendLine("OCR bruto")
                 appendLine(snapshot.rawText.ifBlank { "-" })

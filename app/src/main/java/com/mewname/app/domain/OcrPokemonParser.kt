@@ -3101,42 +3101,52 @@ class OcrPokemonParser {
         pokemonName: String?,
         bitmap: Bitmap?
     ): Pair<Gender, GenderDebugInfo?> {
-        if (isGenderlessPokemon(pokemonName)) {
-            return Gender.GENDERLESS to GenderDebugInfo(
-                detectedGender = Gender.GENDERLESS,
-                notes = "pokémon sem gênero definido na base local"
-            )
-        }
-        when {
-            text.contains("♂") -> return Gender.MALE to GenderDebugInfo(detectedGender = Gender.MALE, notes = "símbolo masculino encontrado no OCR bruto")
-            text.contains("♀") -> return Gender.FEMALE to GenderDebugInfo(detectedGender = Gender.FEMALE, notes = "símbolo feminino encontrado no OCR bruto")
-        }
-
-        val candidateLines = buildList {
-            addAll(rawLinesInRegion(lines, 0.18f, 0.82f, 0.16f, 0.42f, referenceBounds).map { it.text })
-            addAll(rawLinesInRegion(lines, 0.76f, 0.98f, 0.30f, 0.60f, referenceBounds).map { it.text })
+        val regions = listOf(
+            NormalizedDebugRect(0.18f, 0.16f, 0.82f, 0.42f),
+            NormalizedDebugRect(0.76f, 0.30f, 0.98f, 0.60f)
+        )
+        val candidates = regions.flatMap { region ->
+            rawLinesInRegion(lines, region.left, region.right, region.top, region.bottom, referenceBounds)
+                .map { it.text }
         }.distinct()
-
-        val normalizedCandidates = candidateLines.map(::normalizeText)
-        if (candidateLines.any { it.contains("♂") } || normalizedCandidates.any { it.contains(" MACHO") || it == "MACHO" || it.endsWith(" MACHO") }) {
-            return Gender.MALE to GenderDebugInfo(detectedGender = Gender.MALE, notes = "símbolo/texto masculino encontrado na área do ícone")
+        val standaloneSymbol = lines.isEmpty() && text.trim() in setOf("♂", "♀")
+        val evidence = if (standaloneSymbol) text.trim() else candidates.joinToString(" ")
+        val normalized = normalizeText(evidence)
+        val male = evidence.contains("♂") || Regex("\\b(MACHO|MALE|MASCULINO)\\b").containsMatchIn(normalized)
+        val female = evidence.contains("♀") || Regex("\\b(FEMEA|FEMALE|HEMBRA|FEMENINO)\\b").containsMatchIn(normalized)
+        val genderless = isGenderlessPokemon(pokemonName)
+        val result = when {
+            genderless -> Gender.GENDERLESS
+            male && female -> Gender.UNKNOWN
+            male -> Gender.MALE
+            female -> Gender.FEMALE
+            else -> Gender.UNKNOWN
         }
-        if (candidateLines.any { it.contains("♀") } || normalizedCandidates.any { it.contains(" FEMEA") || it == "FEMEA" || it.endsWith(" FEMEA") }) {
-            return Gender.FEMALE to GenderDebugInfo(detectedGender = Gender.FEMALE, notes = "símbolo/texto feminino encontrado na área do ícone")
+        val source = when {
+            genderless -> "species_catalog"
+            male && female -> "conflicting_regional_ocr"
+            standaloneSymbol -> "standalone_symbol_ocr"
+            male || female -> "regional_ocr"
+            else -> "unrecognized"
         }
-
-        // Background colors are not reliable evidence of a gender icon.
-        return Gender.UNKNOWN to GenderDebugInfo(
-            detectedGender = Gender.UNKNOWN,
-            notes = "genero nao reconhecido pelo OCR; selecao neutra"
+        return result to GenderDebugInfo(
+            detectedGender = result, source = source, pokemonName = pokemonName,
+            candidateLines = candidates, examinedRegions = regions,
+            rawMaleSymbol = text.contains("♂"), rawFemaleSymbol = text.contains("♀"),
+            bitmapAvailable = bitmap != null,
+            notes = when {
+                genderless -> "Especie sem genero na base local; simbolos OCR nao substituem esta regra."
+                male && female -> "Sinais masculino e feminino conflitantes; selecao neutra."
+                male || female -> "Sinal encontrado nas regioes de nome/icone."
+                else -> "OCR sem evidencia regional suficiente; UNKNOWN, nao GENDERLESS."
+            } + " Comparacao visual do icone nao implementada; disponibilidade da imagem nao implica analise visual."
         )
     }
-
     private fun isGenderlessPokemon(pokemonName: String?): Boolean {
         val normalized = normalizeText(pokemonName.orEmpty()).trim()
         val baseName = normalized.substringBefore(" (")
         return normalized.isNotBlank() && (normalized in genderlessPokemon || baseName in genderlessPokemon ||
-            normalized in setOf("ZACIAN HERO", "ZACIAN CROWNED", "ZAMAZENTA HERO", "ZAMAZENTA CROWNED"))
+            normalized in setOf("ZACIAN HERO", "ZACIAN CROWNED", "ZACIAN CROWNED SWORD", "ZAMAZENTA HERO", "ZAMAZENTA CROWNED", "ZAMAZENTA CROWNED SHIELD"))
     }
 
     private fun detectEvolutionFlags(

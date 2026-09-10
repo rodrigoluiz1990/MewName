@@ -133,11 +133,17 @@ class MasterIvBadgeCatalog {
     }
 
     private fun normalize(value: String): String {
-        return Normalizer.normalize(value, Normalizer.Form.NFD)
+        val key = Normalizer.normalize(value.replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
             .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
             .uppercase(Locale.US)
             .replace(Regex("[^A-Z0-9]"), "")
             .trim()
+        // Display form names changed; the bundled Master table still uses the species keys.
+        return when (key) {
+            "ZACIANHERO", "ZACIANCOROADO", "ZACIANCROWNEDSWORD" -> "ZACIAN"
+            "ZAMAZENTAHERO", "ZAMAZENTACOROADO", "ZAMAZENTACROWNEDSHIELD" -> "ZAMAZENTA"
+            else -> key
+        }
     }
 
     private companion object {

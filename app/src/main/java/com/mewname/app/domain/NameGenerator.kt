@@ -79,6 +79,28 @@ class NameGenerator {
             .take(maxLength)
     }
 
+    /** Uses the same field resolution and separator rules as nickname generation. */
+    fun explain(data: PokemonScreenData, config: NamingConfig): String = buildString {
+        val blocks = config.effectiveBlocks()
+        val values = blocks.map { block ->
+            if (block.type == NamingBlockType.FIXED_TEXT) block.fixedText.takeIf { it.isNotBlank() }
+            else resolveField(block.field, data, config)
+        }
+        val included = mutableListOf<String>()
+        blocks.forEachIndexed { index, block ->
+            val value = values[index]
+            val omitted = value.isNullOrEmpty() ||
+                (block.type == NamingBlockType.FIXED_TEXT && shouldSkipFixedText(index, block, blocks, values))
+            appendLine("Bloco $index: tipo=${block.type}; campo=${block.field}; valor=$value; omitido=$omitted")
+            if (!omitted) included += value.orEmpty()
+        }
+        val beforeLimit = included.joinToString("").trim()
+        val result = generate(data, config)
+        appendLine("Antes do limite: $beforeLimit")
+        appendLine("Limite: ${config.maxLength}; houve corte=${beforeLimit != result}; resultado=$result")
+        appendLine("Simbolos configurados: ${config.symbols}")
+    }
+
     private fun resolveField(field: NamingField?, data: PokemonScreenData, config: NamingConfig): String? {
         return when (field) {
             NamingField.POKEMON_NAME -> {

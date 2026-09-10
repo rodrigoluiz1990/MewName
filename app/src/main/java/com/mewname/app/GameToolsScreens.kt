@@ -818,14 +818,14 @@ private data class FilterSelection(
     val joinerBefore: String = "&"
 )
 
-private data class SavedFilterEntry(
+internal data class SavedFilterEntry(
     val id: String,
     val value: String
 )
 
 private const val FILTER_PREFS = "mewname_prefs"
-private const val SAVED_POKEMON_FILTERS_KEY = "saved_pokemon_filters"
-private const val SAVED_PEOPLE_FILTERS_KEY = "saved_people_filters"
+internal const val SAVED_POKEMON_FILTERS_KEY = "saved_pokemon_filters"
+internal const val SAVED_PEOPLE_FILTERS_KEY = "saved_people_filters"
 private const val COLLECTIONS_PREFS_KEY = "collections_obtained_forms"
 
 private data class CollectionFormEntry(
@@ -2968,7 +2968,7 @@ private fun copyPlainText(context: Context, value: String, language: AppLanguage
     Toast.makeText(context, t(language, "Copiado", "Copied", "Copiado"), Toast.LENGTH_SHORT).show()
 }
 
-private fun loadSavedFilters(context: Context, key: String): List<SavedFilterEntry> {
+internal fun loadSavedFilters(context: Context, key: String): List<SavedFilterEntry> {
     val prefs = context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE)
     return prefs.getStringSet(key, emptySet()).orEmpty()
         .mapNotNull { raw ->

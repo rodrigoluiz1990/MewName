@@ -29,6 +29,8 @@ internal fun ReviewSectionTitle(text: String) {
     )
 }
 
+internal val LocalHideReviewLogMarkers = androidx.compose.runtime.staticCompositionLocalOf { false }
+internal val LocalFieldLogMarker = androidx.compose.runtime.staticCompositionLocalOf<(@Composable (String) -> Unit)?> { null }
 @Composable
 internal fun FieldLabelRow(
     label: String,
@@ -37,14 +39,14 @@ internal fun FieldLabelRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 20.dp),
+            .heightIn(min = if (LocalGlassReviewStyle.current) GlassLabelHeight else 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (label.isNotBlank()) {
-            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = if (LocalGlassReviewStyle.current) FontWeight.Normal else FontWeight.SemiBold)
         }
-        trailing?.invoke()
+        if (trailing != null) trailing() else LocalFieldLogMarker.current?.invoke(label)
     }
 }
 
@@ -72,6 +74,7 @@ internal fun UnownHeaderIcon(
     onClick: () -> Unit,
     contentDescription: String
 ) {
+    if (LocalHideReviewLogMarkers.current) return
     IconButton(onClick = onClick, modifier = Modifier.size(20.dp)) {
         UnownQuestionIcon(
             selected = selected,
@@ -335,10 +338,11 @@ internal fun ReviewChipSection(
 
 @Composable
 internal fun WeightedToggleRow(items: List<WeightedToggleItem>) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
+    if (LocalGlassReviewStyle.current && items.map { it.label } == listOf("♂", "♀")) {
+        GlassGenderSegments(items)
+        return
+    }
+    GlassFieldRow(legacySpacing = 2.dp) {
         items.forEach { item ->
             ToggleChip(
                 label = item.label,
@@ -359,8 +363,8 @@ internal fun ToggleChip(
     compact: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(10.dp)
-    val containerColor = if (selected) {
+    val shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) GlassFieldCorner else 10.dp)
+    val containerColor = if (LocalGlassReviewStyle.current) glassFieldColor(selected) else if (selected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
@@ -372,23 +376,24 @@ internal fun ToggleChip(
     }
     Surface(
         modifier = modifier
-            .heightIn(min = 34.dp)
+            .glassFieldSize().heightIn(min = if (LocalGlassReviewStyle.current) GlassFieldHeight else 34.dp)
             .clickable(onClick = onClick),
         shape = shape,
         color = containerColor,
         tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+        border = if (LocalGlassReviewStyle.current) glassFieldBorder(selected) else androidx.compose.foundation.BorderStroke(1.dp, borderColor)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 34.dp)
+                .defaultMinSize(minHeight = if (LocalGlassReviewStyle.current) GlassFieldHeight else 34.dp)
                 .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 label,
-                style = if (compact) MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp) else MaterialTheme.typography.labelSmall,
+                fontWeight = if (LocalGlassReviewStyle.current) FontWeight.Bold else FontWeight.Normal,
+                style = if (LocalGlassReviewStyle.current) MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp) else if (compact) MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp) else MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

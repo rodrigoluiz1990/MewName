@@ -101,6 +101,13 @@ data class LevelDebugInfo(
 )
 
 data class GenderDebugInfo(
+    val source: String = "not_recorded",
+    val pokemonName: String? = null,
+    val candidateLines: List<String> = emptyList(),
+    val rawMaleSymbol: Boolean = false,
+    val rawFemaleSymbol: Boolean = false,
+    val bitmapAvailable: Boolean = false,
+    val examinedRegions: List<NormalizedDebugRect> = emptyList(),
     val detectedGender: Gender = Gender.UNKNOWN,
     val iconRect: NormalizedDebugRect? = null,
     val notes: String = ""

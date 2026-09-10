@@ -13,9 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,6 +28,10 @@ import com.mewname.app.domain.PvpRankCalculator
 internal fun ReviewTextRow(
     content: @Composable RowScope.() -> Unit
 ) {
+    if (LocalGlassReviewStyle.current) {
+        GlassFieldRow(content = content)
+        return
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Bottom,
@@ -47,7 +53,7 @@ internal fun CompactField(
     headerTrailing: (@Composable (() -> Unit))? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 3.dp), modifier = modifier) {
         FieldLabelRow(label = label, trailing = headerTrailing)
         if (onClick != null) {
             CompactSelectableField(
@@ -83,15 +89,15 @@ internal fun CompactSelectableField(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
-        color = if (active) {
+        modifier = modifier.glassFieldSize().clickable(onClick = onClick),
+        shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) GlassFieldCorner else 8.dp),
+        color = if (LocalGlassReviewStyle.current) glassFieldColor(active) else if (active) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
         } else {
             MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
         },
         tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(
+        border = if (LocalGlassReviewStyle.current) glassFieldBorder(active) else androidx.compose.foundation.BorderStroke(
             1.dp,
             if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.outline
         )
@@ -99,14 +105,17 @@ internal fun CompactSelectableField(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 34.dp)
-                .padding(horizontal = 8.dp, vertical = 5.dp),
+                .defaultMinSize(minHeight = if (LocalGlassReviewStyle.current) GlassFieldHeight else 34.dp)
+                .padding(horizontal = 8.dp, vertical = if (LocalGlassFieldGroup.current) 2.5.dp else 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 value,
+                modifier = if (LocalGlassReviewStyle.current) Modifier.fillMaxWidth() else Modifier,
+                textAlign = if (LocalGlassReviewStyle.current) TextAlign.Center else TextAlign.Start,
                 style = TextStyle(
-                    fontSize = 10.sp,
+                    fontSize = if (LocalGlassReviewStyle.current) 12.sp else 10.sp,
+                    fontWeight = if (LocalGlassReviewStyle.current && value.isNotBlank() && value != "-") FontWeight.Bold else FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (struckThrough) TextDecoration.LineThrough else null
                 ),
@@ -125,31 +134,38 @@ internal fun IvValueButton(
     headerTrailing: (@Composable (() -> Unit))? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 2.dp), modifier = modifier) {
         FieldLabelRow(label = label, trailing = headerTrailing)
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth().glassFieldSize()
                 .clickable(onClick = onClick),
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+            shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) GlassFieldCorner else 8.dp),
+            color = if (LocalGlassReviewStyle.current) glassFieldColor(selected) else MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
             tonalElevation = 0.dp,
-            border = androidx.compose.foundation.BorderStroke(
+            border = if (LocalGlassReviewStyle.current) glassFieldBorder(selected) else androidx.compose.foundation.BorderStroke(
                 1.dp,
                 if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
             )
         ) {
-            Row(
+            if (LocalGlassReviewStyle.current) {
+                GlassFieldValue(value?.toString().orEmpty(), small = true, trailing = {
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Selecionar $label", modifier = Modifier.size(14.dp))
+                })
+            } else Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 34.dp)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .fillMaxWidth().glassFieldSize()
+                    .defaultMinSize(minHeight = if (LocalGlassReviewStyle.current) GlassFieldHeight else 34.dp)
+                    .padding(horizontal = 10.dp, vertical = if (LocalGlassFieldGroup.current) 3.dp else 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                if (LocalGlassReviewStyle.current) Spacer(Modifier.width(18.dp))
                 Text(
                     value?.toString().orEmpty(),
-                    style = TextStyle(fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                    modifier = if (LocalGlassReviewStyle.current) Modifier.weight(1f) else Modifier,
+                    textAlign = if (LocalGlassReviewStyle.current) TextAlign.Center else TextAlign.Start,
+                    style = TextStyle(fontSize = if (LocalGlassFieldGroup.current) 14.sp else 11.sp, color = MaterialTheme.colorScheme.onSurface)
                 )
                 Icon(
                     Icons.Default.ArrowDropDown,
@@ -170,7 +186,7 @@ internal fun IvPickerModal(
     onValueSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Card(
+    ReviewModalCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)),
         modifier = Modifier
             .widthIn(max = 280.dp)
@@ -180,7 +196,8 @@ internal fun IvPickerModal(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (LocalGlassReviewStyle.current) ReviewModalHeader(title, onDismiss)
+            else Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 (0..15).chunked(4).forEach { row ->
                     Row(
@@ -188,7 +205,9 @@ internal fun IvPickerModal(
                         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)
                     ) {
                         row.forEach { option ->
-                            FilterChip(
+                            if (LocalGlassReviewStyle.current) {
+                                ToggleChip(option.toString(), currentValue == option, { onValueSelected(option) }, compact = true, modifier = Modifier.weight(1f))
+                            } else FilterChip(
                                 selected = currentValue == option,
                                 onClick = { onValueSelected(option) },
                                 label = { Text(option.toString(), style = MaterialTheme.typography.labelSmall) }
@@ -197,7 +216,7 @@ internal fun IvPickerModal(
                     }
                 }
             }
-            Row(
+            if (!LocalGlassReviewStyle.current) Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
@@ -220,7 +239,7 @@ internal fun SelectionModalDialog(
     onOptionSelected: (String) -> Unit,
     verticalOptions: Boolean = false
 ) {
-    Card(
+    ReviewModalCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)),
         modifier = Modifier
             .widthIn(max = 340.dp)
@@ -230,16 +249,10 @@ internal fun SelectionModalDialog(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f))
-                TextButton(onClick = onDismiss) {
-                    Text(lt(appLanguage(), "Fechar", "Close", "Cerrar"))
-                }
-            }
+            ReviewModalHeader(title, onDismiss)
             if (message != null) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)
-            } else if (verticalOptions) {
+            } else if (verticalOptions || LocalGlassReviewStyle.current) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -263,7 +276,8 @@ internal fun SelectionModalDialog(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     options.forEach { option ->
-                        FilterChip(selected = option == selectedValue, onClick = { onOptionSelected(option) }, label = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) })
+                        if (LocalGlassReviewStyle.current) ToggleChip(option, option == selectedValue, { onOptionSelected(option) }, compact = true)
+                        else FilterChip(selected = option == selectedValue, onClick = { onOptionSelected(option) }, label = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                     }
                 }
             }
@@ -277,9 +291,10 @@ internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonN
     val cp = if (pokemonName != null && attack != null && defense != null && stamina != null) rankCalculator.estimateCpAtLevel(context, pokemonName, attack, defense, stamina, previewLevel) else null
     val hp = if (pokemonName != null && stamina != null) rankCalculator.estimateHpAtLevel(context, pokemonName, stamina, previewLevel) else null
     val cost = powerUpCostBetweenLevels(initialLevel, previewLevel)
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)), modifier = Modifier.fillMaxWidth().widthIn(max = 320.dp)) {
+    ReviewModalCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)), modifier = Modifier.fillMaxWidth().widthIn(max = 320.dp)) {
             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(lt(language, "Selecionar n\u00EDvel", "Select level", "Seleccionar nivel"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                if (LocalGlassReviewStyle.current) ReviewModalHeader(lt(language, "Selecionar n\u00EDvel", "Select level", "Seleccionar nivel"), onDismiss)
+                else Text(lt(language, "Selecionar n\u00EDvel", "Select level", "Seleccionar nivel"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { previewLevel = (previewLevel - 0.5).coerceAtLeast(1.0) }, enabled = previewLevel > 1.0) { Text("-") }
                     Text(lt(language, "N\u00EDvel ${previewLevel.formatLevelDebug()}", "Level ${previewLevel.formatLevelDebug()}", "Nivel ${previewLevel.formatLevelDebug()}"), modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -306,35 +321,40 @@ internal fun CompactTextInput(
     trailing: @Composable (() -> Unit)? = null
 ) {
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = if (active) {
+        modifier = modifier.glassFieldSize(),
+        shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) GlassFieldCorner else 8.dp),
+        color = if (LocalGlassReviewStyle.current) glassFieldColor(active) else if (active) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
         } else {
             MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
         },
         tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(
+        border = if (LocalGlassReviewStyle.current) glassFieldBorder(active) else androidx.compose.foundation.BorderStroke(
             1.dp,
             if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.outline
         )
     ) {
-        Row(
+        if (LocalGlassReviewStyle.current && readOnly) {
+            GlassFieldValue(value, trailing)
+        } else Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 34.dp)
-                .padding(horizontal = 8.dp, vertical = 5.dp),
+                .defaultMinSize(minHeight = if (LocalGlassReviewStyle.current) GlassFieldHeight else 34.dp)
+                .padding(horizontal = 8.dp, vertical = if (LocalGlassFieldGroup.current) 2.5.dp else 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            if (LocalGlassReviewStyle.current && trailing != null) Spacer(Modifier.width(18.dp))
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 readOnly = readOnly,
                 singleLine = true,
                 textStyle = TextStyle(
-                    fontSize = 10.sp,
+                    fontSize = if (LocalGlassReviewStyle.current) 12.sp else 10.sp,
+                    fontWeight = if (LocalGlassReviewStyle.current && value.isNotBlank() && value != "-") FontWeight.Bold else FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = if (LocalGlassReviewStyle.current) TextAlign.Center else TextAlign.Start,
                     textDecoration = textDecoration
                 ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -358,7 +378,7 @@ internal fun PokemonSuggestionField(
     modifier: Modifier = Modifier
 ) {
     val optionPicker = LocalReviewOptionPicker.current
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 2.dp), modifier = modifier) {
         FieldLabelRow(label = label, trailing = headerTrailing)
         Box {
             CompactTextInput(
@@ -459,7 +479,7 @@ internal fun SelectionDropdownField(
 ) {
     val optionPicker = LocalReviewOptionPicker.current
     var expanded by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 2.dp), modifier = modifier) {
         FieldLabelRow(label = label, trailing = headerTrailing)
         Box {
             CompactTextInput(
@@ -553,8 +573,9 @@ internal fun MoveDropdownField(
             onSelected(if (optionLabel == emptyLabel) null else options.firstOrNull { it.label == optionLabel }?.value)
         }
     )
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 2.dp), modifier = modifier) {
         FieldLabelRow(label = label, trailing = {
+            LocalFieldLogMarker.current?.invoke(label)
             ratingLabel?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
@@ -609,7 +630,7 @@ internal fun LabeledToggleChipField(
     onHeaderClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 2.dp), modifier = modifier) {
         FieldHeaderRow(
             label = label,
             selected = headerSelected,
@@ -632,7 +653,7 @@ internal fun FieldHeaderSpacer(
     onMarkerClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 2.dp), modifier = modifier) {
         FieldHeaderRow(
             label = label,
             selected = selected,
