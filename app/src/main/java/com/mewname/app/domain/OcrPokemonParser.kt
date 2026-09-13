@@ -264,6 +264,16 @@ class OcrPokemonParser {
         bitmap: Bitmap?,
         onAnalysisStep: ((String) -> Unit)?
     ): PokemonScreenData {
+        var previousStep = "Preparando catálogos"
+        var previousTime = android.os.SystemClock.elapsedRealtime()
+        fun step(label: String) {
+            if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException("Reading cancelled")
+            val now = android.os.SystemClock.elapsedRealtime()
+            android.util.Log.d("MewNameReadTiming", "$previousStep: ${now - previousTime}ms")
+            previousStep = label
+            previousTime = now
+            onAnalysisStep?.invoke(label)
+        }
         IvCombinationTable.ensureLoaded(context)
         val referenceBounds = bitmap?.let { Rect(0, 0, it.width, it.height) }
 
@@ -271,7 +281,7 @@ class OcrPokemonParser {
         val normUpper = normalizeText(normalizedRaw)
         val hasIvContext = hasIvContext(normUpper, orderedLines, referenceBounds)
 
-        onAnalysisStep?.invoke("Identificando IVs e CP")
+        step("Identificando IVs e CP")
 
         val cp = extractCp(normalizedRaw, orderedLines, referenceBounds)
         var ivPercent = extractIvPercent(orderedLines, referenceBounds)
@@ -335,16 +345,18 @@ class OcrPokemonParser {
             ivPercent = IvCombinationTable.fromValues(att, def, sta)?.ivPercent ?: ((att + def + sta) * 100 / 45)
         }
 
-        onAnalysisStep?.invoke("Reconhecendo Pokémon")
+        step("Reconhecendo Pokémon")
 
         val ocrLevel = extractOcrLevel(orderedLines, referenceBounds)
         val moves = extractMoves(orderedLines, referenceBounds)
         var name = inferPokemonName(context, orderedLines, moves, cp, referenceBounds)
+        step("Identificando tipos")
         val typeDetection = detectPokemonTypes(orderedLines, normUpper, referenceBounds)
         val ocrDetectedTypes = typeDetection.first
         val detectedTypes = ocrDetectedTypes.ifEmpty { lookupPokemonTypesByName(context, name) }
         val typeFallbackUsed = ocrDetectedTypes.isEmpty() && detectedTypes.isNotEmpty()
         name = resolveRegionalMeowthName(name, detectedTypes)
+        step("Identificando família pelos doces")
         var (candyFamilyName, candyDebugInfo) = extractCandyFamilyName(context, orderedLines, referenceBounds, name)
         val hasUnownTitleSignal = detectUnownTitleSignal(orderedLines, referenceBounds)
         val hasUnownCandySignal = candyFamilyName.equals("Unown", ignoreCase = true)
@@ -358,6 +370,7 @@ class OcrPokemonParser {
             name = "Unown"
         }
 
+        step("Identificando gênero")
         val genderDetection = detectGender(normalizedRaw, orderedLines, referenceBounds, name, bitmap)
         resolveGenderedNidoranIdentity(name, candyFamilyName, genderDetection.first).let { (resolvedName, resolvedFamily) ->
             name = resolvedName
@@ -370,7 +383,7 @@ class OcrPokemonParser {
             emptyList()
         }
 
-        onAnalysisStep?.invoke("Estimando nível")
+        step("Estimando nível")
 
         val displayedMaxHp = extractDisplayedMaxHp(orderedLines, referenceBounds)
         val curveLevelCandidates = curveLevelCandidatesFor(context, name, familyMembers)
@@ -478,7 +491,7 @@ class OcrPokemonParser {
             }.joinToString("; ")
         )
 
-        onAnalysisStep?.invoke("Calculando PvP")
+        step("Calculando PvP")
         val familySpeciesRanks = if (familyMembers.isNotEmpty() && att != null && def != null && sta != null) {
             rankCalculator.calculateFamilySpeciesLeagueRanks(context, familyMembers, att, def, sta)
         } else {
@@ -494,21 +507,7 @@ class OcrPokemonParser {
         )
 
         val selectableFamilySpeciesRanks = familySpeciesRanks
-            .filter { info ->
-                isPvpSuggestionAllowed(
-                    context = context,
-                    candidatePokemonName = info.pokemonName,
-                    currentPokemonName = name,
-                    familyMembers = familyMembers,
-                    league = info.league,
-                    currentCp = cp,
-                    currentLevel = level,
-                    attack = att,
-                    defense = def,
-                    stamina = sta
-                )
-            }
-        val selectableLeagueRanks = bestLeagueRanksFromSelectableSpecies(selectableFamilySpeciesRanks)
+        val selectableLeagueRanks = bestLeagueRanksFromSelectableSpecies(selectableFamilySpeciesRanks, name)
         val bestFamilySpeciesRank = selectableFamilySpeciesRanks
             .filter { it.eligible && it.rank != null }
             .minWithOrNull(
@@ -540,8 +539,7 @@ class OcrPokemonParser {
             selectableFamilySpeciesRanks
                 .filter { it.league == selectedLeague && it.eligible && it.rank != null }
                 .minWithOrNull(
-                    compareBy<com.mewname.app.model.PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }
-                        .thenBy { it.pokemonName }
+                    pvpRankComparator(name, { it.rank }, { it.pokemonName })
                 )
         }
         val selectedPvpRankInfo = league?.let { selectedLeague ->
@@ -550,7 +548,7 @@ class OcrPokemonParser {
         val rank = selectedSpeciesRankInfo?.rank ?: selectedPvpRankInfo?.rank
         val pvpPokemonName = selectedSpeciesRankInfo?.pokemonName ?: selectedPvpRankInfo?.pokemonName
 
-        onAnalysisStep?.invoke("Validando fundo e marcadores")
+        step("Validando fundo e marcadores")
 
         val backgroundDetection = detectSpecialBackground(context, normUpper, orderedLines, bitmap, referenceBounds, detectedTypes)
         val hasSpecialBackground = backgroundDetection.first
@@ -574,7 +572,7 @@ class OcrPokemonParser {
             masterIvBestMatch = masterIvBadgeResult.isBestMatch == true
         )
 
-        onAnalysisStep?.invoke("Finalizando dados detectados")
+        step("Finalizando dados detectados")
 
         return PokemonScreenData(
             pokemonName = name,
@@ -2695,12 +2693,12 @@ class OcrPokemonParser {
         val typeSet = detectedTypes.toSet()
         return when (normalizedName) {
             "MEOWTH" -> when {
-                "STEEL" in typeSet -> "Galarian Meowth"
-                "DARK" in typeSet -> "Alolan Meowth"
+                "STEEL" in typeSet -> "Meowth (Galar)"
+                "DARK" in typeSet -> "Meowth (Alola)"
                 else -> name
             }
             "PERSIAN" -> when {
-                "DARK" in typeSet -> "Alolan Persian"
+                "DARK" in typeSet -> "Persian (Alola)"
                 else -> name
             }
             "PERRSERKER GALARIAN" -> "Perrserker"
@@ -2912,13 +2910,13 @@ class OcrPokemonParser {
             .toSet()
         if (typeSet.isEmpty()) return targets
         return targets.sortedBy { target ->
-            val hints = regionalLegacyTypeHints[normalizeText(target)].orEmpty()
+            val hints = regionalLegacyTypeHints.entries.firstOrNull { normalizeText(pokemonDisplayName(it.key)) == normalizeText(pokemonDisplayName(target)) }?.value.orEmpty()
             if (hints.any { it in typeSet }) 0 else 1
         }
     }
 
     private fun stripRegionalPrefix(name: String): String {
-        val normalized = normalizeText(name)
+        val normalized = normalizeText(pokemonDisplayName(name)).replace(Regex("""\s*\((ALOLA|GALAR|HISUI|PALDEA)\)$"""), "")
         return regionalFormPrefixes.firstNotNullOfOrNull { prefix ->
             normalized.removePrefix(prefix).takeIf { it != normalized }
         } ?: normalized
@@ -3115,31 +3113,39 @@ class OcrPokemonParser {
         val male = evidence.contains("♂") || Regex("\\b(MACHO|MALE|MASCULINO)\\b").containsMatchIn(normalized)
         val female = evidence.contains("♀") || Regex("\\b(FEMEA|FEMALE|HEMBRA|FEMENINO)\\b").containsMatchIn(normalized)
         val genderless = isGenderlessPokemon(pokemonName)
+        val visual = if (!genderless && bitmap != null) GenderIconDetector.detect(bitmap, lines) else null
+        val visualConflict = (male && visual?.gender == Gender.FEMALE) || (female && visual?.gender == Gender.MALE)
         val result = when {
             genderless -> Gender.GENDERLESS
-            male && female -> Gender.UNKNOWN
+            (male && female) || visualConflict -> Gender.UNKNOWN
             male -> Gender.MALE
             female -> Gender.FEMALE
-            else -> Gender.UNKNOWN
+            else -> visual?.gender ?: Gender.UNKNOWN
         }
         val source = when {
             genderless -> "species_catalog"
+            visualConflict -> "conflicting_visual_ocr"
             male && female -> "conflicting_regional_ocr"
             standaloneSymbol -> "standalone_symbol_ocr"
             male || female -> "regional_ocr"
+            visual?.gender in listOf(Gender.MALE, Gender.FEMALE) -> "visual_icon"
             else -> "unrecognized"
         }
         return result to GenderDebugInfo(
             detectedGender = result, source = source, pokemonName = pokemonName,
-            candidateLines = candidates, examinedRegions = regions,
+            candidateLines = candidates, examinedRegions = regions + listOfNotNull(visual?.region),
             rawMaleSymbol = text.contains("♂"), rawFemaleSymbol = text.contains("♀"),
             bitmapAvailable = bitmap != null,
+            visualComparisonPerformed = visual != null,
+            iconRect = visual?.rect,
             notes = when {
                 genderless -> "Especie sem genero na base local; simbolos OCR nao substituem esta regra."
+                visualConflict -> "OCR e desenho do icone discordam; selecao neutra."
                 male && female -> "Sinais masculino e feminino conflitantes; selecao neutra."
                 male || female -> "Sinal encontrado nas regioes de nome/icone."
-                else -> "OCR sem evidencia regional suficiente; UNKNOWN, nao GENDERLESS."
-            } + " Comparacao visual do icone nao implementada; disponibilidade da imagem nao implica analise visual."
+                source == "visual_icon" -> "Genero identificado pelo desenho do icone ao lado da barra de PS."
+                else -> "Sem evidencia regional suficiente; UNKNOWN, nao GENDERLESS."
+            } + " Visual: ${visual?.notes ?: "not required/unavailable"}"
         )
     }
     private fun isGenderlessPokemon(pokemonName: String?): Boolean {
@@ -3191,8 +3197,9 @@ class OcrPokemonParser {
         }
         val hasMega = megaAutomaticMatch && masterIvBestMatch
         val hasGigantamax = gigantamaxKeyword != null
-        val hasDynamax = dynamaxKeyword != null || (maxBadgeVisualMatch && !hasGigantamax && !hasMega)
-        val dynamaxDebugMatch = dynamaxKeyword ?: if (maxBadgeVisualMatch && !hasGigantamax && !hasMega) "VISUAL_MAX_BADGE" else null
+        // Colour alone cannot distinguish the Max badge from backgrounds or the team leader.
+        val hasDynamax = dynamaxKeyword != null
+        val dynamaxDebugMatch = dynamaxKeyword
 
         if (hasMega) flags += EvolutionFlag.MEGA
         if (hasGigantamax) flags += EvolutionFlag.GIGANTAMAX
@@ -3214,8 +3221,8 @@ class OcrPokemonParser {
                 if (megaAutomaticMatch && !masterIvBestMatch) {
                     add("marcação automática de Mega bloqueada porque os IVs não são a melhor combinação")
                 }
-                if (maxBadgeVisualMatch && !hasMega) add("selo visual de Dynamax/Gigamax encontrado")
-                if (maxBadgeVisualMatch && hasMega) add("selo visual de Dynamax/Gigamax ignorado porque a tela indica Mega")
+                if (maxBadgeVisualMatch) add("cores compatíveis com selo Max, mas sem reconhecimento de formato; cor isolada não confirma Dynamax/Gigamax")
+
                 if (flags.isEmpty()) add("nenhum indicador textual de mega, gigantamax ou dynamax foi encontrado")
                 if (badgeLines.isEmpty() && titleLines.isEmpty() && centeredEvolutionLines.isEmpty()) {
                     add("OCR não encontrou linhas úteis nas áreas de ícone/badge")
@@ -3292,14 +3299,12 @@ class OcrPokemonParser {
         }
     }
 
-    private fun bestLeagueRanksFromSelectableSpecies(speciesRanks: List<PvpSpeciesRankInfo>): List<PvpLeagueRankInfo> {
+    private fun bestLeagueRanksFromSelectableSpecies(speciesRanks: List<PvpSpeciesRankInfo>, currentPokemonName: String? = null): List<PvpLeagueRankInfo> {
         return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).mapNotNull { league ->
             speciesRanks
                 .filter { it.league == league && it.eligible && it.rank != null }
                 .minWithOrNull(
-                    compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }
-                        .thenByDescending { it.bestStatProduct ?: Double.NEGATIVE_INFINITY }
-                        .thenBy { it.pokemonName }
+                    pvpRankComparator(currentPokemonName, { it.rank }, { it.pokemonName })
                 )
                 ?.let { info ->
                     PvpLeagueRankInfo(
@@ -3443,7 +3448,7 @@ class OcrPokemonParser {
                 .asSequence()
                 .map { entry ->
                     val bestDistance = entry.normalizedAliases.minOf { alias ->
-                        fuzzyMatcher.apply(normalizedCandidate, alias)
+                        if (kotlin.math.abs(normalizedCandidate.length - alias.length) > 2) 3 else fuzzyMatcher.apply(normalizedCandidate, alias)
                     }
                     entry to bestDistance
                 }
@@ -3489,7 +3494,9 @@ class OcrPokemonParser {
         val footerLines = rawLinesInRegion(lines, 0.0f, 1.0f, 0.84f, 1.0f, referenceBounds)
             .map { it.text }
         val footerText = footerLines.joinToString(" ").replace(Regex("\\s+"), " ").trim()
-        val rawCandidate = footerPokemonRegex.find(footerText)?.groupValues?.getOrNull(1)
+        val rawCandidate = AppraisalFooterReader.candidate(footerText)
+            ?: AppraisalFooterReader.candidate(lines.joinToString("\n") { it.text })
+            ?: footerPokemonRegex.find(footerText)?.groupValues?.getOrNull(1)
             ?: footerCaughtRegex.find(footerText)?.groupValues?.getOrNull(1)
             ?: return null
 
@@ -3503,7 +3510,7 @@ class OcrPokemonParser {
             .asSequence()
             .map { entry ->
                 val bestDistance = entry.normalizedAliases.minOf { alias ->
-                    fuzzyMatcher.apply(normalizedCandidate, alias)
+                    if (kotlin.math.abs(normalizedCandidate.length - alias.length) > 2) 3 else fuzzyMatcher.apply(normalizedCandidate, alias)
                 }
                 entry to bestDistance
             }

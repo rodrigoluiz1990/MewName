@@ -90,14 +90,14 @@ internal fun CompactSelectableField(
 ) {
     Surface(
         modifier = modifier.glassFieldSize().clickable(onClick = onClick),
-        shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) GlassFieldCorner else 8.dp),
-        color = if (LocalGlassReviewStyle.current) glassFieldColor(active) else if (active) {
+        shape = RoundedCornerShape(if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) 20.dp else if (LocalGlassReviewStyle.current) GlassFieldCorner else 8.dp),
+        color = if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) appControlFill(active) else if (LocalGlassReviewStyle.current) glassFieldColor(active) else if (active) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
         } else {
             MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
         },
         tonalElevation = 0.dp,
-        border = if (LocalGlassReviewStyle.current) glassFieldBorder(active) else androidx.compose.foundation.BorderStroke(
+        border = if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) androidx.compose.foundation.BorderStroke(0.75.dp, if (active) Color(0xFF89B4D5) else LocalAppAppearance.current.border) else if (LocalGlassReviewStyle.current) glassFieldBorder(active) else androidx.compose.foundation.BorderStroke(
             1.dp,
             if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.78f) else MaterialTheme.colorScheme.outline
         )
@@ -105,7 +105,7 @@ internal fun CompactSelectableField(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = if (LocalGlassReviewStyle.current) GlassFieldHeight else 34.dp)
+                .defaultMinSize(minHeight = if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) 44.dp else if (LocalGlassReviewStyle.current) GlassFieldHeight else 34.dp)
                 .padding(horizontal = 8.dp, vertical = if (LocalGlassFieldGroup.current) 2.5.dp else 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -114,7 +114,7 @@ internal fun CompactSelectableField(
                 modifier = if (LocalGlassReviewStyle.current) Modifier.fillMaxWidth() else Modifier,
                 textAlign = if (LocalGlassReviewStyle.current) TextAlign.Center else TextAlign.Start,
                 style = TextStyle(
-                    fontSize = if (LocalGlassReviewStyle.current) 12.sp else 10.sp,
+                    fontSize = if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) 14.sp else if (LocalGlassReviewStyle.current) 12.sp else 10.sp,
                     fontWeight = if (LocalGlassReviewStyle.current && value.isNotBlank() && value != "-") FontWeight.Bold else FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (struckThrough) TextDecoration.LineThrough else null
@@ -207,7 +207,7 @@ internal fun IvPickerModal(
                         row.forEach { option ->
                             if (LocalGlassReviewStyle.current) {
                                 ToggleChip(option.toString(), currentValue == option, { onValueSelected(option) }, compact = true, modifier = Modifier.weight(1f))
-                            } else FilterChip(
+                            } else AppChoiceChip(
                                 selected = currentValue == option,
                                 onClick = { onValueSelected(option) },
                                 label = { Text(option.toString(), style = MaterialTheme.typography.labelSmall) }
@@ -277,7 +277,7 @@ internal fun SelectionModalDialog(
                 ) {
                     options.forEach { option ->
                         if (LocalGlassReviewStyle.current) ToggleChip(option, option == selectedValue, { onOptionSelected(option) }, compact = true)
-                        else FilterChip(selected = option == selectedValue, onClick = { onOptionSelected(option) }, label = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) })
+                        else AppChoiceChip(selected = option == selectedValue, onClick = { onOptionSelected(option) }, label = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                     }
                 }
             }

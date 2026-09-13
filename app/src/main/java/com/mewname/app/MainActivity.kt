@@ -82,6 +82,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -138,8 +139,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    private fun openBubbleDestination(source: Intent?) {
+        val destination = source?.getStringExtra("BUBBLE_DESTINATION") ?: return
+        runCatching { AppScreen.valueOf(destination) }.getOrNull()?.let(viewModel::navigateTo)
+        source.removeExtra("BUBBLE_DESTINATION")
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openBubbleDestination(intent)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        openBubbleDestination(intent)
         ContextCompat.registerReceiver(
             this,
             capturePermissionInvalidReceiver,
@@ -151,7 +164,7 @@ class MainActivity : ComponentActivity() {
         )
         enableEdgeToEdge()
         setContent {
-            MaterialTheme {
+            AppAppearanceTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val appContext = LocalContext.current
 
@@ -162,12 +175,14 @@ class MainActivity : ComponentActivity() {
 
                 BackHandler(enabled = uiState.currentScreen != AppScreen.HOME) {
                     when (uiState.currentScreen) {
+
                         AppScreen.PRESET_EDIT -> viewModel.navigateTo(AppScreen.PRESET_LIST)
+                        AppScreen.TRAINER_PROFILE,
                         AppScreen.COLLECTIONS,
                         AppScreen.PRESET_LIST,
                         AppScreen.LEGACY_MOVES,
                         AppScreen.ADVENTURE_EFFECTS,
-                        AppScreen.RAID_PLANNER,
+                        AppScreen.RAID_PLANNER, AppScreen.ROCKET, AppScreen.EGGS, AppScreen.PROMO_CODES, AppScreen.RESEARCH,
                         AppScreen.TYPE_CHART,
                         AppScreen.MOVEDEX,
                         AppScreen.POKEDEX,
@@ -183,8 +198,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 CompositionLocalProvider(LocalAppLanguage provides uiState.appLanguage) {
+                AppNavigationShell(
+                    isHome = uiState.currentScreen == AppScreen.HOME,
+                    profileRequested = uiState.currentScreen == AppScreen.TRAINER_PROFILE,
+                    onProfileRequestConsumed = { viewModel.navigateTo(AppScreen.HOME) },
+                    onGoToPresets = { viewModel.navigateTo(AppScreen.PRESET_LIST) },
+                    onBubbleOptionVisibleChange = viewModel::setBubbleOptionVisible,
+                    onLanguageChange = { viewModel.setAppLanguage(appContext, it) }
+                ) {
                 when (uiState.currentScreen) {
-                    AppScreen.HOME -> HomeScreen(
+                    AppScreen.TRAINER_PROFILE, AppScreen.HOME -> HomeScreen(
                         uiState = uiState,
                         onClear = viewModel::clearResults,
                         onGoToCollections = { viewModel.navigateTo(AppScreen.COLLECTIONS) },
@@ -192,6 +215,7 @@ class MainActivity : ComponentActivity() {
                         onGoToLegacyMoves = { viewModel.navigateTo(AppScreen.LEGACY_MOVES) },
                         onGoToAdventureEffects = { viewModel.navigateTo(AppScreen.ADVENTURE_EFFECTS) },
                         onGoToRaidPlanner = { viewModel.navigateTo(AppScreen.RAID_PLANNER) },
+                        onGoToLeek = { viewModel.navigateTo(it) },
                         onGoToTypes = { viewModel.navigateTo(AppScreen.TYPE_CHART) },
                         onGoToMoves = { viewModel.navigateTo(AppScreen.MOVEDEX) },
                         onGoToPokedex = { viewModel.navigateTo(AppScreen.POKEDEX) },
@@ -201,9 +225,7 @@ class MainActivity : ComponentActivity() {
                         onGoToAppUpdate = { viewModel.navigateTo(AppScreen.APP_UPDATE) },
                         onDismissReview = viewModel::dismissReview,
                         onApplyReview = viewModel::applyReview,
-                        onCancelProcessing = viewModel::cancelImageProcessing,
-                        onBubbleOptionVisibleChange = viewModel::setBubbleOptionVisible,
-                        onAppLanguageChange = { viewModel.setAppLanguage(appContext, it) }
+                        onCancelProcessing = viewModel::cancelImageProcessing
                     )
 
                     AppScreen.COLLECTIONS -> {
@@ -240,6 +262,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    AppScreen.ROCKET, AppScreen.EGGS, AppScreen.PROMO_CODES, AppScreen.RESEARCH -> LeekDuckScreen(
+                        section = when(uiState.currentScreen) {
+                            AppScreen.ROCKET -> com.mewname.app.domain.LeekSection.ROCKET
+                            AppScreen.EGGS -> com.mewname.app.domain.LeekSection.EGGS
+                            AppScreen.RESEARCH -> com.mewname.app.domain.LeekSection.RESEARCH
+                            else -> com.mewname.app.domain.LeekSection.CODES
+                        }, onBack = { viewModel.navigateTo(AppScreen.HOME) })
                     AppScreen.LEGACY_MOVES -> {
                         LegacyMovesScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
                     }
@@ -313,6 +342,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 }
+                }
             }
         }
     }
@@ -340,6 +370,7 @@ fun HomeScreen(
     onGoToLegacyMoves: () -> Unit,
     onGoToAdventureEffects: () -> Unit,
     onGoToRaidPlanner: () -> Unit,
+    onGoToLeek: (AppScreen) -> Unit,
     onGoToTypes: () -> Unit,
     onGoToMoves: () -> Unit,
     onGoToPokedex: () -> Unit,
@@ -349,141 +380,23 @@ fun HomeScreen(
     onGoToAppUpdate: () -> Unit,
     onDismissReview: () -> Unit,
     onApplyReview: (PokemonScreenData) -> Unit,
-    onCancelProcessing: () -> Unit,
-    onBubbleOptionVisibleChange: (Boolean) -> Unit,
-    onAppLanguageChange: (AppLanguage) -> Unit
+    onCancelProcessing: () -> Unit
 ) {
     val context = LocalContext.current
     val language = appLanguage()
-    val bubbleActive by OverlayService.isBubbleActive.collectAsStateWithLifecycle()
-    val releaseLabel = BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" } ?: "local"
-    val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            onBubbleOptionVisibleChange(true)
-            val intent = Intent(context, OverlayService::class.java).apply {
-                putExtra("PROJECTION_DATA", result.data)
-            }
-            context.startForegroundService(intent)
-        }
-    }
-
+    val appearance = LocalAppAppearance.current
+    val compactHome = appearance.compact
     Scaffold(
-        topBar = {
-            Box(
-                modifier = Modifier.background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.tertiaryContainer
-                        )
-                    )
-                )
-            ) {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    ),
-                    title = {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(end = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "MewName",
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    AppLanguage.entries.forEach { option ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(999.dp))
-                                                .background(
-                                                    if (uiState.appLanguage == option) {
-                                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f)
-                                                    } else {
-                                                        Color.Transparent
-                                                    }
-                                                )
-                                                .border(
-                                                    width = if (uiState.appLanguage == option) 1.dp else 0.dp,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.42f),
-                                                    shape = RoundedCornerShape(999.dp)
-                                                )
-                                                .clickable { onAppLanguageChange(option) }
-                                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = appLanguageFlag(option),
-                                                style = MaterialTheme.typography.titleSmall
-                                            )
-                                        }
-                                    }
-                                }
-                                Text(
-                                    text = releaseLabel,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
-                                )
-                            }
-                        }
-                    }
-                )
-            }
-        },
-        bottomBar = {
-            Button(
-                onClick = {
-                    if (bubbleActive) {
-                        context.stopService(Intent(context, OverlayService::class.java))
-                    } else if (!Settings.canDrawOverlays(context)) {
-                        onBubbleOptionVisibleChange(false)
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:${context.packageName}")
-                        )
-                        context.startActivity(intent)
-                    } else {
-                        val mpManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                        projectionLauncher.launch(mpManager.createScreenCaptureIntent())
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    when {
-                        bubbleActive -> lt(language, "Remover modo bolha", "Remove bubble mode", "Quitar modo burbuja")
-                        !Settings.canDrawOverlays(context) -> lt(
-                            language,
-                            "Ativar permissao de sobreposicao",
-                            "Enable overlay permission",
-                            "Activar permiso de superposicion"
-                        )
-                        uiState.showBubbleOption -> lt(language, "Iniciar sobreposicao", "Start overlay", "Iniciar superposicion")
-                        else -> lt(language, "Solicitar permissao de captura", "Request capture permission", "Solicitar permiso de captura")
-                    }
-                )
-            }
-        }
+
+        containerColor = Color.Transparent,
+        topBar = { HomeGreeting() }
     ) { padding ->
         Column(
             modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(top = padding.calculateTopPadding())
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp,
+                    bottom = padding.calculateBottomPadding() + 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             FlowRow(
@@ -492,127 +405,161 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 HomeActionSquare(
-                    title = lt(language, "Calendario", "Calendar", "Calendario"),
+                    glass = true,
+                    compact = compactHome,
+                    title = lt(language, "Calendário", "Calendar", "Calendario"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("calendar") },
+                    customIcon = { HomeGlassMenuIcon("calendar") },
                     onClick = { openExternalUrl(context, "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Calendario/calendario.html") },
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
-                    title = lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"),
+                    glass = true,
+                    compact = compactHome,
+                    title = lt(language, "Definir nomes", "Name presets", "Definir nombres"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("presets") },
+                    customIcon = { HomeGlassMenuIcon("names") },
                     onClick = onGoToPresets,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Filtros", "Filters", "Filtros"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("filters") },
+                    customIcon = { HomeGlassMenuIcon("filters") },
                     onClick = onGoToFilters,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = "Pokedex",
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("pokedex") },
+                    customIcon = { HomeGlassMenuIcon("pokedex") },
                     onClick = onGoToPokedex,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Cole\u00e7\u00f5es", "Collections", "Colecciones"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("collections") },
+                    customIcon = { HomeGlassMenuIcon("collections") },
                     onClick = onGoToCollections,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Raids", "Raids", "Raids"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("raid") },
+                    customIcon = { HomeGlassMenuIcon("raid") },
                     onClick = onGoToRaidPlanner,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Equipe GO Rocket", "GO Rocket Team", "Equipo GO Rocket"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("rocket") },
-                    onClick = { openExternalUrl(context, "https://leekduck.com/rocket-lineups/") },
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    customIcon = { HomeGlassMenuIcon("rocket") },
+                    onClick = { onGoToLeek(AppScreen.ROCKET) },
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("research") },
-                    onClick = { openExternalUrl(context, "https://leekduck.com/research/") },
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    customIcon = { HomeGlassMenuIcon("research") },
+                    onClick = { onGoToLeek(AppScreen.RESEARCH) },
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Ovos", "Eggs", "Huevos"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("eggs") },
-                    onClick = { openExternalUrl(context, "https://leekduck.com/eggs/") },
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    customIcon = { HomeGlassMenuIcon("eggs") },
+                    onClick = { onGoToLeek(AppScreen.EGGS) },
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
-                    title = lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"),
-                    iconRes = null,
-                    customIcon = { HomeMenuGlyph("promo") },
-                    onClick = { openExternalUrl(context, "https://leekduck.com/promo-codes/") },
-                    modifier = Modifier.fillMaxWidth(0.31f)
-                )
-                HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("adventure") },
+                    customIcon = { HomeGlassMenuIcon("adventure") },
                     onClick = onGoToAdventureEffects,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legado"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("legacy") },
+                    customIcon = { HomeGlassMenuIcon("legacy") },
                     onClick = onGoToLegacyMoves,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
-                    title = lt(language, "Ataques rapidos/carregados", "Fast/Charged Moves", "Ataques rapidos/cargados"),
+                    glass = true,
+                    compact = compactHome,
+                    title = lt(language, "Ataques rápidos\ne carregados", "Fast / Charged\nMoves", "Ataques rápidos\ny cargados"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("moves") },
+                    customIcon = { HomeGlassMenuIcon("moves") },
                     onClick = onGoToMoves,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
+                    title = lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"),
+                    iconRes = null,
+                    customIcon = { HomeGlassMenuIcon("promo") },
+                    onClick = { onGoToLeek(AppScreen.PROMO_CODES) },
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
+                )
+                HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Tipos", "Types", "Tipos"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("types") },
+                    customIcon = { HomeGlassMenuIcon("types") },
                     onClick = onGoToTypes,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Ajuda", "Help", "Ayuda"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("help") },
+                    customIcon = { HomeGlassMenuIcon("help") },
                     onClick = onGoToHelp,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = if (uiState.isCheckingForUpdate) {
                         lt(language, "Verificando...", "Checking...", "Verificando...")
                     } else {
                         lt(language, "Atualizar", "Update", "Actualizar")
                     },
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("update") },
+                    customIcon = { HomeGlassMenuIcon("update") },
                     onClick = onGoToAppUpdate,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
                 HomeActionSquare(
+                    glass = true,
+                    compact = compactHome,
                     title = lt(language, "Teste", "Test", "Prueba"),
                     iconRes = null,
-                    customIcon = { HomeMenuGlyph("test") },
+                    customIcon = { HomeGlassMenuIcon("test") },
                     onClick = onGoToTestMenu,
-                    modifier = Modifier.fillMaxWidth(0.31f)
+                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
             }
 
@@ -626,7 +573,7 @@ fun HomeScreen(
                     .background(Color.Black.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center
             ) {
-                Card(
+                AppSectionCard(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
@@ -637,7 +584,7 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        CircularProgressIndicator()
+                        AppLoadingIndicator()
                         Text(
                             lt(language, "Analisando imagem", "Analyzing image", "Analizando imagen"),
                             style = MaterialTheme.typography.titleMedium,
@@ -653,7 +600,7 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        TextButton(onClick = onCancelProcessing) {
+                        AppSecondaryButton(onClick = onCancelProcessing) {
                             Text(
                                 lt(language, "Cancelar", "Cancel", "Cancelar"),
                                 style = MaterialTheme.typography.labelSmall,
@@ -696,7 +643,7 @@ private fun AppUpdateScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Atualizacao do App", "App Update", "Actualizacion de la App")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -714,7 +661,7 @@ private fun AppUpdateScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -730,13 +677,13 @@ private fun AppUpdateScreen(
 
             when {
                 uiState.isCheckingForUpdate -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            CircularProgressIndicator()
+                            AppLoadingIndicator()
                             Text(lt(language, "Verificando nova release...", "Checking for a new release...", "Buscando nueva release..."), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
@@ -744,7 +691,7 @@ private fun AppUpdateScreen(
 
                 uiState.latestAppUpdate != null -> {
                     val update = uiState.latestAppUpdate
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -760,7 +707,7 @@ private fun AppUpdateScreen(
                         }
                     }
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -773,14 +720,14 @@ private fun AppUpdateScreen(
                         }
                     }
 
-                    TextButton(
+                    AppSecondaryButton(
                         onClick = { openExternalUrl(context, update.releasePageUrl) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(lt(language, "Ver pagina da release", "View release page", "Ver pagina de la release"))
                     }
 
-                    Button(
+                    AppActionButton(
                         onClick = {
                             openExternalUrl(context, update.apkDownloadUrl ?: update.releasePageUrl)
                         },
@@ -791,7 +738,7 @@ private fun AppUpdateScreen(
                 }
 
                 uiState.appUpdateError != null -> {
-                    Card(
+                    AppSectionCard(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     ) {
@@ -808,13 +755,13 @@ private fun AppUpdateScreen(
                         }
                     }
 
-                    Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+                    AppActionButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
                         Text(lt(language, "Tentar novamente", "Try again", "Intentar de nuevo"))
                     }
                 }
 
                 else -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -827,7 +774,7 @@ private fun AppUpdateScreen(
                         }
                     }
 
-                    Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+                    AppActionButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
                         Text(lt(language, "Verificar novamente", "Check again", "Buscar de nuevo"))
                     }
                 }
@@ -857,7 +804,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legados")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -875,7 +822,8 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                OutlinedTextField(
+                AppGlassTextField(
+                    search = true,
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -884,7 +832,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                 )
             }
             items(filteredEntries) { entry ->
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -910,7 +858,7 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -940,7 +888,7 @@ private fun DonationScreen(onBack: () -> Unit) {
     val language = appLanguage()
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Doacao", "Donate", "Donacion")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -957,7 +905,7 @@ private fun DonationScreen(onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -989,7 +937,7 @@ private fun TestMenuScreen(
     val language = appLanguage()
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Teste", "Test", "Prueba")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1008,25 +956,31 @@ private fun TestMenuScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             HomeActionSquare(
+                glass = LocalAppAppearance.current.glass,
+                compact = LocalAppAppearance.current.compact,
                 title = lt(language, "Gerar nome por imagem", "Generate name from image", "Generar nombre por imagen"),
                 iconRes = null,
                 customIcon = { HomeMenuGlyph("capture") },
                 onClick = onPickImage,
-                modifier = Modifier.fillMaxWidth(0.31f)
+                modifier = Modifier.fillMaxWidth(if (LocalAppAppearance.current.compact) 1f else 0.31f)
             )
             HomeActionSquare(
+                glass = LocalAppAppearance.current.glass,
+                compact = LocalAppAppearance.current.compact,
                 title = lt(language, "Validar amostras", "Validate samples", "Validar muestras"),
                 iconRes = null,
                 customIcon = { HomeMenuGlyph("validation") },
                 onClick = onGoToIvValidation,
-                modifier = Modifier.fillMaxWidth(0.31f)
+                modifier = Modifier.fillMaxWidth(if (LocalAppAppearance.current.compact) 1f else 0.31f)
             )
             HomeActionSquare(
+                glass = LocalAppAppearance.current.glass,
+                compact = LocalAppAppearance.current.compact,
                 title = lt(language, "Doacao", "Donate", "Donacion"),
                 iconRes = null,
                 customIcon = { HomeMenuGlyph("donation") },
                 onClick = onGoToDonation,
-                modifier = Modifier.fillMaxWidth(0.31f)
+                modifier = Modifier.fillMaxWidth(if (LocalAppAppearance.current.compact) 1f else 0.31f)
             )
         }
     }
@@ -1041,7 +995,7 @@ private fun HelpMenuScreen(
     val language = appLanguage()
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Ajuda", "Help", "Ayuda")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1058,21 +1012,26 @@ private fun HelpMenuScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { RecentFeaturesHelp() }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(lt(language, "Como usar cada tela", "How to use each screen", "Como usar cada pantalla"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         HelpLine("Calendario", lt(language, "Abre o calendario externo de eventos. Use para conferir raids, horas em destaque, dias comunitarios e eventos antes de montar filtros.", "Opens the external event calendar. Use it to check raids, spotlight hours, community days, and events before building filters.", "Abre el calendario externo de eventos. Usalo para revisar raids, horas destacadas, dias comunitarios y eventos antes de crear filtros."))
                         HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a bolha usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. A bolha usa apenas formatos ja salvos.", "Create the formats used by the bubble to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. The bubble only uses saved formats.", "Crea los formatos que usa la burbuja para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. La burbuja solo usa formatos guardados."))
                         HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
                         HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
-                        HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Use a leitura da bolha ou selecione o chefe manualmente. Escolha os tipos do chefe, copie o filtro e compare as colunas Atacantes e Defensores.", "Use the bubble reading or manually select the boss. Pick the boss types, copy the filter, and compare the Attackers and Defenders columns.", "Usa la lectura de la burbuja o selecciona el jefe manualmente. Elige los tipos del jefe, copia el filtro y compara las columnas Atacantes y Defensores."))
+                        HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a bolha usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; bubble mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la burbuja usa datos guardados. Revisa formas y ataques al usar el filtro."))
                         HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
                         HelpLine(lt(language, "Ataques rapidos/carregados", "Fast/Charged Moves", "Ataques rapidos/cargados"), lt(language, "Pesquise ataques por nome, tipo e categoria. Cada registro mostra dados de ginasio e PvP para comparar dano, energia e duracao.", "Search moves by name, type, and category. Each row shows Gym and PvP data so you can compare damage, energy, and duration.", "Busca ataques por nombre, tipo y categoria. Cada registro muestra datos de gimnasio y PvP para comparar dano, energia y duracion."))
-                        HelpLine(lt(language, "Equipe GO Rocket", "GO Rocket Team", "Equipo GO Rocket"), lt(language, "Abre a pagina externa com as lineups atuais da Equipe GO Rocket para consultar Grunts, Lideres e Giovanni rapidamente.", "Opens the external page with current Team GO Rocket lineups so you can quickly check Grunts, Leaders, and Giovanni.", "Abre la pagina externa con las alineaciones actuales del Equipo GO Rocket para consultar Reclutas, Lideres y Giovanni rapidamente."))
-                        HelpLine(lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), lt(language, "Abre a lista externa de codigos promocionais para resgatar recompensas disponiveis no momento.", "Opens the external promo code list so you can redeem rewards currently available.", "Abre la lista externa de codigos promocionales para canjear recompensas disponibles en este momento."))
-                        HelpLine(lt(language, "Ovos", "Eggs", "Huevos"), lt(language, "Abre a pagina externa de ovos para verificar tabelas de eclosao e pools atualizados.", "Opens the external eggs page so you can check hatch tables and updated pools.", "Abre la pagina externa de huevos para revisar tablas de eclosion y pools actualizados."))
-                        HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Abre a pagina externa de pesquisas para consultar tarefas de campo, recompensas e pesquisas especiais.", "Opens the external research page so you can check field tasks, rewards, and special research.", "Abre la pagina externa de investigaciones para consultar tareas de campo, recompensas e investigaciones especiales."))
+                        HelpLine(lt(language, "Equipe GO Rocket", "Team GO Rocket", "Equipo GO Rocket"), lt(language, "Consulte recrutas, lideres e Giovanni no app. Filtre por grupo e pesquise nomes, tipos ou falas no idioma selecionado ou no original. Cada bloco mostra as tres posicoes, capturas possiveis e fraquezas. Atualizar consulta o Leek Duck; sem internet, a ultima lista salva continua disponivel.", "Browse grunts, leaders and Giovanni in the app. Filter or search names, types and quotes in your selected language or the original. Cards show three slots, catchable Pokemon and weaknesses. Refresh checks Leek Duck; saved lists remain available offline.", "Consulta reclutas, lideres y Giovanni. Filtra y busca nombres, tipos o frases en el idioma seleccionado o en el original. Se muestran posiciones, capturas y debilidades. La ultima lista queda disponible sin conexion."))
+                        HelpLine(lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), lt(language, "Consulte recompensas e validade, copie o codigo ou toque em Resgatar para abrir a loja oficial. Disponivel significa listado pela fonte, sem garantia de resgate para sua conta. Validade desconhecida e mostrada quando a fonte nao informa a data.", "View rewards and expiry, copy a code or open the official redemption store. Available means listed by the source, not guaranteed redeemable for your account. Unknown expiry is shown when no public date is supplied.", "Consulta recompensas y vencimiento, copia el codigo o abre la tienda oficial. Disponible significa listado por la fuente; el canje depende de la cuenta. Se indica cuando la fecha es desconocida."))
+                        HelpLine(lt(language, "Leitura de ovos, Rocket e pesquisas", "Egg, Rocket and research scanning", "Lectura de huevos, Rocket e investigaciones"), lt(language,
+                            "No jogo, abra os ovos, a fala do recruta ou as pesquisas de campo e toque na bolha. A janela mostra possibilidades para as distancias, a fala ou as tarefas visiveis. Ovos antigos e origens diferentes podem ter outras especies; falas compartilhadas mostram ambos os recrutas. Pesquisas com o mesmo texto podem ter recompensas diferentes por evento e icone: as opcoes sao separadas e nao sao todas garantidas. Tarefas nao reconhecidas ou ausentes no catalogo nao recebem uma recompensa presumida. A bolha consulta somente os dados salvos. Atualize os catalogos nas telas normais do app; X volta ao jogo.",
+                            "Open eggs, a grunt quote or field research in the game and tap the bubble. The window shows possibilities for the visible distances, quote or tasks. Older eggs and different origins may have other species; shared quotes show both grunts. Identical tasks may have different rewards by event and icon: options are separated and not all are guaranteed. Unrecognized or unlisted tasks are not assigned a guessed reward. The bubble only reads saved data. Update catalogs in the normal app screens; X returns to the game.",
+                            "Abre los huevos, la frase de un recluta o las investigaciones de campo y toca la burbuja. Se muestran posibilidades para las distancias, la frase o las tareas visibles. Los huevos antiguos pueden tener otras especies; las frases compartidas muestran ambos reclutas. Las tareas iguales pueden variar por evento e icono: no se garantizan todas las recompensas. No se inventan recompensas para tareas no reconocidas. Actualiza los catalogos en las pantallas normales de la app; X vuelve al juego."))
+                        HelpLine(lt(language, "Ovos", "Eggs", "Huevos"), lt(language, "Filtre por distancia e origem: comuns, presentes, rotas e Sincroaventura. Consulte Pokemon, CP, shiny e raridade quando confirmada. Avisos de listas incompletas sao preservados. Textos descritivos do Leek Duck permanecem no idioma original. A fonte e a ultima consulta aparecem no fim de cada tela.", "Filter eggs by distance and origin. View Pokemon, CP, shiny and confirmed rarity. Incomplete-list notices are preserved. Leek Duck descriptions remain in their original language. Source and last checked date appear at the bottom.", "Filtra huevos por distancia y origen. Consulta Pokemon, CP, shiny y rareza confirmada. Se conservan avisos de listas incompletas y descripciones originales. La fuente y la ultima consulta aparecen al final."))
+                        HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Consulte tarefas de campo e recompensas no app, com busca e filtros de pesquisas comuns e de evento. A tela salva o catalogo para a bolha e para consultas sem internet. Na bolha, o catalogo salvo e usado sem consulta automatica a internet; atualize somente pela tela normal de Pesquisas de Campo. Sem dados salvos ou correspondencias, a bolha pede uma atualizacao nessa tela.", "Browse field tasks and rewards in the app, with search and regular/event filters. This screen saves the shared catalog for offline bubble scans. The bubble never downloads updates. Use the normal Field Research screen to update; the bubble directs you there when saved data or matches are missing.", "Consulta tareas de campo y recompensas en la app, con búsqueda y filtros. El catálogo se guarda para consultas sin conexión. La burbuja usa exclusivamente los datos guardados. Actualiza desde la pantalla normal de investigaciones cuando falten datos o coincidencias."))
                         HelpLine(lt(language, "Teste", "Test", "Prueba"), lt(language, "Agrupa ferramentas de manutencao: gerar nome a partir de imagem, validar amostras e abrir a tela de doacao.", "Groups maintenance tools: generate a name from an image, validate samples, and open the donation screen.", "Agrupa herramientas de mantenimiento: generar nombre desde imagen, validar muestras y abrir la pantalla de donacion."))
                         HelpLine(lt(language, "Atualizar", "Update", "Actualizar"), lt(language, "Consulta releases do app e mostra a versao instalada. Use quando quiser verificar se ha APK mais recente.", "Checks app releases and shows the installed version. Use it when you want to see whether a newer APK exists.", "Consulta releases de la app y muestra la version instalada. Usalo cuando quieras verificar si hay un APK mas reciente."))
                         HelpLine(lt(language, "Privacidade", "Privacy", "Privacidad"), lt(language, "Explica permissoes, captura de tela, processamento local, armazenamento e direitos da Pokemon Company.", "Explains permissions, screen capture, local processing, storage, and Pokemon Company rights.", "Explica permisos, captura de pantalla, procesamiento local, almacenamiento y derechos de Pokemon Company."))
@@ -1080,7 +1039,7 @@ private fun HelpMenuScreen(
                 }
             }
             item {
-                Button(onClick = onGoToPrivacy, modifier = Modifier.fillMaxWidth()) {
+                AppActionButton(onClick = onGoToPrivacy, modifier = Modifier.fillMaxWidth()) {
                     Text(lt(language, "Politica de privacidade", "Privacy policy", "Politica de privacidad"))
                 }
             }
@@ -1102,7 +1061,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
     val language = appLanguage()
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Privacidade", "Privacy", "Privacidad")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1120,7 +1079,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1157,7 +1116,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1185,7 +1144,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1227,7 +1186,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
 
 @Composable
 private fun AdventureEffectCard(entry: AdventureEffectCatalogEntry, language: AppLanguage) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1243,22 +1202,71 @@ private fun AdventureEffectCard(entry: AdventureEffectCatalogEntry, language: Ap
 @Composable
 private fun HomeActionSquare(
     title: String,
+    glass: Boolean = false,
+    compact: Boolean = false,
     @DrawableRes iconRes: Int?,
     assetIconPath: String? = null,
     customIcon: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appearance = LocalAppAppearance.current
+    if (compact) {
+        AppSectionCard(
+            modifier = modifier.clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(Modifier.width(76.dp), contentAlignment = Alignment.Center) { customIcon?.invoke() }
+                Text(title, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("›", style = MaterialTheme.typography.titleLarge)
+            }
+        }
+        return
+    }
+    if (glass && customIcon != null) {
+        // Draw one surface behind the content. A transparent elevated Card can
+        // expose an opaque rectangular layer on some Android renderers.
+        Box(modifier = modifier.clickable(onClick = onClick)) {
+            Box(Modifier.matchParentSize().padding(top = 7.dp)
+                .background(Brush.linearGradient(appearance.card), RoundedCornerShape(18.dp))
+                .border(0.75.dp, appearance.border, RoundedCornerShape(18.dp)))
+            Text(
+                title,
+                color = appearance.text,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 52.dp, bottom = 6.dp)
+                    .height(with(androidx.compose.ui.platform.LocalDensity.current) { MaterialTheme.typography.labelMedium.lineHeight.toDp() * 2 })
+            )
+            Box(Modifier.align(Alignment.TopCenter).height(48.dp), contentAlignment = Alignment.Center) {
+                customIcon()
+            }
+        }
+        return
+    }
     Card(
         modifier = modifier
             .aspectRatio(0.94f)
+            .then(if (glass) Modifier.background(
+                Brush.linearGradient(listOf(Color.White.copy(alpha = 0.72f),
+                    Color(0xFFE8E0F7).copy(alpha = 0.48f), Color.White.copy(alpha = 0.42f))),
+                RoundedCornerShape(20.dp)
+            ) else Modifier)
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        shape = RoundedCornerShape(24.dp)
+        colors = CardDefaults.cardColors(containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = if (glass) androidx.compose.foundation.BorderStroke(0.75.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.85f), Color.White.copy(alpha = 0.25f)))) else null,
+        shape = RoundedCornerShape(if (glass) 20.dp else 24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -1403,7 +1411,7 @@ private fun HomeValidateGlyph() {
     }
 }
 
-private fun openExternalUrl(context: Context, url: String) {
+internal fun openExternalUrl(context: Context, url: String) {
     if (url.isBlank()) return
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1454,13 +1462,14 @@ private fun IvValidationScreen(
 ) {
     val context = LocalContext.current
     val language = appLanguage()
+    val showLogOptions = logOptionsEnabled()
     val results = uiState.debugIvValidationResults
     val comparableCount = results.count { it.comparable }
     val matchedCount = results.count { it.comparable && it.matched }
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Validador IV", "IV Validator", "Validador IV")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1478,13 +1487,13 @@ private fun IvValidationScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(lt(language, "Enviar novos prints para analise", "Send new screenshots for analysis", "Enviar nuevas capturas para analisis"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Button(
+                        AppActionButton(
                             onClick = onPickImages,
                             enabled = !uiState.debugIvValidationRunning,
                             modifier = Modifier.fillMaxWidth()
@@ -1502,7 +1511,7 @@ private fun IvValidationScreen(
                         )
                         HorizontalDivider()
                         Text(lt(language, "Imagens existentes no projeto", "Existing project images", "Imagenes existentes del proyecto"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Button(
+                        AppActionButton(
                             onClick = onRunExistingValidation,
                             enabled = !uiState.debugIvValidationRunning,
                             modifier = Modifier.fillMaxWidth()
@@ -1510,7 +1519,7 @@ private fun IvValidationScreen(
                             Text(if (uiState.debugIvValidationRunning) lt(language, "Analisando...", "Analyzing...", "Analizando...") else lt(language, "Analisar imagens existentes", "Analyze existing images", "Analizar imagenes existentes"))
                         }
                         if (uiState.debugIvValidationRunning) {
-                            TextButton(
+                            AppSecondaryButton(
                                 onClick = onCancelValidation,
                                 modifier = Modifier.align(Alignment.End)
                             ) {
@@ -1520,9 +1529,9 @@ private fun IvValidationScreen(
                     }
                 }
             }
-            if (results.isNotEmpty()) {
+            if (showLogOptions && results.isNotEmpty()) {
                 item {
-                    Button(
+                    AppActionButton(
                         onClick = {
                             val exportText = buildDebugIvValidationExport(results, matchedCount)
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -1552,7 +1561,7 @@ private fun IvValidationScreen(
                     )
                 }
                 items(results) { result ->
-                    Card(
+                    AppSectionCard(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
                             containerColor = when {
@@ -1676,7 +1685,7 @@ fun PresetListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Formatos de Nome", "Name Presets", "Formatos de Nombre")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1686,15 +1695,19 @@ fun PresetListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
+            AppAddButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, lt(language, "Novo", "New", "Nuevo"))
             }
         }
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
             itemsIndexed(configs) { _, config ->
                 val previewName = generator.generate(exampleData, config)
+                AppSectionCard(Modifier.fillMaxWidth()) {
                 ListItem(
+                    colors = androidx.compose.material3.ListItemDefaults.colors(containerColor = Color.Transparent),
                     headlineContent = { Text(config.name, fontWeight = FontWeight.Bold) },
                     supportingContent = {
                         Text(
@@ -1711,7 +1724,7 @@ fun PresetListScreen(
                         }
                     }
                 )
-                HorizontalDivider()
+                }
             }
         }
     }
@@ -1829,7 +1842,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(lt(language, "Configurar Nome", "Edit Preset", "Configurar Nombre")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1847,7 +1860,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             )
         },
         bottomBar = {
-            Button(
+            AppActionButton(
                 onClick = {
                     onUpdate(draftConfig)
                     onBack()
@@ -1868,7 +1881,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            OutlinedTextField(
+            AppGlassTextField(
                 value = draftConfig.name,
                 onValueChange = { draftConfig = draftConfig.copy(name = it) },
                 label = { Text(lt(language, "Nome do formato", "Preset name", "Nombre del formato")) },
@@ -1880,7 +1893,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 style = sectionTitleStyle,
                 fontWeight = FontWeight.Bold
             )
-            Card(
+            AppSectionCard(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
@@ -1997,7 +2010,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             }
 
             Text("${lt(language, "Limite de Caracteres", "Character Limit", "Limite de Caracteres")}: ${draftConfig.maxLength}", style = sectionTitleStyle, fontWeight = FontWeight.Bold)
-            Slider(
+            AppValueSlider(
                 value = draftConfig.maxLength.toFloat(),
                 onValueChange = { draftConfig = draftConfig.copy(maxLength = it.toInt()) },
                 valueRange = 6f..30f
@@ -2015,7 +2028,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showPatternHelp = false }) {
+                AppSecondaryButton(onClick = { showPatternHelp = false }) {
                     Text(lt(language, "Fechar", "Close", "Cerrar"))
                 }
             }
@@ -2112,7 +2125,7 @@ private fun FieldConfigDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("${option.label}: ${option.value}")
-                                TextButton(onClick = { onPickSymbol(option) }) {
+                                AppSecondaryButton(onClick = { onPickSymbol(option) }) {
                                     Text(lt(language, "EDITAR", "EDIT", "EDITAR"))
                                 }
                             }
@@ -2127,11 +2140,11 @@ private fun FieldConfigDialog(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = onAdd) {
+                AppActionButton(onClick = onAdd) {
                     Text(lt(language, "ADICIONAR", "ADD", "AGREGAR"))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                TextButton(onClick = onDismiss) {
+                AppSecondaryButton(onClick = onDismiss) {
                     Text(lt(language, "Cancelar", "Cancel", "Cancelar"))
                 }
             }
@@ -2165,10 +2178,10 @@ private fun UniqueFormFieldConfigContent(
     val currentSpec = specs.getOrNull(selectedTabIndex) ?: return
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ScrollableTabRow(selectedTabIndex = selectedTabIndex) {
+        AppPillTabRow(selectedTabIndex = selectedTabIndex) {
             specs.forEachIndexed { index, spec ->
                 val tabTitle = spec.pokemonNames.first().lowercase().replaceFirstChar { it.titlecase() }
-                Tab(
+                AppPillTab(
                     selected = selectedTabIndex == index,
                     onClick = { selectedTabIndex = index },
                     text = { Text(tabTitle) }
@@ -2206,7 +2219,7 @@ private fun UniqueFormFieldConfigContent(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(displayLabel)
-                    TextButton(
+                    AppSecondaryButton(
                         onClick = {
                             onPickSymbol(
                                 FieldSymbolOption(
@@ -2253,9 +2266,8 @@ private fun VariableFieldGroupCard(
     extraActions: List<VariableExtraAction>? = null
 ) {
     val language = appLanguage()
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+    AppSectionCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -2327,9 +2339,8 @@ private fun VariableActionCard(
     leadingIcon: (@Composable () -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    Card(
+    AppSectionCard(
         modifier = modifier.clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)),
         shape = RoundedCornerShape(14.dp)
     ) {
         Column(
@@ -2479,12 +2490,12 @@ fun SymbolPickerDialog(
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                AppGlassTextField(
                     value = customText,
                     onValueChange = { customText = it },
                     label = { Text(lt(language, "Texto customizado", "Custom text", "Texto personalizado")) }
                 )
-                Button(
+                AppActionButton(
                     onClick = { onSymbolSelected(customText) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -2506,7 +2517,7 @@ fun SymbolPickerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            AppSecondaryButton(onClick = onDismiss) {
                 Text(lt(language, "Fechar", "Close", "Cerrar"))
             }
         }
@@ -2546,7 +2557,7 @@ private fun FixedTextDialog(
         onDismissRequest = onDismiss,
         title = { Text(lt(language, "Adicionar texto fixo", "Add fixed text", "Agregar texto fijo")) },
         text = {
-            OutlinedTextField(
+            AppGlassTextField(
                 value = customText,
                 onValueChange = { customText = it },
                 label = { Text(lt(language, "Ex: XXL, FE, espaco", "Ex: XXL, FE, space", "Ej: XXL, FE, espacio")) },
@@ -2559,7 +2570,7 @@ private fun FixedTextDialog(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
+                AppActionButton(
                     onClick = {
                         if (customText.text.isNotBlank()) {
                             onAdd(customText.text)
@@ -2569,7 +2580,7 @@ private fun FixedTextDialog(
                     Text(lt(language, "Adicionar", "Add", "Agregar"))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                TextButton(onClick = onDismiss) {
+                AppSecondaryButton(onClick = onDismiss) {
                     Text(lt(language, "Cancelar", "Cancel", "Cancelar"))
                 }
             }

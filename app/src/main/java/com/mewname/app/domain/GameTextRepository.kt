@@ -10,17 +10,27 @@ enum class AppLanguage {
 }
 
 object GameTextRepository {
-    private val textCache = mutableMapOf<AppLanguage, Map<String, String>>()
+    private val textCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, Map<String, String>>()
+    private val researchTemplateCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, List<ResearchTemplate>>()
     private val moveCache = mutableMapOf<AppLanguage, Map<Int, String>>()
     private val pokemonCache = mutableMapOf<AppLanguage, Map<Int, String>>()
+
+    private val researchIndexes = java.util.concurrent.ConcurrentHashMap<AppLanguage, ResearchTranslationIndex>()
+    @Synchronized
+    internal fun researchIndex(context: Context, language: AppLanguage): ResearchTranslationIndex =
+        researchIndexes.getOrPut(language) { ResearchTranslationIndex(researchTemplates(context, language)) }
 
     fun clearCache(language: AppLanguage? = null) {
         if (language == null) {
             textCache.clear()
+            researchTemplateCache.clear()
+            researchIndexes.clear()
             moveCache.clear()
             pokemonCache.clear()
         } else {
             textCache.remove(language)
+            researchTemplateCache.remove(language)
+            researchIndexes.remove(language)
             moveCache.remove(language)
             pokemonCache.remove(language)
         }
@@ -63,6 +73,49 @@ object GameTextRepository {
         return translations
     }
 
+    fun rocketQuotes(context: Context, language: AppLanguage): List<RocketQuote> {
+        val english = loadTextTable(context, AppLanguage.EN)
+        val localized = loadTextTable(context, language)
+        return english.filterKeys { it.startsWith("combat_") && it.contains("quote") }.mapNotNull { (id, text) ->
+            localized[id]?.takeIf { it.isNotBlank() }?.let { RocketQuote(text, it, when {
+                id.contains("__female_speaker") -> "Female"
+                id.contains("__male_speaker") -> "Male"
+                else -> null
+            }) }
+        }
+    }
+
+    fun researchTemplates(context: Context, language: AppLanguage): List<ResearchTemplate> {
+        researchTemplateCache[language]?.let { return it }
+        val english = loadTextTable(context, AppLanguage.EN)
+        val localized = loadTextTable(context, language)
+        val terms = english.filterKeys { it.startsWith("pokemon_name_") || it.startsWith("pokemon_type_") }
+            .mapNotNull { (id, text) -> localized[id]?.let { catalogText(text) to it } }.toMap()
+        val bundled = english.filter { (id, text) -> id.startsWith("quest_") && text.length < 180 &&
+            !id.contains("dialogue") && !id.contains("title") }.mapNotNull { (id, text) ->
+            localized[id]?.let { ResearchTemplate(text, it, terms) }
+        }.distinctBy { it.english to it.localized }
+        // Local translations for current source phrasing absent from bundled quest resources.
+        fun tr(pt: String, en: String, es: String) = when (language) {
+            AppLanguage.PT_BR -> pt; AppLanguage.EN -> en; AppLanguage.ES -> es
+        }
+        val templates = bundled + listOf(
+            ResearchTemplate("Catch {0} {1}", tr("Capturar {0} {1}.", "Catch {0} {1}", "Captura {0} {1}"), terms),
+            ResearchTemplate("Catch {0} {1}- or {2}-type Pokémon",
+                tr("Capturar {0} Pokémon de tipo {1} ou {2}.", "Catch {0} {1}- or {2}-type Pokémon",
+                    "Captura {0} Pokémon de tipo {1} o {2}"), terms),
+            ResearchTemplate("Win a Max Battle", tr("Vencer 1 Batalha Max.", "Win a Max Battle", "Gana un Combate Max"), terms)
+        )
+        researchTemplateCache[language] = templates
+        return templates
+    }
+    fun researchDisplayTerms(context: Context, language: AppLanguage): Map<String, String> {
+        val english = loadTextTable(context, AppLanguage.EN)
+        val localized = loadTextTable(context, language)
+        return english.filterKeys { (it.startsWith("item_") && it.endsWith("_name")) ||
+            it.startsWith("pokemon_name_") || it == "mega_energy" || it == "pokemon_info_stardust_label" }
+            .mapNotNull { (id, value) -> localized[id]?.let { catalogText(value) to it } }.toMap()
+    }
     private fun loadTextTable(context: Context, language: AppLanguage): Map<String, String> {
         textCache[language]?.let { return it }
         val assetPath = when (language) {
@@ -70,19 +123,7 @@ object GameTextRepository {
             AppLanguage.PT_BR -> AssetPaths.TEXT_PT_BR
             AppLanguage.ES -> AssetPaths.TEXT_ES
         }
-        val raw = context.assets.open(assetPath).bufferedReader().use { it.readText() }
-        val regex = Regex("""RESOURCE ID:\s*([^\s]+)\s*TEXT:\s*(.*?)(?=\s*RESOURCE ID:|\z)""", setOf(RegexOption.DOT_MATCHES_ALL))
-        val table = buildMap {
-            regex.findAll(raw).forEach { match ->
-                val key = match.groupValues[1].trim()
-                val value = match.groupValues[2]
-                    .replace(Regex("""\s+"""), " ")
-                    .trim()
-                if (key.isNotEmpty() && value.isNotEmpty()) {
-                    put(key, value)
-                }
-            }
-        }
+        val table = context.assets.open(assetPath).bufferedReader().use { GameTextFileReader.read(it) }
         textCache[language] = table
         return table
     }

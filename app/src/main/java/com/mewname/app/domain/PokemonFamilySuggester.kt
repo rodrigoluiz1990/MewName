@@ -81,7 +81,7 @@ class PokemonFamilySuggester {
     }
 
     private fun normalize(text: String): String {
-        return Normalizer.normalize(text, Normalizer.Form.NFD)
+        return Normalizer.normalize(pokemonDisplayName(text), Normalizer.Form.NFD)
             .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
             .uppercase(Locale.US)
             .trim()

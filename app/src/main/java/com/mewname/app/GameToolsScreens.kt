@@ -89,6 +89,8 @@ import com.mewname.app.domain.GameTextRepository
 import com.mewname.app.domain.MoveCatalogEntry
 import com.mewname.app.domain.MoveCategory
 import com.mewname.app.domain.PokedexCatalogEntry
+import com.mewname.app.domain.RaidHistoryItem
+import androidx.compose.material.icons.filled.Refresh
 import com.mewname.app.domain.RaidHistoryCategory
 import com.mewname.app.domain.TypeMatchupEntry
 import com.mewname.app.model.EvolutionFlag
@@ -119,21 +121,20 @@ fun AnalysisTabsSection(
     }
     var selectedTab by remember(tabs) { mutableStateOf(0) }
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    AppSectionCard(
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            ScrollableTabRow(
+            AppPillTabRow(
                 selectedTabIndex = selectedTab,
                 edgePadding = 0.dp,
                 divider = {}
             ) {
                 tabs.forEachIndexed { index, title ->
-                    Tab(
+                    AppPillTab(
                         selected = index == selectedTab,
                         onClick = { selectedTab = index },
                         text = { Text(title) }
@@ -144,9 +145,8 @@ fun AnalysisTabsSection(
             when (tabs.getOrNull(selectedTab)) {
                 suggestedTab -> {
                     results.forEach { result ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+                        AppSectionCard(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier.padding(14.dp),
@@ -174,7 +174,7 @@ fun AnalysisTabsSection(
                 }
             }
 
-            Button(onClick = onClear, modifier = Modifier.fillMaxWidth()) {
+            AppActionButton(onClick = onClear, secondary = true, modifier = Modifier.fillMaxWidth()) {
                 Text(t(language, "Limpar resultados", "Clear results", "Limpiar resultados"))
             }
         }
@@ -220,7 +220,7 @@ private fun DetectedDataSummary(data: PokemonScreenData) {
         if (flags.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 flags.forEach { flag ->
-                    AssistChip(onClick = {}, label = { Text(flag) })
+                    AppInfoChip(onClick = {}, label = { Text(flag) })
                 }
             }
         }
@@ -232,9 +232,8 @@ private fun LabeledValueCard(
     title: String,
     pairs: List<Pair<String, String>>
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+    AppSectionCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -277,9 +276,8 @@ fun TypesScreen(onBack: () -> Unit) {
             "Selecciona uno o dos tipos para ver debilidades, resistencias y resistencias dobles. Usa esta pantalla para decidir que ataques funcionan mejor contra un jefe o que tipos resisten mejor una batalla."
         )
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+        AppSectionCard(
+            modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -376,7 +374,7 @@ fun MovesScreen(onBack: () -> Unit) {
 
     androidx.compose.material3.Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(t(language, "Ataques", "Moves", "Ataques")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -399,7 +397,8 @@ fun MovesScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                OutlinedTextField(
+                AppGlassTextField(
+                    search = true,
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -449,7 +448,7 @@ fun MovesScreen(onBack: () -> Unit) {
             }
             if (filtered.size > visibleEntries.size) {
                 item {
-                    Button(
+                    AppActionButton(
                         onClick = { visibleCount += 80 },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -513,7 +512,7 @@ fun PokedexScreen(onBack: () -> Unit) {
 
     androidx.compose.material3.Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text("Pokedex") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -536,9 +535,8 @@ fun PokedexScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+                AppSectionCard(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -557,8 +555,9 @@ fun PokedexScreen(onBack: () -> Unit) {
                                 "La lista se carga por lotes para mantener la pantalla fluida."
                             )
                         )
-                        OutlinedTextField(
-                            value = query,
+                        AppGlassTextField(
+                    search = true,
+                    value = query,
                             onValueChange = { query = it },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(t(language, "Buscar Pokemon", "Search Pokemon", "Buscar Pokemon")) },
@@ -587,7 +586,7 @@ fun PokedexScreen(onBack: () -> Unit) {
             }
             if (visibleCount < filtered.size) {
                 item {
-                    Button(
+                    AppActionButton(
                         onClick = { visibleCount += 60 },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -625,7 +624,7 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
 
     androidx.compose.material3.Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(t(language, "Filtros", "Filters", "Filtros")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -649,9 +648,9 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ScrollableTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
+            AppPillTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
                 tabTitles.forEachIndexed { index, title ->
-                    Tab(selected = index == tabIndex, onClick = { tabIndex = index }, text = { Text(title) })
+                    AppPillTab(selected = index == tabIndex, onClick = { tabIndex = index }, text = { Text(title) })
                 }
             }
             when (tabIndex) {
@@ -665,7 +664,7 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { showHelp = false },
                 confirmButton = {
-                    Button(onClick = { showHelp = false }) {
+                    AppActionButton(onClick = { showHelp = false }) {
                     Text(t(language, "OK", "OK", "OK"))
                 }
             },
@@ -691,25 +690,87 @@ fun RaidPlannerScreen(
 ) {
     val context = LocalContext.current
     val language = appLanguage()
-    val raidHistory = remember(context) { GameInfoRepository.loadRaidHistory(context.applicationContext) }
-    val pokedexOrder = remember(context) { GameInfoRepository.loadPokemonDexOrder(context.applicationContext) }
+    var selectedBoss by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTier by rememberSaveable { mutableStateOf("RAID_LEVEL_5") }
+    if (selectedBoss != null) {
+        RaidDetailsScreen(selectedBoss!!, selectedTier, onBack = { selectedBoss = null })
+        return
+    }
+    val counterRepository = remember { com.mewname.app.domain.RaidCounterRepository(context.applicationContext) }
+    var live by remember { mutableStateOf<List<RaidHistoryCategory>>(emptyList()) }
+    var catalogError by remember { mutableStateOf(false) }
+    var catalogLoading by remember { mutableStateOf(false) }
+    var retry by rememberSaveable { mutableStateOf(0) }
+    var loading by remember { mutableStateOf(true) }
+    var loadedCount by remember { mutableStateOf(0) }
+    var totalCount by remember { mutableStateOf(0) }
+    val loaded by androidx.compose.runtime.produceState<Result<List<RaidHistoryCategory>>?>(null, context, retry) {
+        value = null
+        loading = true
+        loadedCount = 0
+        totalCount = 0
+        value = loadRaidCatalogProgressively(context.applicationContext) { categories, count, total ->
+            value = Result.success(categories)
+            loadedCount = count
+            totalCount = total
+            // Give Compose a frame to display each boss and handle input before adding the next.
+            androidx.compose.runtime.withFrameNanos { }
+        }
+        loading = false
+    }
 
+    LaunchedEffect(retry) {
+        fun groups(entries: List<com.mewname.app.domain.RaidChoice>) = entries.groupBy { it.tier }.map { (tier, rows) ->
+            val suffix=tier.removePrefix("RAID_LEVEL_").replace('_',' ')
+            RaidHistoryCategory("live_$tier", "Raid · $suffix", "Raid · $suffix", "Raid · $suffix",
+                rows.map { RaidHistoryItem(com.mewname.app.domain.raidName(it.id), "https://www.pokebattler.com/raids/${it.id}", "", "") })
+        }
+        try {
+            catalogError=false; catalogLoading=true
+            val cached=withContext(Dispatchers.IO) { counterRepository.catalog() }
+            live=groups(cached)
+            if(retry>0) withContext(Dispatchers.IO) { counterRepository.updateMetadata() }
+            if(cached.isEmpty() || retry>0) live=groups(withContext(Dispatchers.IO) { counterRepository.catalog(refresh=true) })
+        } catch(e: kotlinx.coroutines.CancellationException) { throw e }
+        catch(_: Exception) { catalogError=true }
+        finally { catalogLoading=false }
+    }
     SimpleToolScreen(
+        scrollable = false,
         title = t(language, "Raids", "Raids", "Raids"),
         onBack = onBack,
         helpTitle = t(language, "Como usar Raids", "How to use Raids", "Como usar Raids"),
         helpText = t(
             language,
-            "Use as abas para navegar por tipo de raid: nivel 5, Mega, Super Mega, Sombrosas, Gigantamax e Dynamax. A lista mostra os Pokemon que ja apareceram em cada categoria, mantendo a aparicao mais recente de cada um. Use o campo de busca para localizar um chefe e toque no nome para abrir a pagina correspondente no Pokebattler.",
-            "Use the tabs to browse by raid type: tier 5, Mega, Super Mega, Shadow, Gigantamax, and Dynamax. The list shows Pokemon that have appeared in each category, keeping each one's most recent appearance. Use the search field to find a boss and tap the name to open its Pokebattler page.",
-            "Usa las pestanas para navegar por tipo de raid: nivel 5, Mega, Super Mega, Oscuras, Gigantamax y Dynamax. La lista muestra los Pokemon que ya aparecieron en cada categoria, manteniendo la aparicion mas reciente de cada uno. Usa el campo de busqueda para localizar un jefe y toca el nombre para abrir su pagina en Pokebattler."
+            "Consulte as raids atuais e o histórico nas abas. Toque no chefe para ver golpes, fraquezas, PC de captura e sugestões do Pokébattler. Atualize pelo ícone para salvar os dados; a bolha consulta somente o que já está salvo. O filtro busca espécies e tipos de golpes: confira a forma e o conjunto recomendado. Batalhas Max mantêm o acesso externo.",
+            "Browse current raids and history. Tap a boss for moves, weaknesses, catch CP and Pokébattler counters. Refresh in the app to save data; bubble mode only reads saved results. The filter searches species and attack types: check the form and recommended moveset. Max Battles keep their external links.",
+            "Consulta las incursiones actuales y el historial. Toca un jefe para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app para guardar los datos; la burbuja solo consulta resultados guardados. Revisa la forma y los ataques al usar el filtro. Los Combates Max conservan sus enlaces externos."
         )
     ) {
-        RaidHistorySection(
-            categories = raidHistory.categories,
-            language = language,
-            pokedexOrder = pokedexOrder
-        )
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
+            if(catalogError) Text(t(language,"Não foi possível atualizar as raids.","Could not update raids.","No se pudieron actualizar las incursiones."),Modifier.weight(1f))
+            IconButton(onClick={retry++},enabled=!catalogLoading) { Icon(androidx.compose.material.icons.Icons.Default.Refresh,contentDescription=t(language,"Atualizar","Refresh","Actualizar")) }
+        }
+        val result = loaded
+        when {
+            result == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppLoadingIndicator()
+                    Text(t(language, "Carregando raids...", "Loading raids...", "Cargando raids..."))
+                }
+            }
+            result.isFailure -> {
+                AppStatusMessage(t(language, "Não foi possível carregar as raids.", "Could not load raids.", "No se pudieron cargar las raids."), error = true)
+                AppActionButton(onClick = { retry++ }) { Text(t(language, "Tentar novamente", "Retry", "Reintentar")) }
+            }
+            result.getOrThrow().isEmpty() ->
+                AppStatusMessage(t(language, "Nenhuma raid disponível.", "No raids available.", "No hay raids disponibles."))
+            else -> RaidHistorySection(categories = live + result.getOrThrow(), language = language,
+                loading = loading, loadedCount = loadedCount, totalCount = totalCount, onSelectBoss = { boss, category ->
+                    selectedBoss = boss.url.substringAfterLast('/').substringBefore('?')
+                    selectedTier = if(category.id.startsWith("live_")) category.id.removePrefix("live_") else if(category.id == "shadow") "RAID_LEVEL_5_SHADOW" else if(category.id == "megaSuper") "RAID_LEVEL_MEGA_5" else if(category.id.contains("mega",true)) "RAID_LEVEL_MEGA" else "RAID_LEVEL_5"
+                })
+        }
     }
 }
 
@@ -735,14 +796,14 @@ private fun PokemonFilterBuilderLegacy(context: Context) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
+        AppGlassTextField(
             value = names,
             onValueChange = { names = it },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Pokemon ou termos") },
             supportingText = { Text("Use virgula para varios nomes, ex.: machamp,rayquaza") }
         )
-        OutlinedTextField(
+        AppGlassTextField(
             value = excludes,
             onValueChange = { excludes = it },
             modifier = Modifier.fillMaxWidth(),
@@ -753,7 +814,7 @@ private fun PokemonFilterBuilderLegacy(context: Context) {
         Text("Tokens rapidos", fontWeight = FontWeight.Bold)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             tokens.forEach { token ->
-                FilterChip(
+                AppChoiceChip(
                     selected = token in selectedTokens,
                     onClick = {
                         if (token in selectedTokens) selectedTokens.remove(token) else selectedTokens.add(token)
@@ -782,7 +843,7 @@ private fun PeopleFilterBuilderLegacy(context: Context) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
+        AppGlassTextField(
             value = names,
             onValueChange = { names = it },
             modifier = Modifier
@@ -877,7 +938,7 @@ fun CollectionsScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(t(language, "Coleções", "Collections", "Colecciones")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -894,16 +955,17 @@ fun CollectionsScreen(onBack: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ScrollableTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
+            AppPillTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
                 listOf(
                     t(language, "Brilhantes", "Shinies", "Brillantes"),
                     t(language, "Fundos especiais", "Special backgrounds", "Fondos especiales")
                 ).forEachIndexed { index, title ->
-                    Tab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
+                    AppPillTab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
                 }
             }
-            OutlinedTextField(
-                value = query,
+            AppGlassTextField(
+                    search = true,
+                    value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(t(language, "Buscar Pokémon ou forma", "Search Pokemon or form", "Buscar Pokemon o forma")) },
@@ -927,9 +989,8 @@ fun CollectionsScreen(onBack: () -> Unit) {
             ) {
                 filteredEntries.forEach { entry ->
                     val key = collectionEntryKey(tabIndex, entry)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f))
+                    AppSectionCard(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
@@ -938,7 +999,7 @@ fun CollectionsScreen(onBack: () -> Unit) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
+                            AppCollectionCheckbox(
                                 checked = obtained[key] == true,
                                 onCheckedChange = { checked ->
                                     if (checked) obtained[key] = true else obtained.remove(key)
@@ -1103,7 +1164,7 @@ private fun PokemonFilterBuilder(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (savedFilters.isNotEmpty()) {
-            Button(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
+            AppActionButton(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(t(language, "Abrir filtros salvos", "Open saved filters", "Abrir filtros guardados"))
             }
         }
@@ -1143,9 +1204,9 @@ private fun PokemonFilterBuilder(
         val tabTitles = remember(sectionEntries) {
             listOf("Tipo") + sectionEntries.map { it.key }
         }
-        ScrollableTabRow(selectedTabIndex = sectionTabIndex, edgePadding = 0.dp, divider = {}) {
+        AppPillTabRow(selectedTabIndex = sectionTabIndex, edgePadding = 0.dp, divider = {}) {
             tabTitles.forEachIndexed { index, title ->
-                Tab(
+                AppPillTab(
                     selected = index == sectionTabIndex,
                     onClick = { sectionTabIndex = index },
                     text = { Text(title) }
@@ -1178,14 +1239,14 @@ private fun PokemonFilterBuilder(
                 }
                 when (entry.key) {
                     "Status" -> {
-                        OutlinedTextField(
+                        AppGlassTextField(
                             value = nameDraft,
                             onValueChange = { nameDraft = it },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(t(language, "Nome do Pokemon", "Pokemon name", "Nombre del Pokemon")) },
                             supportingText = { Text(t(language, "Digite um nome e toque em Adicionar para enviar ao filtro copiavel.", "Type a name and tap Add to send it to the copyable filter.", "Escribe un nombre y toca Agregar para enviarlo al filtro copiable.")) }
                         )
-                        Button(
+                        AppActionButton(
                             onClick = {
                                 val trimmed = nameDraft.trim()
                                 if (trimmed.isNotBlank()) {
@@ -1200,14 +1261,14 @@ private fun PokemonFilterBuilder(
                         }
                     }
                     "Batalha" -> {
-                        OutlinedTextField(
+                        AppGlassTextField(
                             value = moveDraft,
                             onValueChange = { moveDraft = it },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(t(language, "Ataque rapido / carregado", "Fast / charged move", "Ataque rapido / cargado")) },
                             supportingText = { Text(t(language, "Digite o nome do movimento e toque em Adicionar para gerar @nome_do_movimento.", "Type the move name and tap Add to generate @move_name.", "Escribe el nombre del movimiento y toca Agregar para generar @nombre_del_movimiento.")) }
                         )
-                        Button(
+                        AppActionButton(
                             onClick = {
                                 val trimmed = moveDraft.trim()
                                 if (trimmed.isNotBlank()) {
@@ -1222,7 +1283,7 @@ private fun PokemonFilterBuilder(
                         }
                     }
                     "Avancado" -> {
-                        OutlinedTextField(
+                        AppGlassTextField(
                             value = manualDraft,
                             onValueChange = { manualDraft = it },
                             modifier = Modifier.fillMaxWidth(),
@@ -1238,7 +1299,7 @@ private fun PokemonFilterBuilder(
                                 )
                             }
                         )
-                        Button(
+                        AppActionButton(
                             onClick = {
                                 val trimmed = manualDraft.trim()
                                 if (trimmed.isNotBlank()) {
@@ -1306,7 +1367,7 @@ private fun PeopleFilterBuilder(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (savedFilters.isNotEmpty()) {
-            Button(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
+            AppActionButton(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(t(language, "Abrir filtros salvos", "Open saved filters", "Abrir filtros guardados"))
             }
         }
@@ -1359,7 +1420,7 @@ private fun PeopleFilterBuilder(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        OutlinedTextField(
+        AppGlassTextField(
             value = names,
             onValueChange = { names = it },
             modifier = Modifier
@@ -1494,7 +1555,7 @@ private fun TypeSelectorSingle(
     val itemCount = types.size + if (showAllOption) 1 else 0
     UniformOptionGrid(count = itemCount, verticalSpacing = 4.dp) { index ->
         if (showAllOption && index == 0) {
-            FilterChip(
+            AppChoiceChip(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -1617,9 +1678,9 @@ private fun JoinerSelector(
     selected: String,
     onSelect: (String) -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth().background(appControlFill(), RoundedCornerShape(16.dp)).padding(horizontal = 4.dp)) {
         listOf("&", ",").forEach { option ->
-            FilterChip(
+            AppChoiceChip(
                 modifier = Modifier.weight(1f).height(36.dp),
                 selected = option == selected,
                 onClick = { onSelect(option) },
@@ -1646,7 +1707,7 @@ private fun MoveCategoryFilter(
             MoveCategory.FAST to t(language, "Rapido", "Fast", "Rapido"),
             MoveCategory.CHARGED to t(language, "Carregado", "Charged", "Cargado")
         ).forEach { (category, label) ->
-            FilterChip(
+            AppChoiceChip(
                 selected = selectedCategory == category,
                 onClick = { onSelect(category) },
                 modifier = Modifier.weight(1f),
@@ -1675,7 +1736,7 @@ private fun FilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         options.forEach { option ->
-            FilterChip(
+            AppChoiceChip(
                 selected = option == selected,
                 onClick = { onSelect(option) },
                 label = { Text(option) }
@@ -1690,7 +1751,7 @@ private fun MoveCardLegacy(
     entry: MoveCatalogEntry,
     language: AppLanguage
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1727,7 +1788,7 @@ private fun MoveCardLegacy(
 
 @Composable
 private fun PokedexCardLegacy(entry: PokedexCatalogEntry) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1750,7 +1811,7 @@ private fun PokedexCardLegacy(entry: PokedexCatalogEntry) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BattleSuggestionCardLegacy(entry: BattleSuggestionEntry) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1758,7 +1819,7 @@ private fun BattleSuggestionCardLegacy(entry: BattleSuggestionEntry) {
             Text(entry.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 entry.attackTypes.forEach { type ->
-                    AssistChip(onClick = {}, label = { Text(type) })
+                    AppInfoChip(onClick = {}, label = { Text(type) })
                 }
             }
             Text(entry.searchTerms.joinToString(","), style = MaterialTheme.typography.bodySmall)
@@ -1792,7 +1853,7 @@ private fun MoveCard(
             t(language, "${it}t", "${it}t", "${it}t")
         }
     )
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1886,9 +1947,8 @@ private fun PokedexCard(
     language: AppLanguage
 ) {
     val primaryName = entry.localizedName(language)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+    AppSectionCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1939,99 +1999,63 @@ private fun PokedexCard(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RaidHistorySection(
-    categories: List<RaidHistoryCategory>,
-    language: AppLanguage,
-    pokedexOrder: Map<String, Int>
+    categories: List<RaidHistoryCategory>, language: AppLanguage,
+    loading: Boolean, loadedCount: Int, totalCount: Int,
+    onSelectBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit
 ) {
     if (categories.isEmpty()) return
-
     val uriHandler = LocalUriHandler.current
     var tabIndex by rememberSaveable { mutableStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
-    val selectedCategory = categories.getOrNull(tabIndex) ?: categories.first()
+    val safeTabIndex = tabIndex.coerceIn(categories.indices)
+    val selectedCategory = categories[safeTabIndex]
     val normalizedQuery = remember(query) { normalizeSearch(query) }
-    val sortedItems = remember(selectedCategory, pokedexOrder) {
-        selectedCategory.items.sortedWith(
-            compareBy(
-                { item -> pokedexOrder[normalizeRaidHistoryName(item.name)] ?: Int.MAX_VALUE },
-                { item -> normalizeSearch(item.name) }
-            )
-        )
+    val visibleItems = remember(selectedCategory, normalizedQuery) {
+        if (normalizedQuery.isBlank()) selectedCategory.items
+        else selectedCategory.items.filter { normalizeSearch(it.name).contains(normalizedQuery) }
     }
-    val visibleItems = remember(sortedItems, normalizedQuery) {
-        if (normalizedQuery.isBlank()) {
-            sortedItems
-        } else {
-            sortedItems.filter { normalizeSearch(it.name).contains(normalizedQuery) }
-        }
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f))
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ScrollableTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
-                categories.forEachIndexed { index, category ->
-                    Tab(
-                        selected = index == tabIndex,
-                        onClick = { tabIndex = index },
-                        text = {
-                            Text(
-                                category.localizedTitle(language),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    )
-                }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        AppPillTabRow(selectedTabIndex = safeTabIndex) {
+            categories.forEachIndexed { index, category ->
+                AppPillTab(selected = index == safeTabIndex, onClick = { tabIndex = index }, text = {
+                    Text(category.localizedTitle(language), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                })
             }
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(t(language, "Buscar chefe", "Search boss", "Buscar jefe")) },
-                singleLine = true
-            )
-            if (visibleItems.isEmpty()) {
-                Text(
-                    t(language, "Nenhum Pokemon encontrado", "No Pokemon found", "Ningun Pokemon encontrado"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    visibleItems.forEach { item ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = item.url.isNotBlank()) {
-                                    runCatching { uriHandler.openUri(item.url) }
-                                },
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surface
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    item.name,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
+        }
+        AppGlassTextField(
+                    search = true,
+                    value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
+            label = { Text(t(language, "Buscar chefe", "Search boss", "Buscar jefe")) }, singleLine = true
+        )
+        if (loading) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AppLoadingIndicator(Modifier.size(18.dp))
+                Text(t(language, "Carregando raids: $loadedCount de $totalCount",
+                    "Loading raids: $loadedCount of $totalCount", "Cargando raids: $loadedCount de $totalCount"),
+                    style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        // A separate, bounded viewport avoids both eager composition and oversized clipped layers.
+        androidx.compose.runtime.key(safeTabIndex, normalizedQuery) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (visibleItems.isEmpty() && !loading) {
+                    item {
+                        AppStatusMessage(t(language, "Nenhum Pokémon encontrado", "No Pokémon found", "Ningún Pokémon encontrado"))
+                    }
+                }
+                items(visibleItems) { boss ->
+                    AppSectionCard(Modifier.fillMaxWidth().clickable(enabled = boss.url.isNotBlank()) {
+                        if(selectedCategory.id.contains("max",true)) runCatching { uriHandler.openUri(boss.url) }
+                        else onSelectBoss(boss,selectedCategory)
+                    }) {
+                        Text(boss.name, Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
     }
 }
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RaidSuggestionColumns(
@@ -2066,7 +2090,7 @@ private fun RaidSuggestionColumn(
     language: AppLanguage,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier) {
+    AppSectionCard(modifier = modifier) {
         Column(
             modifier = Modifier.padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -2102,7 +2126,7 @@ private fun BattleSuggestionCard(
     entry: BattleSuggestionEntry,
     language: AppLanguage
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2142,7 +2166,7 @@ private fun CopyableField(
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Card(
+        AppSectionCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.24f))
         ) {
@@ -2156,7 +2180,7 @@ private fun CopyableField(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             if (onSave != null) {
-                Button(
+                AppActionButton(
                     onClick = onSave,
                     enabled = value.isNotBlank(),
                     modifier = Modifier.weight(1f)
@@ -2164,7 +2188,7 @@ private fun CopyableField(
                     Text(t(language, "Salvar", "Save", "Guardar"))
                 }
             }
-            Button(
+            AppActionButton(
                 onClick = {
                     onCopy()
                     copied = true
@@ -2181,7 +2205,8 @@ private fun CopyableField(
                 )
             }
             if (onClear != null) {
-                Button(
+                AppActionButton(
+                    secondary = true,
                     onClick = onClear,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -2204,9 +2229,8 @@ private fun SavedFiltersSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         filters.forEach { entry ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+            AppSectionCard(
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
@@ -2248,9 +2272,8 @@ private fun SavedFiltersDialog(
     onRemove: (SavedFilterEntry) -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        AppSectionCard(
+            modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.padding(12.dp),
@@ -2271,7 +2294,7 @@ private fun SavedFiltersDialog(
                         onRemove = onRemove
                     )
                 }
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                AppSecondaryButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
                     Text(t(appLanguage(), "Fechar", "Close", "Cerrar"))
                 }
             }
@@ -2286,12 +2309,13 @@ private fun SimpleToolScreen(
     onBack: () -> Unit,
     helpTitle: String? = null,
     helpText: String? = null,
+    scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     var showHelp by rememberSaveable { mutableStateOf(false) }
     androidx.compose.material3.Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -2313,7 +2337,7 @@ private fun SimpleToolScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-                .verticalScroll(rememberScrollState()),
+                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content
         )
@@ -2333,7 +2357,7 @@ private fun ToolHelpDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            Button(onClick = onDismiss) {
+            AppActionButton(onClick = onDismiss) {
                 Text(t(language, "OK", "OK", "OK"))
             }
         },
@@ -2351,7 +2375,7 @@ private fun LoadingToolScreen(
 ) {
     androidx.compose.material3.Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -2368,7 +2392,7 @@ private fun LoadingToolScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                CircularProgressIndicator()
+                AppLoadingIndicator()
                 Text(t(language, "Carregando dados", "Loading data", "Cargando datos"))
             }
         }
@@ -2377,16 +2401,15 @@ private fun LoadingToolScreen(
 
 @Composable
 private fun InlineLoadingRow(text: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+    AppSectionCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(22.dp))
+            AppLoadingIndicator(modifier = Modifier.size(22.dp))
             Text(text, style = MaterialTheme.typography.bodyMedium)
         }
     }
@@ -2812,17 +2835,6 @@ private fun TriStateTokenChip(
     modifier: Modifier = Modifier
 ) {
     val mode = selection?.mode
-    val colors = when (mode) {
-        FilterTokenMode.INCLUDE -> FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-        FilterTokenMode.EXCLUDE -> FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
-        )
-        null -> FilterChipDefaults.filterChipColors()
-    }
     val prefix = when (mode) {
         FilterTokenMode.INCLUDE -> "+ "
         FilterTokenMode.EXCLUDE -> "! "
@@ -2830,13 +2842,13 @@ private fun TriStateTokenChip(
     }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        FilterChip(
+        AppChoiceChip(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             selected = mode != null,
             onClick = onCycle,
-            colors = colors,
+            excluded = mode == FilterTokenMode.EXCLUDE,
             label = {
                 Text(
                     prefix + localizedLabel(option, language),
@@ -3052,14 +3064,6 @@ private fun normalizeSearch(text: String): String {
     return java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
         .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
         .lowercase(Locale.US)
-        .trim()
-}
-
-private fun normalizeRaidHistoryName(text: String): String {
-    return normalizeSearch(text)
-        .replace(Regex("\\([^)]*\\)"), "")
-        .replace(Regex("\\b(mega|primal|shadow|dynamax|gigantamax)\\b"), "")
-        .replace(Regex("\\s+"), " ")
         .trim()
 }
 

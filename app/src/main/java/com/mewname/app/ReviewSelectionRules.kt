@@ -497,28 +497,38 @@ private fun nidoranEvolutionStage(name: String?): Int? {
         else -> null
     }
 }
-internal fun effectiveIvForMode(value: Int?, mode: ReviewIvMode): Int? {
-    return if (mode == ReviewIvMode.PURIFIED) {
+internal fun effectiveIvForMode(value: Int?, mode: ReviewIvMode, alreadyPurified: Boolean = false): Int? {
+    return if (mode == ReviewIvMode.PURIFIED && !alreadyPurified) {
         value?.plus(2)?.coerceAtMost(15)
     } else {
         value
     }
 }
 
-internal fun displayIvToBaseIv(value: Int, mode: ReviewIvMode): Int {
-    return if (mode == ReviewIvMode.PURIFIED) {
+internal fun displayIvToBaseIv(value: Int, mode: ReviewIvMode, alreadyPurified: Boolean = false): Int {
+    return if (mode == ReviewIvMode.PURIFIED && !alreadyPurified) {
         (value - 2).coerceIn(0, 15)
     } else {
         value
     }
 }
 
+/** One IV snapshot for both the displayed fields and the ranking input. */
+internal fun PokemonScreenData.withReviewIvValues(
+    mode: ReviewIvMode, baseAttack: Int?, baseDefense: Int?, baseStamina: Int?, alreadyPurified: Boolean
+): PokemonScreenData = copy(
+    attIv = effectiveIvForMode(baseAttack, mode, alreadyPurified),
+    defIv = effectiveIvForMode(baseDefense, mode, alreadyPurified),
+    staIv = effectiveIvForMode(baseStamina, mode, alreadyPurified)
+).applyIvMode(mode)
+
 internal fun buildDerivedReviewData(
     context: Context,
     data: PokemonScreenData,
     familyMembers: List<String>,
     rankCalculator: PvpRankCalculator,
-    masterIvBadgeCatalog: MasterIvBadgeCatalog
+    masterIvBadgeCatalog: MasterIvBadgeCatalog,
+    pvpOptions: com.mewname.app.domain.PvpCalculationOptions = com.mewname.app.domain.PvpCalculationSettings.read(context)
 ): PokemonScreenData {
     val attack = data.attIv ?: return data
     val defense = data.defIv ?: return data
@@ -531,27 +541,27 @@ internal fun buildDerivedReviewData(
             def = defense,
             sta = stamina,
             currentPokemonName = data.pokemonName ?: data.candyFamilyName,
-            currentLevel = data.level, currentCp = data.cp
+            currentLevel = data.level, currentCp = data.cp, options = pvpOptions
         )
     }.getOrElse { emptyList() }
-    val leagueRanks = bestLeagueRanksFromSpecies(familyRanks)
+    val leagueRanks = bestLeagueRanksFromSpecies(familyRanks, data.pokemonName)
     val selectedLeague = data.pvpLeague
-        ?.takeIf { league -> familyRanks.any { it.league == league && it.eligible && it.rank != null } }
+        ?.takeIf { league -> familyRanks.any { it.league == league && it.rank != null } }
         ?: bestLeagueFromRanks(familyRanks, leagueRanks)
     val selectedSpeciesRank = selectedLeague?.let { league ->
-        val eligibleRanksForLeague = familyRanks
-            .filter { it.league == league && it.eligible && it.rank != null }
+        val ranksForLeague = familyRanks
+            .filter { it.league == league && it.rank != null }
         val preservedSelection = data.pvpPokemonName?.let { selectedPokemonName ->
-            eligibleRanksForLeague.firstOrNull { rankInfo ->
+            ranksForLeague.firstOrNull { rankInfo ->
                 rankInfo.pokemonName == selectedPokemonName &&
                     (data.pvpRank == null || rankInfo.rank == data.pvpRank)
-            } ?: eligibleRanksForLeague.firstOrNull { rankInfo ->
+            } ?: ranksForLeague.firstOrNull { rankInfo ->
                 rankInfo.pokemonName == selectedPokemonName
             }
         }
         preservedSelection
-            ?: eligibleRanksForLeague.minWithOrNull(
-                compareBy<PvpSpeciesRankInfo> { it.rank ?: Int.MAX_VALUE }.thenBy { it.pokemonName }
+            ?: ranksForLeague.filter { it.eligible }.minWithOrNull(
+                com.mewname.app.domain.pvpRankComparator(data.pokemonName, { it.rank }, { it.pokemonName })
             )
     }
     val selectedLeagueRank = if (selectedSpeciesRank == null && selectedLeague != null) {
@@ -559,40 +569,21 @@ internal fun buildDerivedReviewData(
     } else {
         null
     }
-    val masterResult = runCatching {
-        masterIvBadgeCatalog.resolve(
-            context = context,
-            familyMembers = familyMembers,
-            ivPercent = data.ivPercent,
-            attack = attack,
-            defense = defense,
-            stamina = stamina
-        )
-    }.getOrNull()
+    val masterData = buildMasterIvReviewData(context, data, familyMembers, masterIvBadgeCatalog)
     return data.copy(
         familyPvpRanks = familyRanks,
         pvpLeagueRanks = leagueRanks,
         pvpLeague = selectedLeague,
         pvpRank = selectedSpeciesRank?.rank ?: selectedLeagueRank?.rank,
         pvpPokemonName = selectedSpeciesRank?.pokemonName ?: selectedLeagueRank?.pokemonName,
-        masterIvBadgeMatch = masterResult?.isBestMatch,
-        masterIvBadgeDebugInfo = masterResult?.let { result ->
-            MasterIvBadgeDebugInfo(
-                supportedIvPercent = result.notes != "iv_percent_fora_do_escopo",
-                familyMembers = familyMembers,
-                expectedAttack = result.expectedAttack,
-                expectedDefense = result.expectedDefense,
-                expectedStamina = result.expectedStamina,
-                isBestMatch = result.isBestMatch,
-                notes = result.notes
-            )
-        }
+        masterIvBadgeMatch = masterData.masterIvBadgeMatch,
+        masterIvBadgeDebugInfo = masterData.masterIvBadgeDebugInfo
     )
 }
 
-internal fun bestLeagueRanksFromSpecies(speciesRanks: List<PvpSpeciesRankInfo>): List<PvpLeagueRankInfo> {
+internal fun bestLeagueRanksFromSpecies(speciesRanks: List<PvpSpeciesRankInfo>, currentPokemonName: String? = null): List<PvpLeagueRankInfo> {
     return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).mapNotNull { league ->
-        val best = selectBestFamilyOption(speciesRanks.filter { it.league == league }) ?: return@mapNotNull null
+        val best = selectBestFamilyOption(speciesRanks.filter { it.league == league }, currentPokemonName) ?: return@mapNotNull null
         PvpLeagueRankInfo(
             league = best.league,
             pokemonName = best.pokemonName,
@@ -607,18 +598,11 @@ internal fun bestLeagueRanksFromSpecies(speciesRanks: List<PvpSpeciesRankInfo>):
     }
 }
 
-internal fun selectBestFamilyOption(options: List<PvpSpeciesRankInfo>): PvpSpeciesRankInfo? {
-    val eligible = options.filter { it.eligible && it.bestStatProduct != null }
-    if (eligible.isNotEmpty()) {
-        return eligible.maxWithOrNull(
-            compareBy<PvpSpeciesRankInfo> { it.bestStatProduct ?: Double.NEGATIVE_INFINITY }
-                .thenByDescending { it.bestLevel ?: 0.0 }
-                .thenByDescending { it.bestCp ?: 0 }
-        )
-    }
-    return options.firstOrNull()
+internal fun selectBestFamilyOption(options: List<PvpSpeciesRankInfo>, currentPokemonName: String? = null): PvpSpeciesRankInfo? {
+    return options.filter { it.eligible && it.rank != null }
+        .minWithOrNull(com.mewname.app.domain.pvpRankComparator(currentPokemonName, { it.rank }, { it.pokemonName }))
+        ?: options.firstOrNull()
 }
-
 internal fun bestLeagueFromRanks(
     speciesRanks: List<PvpSpeciesRankInfo>,
     leagueRanks: List<PvpLeagueRankInfo>
@@ -724,3 +708,32 @@ internal fun PokemonScreenData.withReviewSpecies(name: String): PokemonScreenDat
     selectedFastMove = null, selectedChargedMove = null,
     hasLegacyMove = false, legacyDebugInfo = null
 )
+internal fun buildMasterIvReviewData(context: Context, data: PokemonScreenData, familyMembers: List<String>, masterIvBadgeCatalog: MasterIvBadgeCatalog): PokemonScreenData {
+    val attack = data.attIv
+    val defense = data.defIv
+    val stamina = data.staIv
+    val masterResult = runCatching {
+        masterIvBadgeCatalog.resolve(
+            context = context,
+            familyMembers = familyMembers,
+            ivPercent = data.ivPercent,
+            attack = attack,
+            defense = defense,
+            stamina = stamina
+        )
+    }.getOrNull()
+    return data.copy(
+        masterIvBadgeMatch = masterResult?.isBestMatch,
+        masterIvBadgeDebugInfo = masterResult?.let { result ->
+            MasterIvBadgeDebugInfo(
+                supportedIvPercent = result.notes != "iv_percent_fora_do_escopo",
+                familyMembers = familyMembers,
+                expectedAttack = result.expectedAttack,
+                expectedDefense = result.expectedDefense,
+                expectedStamina = result.expectedStamina,
+                isBestMatch = result.isBestMatch,
+                notes = result.notes
+            )
+        }
+    )
+}

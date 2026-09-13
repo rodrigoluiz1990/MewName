@@ -123,9 +123,9 @@ internal fun GlassGenderSegments(items: List<WeightedToggleItem>) {
 }
 
 @Composable
-internal fun GlassSwitchField(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+internal fun GlassSwitchField(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Row(modifier.height(GlassFieldHeight)
-        .toggleable(checked, role = Role.Switch, onValueChange = onCheckedChange),
+        .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,

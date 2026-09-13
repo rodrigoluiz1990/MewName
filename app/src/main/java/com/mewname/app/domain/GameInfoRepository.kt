@@ -124,6 +124,8 @@ object GameInfoRepository {
     @Volatile
     private var battlePokemonIndexCache: List<BattlePokemonIndexEntry>? = null
 
+    private val raidHistoryLock = Any()
+    private val pokemonDexOrderLock = Any()
     @Volatile
     private var raidHistoryCache: RaidHistoryCatalog? = null
 
@@ -142,8 +144,8 @@ object GameInfoRepository {
             pokedexCache = null
             typeEffectivenessCache = null
             battlePokemonIndexCache = null
-            raidHistoryCache = null
-            pokemonDexOrderCache = null
+            synchronized(raidHistoryLock) { raidHistoryCache = null }
+            synchronized(pokemonDexOrderLock) { pokemonDexOrderCache = null }
             localizedPokemonSearchTermCache.clear()
         }
     }
@@ -401,7 +403,7 @@ object GameInfoRepository {
 
     fun loadRaidHistory(context: Context): RaidHistoryCatalog {
         raidHistoryCache?.let { return it }
-        synchronized(this) {
+        synchronized(raidHistoryLock) {
             raidHistoryCache?.let { return it }
             val root = JSONObject(
                 context.assets.open(AssetPaths.RAID_HISTORY).bufferedReader().use { it.readText() }
@@ -447,7 +449,7 @@ object GameInfoRepository {
 
     fun loadPokemonDexOrder(context: Context): Map<String, Int> {
         pokemonDexOrderCache?.let { return it }
-        synchronized(this) {
+        synchronized(pokemonDexOrderLock) {
             pokemonDexOrderCache?.let { return it }
             val namesArray = JSONArray(
                 context.assets.open(AssetPaths.POKEMON_NAMES).bufferedReader().use { it.readText() }

@@ -30,6 +30,7 @@ import android.widget.TextView
 import android.widget.Toast
 import android.widget.ArrayAdapter
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -109,7 +110,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val capturedData: PokemonScreenData = parsedData,
         val reviewableFields: List<NamingField>,
         val generatedResults: List<Pair<String, String>>,
-        val reviewedData: PokemonScreenData? = null
+        val reviewedData: PokemonScreenData? = null,
+        val analysisTimings: List<String> = emptyList()
     )
 
     private data class BattleLogSnapshot(
@@ -124,6 +126,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private lateinit var windowManager: WindowManager
     private var floatingButton: View? = null
+    private var bubbleMenuView: View? = null
+    private var profileFeedbackView: View? = null
     private var resultsView: View? = null
     private var mediaProjection: MediaProjection? = null
     private var projectionData: Intent? = null
@@ -163,7 +167,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private var lastCapturedData: PokemonScreenData? = null
     private var lastBubbleLogSnapshot: BubbleLogSnapshot? = null
     private var lastBattleLogSnapshot: BattleLogSnapshot? = null
-    private val bubbleLongPressTimeoutMillis = 1500L
+    private val bubbleLongPressTimeoutMillis = 1000L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -294,6 +298,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     }
     private fun showFloatingButton() {
         floatingButton = LayoutInflater.from(this).inflate(R.layout.layout_floating_button, null)
+        floatingButton?.findViewById<ImageView>(R.id.floating_icon)?.apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.rgb(235, 228, 250))
+            }
+            clipToOutline = true
+            setPadding(0, 0, 0, 0)
+        }
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -317,8 +329,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             private var longPressTriggered = false
             private val longPressRunnable = Runnable {
                 longPressTriggered = true
-                bubbleDismissMode = true
-                showDismissTarget()
+                showBubbleActions(params)
             }
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
@@ -338,6 +349,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         if (!longPressTriggered && (diffX > 20 || diffY > 20)) {
                             mainHandler.removeCallbacks(longPressRunnable)
                         }
+                        if (longPressTriggered) return true
                         params.x = initialX + (event.rawX - initialTouchX).toInt()
                         params.y = initialY + (event.rawY - initialTouchY).toInt()
                         updateOverlayViewLayout(floatingButton, params)
@@ -378,6 +390,190 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         floatingButton?.let { addOverlayView(it, params) }
     }
 
+    private fun hideBubbleActions() {
+        bubbleMenuView?.let(::detachOverlay)
+        bubbleMenuView = null
+    }
+
+    private fun showBubbleActions(anchor: WindowManager.LayoutParams, page: Int = 0) {
+        if (closingForPermissionLoss || isCaptureInProgress || resultsView != null) return
+        hideBubbleActions()
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        val language = savedAppLanguage(this)
+        val root = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(Color.argb(45, 0, 0, 0))
+            isFocusableInTouchMode = true
+            setOnClickListener { hideBubbleActions() }
+            setOnKeyListener { _, key, event ->
+                if (key == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    hideBubbleActions()
+                    true
+                } else false
+            }
+        }
+        val actions = mutableListOf<View>()
+        val allSelected = BubbleActionSettings.keys.filter { it in BubbleActionSettings.selected(this) }
+        val pages = (allSelected.size + 3) / 4
+        val currentPage = page.mod(pages.coerceAtLeast(1))
+        val selectedActions = allSelected.drop(currentPage * 4).take(4).toSet()
+        fun action(key: String, text: String, icon: String, callback: () -> Unit) {
+            if (key !in selectedActions) return
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(3), dp(3), dp(3), dp(3))
+                contentDescription = text
+                isFocusable = true
+                tooltipText = text
+                setOnClickListener { hideBubbleActions(); callback() }
+            }
+            item.addView(ImageView(this).apply {
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                when (icon) {
+                    "capture" -> {
+                        setImageResource(R.drawable.ic_launcher)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL; setColor(Color.WHITE)
+                        }
+                        clipToOutline = true
+                    }
+                    "stop" -> {
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL; setColor(Color.rgb(113, 102, 200))
+                        }
+                        setImageDrawable(GradientDrawable().apply {
+                            cornerRadius = dp(2).toFloat(); setColor(Color.WHITE)
+                        })
+                        setPadding(dp(9), dp(9), dp(9), dp(9))
+                    }
+                    else -> assets.open("menu/glass/$icon.png").use {
+                        setImageBitmap(BitmapFactory.decodeStream(it))
+                    }
+                }
+            }, LinearLayout.LayoutParams(dp(32), dp(32)))
+            item.addView(TextView(this).apply {
+                this.text = text
+                textSize = 8f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                setShadowLayer(dp(2).toFloat(), 0f, 1f, Color.BLACK)
+                maxLines = 2
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(20)))
+            actions.add(item)
+            root.addView(item, android.widget.FrameLayout.LayoutParams(dp(56), dp(56)))
+        }
+        action("capture", lt(language, "Ler tela", "Read screen", "Leer pantalla"), "capture") { captureAndProcess() }
+        action("pokemon", lt(language, "Filtros Pokémon", "Pokémon filters", "Filtros Pokémon"), "filters") {
+            showSavedFiltersOverlay(com.mewname.app.domain.FilterScreen.POKEMON)
+        }
+        action("friends", lt(language, "Filtros amigos", "Friend filters", "Filtros amigos"), "filters") {
+            showSavedFiltersOverlay(com.mewname.app.domain.FilterScreen.FRIENDS)
+        }
+        action("stop", lt(language, "Remover bolha", "Remove bubble", "Quitar burbuja"), "stop") { stopOverlayService() }
+        bubbleAppShortcuts.forEach { shortcut ->
+            action(shortcut.key, lt(language, shortcut.pt, shortcut.en, shortcut.es), shortcut.icon) {
+                try {
+                    val destination = if (shortcut.url != null) {
+                        Intent(Intent.ACTION_VIEW, android.net.Uri.parse(shortcut.url))
+                    } else {
+                        Intent(this, MainActivity::class.java).apply {
+                            putExtra("BUBBLE_DESTINATION", shortcut.screen!!.name)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                    }
+                    startActivity(destination.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (error: ActivityNotFoundException) {
+                    Toast.makeText(this, lt(language, "Não foi possível abrir o atalho", "Could not open shortcut", "No se pudo abrir el acceso"),
+                        Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        if (pages > 1) {
+            root.addView(Button(this).apply {
+                text = lt(language, "Mais atalhos", "More shortcuts", "Más accesos") + " " + (currentPage + 1) + "/" + pages
+                isAllCaps = false
+                setOnClickListener { showBubbleActions(anchor, currentPage + 1) }
+            }, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, dp(48), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            ).apply { bottomMargin = dp(24) })
+        }
+        val center = ImageView(this).apply {
+            setImageResource(R.drawable.ic_launcher)
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
+            clipToOutline = true
+            contentDescription = lt(language, "Fechar menu ou arrastar bolha",
+                "Close menu or drag bubble", "Cerrar menú o arrastrar burbuja")
+            setOnClickListener { hideBubbleActions() }
+        }
+        root.addView(center, android.widget.FrameLayout.LayoutParams(dp(56), dp(56)))
+        center.setOnTouchListener(object : View.OnTouchListener {
+            private var startX = 0
+            private var startY = 0
+            private var touchX = 0f
+            private var touchY = 0f
+            private var iconX = 0
+            private var iconY = 0
+            override fun onTouch(view: View, event: MotionEvent): Boolean {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = anchor.x; startY = anchor.y
+                        touchX = event.rawX; touchY = event.rawY
+                        val layout = center.layoutParams as android.widget.FrameLayout.LayoutParams
+                        iconX = layout.leftMargin; iconY = layout.topMargin
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - touchX).toInt()
+                        val dy = (event.rawY - touchY).toInt()
+                        anchor.x = startX + dx; anchor.y = startY + dy
+                        updateOverlayViewLayout(floatingButton, anchor)
+                        val layout = center.layoutParams as android.widget.FrameLayout.LayoutParams
+                        layout.leftMargin = iconX + dx; layout.topMargin = iconY + dy
+                        center.layoutParams = layout
+                        actions.forEach { it.visibility = View.INVISIBLE }
+                    }
+                    MotionEvent.ACTION_UP -> view.performClick()
+                    MotionEvent.ACTION_CANCEL -> hideBubbleActions()
+                }
+                return true
+            }
+        })
+        // The bubble window and this menu use different inset flags. Convert actual
+        // screen coordinates rather than shifting/clamping the bubble's anchor.
+        root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (center.tag != true && root.width > 0 && root.height > 0) {
+                center.tag = true
+                val origin = IntArray(2)
+                val iconOrigin = IntArray(2)
+                root.getLocationOnScreen(origin)
+                val iconView = floatingButton?.findViewById<ImageView>(R.id.floating_icon)
+                iconView?.getLocationOnScreen(iconOrigin)
+                val cx = if (iconView != null) iconOrigin[0] - origin[0] + iconView.width / 2 else anchor.x + dp(36)
+                val cy = if (iconView != null) iconOrigin[1] - origin[1] + iconView.height / 2 else anchor.y + dp(36)
+                center.layoutParams = (center.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+                    leftMargin = cx - dp(28); topMargin = cy - dp(28)
+                }
+                val positions = BubbleMenuPlacement.positions(
+                    root.width, root.height, cx, cy, dp(56), dp(8), actions.size
+                )
+                actions.forEachIndexed { index, view ->
+                    view.layoutParams = (view.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+                        leftMargin = positions[index].first
+                        topMargin = positions[index].second
+                    }
+                }
+            }
+        }
+        bubbleMenuView = root
+        addOverlayView(root, WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START })
+        root.requestFocus()
+    }
     private fun showDismissTarget() {
         if (dismissTargetView != null) return
 
@@ -509,6 +705,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     }
 
     private fun captureAndProcess() {
+        profileFeedbackView?.let(::detachOverlay)
+        profileFeedbackView = null
+        hideBubbleActions()
         if (isCaptureInProgress) return
 
         if (!Settings.canDrawOverlays(this)) {
@@ -613,51 +812,64 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun processCapturedBitmap(bitmap: Bitmap) {
         showLoadingOverlay()
-        updateLoadingStatus(detail = "Lendo tela de batalha")
+        updateLoadingStatus(detail = "Extraindo texto da imagem")
         captureProcessingJob = serviceScope.launch {
+            val started = android.os.SystemClock.elapsedRealtime()
             runCatching {
-                withTimeoutOrNull(5500L) {
-                    ocrEngine.extractBattlePreview(bitmap)
+                val ocrResult = withTimeoutOrNull(14000L) { ocrEngine.extract(bitmap) }
+                    ?: throw IllegalStateException("Tempo limite ao extrair texto da imagem")
+                Log.d(TAG, "OCR full: ${android.os.SystemClock.elapsedRealtime() - started}ms; lines=${ocrResult.blocks.sumOf { it.lines.size }}")
+                val readTarget = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    com.mewname.app.domain.BubbleScreenRouter.route(this@OverlayService, ocrResult.fullText)
                 }
-            }.onSuccess { previewOcrResult ->
-                if (previewOcrResult != null) {
-                    val rawBattleAdvice = kotlinx.coroutines.withContext(Dispatchers.Default) {
-                        BattleAdvisor.adviceForRaw(this@OverlayService, previewOcrResult.fullText)
+                if (readTarget == com.mewname.app.domain.BubbleScreenRouter.Target.Trainer) {
+                    val profile = TrainerScreenReader.parse(ocrResult)
+                    TrainerScreenReader.save(this@OverlayService, profile)
+                    val qrSaved = if (profile.friendCode != null) TrainerScreenReader.saveQr(this@OverlayService, ocrResult) else false
+                    val log = profileReadDiagnostics(ocrResult, "bolha_perfil",
+                        android.os.SystemClock.elapsedRealtime() - started, savedAppLanguage(this@OverlayService).toString(),
+                        profile, profile) + "\nqr_salvo=" + qrSaved
+                    getSharedPreferences("trainer_profile", 0).edit().putString("last_read_log", log).apply()
+                    if (qrSaved || listOf(profile.name, profile.level, profile.team, profile.friendCode).any { it != null }) {
+                        showProfileUpdatedFeedback()
                     }
-                    rawBattleAdvice?.let { battleAdvice ->
-                        lastBattleLogSnapshot = BattleLogSnapshot(
-                            capturedAtMillis = System.currentTimeMillis(),
-                            bitmapWidth = bitmap.width,
-                            bitmapHeight = bitmap.height,
-                            stage = "preview",
-                            rawText = previewOcrResult.fullText,
-                            ocrLineLogs = buildOcrLineLogs(previewOcrResult),
-                            advice = battleAdvice
-                        )
-                        updateLoadingStatus(detail = "Montando sugestoes de batalha")
-                        showBattleSuggestionsOverlay(battleAdvice)
-                        isCaptureInProgress = false
-                        removeLoadingOverlay()
-                        return@onSuccess
-                    }
-                } else {
-                    Log.w(TAG, "OCR preview de batalha excedeu o tempo limite")
+                    return@runCatching
                 }
-                updateLoadingStatus(detail = "Extraindo texto da imagem")
-                val ocrResult = withTimeoutOrNull(14000L) {
-                    ocrEngine.extract(bitmap)
-                } ?: throw IllegalStateException("Tempo limite ao extrair texto da imagem")
-                com.mewname.app.domain.FilterScreenDetector.detect(ocrResult.fullText)?.let { screen ->
+                val catalogCapture = (readTarget as? com.mewname.app.domain.BubbleScreenRouter.Target.Catalog)?.capture
+                if (catalogCapture != null) {
+                    showCatalogOverlay(catalogCapture)
+                    return@runCatching
+                }
+                val rawBattleAdvice = (readTarget as? com.mewname.app.domain.BubbleScreenRouter.Target.Battle)?.advice
+                if (rawBattleAdvice != null) {
+                    lastBattleLogSnapshot = BattleLogSnapshot(
+                        capturedAtMillis = System.currentTimeMillis(),
+                        bitmapWidth = bitmap.width, bitmapHeight = bitmap.height,
+                        stage = "full", rawText = ocrResult.fullText,
+                        ocrLineLogs = buildOcrLineLogs(ocrResult), advice = rawBattleAdvice
+                    )
+                    showBattleSuggestionsOverlay(rawBattleAdvice)
+                    return@runCatching
+                }
+                (readTarget as? com.mewname.app.domain.BubbleScreenRouter.Target.Filters)?.screen?.let { screen ->
                     showSavedFiltersOverlay(screen)
-                    return@onSuccess
+                    return@runCatching
                 }
+                val timings = mutableListOf<String>()
+                var stageStarted = android.os.SystemClock.elapsedRealtime()
+                var stageName = "Preparando leitura"
+                timings += "OCR e roteamento: ${stageStarted - started}ms"
                 val parsed = withTimeoutOrNull(25_000L) {
-                    kotlinx.coroutines.withContext(Dispatchers.Default) {
+                    kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
                         parser.parse(this@OverlayService, ocrResult) { step ->
+                            val now = android.os.SystemClock.elapsedRealtime()
+                            timings += "$stageName: ${now - stageStarted}ms"
+                            stageStarted = now; stageName = step
                             updateLoadingStatus(detail = step)
                         }
                     }
                 } ?: throw IllegalStateException("Tempo limite ao analisar os dados da imagem")
+                timings += "$stageName: ${android.os.SystemClock.elapsedRealtime() - stageStarted}ms"
                 updateLoadingStatus(detail = "Montando nomes sugeridos")
                 val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
                 lastCapturedData = merged
@@ -682,6 +894,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     ocrLineLogs = buildOcrLineLogs(ocrResult),
                     parsedData = merged,
                     capturedData = parsed,
+                    analysisTimings = timings.toList(),
                     reviewableFields = reviewFields,
                     generatedResults = generatedResults
                 )
@@ -721,6 +934,40 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
     }
 
+    private fun showProfileUpdatedFeedback() {
+        profileFeedbackView?.let(::detachOverlay)
+        val density = resources.displayMetrics.density
+        val notice = TextView(this).apply {
+            text = lt(savedAppLanguage(this@OverlayService), "✓ Perfil de treinador atualizado",
+                "✓ Trainer profile updated", "✓ Perfil de entrenador actualizado")
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setPadding((20 * density).toInt(), (16 * density).toInt(), (20 * density).toInt(), (16 * density).toInt())
+            background = GradientDrawable().apply {
+                cornerRadius = 18 * density
+                setColor(Color.rgb(51, 43, 86))
+            }
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            setOnClickListener {
+                detachOverlay(this)
+                if (profileFeedbackView === this) profileFeedbackView = null
+            }
+        }
+        profileFeedbackView = notice
+        addOverlayView(notice, WindowManager.LayoutParams(
+            resources.displayMetrics.widthPixels - (32 * density).toInt(),
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; y = (64 * density).toInt() })
+        mainHandler.postDelayed({
+            detachOverlay(notice)
+            if (profileFeedbackView === notice) profileFeedbackView = null
+        }, 4500L)
+    }
     private fun showLoadingOverlay() {
         removeLoadingOverlay()
         val params = WindowManager.LayoutParams(
@@ -1161,7 +1408,33 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         resultsView = layout
     }
 
+    private fun showRaidDetailsOverlay(advice: BattleAdvice) {
+        removeResultsOverlay()
+        val params = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_DIM_BEHIND, PixelFormat.TRANSLUCENT)
+            .apply { gravity = Gravity.CENTER; dimAmount = 0.5f }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            setContent {
+                val language = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language, LocalAppButtonStyle provides true) {
+                    MaterialTheme {
+                        Box(Modifier.fillMaxSize().padding(horizontal=10.dp,vertical=24.dp),contentAlignment=androidx.compose.ui.Alignment.BottomCenter) {
+                            androidx.compose.material3.Surface(Modifier.fillMaxWidth().fillMaxHeight(0.92f),
+                                shape=androidx.compose.foundation.shape.RoundedCornerShape(26.dp)) {
+                                RaidDetailsScreen(advice.bossName.orEmpty(),bubble=true,onBack={removeResultsOverlay()})
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(addOverlayView(view,params)) resultsView=view
+    }
     private fun showBattleSuggestionsOverlay(advice: BattleAdvice) {
+        if (advice.mode == BattleMode.RAID) { showRaidDetailsOverlay(advice); return }
         removeResultsOverlay()
 
         val params = WindowManager.LayoutParams(
@@ -1319,11 +1592,25 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 Toast.makeText(this@OverlayService, "Filtro copiado!", Toast.LENGTH_SHORT).show()
             }
         actionsRow.addView(copyFilterButton)
-        actionsRow.addView(
-            actionButton("Log") {
-                exportBattleLog()
+        val logButton = actionButton("Log") { exportBattleLog() }
+        val logPrefs = LogOptionsSettings.preferences(this)
+        fun updateLogVisibility() {
+            logButton.visibility = if (LogOptionsSettings.enabled(this)) View.VISIBLE else View.GONE
+        }
+        val logListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            mainHandler.post { updateLogVisibility() }
+        }
+        logButton.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(view: View) {
+                logPrefs.registerOnSharedPreferenceChangeListener(logListener)
+                updateLogVisibility()
             }
-        )
+            override fun onViewDetachedFromWindow(view: View) {
+                logPrefs.unregisterOnSharedPreferenceChangeListener(logListener)
+            }
+        })
+        updateLogVisibility()
+        actionsRow.addView(logButton)
         actionsRow.addView(
             actionButton("Fechar", isLast = true) {
                 detachOverlay(layout)
@@ -1429,6 +1716,38 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
     }
 
+    private fun showCatalogOverlay(capture: com.mewname.app.domain.CatalogCapture) {
+        if (closingForPermissionLoss) return
+        removeResultsOverlay()
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND, PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.CENTER; dimAmount = 0.6f }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            setContent {
+                val language = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language) {
+                    MaterialTheme {
+                        Box(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 28.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            androidx.compose.material3.Surface(
+                                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                                color = androidx.compose.ui.graphics.Color(0xFFF0EAF8)
+                            ) {
+                                LeekDuckScreen(capture.section, onBack = { removeResultsOverlay() }, capture = capture)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (addOverlayView(view, params)) resultsView = view
+    }
     private fun showReviewOverlay(
         parsed: com.mewname.app.model.PokemonScreenData,
         fields: List<NamingField>,
@@ -1597,6 +1916,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             appendLine("MewName - Log do modo bolha")
             appendLine("Formato de log: 3; versao=${BuildConfig.VERSION_NAME}; build=${BuildConfig.VERSION_CODE}; idioma=${savedAppLanguage(this@OverlayService)}")
             appendLine("Captura: ${snapshot.capturedAtMillis} | ${formatter.format(Date(snapshot.capturedAtMillis))} | ${snapshot.bitmapWidth}x${snapshot.bitmapHeight}")
+            if (snapshot.analysisTimings.isNotEmpty()) appendLine("Tempos da leitura: ${snapshot.analysisTimings.joinToString("; ")}")
             if (selectedFields.isNullOrEmpty() || NamingField.LEGACY_MOVE in selectedFields || NamingField.LEGACY_MOVE_NAME in selectedFields) {
                 val moveSpecies = reviewMoveSpecies(snapshot.reviewedData ?: snapshot.parsedData)
                 appendLine("Ataques: especie solicitada=$moveSpecies; idioma=${savedAppLanguage(this@OverlayService)}")
@@ -2085,6 +2405,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         loadingView = null
         dismissTargetView = null
         floatingButton = null
+        bubbleMenuView = null
+        profileFeedbackView = null
         loadingTitleView = null
         loadingDetailView = null
         cleanupCaptureResources()

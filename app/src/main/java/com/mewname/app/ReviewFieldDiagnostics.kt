@@ -72,7 +72,7 @@ internal object ReviewFieldDiagnostics {
                 appendLine("Origem: ${info.source}; especie=${info.pokemonName}; detectado=${info.detectedGender}")
                 appendLine("OCR regional: ${info.candidateLines.joinToString(" | ").ifEmpty { "nenhum" }}")
                 appendLine("Simbolos no OCR completo: masculino=${info.rawMaleSymbol}; feminino=${info.rawFemaleSymbol}")
-                appendLine("Imagem disponivel=${info.bitmapAvailable}; comparacao visual do icone=nao implementada")
+                appendLine("Imagem disponivel=${info.bitmapAvailable}; comparacao visual do icone=${if (info.visualComparisonPerformed) "executada" else "nao executada"}")
                 appendLine("Regioes normalizadas (esquerda,topo,direita,baixo): " +
                     info.examinedRegions.joinToString("; ") { "(${it.left},${it.top},${it.right},${it.bottom})" })
                 info.iconRect?.let { appendLine("Icone: $it") }

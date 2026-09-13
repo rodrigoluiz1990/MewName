@@ -10,6 +10,10 @@ import java.util.Locale
 class PokemonReadSessionMerger {
     fun mergeIfSamePokemon(current: PokemonScreenData, previous: PokemonScreenData?): PokemonScreenData {
         if (previous == null || !isSamePokemon(current, previous)) return current
+        // Older reads could infer Dynamax solely from blue/purple pixels. Do not carry that guess forward.
+        val previousEvolutionFlags = if (previous.evolutionIconDebugInfo?.dynamaxKeyword == "VISUAL_MAX_BADGE") {
+            previous.evolutionFlags - com.mewname.app.model.EvolutionFlag.DYNAMAX
+        } else previous.evolutionFlags
         val trustCurrentIv = hasTrustedIvRead(current)
         val mergedLegacyMove = current.hasLegacyMove || previous.hasLegacyMove
         val mergedMasterIvBadgeMatch = mergePositiveBadgeMatch(
@@ -63,7 +67,7 @@ class PokemonReadSessionMerger {
             masterIvBadgeMatch = mergedMasterIvBadgeMatch,
             masterIvBadgeDebugInfo = mergeMasterIvBadgeDebugInfo(current, previous, mergedMasterIvBadgeMatch),
             hasLegacyMove = mergedLegacyMove,
-            evolutionFlags = if (current.evolutionFlags.isNotEmpty()) current.evolutionFlags else previous.evolutionFlags
+            evolutionFlags = if (current.evolutionFlags.isNotEmpty()) current.evolutionFlags else previousEvolutionFlags
         )
     }
 

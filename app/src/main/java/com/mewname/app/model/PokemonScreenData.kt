@@ -101,6 +101,7 @@ data class LevelDebugInfo(
 )
 
 data class GenderDebugInfo(
+    val visualComparisonPerformed: Boolean = false,
     val source: String = "not_recorded",
     val pokemonName: String? = null,
     val candidateLines: List<String> = emptyList(),

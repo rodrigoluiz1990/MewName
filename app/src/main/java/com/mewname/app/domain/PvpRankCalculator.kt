@@ -15,21 +15,31 @@ import kotlin.math.sqrt
 
 class PvpRankCalculator {
 
-    // CP multipliers from level 1 to 51 in 0.5 steps.
+    // CP multipliers from level 1 to 51 in 0.5 steps. Keep full precision:
+    // rounding can incorrectly admit a 1501 CP spread into Great League.
+    // Reference: https://github.com/pvpoke/pvpoke/blob/master/src/js/pokemon/Pokemon.js
     private val cpmTable = listOf(
-        0.094, 0.135137432, 0.16639787, 0.192650919, 0.21573247, 0.236572661, 0.25572005, 0.273530381,
-        0.29024988, 0.306057377, 0.3210876, 0.33425569, 0.34921268, 0.362457751, 0.37523559, 0.387592406,
-        0.39956728, 0.411193551, 0.42250001, 0.432926419, 0.44310755, 0.453059958, 0.46279839, 0.472336083,
-        0.48168495, 0.4908558, 0.49985844, 0.508701765, 0.51739395, 0.525942511, 0.53435433, 0.542635767,
-        0.55079269, 0.558830576, 0.56675452, 0.574569153, 0.58227891, 0.589887917, 0.59740001, 0.604818814,
-        0.61215729, 0.619399365, 0.62656713, 0.633644533, 0.64065295, 0.647576426, 0.65443563, 0.661214806,
-        0.667934, 0.674577537, 0.68116492, 0.687680648, 0.69414365, 0.700538673, 0.70688421, 0.713164996,
-        0.71939909, 0.725571552, 0.7317, 0.734741009, 0.73776948, 0.740785574, 0.74378943, 0.746781211,
-        0.74976104, 0.752729087, 0.75568551, 0.758630378, 0.76156384, 0.764486065, 0.76739717, 0.770297266,
-        0.7731865, 0.776064962, 0.77893275, 0.781790055, 0.78463697, 0.787473578, 0.79030001, 0.792803968,
-        0.79530001, 0.797803921, 0.8003, 0.802803892, 0.8053, 0.807803863, 0.81029999, 0.812803834,
-        0.81529999, 0.817803806, 0.82029999, 0.822803778, 0.82529999, 0.82780375, 0.83029999, 0.832803722,
-        0.83529999, 0.837803694, 0.84029999, 0.842803667, 0.84529999
+        0.0939999967813491, 0.135137430784308, 0.166397869586944, 0.192650914456886, 0.215732470154762,
+        0.236572655026622, 0.255720049142837, 0.273530381100769, 0.290249884128570, 0.306057381335773,
+        0.321087598800659, 0.335445032295077, 0.349212676286697, 0.362457748778790, 0.375235587358474,
+        0.387592411085168, 0.399567276239395, 0.411193549517250, 0.422500014305114, 0.432926413410414,
+        0.443107545375824, 0.453059953871985, 0.462798386812210, 0.472336077786704, 0.481684952974319,
+        0.490855810259008, 0.499858438968658, 0.508701756943992, 0.517393946647644, 0.525942508771329,
+        0.534354329109191, 0.542635762230353, 0.550792694091796, 0.558830599438087, 0.566754519939422,
+        0.574569148039264, 0.582278907299041, 0.589887911977272, 0.597400009632110, 0.604823657502073,
+        0.612157285213470, 0.619404110566050, 0.626567125320434, 0.633649181622743, 0.640652954578399,
+        0.647580963301656, 0.654435634613037, 0.661219263506722, 0.667934000492096, 0.674581899290818,
+        0.681164920330047, 0.687684905887771, 0.694143652915954, 0.700542893277978, 0.706884205341339,
+        0.713169102333341, 0.719399094581604, 0.725575616972598, 0.731700003147125, 0.734741011137376,
+        0.737769484519958, 0.740785574597326, 0.743789434432983, 0.746781208702482, 0.749761044979095,
+        0.752729105305821, 0.755685508251190, 0.758630366519684, 0.761563837528228, 0.764486065255226,
+        0.767397165298461, 0.770297273971590, 0.773186504840850, 0.776064945942412, 0.778932750225067,
+        0.781790064808426, 0.784636974334716, 0.787473583646825, 0.790300011634826, 0.792803950958807,
+        0.795300006866455, 0.797803921486970, 0.800300002098083, 0.802803892322847, 0.805299997329711,
+        0.807803863460723, 0.810299992561340, 0.812803834895026, 0.815299987792968, 0.817803806620319,
+        0.820299983024597, 0.822803778631297, 0.825299978256225, 0.827803750922782, 0.830299973487854,
+        0.832803753381377, 0.835300028324127, 0.837803755931569, 0.840300023555755, 0.842803729034748,
+        0.845300018787384
     )
 
     data class StatProduct(val atk: Int, val def: Int, val sta: Int, val product: Double, val cp: Int, val level: Double)
@@ -150,13 +160,14 @@ class PvpRankCalculator {
         def: Int,
         sta: Int
     ): List<PvpLeagueRankInfo> {
+        val options = PvpCalculationSettings.read(context)
         val familyCandidates = pokemonNames.filter { it.isNotBlank() }.map { resolveCanonicalPokemonName(context, it) }.distinct()
         if (familyCandidates.isEmpty()) return emptyList()
 
         return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).mapNotNull { league ->
             val infos = familyCandidates.mapNotNull speciesLoop@{ name ->
                 val baseStats = loadBaseStats(context, name) ?: return@speciesLoop null
-                calculateLeagueRankInfo(baseStats, name, atk, def, sta, league)
+                calculateLeagueRankInfo(baseStats, name, atk, def, sta, league, options)
             }
             selectBestFamilyOption(infos)
         }
@@ -170,7 +181,8 @@ class PvpRankCalculator {
         sta: Int,
         currentPokemonName: String? = null,
         currentLevel: Double? = null,
-        currentCp: Int? = null
+        currentCp: Int? = null,
+        options: PvpCalculationOptions = PvpCalculationSettings.read(context)
     ): List<PvpSpeciesRankInfo> {
         val familyCandidates = pokemonNames.filter { it.isNotBlank() }.map { resolveCanonicalPokemonName(context, it) }.distinct()
         if (familyCandidates.isEmpty()) return emptyList()
@@ -188,6 +200,7 @@ class PvpRankCalculator {
                     currentPokemonName = currentPokemonName,
                     currentLevel = currentLevel,
                     currentCp = currentCp,
+                    options = options,
                     context = context
                 )
             }
@@ -203,7 +216,7 @@ class PvpRankCalculator {
         league: PvpLeague
     ): PvpLeagueRankInfo? {
         val baseStats = loadBaseStats(context, pokemonName) ?: return null
-        return calculateLeagueRankInfo(baseStats, pokemonName, atk, def, sta, league)
+        return calculateLeagueRankInfo(baseStats, pokemonName, atk, def, sta, league, PvpCalculationSettings.read(context))
     }
 
     private fun calculateLeagueRankInfo(
@@ -212,11 +225,12 @@ class PvpRankCalculator {
         atk: Int,
         def: Int,
         sta: Int,
-        league: PvpLeague
+        league: PvpLeague,
+        options: PvpCalculationOptions
     ): PvpLeagueRankInfo {
         val cap = leagueCap(league)
-        val stadiumUrl = buildStadiumUrl(pokemonName, atk, def, sta, league)
-        val rankTable = getRankTable(baseStats, pokemonName, league)
+        val stadiumUrl = buildStadiumUrl(pokemonName, atk, def, sta, league, options)
+        val rankTable = getRankTable(baseStats, pokemonName, league, options)
         val currentBest = rankTable.byIv[ivKey(atk, def, sta)]
 
         if (currentBest == null) {
@@ -265,9 +279,10 @@ class PvpRankCalculator {
         currentPokemonName: String? = null,
         currentLevel: Double? = null,
         currentCp: Int? = null,
-        context: Context? = null
+        context: Context? = null,
+        options: PvpCalculationOptions
     ): PvpSpeciesRankInfo {
-        val info = calculateLeagueRankInfo(baseStats, pokemonName, atk, def, sta, league)
+        val info = calculateLeagueRankInfo(baseStats, pokemonName, atk, def, sta, league, options)
         val sameSpecies = context != null && currentPokemonName != null &&
             normalizeKey(resolveCanonicalPokemonName(context, currentPokemonName)) ==
                 normalizeKey(resolveCanonicalPokemonName(context, pokemonName))
@@ -381,10 +396,11 @@ class PvpRankCalculator {
             val cp = calculateCp(bAtk + ivAtk, bDef + ivDef, bSta + ivSta, cpm)
             
             if (cp <= cap) {
-                val effectiveAttack = (bAtk + ivAtk) * cpm
-                val effectiveDefense = (bDef + ivDef) * cpm
                 val effectiveHp = floor((bSta + ivSta) * cpm).toInt().coerceAtLeast(10)
-                val product = effectiveAttack * effectiveDefense * effectiveHp
+                // Multiply the integer factors first so equivalent IV products at the same level
+                // remain exactly tied; separate CPM multiplications introduce rounding noise.
+                val statFactors = (bAtk + ivAtk).toDouble() * (bDef + ivDef) * effectiveHp
+                val product = statFactors * cpm.pow(2.0)
                 if (bestProduct == null || product > bestProduct.product) {
                     bestProduct = StatProduct(ivAtk, ivDef, ivSta, product, cp, level)
                 }
@@ -393,8 +409,8 @@ class PvpRankCalculator {
         return bestProduct
     }
 
-    private fun getRankTable(baseStats: JSONObject, pokemonName: String, league: PvpLeague): RankTable {
-        val cacheKey = "${pokemonName.uppercase()}|${league.name}"
+    private fun getRankTable(baseStats: JSONObject, pokemonName: String, league: PvpLeague, options: PvpCalculationOptions): RankTable {
+        val cacheKey = "${pokemonName.uppercase()}|${league.name}|${options.effectiveMaxLevel}"
         synchronized(rankTableCache) {
             rankTableCache[cacheKey]?.let { return it }
         }
@@ -402,8 +418,9 @@ class PvpRankCalculator {
         val byIv = mutableMapOf<String, StatProduct>()
         val products = mutableListOf<Double>()
         val cap = leagueCap(league)
-        val maxLevel = maxLevelForLeague(league)
+        val maxLevel = options.effectiveMaxLevel
         for (a in 0..15) {
+            if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException("Ranking cancelled")
             for (d in 0..15) {
                 for (s in 0..15) {
                     val best = getBestStatProduct(baseStats, a, d, s, cap, maxLevel)
@@ -528,10 +545,11 @@ class PvpRankCalculator {
         atk: Int,
         def: Int,
         sta: Int,
-        league: PvpLeague
+        league: PvpLeague,
+        options: PvpCalculationOptions
     ): String {
-        val includeBestBuddy = league == PvpLeague.MASTER
-        val levelCap = if (includeBestBuddy) "51" else "50"
+        val includeBestBuddy = options.bestBuddy
+        val levelCap = options.effectiveMaxLevel.toInt().toString()
         return Uri.Builder()
             .scheme("https")
             .authority("www.stadiumgaming.gg")
@@ -548,26 +566,10 @@ class PvpRankCalculator {
             .toString()
     }
 
-    private fun maxLevelForLeague(league: PvpLeague): Double {
-        return when (league) {
-            PvpLeague.MASTER -> 51.0
-            else -> 50.0
-        }
-    }
-
-    private fun selectBestFamilyOption(options: List<PvpLeagueRankInfo>): PvpLeagueRankInfo? {
-        if (options.isEmpty()) return null
-        val eligible = options.filter { it.eligible && it.bestStatProduct != null }
-        if (eligible.isNotEmpty()) {
-            return eligible.maxWithOrNull(
-                compareBy<PvpLeagueRankInfo> { it.bestStatProduct ?: Double.NEGATIVE_INFINITY }
-                    .thenByDescending { it.bestLevel ?: 0.0 }
-                    .thenByDescending { it.bestCp ?: 0 }
-            )
-        }
-        return options.firstOrNull()
-    }
-
+    private fun selectBestFamilyOption(options: List<PvpLeagueRankInfo>): PvpLeagueRankInfo? =
+        options.filter { it.eligible && it.rank != null }
+            .minWithOrNull(pvpRankComparator(rank = { it.rank }, name = { it.pokemonName }))
+            ?: options.firstOrNull()
     private fun formatLevel(level: Double): String {
         return if (level % 1.0 == 0.0) {
             level.toInt().toString()

@@ -3,6 +3,10 @@ package com.mewname.app.ocr
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.net.Uri
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -12,16 +16,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 class OcrEngine {
-    suspend fun extract(context: Context, imageUri: Uri): OcrResult = suspendCancellableCoroutine { cont ->
-        val image = runCatching { InputImage.fromFilePath(context, imageUri) }
-            .getOrElse {
-                cont.resumeWithException(it)
-                return@suspendCancellableCoroutine
-            }
-
-        processImage(image, loadBitmap(context, imageUri), cont)
+    suspend fun extract(context: Context, imageUri: Uri): OcrResult {
+        // Decode off the UI thread, once. OCR coordinates and visual analysis share
+        // the same correctly oriented bitmap, including imported rotated images.
+        val bitmap = withContext(Dispatchers.IO) {
+            loadBitmap(context, imageUri)
+                ?: throw IllegalArgumentException("Could not decode image")
+        }
+        return extract(bitmap)
     }
-
     suspend fun extract(bitmap: Bitmap): OcrResult = suspendCancellableCoroutine { cont ->
         val image = InputImage.fromBitmap(bitmap, 0)
         processImage(image, bitmap, cont)
@@ -95,13 +98,30 @@ class OcrEngine {
     }
 
     private fun loadBitmap(context: Context, imageUri: Uri): Bitmap? {
-        return runCatching {
-            context.contentResolver.openInputStream(imageUri)?.use { stream ->
-                BitmapFactory.decodeStream(stream)
+        val decoded = context.contentResolver.openInputStream(imageUri)?.use {
+            BitmapFactory.decodeStream(it)
+        } ?: return null
+        val orientation = runCatching {
+            context.contentResolver.openInputStream(imageUri)?.use {
+                ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
             }
         }.getOrNull()
+        val matrix = Matrix().apply {
+            when (orientation) {
+                ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> setScale(-1f, 1f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> setRotate(180f)
+                ExifInterface.ORIENTATION_FLIP_VERTICAL -> setScale(1f, -1f)
+                ExifInterface.ORIENTATION_TRANSPOSE -> { setRotate(90f); postScale(-1f, 1f) }
+                ExifInterface.ORIENTATION_ROTATE_90 -> setRotate(90f)
+                ExifInterface.ORIENTATION_TRANSVERSE -> { setRotate(-90f); postScale(-1f, 1f) }
+                ExifInterface.ORIENTATION_ROTATE_270 -> setRotate(-90f)
+            }
+        }
+        if (matrix.isIdentity) return decoded
+        return Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true).also {
+            if (it !== decoded) decoded.recycle()
+        }
     }
-
     private fun scaledForPreview(bitmap: Bitmap, maxLongSide: Int): Bitmap {
         val longSide = maxOf(bitmap.width, bitmap.height)
         if (longSide <= maxLongSide) return bitmap

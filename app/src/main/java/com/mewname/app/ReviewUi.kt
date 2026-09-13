@@ -176,9 +176,14 @@ fun ReviewEditorCard(
 ) {
     val context = LocalContext.current
     val language = appLanguage()
+    val logsEnabled = logOptionsEnabled()
     val generator = remember { NameGenerator() }
+    var pvpOptions by remember(initialData) {
+        mutableStateOf(com.mewname.app.domain.PvpCalculationSettings.read(context))
+    }
     val pvpRankCalculator = remember { PvpRankCalculator() }
     val masterIvBadgeCatalog = remember { MasterIvBadgeCatalog() }
+    var manualPvpSelection by remember(initialData) { mutableStateOf(false) }
     var draft by remember(initialData, fields) {
         mutableStateOf(
             initialData.copy(
@@ -243,6 +248,18 @@ fun ReviewEditorCard(
             .filter { it.isNotBlank() }
             .distinct()
     }
+    var manualMasterSelection by remember(draft.pokemonName, ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv) {
+        mutableStateOf(false)
+    }
+    var masterData by remember(draft.pokemonName, ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv) {
+        mutableStateOf(draft.copy(masterIvBadgeMatch = null, masterIvBadgeDebugInfo = null))
+    }
+    LaunchedEffect(draft.pokemonName, ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv, pvpFamilyCandidates) {
+        val input = draft.withReviewIvValues(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv, initialData.isPurified)
+        masterData = withContext(Dispatchers.Default) {
+            buildMasterIvReviewData(context.applicationContext, input, pvpFamilyCandidates, masterIvBadgeCatalog)
+        }
+    }
     var derivedData by remember(
         draft.pokemonName,
         draft.candyFamilyName,
@@ -254,10 +271,11 @@ fun ReviewEditorCard(
         baseDefenseIv,
         baseStaminaIv
     ) {
-        mutableStateOf(draft.applyIvMode(ivMode))
+        mutableStateOf(draft.withReviewIvValues(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv, initialData.isPurified))
     }
     var derivedLoading by remember { mutableStateOf(false) }
     LaunchedEffect(
+        pvpOptions,
         draft.pokemonName,
         draft.candyFamilyName,
         draft.level,
@@ -268,11 +286,11 @@ fun ReviewEditorCard(
         baseDefenseIv,
         baseStaminaIv
     ) {
-        val displayData = draft.applyIvMode(ivMode)
+        val displayData = draft.withReviewIvValues(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv, initialData.isPurified)
         val rankingInput = displayData.copy(
-            attIv = baseAttackIv,
-            defIv = baseDefenseIv,
-            staIv = baseStaminaIv
+            pvpLeague = if (manualPvpSelection) displayData.pvpLeague else null,
+            pvpPokemonName = if (manualPvpSelection) displayData.pvpPokemonName else null,
+            pvpRank = null
         ).recalculateIvPercent()
         derivedData = displayData
         derivedLoading = false
@@ -285,6 +303,7 @@ fun ReviewEditorCard(
                         data = rankingInput,
                         familyMembers = pvpFamilyCandidates,
                         rankCalculator = pvpRankCalculator,
+                        pvpOptions = pvpOptions,
                         masterIvBadgeCatalog = masterIvBadgeCatalog
                     )
                 }
@@ -304,15 +323,20 @@ fun ReviewEditorCard(
         }
     }
     // Move and presentation changes stay responsive while rankings keep their last valid result.
-    val displayedData = draft.applyIvMode(ivMode)
+    val displayedData = draft.withReviewIvValues(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv, initialData.isPurified)
+    val manualRank = if (manualPvpSelection) derivedData.familyPvpRanks.firstOrNull {
+        it.rank != null && it.league == draft.pvpLeague &&
+            pvpRankCalculator.canonicalName(context, it.pokemonName) ==
+            draft.pvpPokemonName?.let { name -> pvpRankCalculator.canonicalName(context, name) }
+    } else null
     val reviewData = displayedData.copy(
         familyPvpRanks = derivedData.familyPvpRanks.ifEmpty { displayedData.familyPvpRanks },
         pvpLeagueRanks = derivedData.pvpLeagueRanks.ifEmpty { displayedData.pvpLeagueRanks },
-        pvpLeague = displayedData.pvpLeague ?: derivedData.pvpLeague,
-        pvpRank = displayedData.pvpRank ?: derivedData.pvpRank,
-        pvpPokemonName = displayedData.pvpPokemonName ?: derivedData.pvpPokemonName,
-        masterIvBadgeMatch = displayedData.masterIvBadgeMatch ?: derivedData.masterIvBadgeMatch,
-        masterIvBadgeDebugInfo = displayedData.masterIvBadgeDebugInfo ?: derivedData.masterIvBadgeDebugInfo
+        pvpLeague = if (derivedData.familyPvpRanks.isEmpty()) displayedData.pvpLeague else manualRank?.league ?: derivedData.pvpLeague,
+        pvpRank = if (derivedData.familyPvpRanks.isEmpty()) displayedData.pvpRank else manualRank?.rank ?: derivedData.pvpRank,
+        pvpPokemonName = if (derivedData.familyPvpRanks.isEmpty()) displayedData.pvpPokemonName else manualRank?.pokemonName ?: derivedData.pvpPokemonName,
+        masterIvBadgeMatch = if (manualMasterSelection) draft.masterIvBadgeMatch else masterData.masterIvBadgeMatch,
+        masterIvBadgeDebugInfo = if (manualMasterSelection) null else masterData.masterIvBadgeDebugInfo
     )
     fun sameRankSpecies(left: String?, right: String?): Boolean = left != null && right != null &&
         pvpRankCalculator.canonicalName(context, left) == pvpRankCalculator.canonicalName(context, right)
@@ -399,10 +423,11 @@ fun ReviewEditorCard(
         }
     }
     fun selectPvpLeague(league: PvpLeague?) {
+        manualPvpSelection = true
         val selectedSpeciesRank = league?.let { selected ->
             reviewData.familyPvpRanks
                 .filter { it.league == selected && it.eligible && it.rank != null }
-                .minByOrNull { it.rank ?: Int.MAX_VALUE }
+                .minWithOrNull(com.mewname.app.domain.pvpRankComparator(reviewData.pokemonName, { it.rank }, { it.pokemonName }))
         }
         val selectedLeagueRank = if (selectedSpeciesRank == null && league != null) {
             reviewData.pvpLeagueRanks.firstOrNull { it.league == league && it.eligible }
@@ -452,9 +477,9 @@ fun ReviewEditorCard(
     val activeReviewTab = selectedReviewTab.takeIf { it in reviewTabs } ?: ReviewTab.BASIC
     val selectedReviewTabIndex = reviewTabs.indexOf(activeReviewTab).coerceAtLeast(0)
     LaunchedEffect(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv) {
-        val effectiveAttack = effectiveIvForMode(baseAttackIv, ivMode)
-        val effectiveDefense = effectiveIvForMode(baseDefenseIv, ivMode)
-        val effectiveStamina = effectiveIvForMode(baseStaminaIv, ivMode)
+        val effectiveAttack = effectiveIvForMode(baseAttackIv, ivMode, initialData.isPurified)
+        val effectiveDefense = effectiveIvForMode(baseDefenseIv, ivMode, initialData.isPurified)
+        val effectiveStamina = effectiveIvForMode(baseStaminaIv, ivMode, initialData.isPurified)
         if (draft.attIv != effectiveAttack || draft.defIv != effectiveDefense || draft.staIv != effectiveStamina) {
             draft = draft.copy(
                 attIv = effectiveAttack,
@@ -471,7 +496,7 @@ fun ReviewEditorCard(
     Box(modifier = modifier.fillMaxSize()) {
         CompositionLocalProvider(
             LocalReviewOptionPicker provides { activeOptionPicker = it },
-            LocalHideReviewLogMarkers provides useLogSelectionModal,
+            LocalHideReviewLogMarkers provides (useLogSelectionModal || !logsEnabled),
             LocalGlassReviewStyle provides glassStyle,
             LocalGlassCapture provides bitmap,
             LocalFieldLogMarker provides { label ->
@@ -692,7 +717,7 @@ fun ReviewEditorCard(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                if (showPokemonHelp) {
+                if (logsEnabled && (showPokemonHelp)) {
                     PokemonHelpPanel(
                         candyInfo = draft.candyDebugInfo,
                         levelInfo = draft.levelDebugInfo,
@@ -748,7 +773,7 @@ fun ReviewEditorCard(
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    if (showIvHelp) {
+                    if (logsEnabled && (showIvHelp)) {
                         IvHelpPanel(info = draft.ivDebugInfo, bitmap = bitmap)
                     }
                 }
@@ -765,6 +790,7 @@ fun ReviewEditorCard(
                             },
                             options = listOf("-", bestMasterLabel, otherMasterLabel),
                             onSelected = { value ->
+                                manualMasterSelection = true
                                 draft = draft.copy(
                                     masterIvBadgeMatch = when (value) {
                                         bestMasterLabel -> true
@@ -792,6 +818,7 @@ fun ReviewEditorCard(
                         options = ReviewIvMode.entries.map { it.localizedLabel(language) },
                         onSelected = { value ->
                             ReviewIvMode.entries.firstOrNull { it.localizedLabel(language) == value }?.let { selected ->
+                                if (ivMode != selected) derivedLoading = true
                                 ivMode = selected
                                 draft = draft.copy(
                                     isShadow = selected == ReviewIvMode.SHADOW,
@@ -811,7 +838,7 @@ fun ReviewEditorCard(
                         )
                     }
                 }
-                    if (!useLogSelectionModal && NamingField.MASTER_IV_BADGE in selectedDebugFields) {
+                    if (logsEnabled && !useLogSelectionModal && NamingField.MASTER_IV_BADGE in selectedDebugFields) {
                         reviewData.masterIvBadgeDebugInfo?.let { info ->
                             Text(
                                 text = buildString {
@@ -909,7 +936,7 @@ fun ReviewEditorCard(
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
-                    if (showAttributeHelp) {
+                    if (logsEnabled && (showAttributeHelp)) {
                         AttributeHelpPanel(
                             info = draft.attributeDebugInfo,
                             backgroundInfo = draft.backgroundDebugInfo,
@@ -951,7 +978,7 @@ fun ReviewEditorCard(
                             }
                         }
                     )
-                    if (showSizeHelp) {
+                    if (logsEnabled && (showSizeHelp)) {
                         SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
                     }
                     }
@@ -1070,13 +1097,25 @@ fun ReviewEditorCard(
                             )
                         }
                     )
-                    if (showSizeHelp) {
+                    if (logsEnabled && (showSizeHelp)) {
                         SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
                     }
                 }
             }
             }
             if (activeReviewTab == ReviewTab.PVP) {
+                PvpQuickControls(ivMode = ivMode, options = pvpOptions,
+                    onModeChange = { selected ->
+                        derivedLoading = true
+                        ivMode = selected
+                        draft = draft.applyIvMode(selected)
+                    },
+                    onOptionsChange = { selected ->
+                        if (selected != pvpOptions) {
+                            derivedLoading = true
+                            pvpOptions = selected
+                        }
+                    })
                 if (NamingField.PVP_LEAGUE in fields || NamingField.PVP_RANK in fields) {
                     GlassSection(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
                         if (derivedLoading) {
@@ -1164,7 +1203,7 @@ fun ReviewEditorCard(
                                             CompactSelectableField(
                                                 value = leagueLabel,
                                                 active = reviewData.pvpLeague == league,
-                                                onClick = { selectPvpLeague(league) },
+                                                onClick = { if (!derivedLoading) selectPvpLeague(league) },
                                                 modifier = Modifier.width(leagueColumnWidth)
                                             )
                                             pvpRankSpecies.forEach { pokemonName ->
@@ -1178,10 +1217,9 @@ fun ReviewEditorCard(
                                                     active = reviewData.pvpLeague == league && reviewData.pvpRank == rank && sameRankSpecies(reviewData.pvpPokemonName, rankedPokemon),
                                                     struckThrough = (speciesRank != null || leagueRank != null) && !eligible,
                                                     onClick = {
-                                                        if (eligible && rank != null) {
+                                                        if (!derivedLoading && rank != null) {
+                                                            manualPvpSelection = true
                                                             draft = draft.copy(pvpLeague = league, pvpRank = rank, pvpPokemonName = rankedPokemon)
-                                                        } else {
-                                                            showPvpHelp = true
                                                         }
                                                     },
                                                     modifier = Modifier.width(speciesColumnWidths.getValue(pokemonName))
@@ -1191,7 +1229,7 @@ fun ReviewEditorCard(
                                     }
                                 }
                             }
-                        if (showPvpHelp) {
+                        if (logsEnabled && (showPvpHelp)) {
                             PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
                         }
                     }
@@ -1260,7 +1298,7 @@ fun ReviewEditorCard(
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (showVivillonHelp) {
+                    if (logsEnabled && (showVivillonHelp)) {
                         VivillonHelpPanel(pattern = draft.vivillonPattern, info = draft.vivillonDebugInfo, bitmap = bitmap)
                     }
                 }
@@ -1351,13 +1389,13 @@ fun ReviewEditorCard(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    if (showBackgroundHelp) {
+                    if (logsEnabled && (showBackgroundHelp)) {
                         BackgroundHelpPanel(info = draft.backgroundDebugInfo)
                     }
-                    if (showAdventureHelp || showBackgroundHelp) {
+                    if (logsEnabled && (showAdventureHelp || showBackgroundHelp)) {
                         AdventureEffectHelpPanel(info = draft.adventureEffectDebugInfo)
                     }
-                    if (showLegacyHelp || showBackgroundHelp) {
+                    if (logsEnabled && (showLegacyHelp || showBackgroundHelp)) {
                         LegacyHelpPanel(info = draft.legacyDebugInfo)
                     }
                 }
@@ -1402,7 +1440,7 @@ fun ReviewEditorCard(
                             }
                         )
                     )
-                    if (showEvolutionHelp) {
+                    if (logsEnabled && (showEvolutionHelp)) {
                         EvolutionIconHelpPanel(info = draft.evolutionIconDebugInfo)
                     }
                 }
@@ -1417,7 +1455,7 @@ fun ReviewEditorCard(
         }
         }
         CompositionLocalProvider(LocalGlassReviewStyle provides glassStyle, LocalGlassCapture provides bitmap) {
-        if (showLogSelection && useLogSelectionModal) {
+        if (logOptionsEnabled() && showLogSelection && useLogSelectionModal) {
             Box(Modifier.fillMaxSize().clickable { showLogSelection = false }.padding(12.dp), contentAlignment = Alignment.Center) {
                 ReviewLogSelectionModal(
                     language = language,
@@ -1479,14 +1517,14 @@ fun ReviewEditorCard(
                     },
                     onValueSelected = { selected ->
                         when (activeIvPicker) {
-                            "atk" -> baseAttackIv = displayIvToBaseIv(selected, ivMode)
-                            "def" -> baseDefenseIv = displayIvToBaseIv(selected, ivMode)
-                            else -> baseStaminaIv = displayIvToBaseIv(selected, ivMode)
+                            "atk" -> baseAttackIv = displayIvToBaseIv(selected, ivMode, initialData.isPurified)
+                            "def" -> baseDefenseIv = displayIvToBaseIv(selected, ivMode, initialData.isPurified)
+                            else -> baseStaminaIv = displayIvToBaseIv(selected, ivMode, initialData.isPurified)
                         }
                         draft = when (activeIvPicker) {
-                            "atk" -> draft.copy(attIv = effectiveIvForMode(baseAttackIv, ivMode))
-                            "def" -> draft.copy(defIv = effectiveIvForMode(baseDefenseIv, ivMode))
-                            else -> draft.copy(staIv = effectiveIvForMode(baseStaminaIv, ivMode))
+                            "atk" -> draft.copy(attIv = effectiveIvForMode(baseAttackIv, ivMode, initialData.isPurified))
+                            "def" -> draft.copy(defIv = effectiveIvForMode(baseDefenseIv, ivMode, initialData.isPurified))
+                            else -> draft.copy(staIv = effectiveIvForMode(baseStaminaIv, ivMode, initialData.isPurified))
                         }.recalculateIvPercent()
                         activeIvPicker = null
                     },
@@ -1863,7 +1901,7 @@ private fun SuggestedNamesBlock(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                if (onExportLog != null) {
+                if (logOptionsEnabled() && onExportLog != null) {
                     TextButton(onClick = onExportLog, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
                         Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp)
                     }

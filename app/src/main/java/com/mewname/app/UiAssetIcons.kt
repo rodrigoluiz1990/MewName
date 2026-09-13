@@ -19,7 +19,8 @@ fun AssetImageIcon(
     assetPath: String,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    fallbackSize: Dp = 18.dp
+    fallbackSize: Dp = 18.dp,
+    tint: androidx.compose.ui.graphics.Color? = null
 ) {
     val context = LocalContext.current
     val bitmap = remember(assetPath) {
@@ -32,6 +33,7 @@ fun AssetImageIcon(
         Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = contentDescription,
+            colorFilter = tint?.let { androidx.compose.ui.graphics.ColorFilter.tint(it) },
             modifier = modifier
         )
     } else {

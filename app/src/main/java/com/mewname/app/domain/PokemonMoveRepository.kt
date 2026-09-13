@@ -193,9 +193,10 @@ object PokemonMoveRepository {
     }
 
     private fun lookupKeysFor(pokemonName: String): List<String> {
-        val trimmed = pokemonName.trim()
+        val trimmed = pokemonDisplayName(pokemonName).trim()
         if (trimmed.isBlank()) return emptyList()
-        val keys = linkedSetOf(normalizeMoveKey(trimmed))
+        val keys = linkedSetOf(normalizeMoveKey(trimmed), normalizeMoveKey(pokemonName))
+        if (Regex("""\((Alola|Galar|Hisui|Paldea)\)$""").containsMatchIn(trimmed)) keys += normalizeMoveKey(trimmed.substringBefore(" ("))
         listOf("Alolan ", "Galarian ", "Hisuian ", "Paldean ").forEach { prefix ->
             if (trimmed.startsWith(prefix, ignoreCase = true)) {
                 keys += normalizeMoveKey(trimmed.substring(prefix.length).trim())
@@ -222,7 +223,7 @@ object PokemonMoveRepository {
     }
 
     private fun normalizeMoveKey(text: String): String {
-        return Normalizer.normalize(text.trim().replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
+        return Normalizer.normalize(pokemonDisplayName(text).trim().replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
             .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
             .replace(Regex("[^A-Za-z0-9]+"), " ")
             .trim()

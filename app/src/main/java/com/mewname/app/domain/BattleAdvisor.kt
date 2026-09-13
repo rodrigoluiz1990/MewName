@@ -110,6 +110,7 @@ object BattleAdvisor {
     }
 
     fun findPokemonTypes(context: Context, pokemonName: String): List<String> {
+        RaidCounterRepository(context.applicationContext).metadata().resolve(pokemonName)?.types?.takeIf { it.isNotEmpty() }?.let { return it }
         val normalizedName = normalizeName(stripBattlePrefixes(pokemonName))
         if (normalizedName.isBlank()) return emptyList()
         return GameInfoRepository.loadBattlePokemonIndex(context)

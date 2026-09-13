@@ -42,6 +42,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class AppScreen {
+    TRAINER_PROFILE,
     HOME,
     COLLECTIONS,
     PRESET_LIST,
@@ -49,6 +50,7 @@ enum class AppScreen {
     LEGACY_MOVES,
     ADVENTURE_EFFECTS,
     RAID_PLANNER,
+    ROCKET, EGGS, PROMO_CODES, RESEARCH,
     TYPE_CHART,
     MOVEDEX,
     POKEDEX,
