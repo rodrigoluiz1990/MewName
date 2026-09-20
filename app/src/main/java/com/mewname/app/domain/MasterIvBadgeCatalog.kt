@@ -73,6 +73,29 @@ class MasterIvBadgeCatalog {
         )
     }
 
+    fun bestCombinations(
+        context: Context,
+        familyMembers: List<String>
+    ): Map<Int, Triple<Int, Int, Int>> {
+        val signature = familySignature(familyMembers)
+        if (signature.isBlank()) return emptyMap()
+        val normalizedMembers = familyMembers
+            .map(::normalize)
+            .filter { it.isNotBlank() }
+            .distinct()
+        val entries = buildList {
+            val catalog = loadFamilyMap(context)
+            catalog[signature]?.let(::add)
+            normalizedMembers.mapNotNull { member -> catalog[member] }.forEach(::add)
+            relatedFormEntries(catalog, signature, normalizedMembers).forEach(::add)
+        }.distinctBy { it.signature }
+        val combinations = entries.firstOrNull()?.combinations.orEmpty()
+        return linkedMapOf<Int, Triple<Int, Int, Int>>().apply {
+            listOf(98, 96, 93, 91).forEach { percent ->
+                combinations[percent]?.let { put(percent, it) }
+            }
+        }
+    }
     private fun loadFamilyMap(context: Context): Map<String, FamilyEntry> {
         familyMap?.let { return it }
         synchronized(this) {

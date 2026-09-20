@@ -472,7 +472,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         action("friends", lt(language, "Filtros amigos", "Friend filters", "Filtros amigos"), "filters") {
             showSavedFiltersOverlay(com.mewname.app.domain.FilterScreen.FRIENDS)
         }
-        action("stop", lt(language, "Remover bolha", "Remove bubble", "Quitar burbuja"), "stop") { stopOverlayService() }
+        action("stop", lt(language, "Remover sobreposição", "Remove overlay", "Quitar superposición"), "stop") { stopOverlayService() }
         bubbleAppShortcuts.forEach { shortcut ->
             action(shortcut.key, lt(language, shortcut.pt, shortcut.en, shortcut.es), shortcut.icon) {
                 try {
@@ -504,8 +504,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             setImageResource(R.drawable.ic_launcher)
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
             clipToOutline = true
-            contentDescription = lt(language, "Fechar menu ou arrastar bolha",
-                "Close menu or drag bubble", "Cerrar menú o arrastrar burbuja")
+            contentDescription = lt(language, "Fechar menu ou arrastar sobreposição",
+                "Close menu or drag overlay", "Cerrar menú o arrastrar superposición")
             setOnClickListener { hideBubbleActions() }
         }
         root.addView(center, android.widget.FrameLayout.LayoutParams(dp(56), dp(56)))
@@ -540,8 +540,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 return true
             }
         })
-        // The bubble window and this menu use different inset flags. Convert actual
-        // screen coordinates rather than shifting/clamping the bubble's anchor.
+        // The overlay window and this menu use different inset flags. Convert actual
+        // screen coordinates rather than shifting/clamping the overlay's anchor.
         root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             if (center.tag != true && root.width > 0 && root.height > 0) {
                 center.tag = true
@@ -820,13 +820,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     ?: throw IllegalStateException("Tempo limite ao extrair texto da imagem")
                 Log.d(TAG, "OCR full: ${android.os.SystemClock.elapsedRealtime() - started}ms; lines=${ocrResult.blocks.sumOf { it.lines.size }}")
                 val readTarget = kotlinx.coroutines.withContext(Dispatchers.IO) {
-                    com.mewname.app.domain.BubbleScreenRouter.route(this@OverlayService, ocrResult.fullText)
+                    com.mewname.app.domain.BubbleScreenRouter.route(this@OverlayService, ocrResult)
                 }
                 if (readTarget == com.mewname.app.domain.BubbleScreenRouter.Target.Trainer) {
-                    val profile = TrainerScreenReader.parse(ocrResult)
+                    val profile = TrainerScreenReader.parse(this@OverlayService, ocrResult)
                     TrainerScreenReader.save(this@OverlayService, profile)
                     val qrSaved = if (profile.friendCode != null) TrainerScreenReader.saveQr(this@OverlayService, ocrResult) else false
-                    val log = profileReadDiagnostics(ocrResult, "bolha_perfil",
+                    val log = profileReadDiagnostics(ocrResult, "sobreposição_perfil",
                         android.os.SystemClock.elapsedRealtime() - started, savedAppLanguage(this@OverlayService).toString(),
                         profile, profile) + "\nqr_salvo=" + qrSaved
                     getSharedPreferences("trainer_profile", 0).edit().putString("last_read_log", log).apply()
@@ -922,7 +922,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 removeLoadingOverlay()
             }.onFailure { error ->
                 if (error !is CancellationException) {
-                    Log.e(TAG, "Falha no OCR da bolha", error)
+                    Log.e(TAG, "Falha no OCR da sobreposição", error)
                     Toast.makeText(this@OverlayService, "Nao foi possivel ler a imagem.", Toast.LENGTH_SHORT).show()
                 }
             }.also {
@@ -1114,13 +1114,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         val helpBtn = ImageView(this).apply {
-            runCatching {
-                assets.open("Unown_Qu.png").use { stream ->
-                    setImageBitmap(BitmapFactory.decodeStream(stream))
-                }
-            }.onFailure {
-                setImageResource(android.R.drawable.ic_menu_help)
-            }
+            setImageResource(android.R.drawable.ic_menu_help)
             scaleType = ImageView.ScaleType.FIT_CENTER
             adjustViewBounds = true
             setPadding(4, 4, 4, 4)
@@ -1346,7 +1340,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         })
 
         layout.addView(TextView(this).apply {
-            text = "A bolha pode ser usada nestas telas:"
+            text = "A sobreposição pode ser usada nestas telas:"
             textSize = 14f
             setTextColor(Color.rgb(65, 72, 86))
             setPadding(0, 0, 0, 18)
@@ -1376,7 +1370,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         layout.addView(supportedScreenRow("Tela de Dynamax/Gigamax", "Sugere Pokemon validos para a batalha Max."))
 
         layout.addView(TextView(this).apply {
-            text = "Abra uma dessas telas no Pokemon GO e toque na bolha novamente."
+            text = "Abra uma dessas telas no Pokemon GO e toque na sobreposição novamente."
             textSize = 13f
             setTextColor(Color.rgb(87, 96, 112))
             setPadding(0, 18, 0, 22)
@@ -1424,7 +1418,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         Box(Modifier.fillMaxSize().padding(horizontal=10.dp,vertical=24.dp),contentAlignment=androidx.compose.ui.Alignment.BottomCenter) {
                             androidx.compose.material3.Surface(Modifier.fillMaxWidth().fillMaxHeight(0.92f),
                                 shape=androidx.compose.foundation.shape.RoundedCornerShape(26.dp)) {
-                                RaidDetailsScreen(advice.bossName.orEmpty(),bubble=true,onBack={removeResultsOverlay()})
+                                RaidDetailsScreen(advice.bossName.orEmpty(), bubble=true, raidScreenText=advice.raidScreenText, detectedRaidLevel=advice.raidLevel, onBack={removeResultsOverlay()})
                             }
                         }
                     }
@@ -1434,12 +1428,15 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         if(addOverlayView(view,params)) resultsView=view
     }
     private fun showBattleSuggestionsOverlay(advice: BattleAdvice) {
-        if (advice.mode == BattleMode.RAID) { showRaidDetailsOverlay(advice); return }
+        if (advice.mode == BattleMode.RAID) {
+            showRaidDetailsOverlay(advice)
+            return
+        }
         removeResultsOverlay()
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_DIM_BEHIND,
             PixelFormat.TRANSLUCENT
@@ -1447,275 +1444,43 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             gravity = Gravity.CENTER
             dimAmount = 0.6f
         }
-
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 34f
-                setColor(Color.argb(232, 255, 255, 255))
-            }
-            setPadding(52, 52, 52, 52)
-            elevation = 40f
-        }
-
-        layout.addView(TextView(this).apply {
-            text = if (advice.mode == BattleMode.MAX) "Sugestoes para Dynamax" else "Sugestoes para Raid"
-            textSize = 18f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.BLACK)
-            setPadding(0, 0, 0, 10)
-        })
-
-        layout.addView(TextView(this).apply {
-            text = buildString {
-                append("Chefe: ${advice.bossName ?: "nao identificado"}")
-                if (advice.bossName.isNullOrBlank()) {
-                    append("\nTente capturar a tela novamente com o nome do chefe visivel.")
-                }
-                if (advice.bossTypes.isNotEmpty()) {
-                    append("\nTipos: ${advice.bossTypes.joinToString(" / ")}")
-                }
-                if (advice.weaknessTypes.isNotEmpty()) {
-                    append("\nFraquezas: ${advice.weaknessTypes.joinToString(", ")}")
-                }
-            }
-            textSize = 13f
-            setTextColor(Color.rgb(87, 96, 112))
-            setPadding(0, 0, 0, 20)
-        })
-
-        var currentCopyText = advice.copyText
-        lateinit var filterTitle: TextView
-        fun showCopiedFeedback(button: TextView? = null) {
-            val originalTitle = filterTitle.text
-            val originalButtonText = button?.text
-            filterTitle.text = "Filtro copiado!"
-            button?.text = "Copiado!"
-            mainHandler.postDelayed({
-                filterTitle.text = originalTitle
-                if (originalButtonText != null) {
-                    button.text = originalButtonText
-                }
-            }, 1800)
-        }
-
-        val filterBox = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 22f
-                setColor(Color.rgb(241, 246, 255))
-                setStroke(2, Color.rgb(207, 219, 239))
-            }
-            setPadding(24, 18, 24, 18)
-            isClickable = true
-            setOnClickListener {
-                copyToClipboard(currentCopyText)
-                showCopiedFeedback()
-                Toast.makeText(this@OverlayService, "Filtro copiado!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        filterTitle = TextView(this).apply {
-            text = "Copiar para buscar Pokemon"
-            textSize = 12f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.rgb(48, 63, 84))
-        }
-        filterBox.addView(filterTitle)
-        val filterValueView = TextView(this).apply {
-            text = currentCopyText.ifBlank { "-" }
-            textSize = 18f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.BLACK)
-            setPadding(0, 8, 0, 0)
-        }
-        filterBox.addView(filterValueView)
-        layout.addView(filterBox)
-
-        serviceScope.launch(Dispatchers.Default) {
-            val localizedCopyText = BattleAdvisor.copyTextFor(
-                context = this@OverlayService,
-                mode = advice.mode,
-                suggestions = advice.suggestions
-            )
-            mainHandler.post {
-                if (resultsView == layout && localizedCopyText.isNotBlank()) {
-                    currentCopyText = localizedCopyText
-                    filterValueView.text = localizedCopyText
-                }
-            }
-        }
-
-        val scrollView = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                520
-            ).apply {
-                topMargin = 20
-            }
-        }
-        scrollView.addView(battleSuggestionColumns(advice))
-        layout.addView(scrollView)
-
-        val actionsRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 24, 0, 0)
-        }
-        fun actionButton(label: String, isLast: Boolean = false, onClick: () -> Unit): TextView {
-            return TextView(this).apply {
-                text = label
-                gravity = Gravity.CENTER
-                textSize = 12f
-                setTypeface(typeface, Typeface.BOLD)
-                setTextColor(Color.rgb(48, 63, 84))
-                setPadding(14, 22, 14, 22)
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    cornerRadius = 28f
-                    setColor(Color.argb(245, 248, 250, 255))
-                    setStroke(2, Color.rgb(205, 214, 226))
-                }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    marginEnd = if (isLast) 0 else 8
-                }
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { onClick() }
-            }
-        }
-        lateinit var copyFilterButton: TextView
-        copyFilterButton = actionButton("Copiar filtro") {
-                copyToClipboard(currentCopyText)
-                showCopiedFeedback(copyFilterButton)
-                Toast.makeText(this@OverlayService, "Filtro copiado!", Toast.LENGTH_SHORT).show()
-            }
-        actionsRow.addView(copyFilterButton)
-        val logButton = actionButton("Log") { exportBattleLog() }
-        val logPrefs = LogOptionsSettings.preferences(this)
-        fun updateLogVisibility() {
-            logButton.visibility = if (LogOptionsSettings.enabled(this)) View.VISIBLE else View.GONE
-        }
-        val logListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-            mainHandler.post { updateLogVisibility() }
-        }
-        logButton.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(view: View) {
-                logPrefs.registerOnSharedPreferenceChangeListener(logListener)
-                updateLogVisibility()
-            }
-            override fun onViewDetachedFromWindow(view: View) {
-                logPrefs.unregisterOnSharedPreferenceChangeListener(logListener)
-            }
-        })
-        updateLogVisibility()
-        actionsRow.addView(logButton)
-        actionsRow.addView(
-            actionButton("Fechar", isLast = true) {
-                detachOverlay(layout)
-                resultsView = null
-            }
-        )
-        layout.addView(actionsRow)
-
-        addOverlayView(layout, params)
-        resultsView = layout
-    }
-
-    private fun battleSuggestionColumns(advice: BattleAdvice): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            isBaselineAligned = false
-            addView(
-                battleSuggestionColumn(
-                    title = "Atacantes",
-                    entries = advice.suggestions.take(8)
-                )
-            )
-            addView(
-                battleSuggestionColumn(
-                    title = "Defensores",
-                    entries = advice.defenderSuggestions.take(8).ifEmpty { advice.suggestions.take(8) },
-                    isLast = true
-                )
-            )
-        }
-    }
-
-    private fun battleSuggestionColumn(
-        title: String,
-        entries: List<com.mewname.app.domain.BattleSuggestionEntry>,
-        isLast: Boolean = false
-    ): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                rightMargin = if (isLast) 0 else 14
-            }
-            addView(TextView(this@OverlayService).apply {
-                text = title
-                textSize = 14f
-                setTypeface(null, Typeface.BOLD)
-                setTextColor(Color.BLACK)
-                setPadding(0, 0, 0, 8)
-            })
-            entries.forEachIndexed { index, entry ->
-                addView(LinearLayout(this@OverlayService).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(0, 10, 0, 10)
-                    addView(LinearLayout(this@OverlayService).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        gravity = Gravity.CENTER_VERTICAL
-                        addView(TextView(this@OverlayService).apply {
-                            text = "${index + 1}."
-                            textSize = 11f
-                            setTypeface(null, Typeface.BOLD)
-                            setTextColor(Color.rgb(87, 96, 112))
-                            layoutParams = LinearLayout.LayoutParams(30, LinearLayout.LayoutParams.WRAP_CONTENT)
-                        })
-                        entry.attackTypes.take(2).forEach { type ->
-                            addView(typeIconView(type, 34))
+        val composeView = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            setContent {
+                val language = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(
+                    LocalAppLanguage provides language,
+                    LocalAppButtonStyle provides true
+                ) {
+                    MaterialTheme {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 24.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.BottomCenter
+                        ) {
+                            androidx.compose.material3.Surface(
+                                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.94f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp)
+                            ) {
+                                MaxBattleSuggestionsScreen(
+                                    advice = advice,
+                                    showLogAction = LogOptionsSettings.enabled(this@OverlayService),
+                                    onCopy = { filter ->
+                                        copyToClipboard(filter)
+                                        Toast.makeText(this@OverlayService, "Filtro copiado!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onExportLog = { exportBattleLog() },
+                                    onClose = { removeResultsOverlay() }
+                                )
+                            }
                         }
-                    })
-                    addView(TextView(this@OverlayService).apply {
-                        text = entry.name
-                        textSize = 12f
-                        setTypeface(null, Typeface.BOLD)
-                        setTextColor(Color.BLACK)
-                        maxLines = 2
-                        ellipsize = android.text.TextUtils.TruncateAt.END
-                        setPadding(0, 4, 0, 0)
-                    })
-                })
-                addView(View(this@OverlayService).apply {
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2)
-                    setBackgroundColor(Color.LTGRAY)
-                })
+                    }
+                }
             }
         }
+        if (addOverlayView(composeView, params)) resultsView = composeView
     }
-
-    private fun typeIconView(type: String, size: Int = 42): ImageView {
-        val normalized = type.uppercase(Locale.US)
-        val bitmap = runCatching {
-            assets.open("types/POKEMON_TYPE_$normalized.png").use(BitmapFactory::decodeStream)
-        }.getOrNull()
-        return ImageView(this).apply {
-            bitmap?.let(::setImageBitmap)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.rgb(241, 246, 255))
-                setStroke(2, Color.rgb(207, 219, 239))
-            }
-            setPadding(6, 6, 6, 6)
-            layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                rightMargin = 6
-            }
-        }
-    }
-
     private fun showCatalogOverlay(capture: com.mewname.app.domain.CatalogCapture) {
         if (closingForPermissionLoss) return
         removeResultsOverlay()
@@ -1833,17 +1598,17 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         if (request != null && request.fields.isEmpty()) return
         val snapshot = lastBubbleLogSnapshot
         if (snapshot == null) {
-            Toast.makeText(this, "Nenhum log da bolha disponivel ainda.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Nenhum log da sobreposição disponivel ainda.", Toast.LENGTH_SHORT).show()
             return
         }
 
         val exportText = buildBubbleLogExport(snapshot.copy(reviewedData = currentData ?: snapshot.reviewedData), selectedFields?.takeIf { it.isNotEmpty() }, request)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "MewName - Log do modo bolha")
+            putExtra(Intent.EXTRA_SUBJECT, "MewName - Log do modo sobreposição")
             putExtra(Intent.EXTRA_TEXT, exportText)
         }
-        val chooser = Intent.createChooser(shareIntent, "Exportar log do modo bolha").apply {
+        val chooser = Intent.createChooser(shareIntent, "Exportar log do modo sobreposição").apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(chooser)
@@ -1913,7 +1678,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
         return buildString {
             val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-            appendLine("MewName - Log do modo bolha")
+            appendLine("MewName - Log do modo sobreposição")
             appendLine("Formato de log: 3; versao=${BuildConfig.VERSION_NAME}; build=${BuildConfig.VERSION_CODE}; idioma=${savedAppLanguage(this@OverlayService)}")
             appendLine("Captura: ${snapshot.capturedAtMillis} | ${formatter.format(Date(snapshot.capturedAtMillis))} | ${snapshot.bitmapWidth}x${snapshot.bitmapHeight}")
             if (snapshot.analysisTimings.isNotEmpty()) appendLine("Tempos da leitura: ${snapshot.analysisTimings.joinToString("; ")}")

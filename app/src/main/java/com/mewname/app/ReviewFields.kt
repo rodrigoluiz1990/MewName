@@ -237,7 +237,8 @@ internal fun SelectionModalDialog(
     message: String? = null,
     onDismiss: () -> Unit,
     onOptionSelected: (String) -> Unit,
-    verticalOptions: Boolean = false
+    verticalOptions: Boolean = false,
+    centeredContent: Boolean = false
 ) {
     ReviewModalCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)),
@@ -247,11 +248,12 @@ internal fun SelectionModalDialog(
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = if (centeredContent) Alignment.CenterHorizontally else Alignment.Start
         ) {
             ReviewModalHeader(title, onDismiss)
             if (message != null) {
-                Text(message, style = MaterialTheme.typography.bodyMedium)
+                Text(message, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium, textAlign = if (centeredContent) TextAlign.Center else TextAlign.Start)
             } else if (verticalOptions || LocalGlassReviewStyle.current) {
                 Column(
                     modifier = Modifier
@@ -474,6 +476,9 @@ internal fun SelectionDropdownField(
     options: List<String>,
     onSelected: (String) -> Unit,
     headerTrailing: (@Composable (() -> Unit))? = null,
+    modalMessage: String? = null,
+    verticalOptions: Boolean = false,
+    centeredContent: Boolean = false,
     useOptionModal: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -491,7 +496,17 @@ internal fun SelectionDropdownField(
                     .fillMaxWidth()
                     .clickable {
                         if (useOptionModal) {
-                            optionPicker?.invoke(ReviewOptionPicker(label, options, value, onOptionSelected = onSelected)) ?: run { expanded = !expanded }
+                            optionPicker?.invoke(
+                                ReviewOptionPicker(
+                                    label,
+                                    options,
+                                    value,
+                                    message = modalMessage,
+                                    verticalOptions = verticalOptions,
+                                    centeredContent = centeredContent,
+                                    onOptionSelected = onSelected
+                                )
+                            ) ?: run { expanded = !expanded }
                         } else {
                             expanded = !expanded
                         }
@@ -511,11 +526,14 @@ internal fun SelectionDropdownField(
                         title = label,
                         options = options,
                         selectedValue = value,
+                        message = modalMessage,
                         onDismiss = { expanded = false },
                         onOptionSelected = {
                             onSelected(it)
                             expanded = false
-                        }
+                        },
+                        verticalOptions = verticalOptions,
+                        centeredContent = centeredContent
                     )
                 } else {
                     StandardDropdownOptions(

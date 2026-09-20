@@ -24,7 +24,7 @@ internal fun AppActionButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     secondary: Boolean = false,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
     content: @Composable RowScope.() -> Unit
 ) {
     if (!LocalAppButtonStyle.current) {
@@ -46,7 +46,7 @@ internal fun AppActionButton(
     CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
     Button(
         onClick = onClick, enabled = enabled,
-        modifier = modifier.heightIn(min = 44.dp).background(Brush.linearGradient(fill), shape),
+        modifier = modifier.heightIn(min = 40.dp).background(Brush.linearGradient(fill), shape),
         shape = shape,
         border = BorderStroke(0.75.dp, Brush.verticalGradient(listOf(
             Color.White.copy(alpha = if (enabled) 0.6f else 0.15f),
@@ -73,7 +73,7 @@ internal fun AppSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
     content: @Composable RowScope.() -> Unit
 ) {
     if (!LocalAppButtonStyle.current) {

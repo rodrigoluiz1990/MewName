@@ -12,12 +12,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -72,7 +73,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -100,6 +100,7 @@ import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -283,25 +284,6 @@ fun TypesScreen(onBack: () -> Unit) {
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    t(
-                        language,
-                        "Calculadora de fraquezas e resistencias",
-                        "Weakness and resistance calculator",
-                        "Calculadora de debilidades y resistencias"
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    t(
-                        language,
-                        "Escolha ate dois tipos defensivos para montar a leitura no estilo PokeGenie.",
-                        "Choose up to two defending types for a PokeGenie-style matchup view.",
-                        "Elige hasta dos tipos defensivos para una vista estilo PokeGenie."
-                    ),
-                    style = MaterialTheme.typography.bodyMedium
-                )
                 if (selectedTypes.isEmpty()) {
                     Text(
                         t(language, "Nenhum tipo selecionado", "No type selected", "Ningun tipo seleccionado"),
@@ -317,7 +299,7 @@ fun TypesScreen(onBack: () -> Unit) {
             }
         }
 
-        TypeSelector(types = types, selectedTypes = selectedTypes, maxSelection = 2, language = language, verticalSpacing = 4.dp)
+        TypeSelector(types = types, selectedTypes = selectedTypes, maxSelection = 2, language = language, verticalSpacing = 2.dp)
         MatchupSection(matchup = matchup, language = language)
     }
 }
@@ -383,7 +365,7 @@ fun MovesScreen(onBack: () -> Unit) {
                 },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
-                        UnownQuestionIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
+                        HelpIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
                     }
                 }
             )
@@ -394,7 +376,7 @@ fun MovesScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             item {
                 AppGlassTextField(
@@ -472,30 +454,35 @@ fun MovesScreen(onBack: () -> Unit) {
     }
 }
 
+private data class PokedexLoadState(
+    val entries: List<PokedexCatalogEntry> = emptyList(),
+    val complete: Boolean = false
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PokedexScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     var showHelp by rememberSaveable { mutableStateOf(false) }
-    val pokedexState = produceState<List<PokedexCatalogEntry>>(initialValue = emptyList(), context) {
+    val loadState by produceState(initialValue = PokedexLoadState(), context) {
         val appContext = context.applicationContext
-        withContext(Dispatchers.Default) {
+        val finalEntries = withContext(Dispatchers.Default) {
             GameInfoRepository.loadPokedexCatalogProgressive(appContext) { partial ->
                 withContext(Dispatchers.Main) {
-                    value = partial
+                    value = PokedexLoadState(entries = partial, complete = false)
                 }
             }
         }
+        value = PokedexLoadState(entries = finalEntries, complete = true)
     }
-    val pokedex = pokedexState.value
-    val isLoading = pokedex.isEmpty()
+    val pokedex = loadState.entries
     var query by rememberSaveable { mutableStateOf("") }
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
     var visibleCount by rememberSaveable(query, selectedType) { mutableStateOf(60) }
     val types = remember(pokedex) { pokedex.flatMap { listOfNotNull(it.type1, it.type2) }.distinct().sorted() }
     val normalizedQuery = remember(query) { normalizeSearch(query) }
-    val filtered = remember(pokedex, selectedType, normalizedQuery, language) {
+    val filtered = remember(pokedex, selectedType, normalizedQuery) {
         pokedex.filter { entry ->
             (selectedType == null || entry.type1 == selectedType || entry.type2 == selectedType) &&
                 (
@@ -510,75 +497,73 @@ fun PokedexScreen(onBack: () -> Unit) {
     }
     val visibleEntries = remember(filtered, visibleCount) { filtered.take(visibleCount) }
 
-    androidx.compose.material3.Scaffold(
+    Scaffold(
         topBar = {
             AppTopBar(
-                title = { Text("Pokedex") },
+                title = { Text(t(language, "Pokédex", "Pokédex", "Pokédex")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t(language, "Voltar", "Back", "Volver"))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
-                        UnownQuestionIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
+                        HelpIcon(modifier = Modifier.size(24.dp), contentDescription = t(language, "Ajuda", "Help", "Ayuda"))
                     }
                 }
             )
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             item {
-                AppSectionCard(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            t(language, "Consulta rapida da dex", "Quick dex lookup", "Consulta rapida de la dex"),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                        AppGlassTextField(
+                            search = true,
+                            value = query,
+                            onValueChange = { query = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(t(language, "Nome ou número da Pokédex", "Name or Pokédex number", "Nombre o número de Pokédex")) },
+                            singleLine = true
                         )
+                        if (types.isNotEmpty()) {
+                            TypeSelectorSingle(
+                                types = types,
+                                selectedType = selectedType,
+                                onSelect = { selectedType = it },
+                                language = language,
+                                showAllOption = false
+                            )
+                        }
                         Text(
                             t(
                                 language,
-                                "Lista carregada em lotes para manter a tela leve.",
-                                "Entries are loaded in batches to keep the screen smooth.",
-                                "La lista se carga por lotes para mantener la pantalla fluida."
-                            )
-                        )
-                        AppGlassTextField(
-                    search = true,
-                    value = query,
-                            onValueChange = { query = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(t(language, "Buscar Pokemon", "Search Pokemon", "Buscar Pokemon")) },
-                            singleLine = true
-                        )
-                        TypeSelectorSingle(types = types, selectedType = selectedType, onSelect = { selectedType = it }, language = language)
-                        Text(
-                            if (isLoading) {
-                                t(language, "Carregando primeiros Pokemon...", "Loading first Pokemon...", "Cargando primeros Pokemon...")
-                            } else {
-                                "${visibleEntries.size}/${filtered.size}"
-                            },
+                                "${visibleEntries.size} de ${filtered.size} Pokémon",
+                                "${visibleEntries.size} of ${filtered.size} Pokémon",
+                                "${visibleEntries.size} de ${filtered.size} Pokémon"
+                            ),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-            if (isLoading) {
+            if (!loadState.complete) {
                 item {
-                    InlineLoadingRow(t(language, "Montando Pokedex em lotes", "Building Pokedex in batches", "Montando Pokedex por lotes"))
+                    InlineLoadingRow(
+                        t(
+                            language,
+                            "Carregando tipos e atributos da Pokédex...",
+                            "Loading Pokédex types and stats...",
+                            "Cargando tipos y estadísticas de la Pokédex..."
+                        )
+                    )
                 }
             }
             items(visibleEntries, key = { "${it.number}-${it.name}" }) { entry ->
@@ -586,11 +571,8 @@ fun PokedexScreen(onBack: () -> Unit) {
             }
             if (visibleCount < filtered.size) {
                 item {
-                    AppActionButton(
-                        onClick = { visibleCount += 60 },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(t(language, "Carregar mais", "Load more", "Cargar mas"))
+                    AppActionButton(onClick = { visibleCount += 60 }, modifier = Modifier.fillMaxWidth()) {
+                        Text(t(language, "Carregar mais", "Load more", "Cargar más"))
                     }
                 }
             }
@@ -598,18 +580,17 @@ fun PokedexScreen(onBack: () -> Unit) {
     }
     if (showHelp) {
         ToolHelpDialog(
-            title = t(language, "Como usar Pokedex", "How to use Pokedex", "Como usar Pokedex"),
+            title = t(language, "Como usar a Pokédex", "How to use the Pokédex", "Cómo usar la Pokédex"),
             body = t(
                 language,
-                "Use a busca para encontrar Pokemon por nome, numero ou apelidos do catalogo. O filtro de tipo reduz a lista para Pokemon que tenham aquele tipo. Os cards mostram numero, tipos, atributos base e quantidade de formas conhecidas.",
-                "Use search to find Pokemon by name, number, or catalog aliases. The type filter narrows the list to Pokemon that have that type. Cards show number, typing, base stats, and known form count.",
-                "Usa la busqueda para encontrar Pokemon por nombre, numero o alias del catalogo. El filtro de tipo reduce la lista a Pokemon con ese tipo. Las tarjetas muestran numero, tipos, estadisticas base y cantidad de formas conocidas."
+                "Busque pelo nome, número ou apelido do catálogo e filtre por tipo. Cada cartão mostra a imagem, os atributos base e as formas conhecidas da espécie.",
+                "Search by name, number, or catalog alias and filter by type. Each card shows the image, base stats, and known forms for the species.",
+                "Busca por nombre, número o alias del catálogo y filtra por tipo. Cada tarjeta muestra la imagen, las estadísticas base y las formas conocidas de la especie."
             ),
             onDismiss = { showHelp = false }
         )
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FilterBuilderScreen(onBack: () -> Unit) {
@@ -633,7 +614,7 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
                 },
                 actions = {
                     IconButton(onClick = { showHelp = true }) {
-                        UnownQuestionIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
+                        HelpIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors()
@@ -646,7 +627,7 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
                 .padding(padding)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AppPillTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
                 tabTitles.forEachIndexed { index, title ->
@@ -691,10 +672,26 @@ fun RaidPlannerScreen(
     val context = LocalContext.current
     val language = appLanguage()
     var selectedBoss by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedMaxBoss by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedTier by rememberSaveable { mutableStateOf("RAID_LEVEL_5") }
     if (selectedBoss != null) {
         RaidDetailsScreen(selectedBoss!!, selectedTier, onBack = { selectedBoss = null })
         return
+    }
+    selectedMaxBoss?.let { maxBoss ->
+        val advice = remember(maxBoss) {
+            BattleAdvisor.adviceForRaw(context, "BATALHA MAX\n$maxBoss\nGRUPO PRIVADO")
+        }
+        if (advice != null) {
+            MaxBattleSuggestionsScreen(
+                advice = advice,
+                showLogAction = false,
+                onCopy = { copyPlainText(context, it, language) },
+                onExportLog = {},
+                onClose = { selectedMaxBoss = null }
+            )
+            return
+        }
     }
     val counterRepository = remember { com.mewname.app.domain.RaidCounterRepository(context.applicationContext) }
     var live by remember { mutableStateOf<List<RaidHistoryCategory>>(emptyList()) }
@@ -726,30 +723,43 @@ fun RaidPlannerScreen(
                 rows.map { RaidHistoryItem(com.mewname.app.domain.raidName(it.id), "https://www.pokebattler.com/raids/${it.id}", "", "") })
         }
         try {
-            catalogError=false; catalogLoading=true
-            val cached=withContext(Dispatchers.IO) { counterRepository.catalog() }
-            live=groups(cached)
-            if(retry>0) withContext(Dispatchers.IO) { counterRepository.updateMetadata() }
-            if(cached.isEmpty() || retry>0) live=groups(withContext(Dispatchers.IO) { counterRepository.catalog(refresh=true) })
-        } catch(e: kotlinx.coroutines.CancellationException) { throw e }
-        catch(_: Exception) { catalogError=true }
-        finally { catalogLoading=false }
+            catalogError = false
+            catalogLoading = true
+            val cached = withContext(Dispatchers.IO) { counterRepository.catalog() }
+            live = groups(cached)
+            if (cached.isEmpty() || retry > 0) {
+                try {
+                    val refreshed = withContext(Dispatchers.IO) { counterRepository.catalog(refresh = true) }
+                    live = groups(refreshed)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    catalogError = true
+                }
+            }
+            if (retry > 0) {
+                runCatching { withContext(Dispatchers.IO) { counterRepository.updateMetadata() } }
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            catalogError = true
+        } finally {
+            catalogLoading = false
+        }
     }
     SimpleToolScreen(
         scrollable = false,
+        actions = {
+            IconButton(onClick = { retry++ }, enabled = !catalogLoading) {
+                Icon(Icons.Default.Refresh, contentDescription = t(language, "Atualizar", "Refresh", "Actualizar"))
+            }
+        },
         title = t(language, "Raids", "Raids", "Raids"),
         onBack = onBack,
-        helpTitle = t(language, "Como usar Raids", "How to use Raids", "Como usar Raids"),
-        helpText = t(
-            language,
-            "Consulte as raids atuais e o histórico nas abas. Toque no chefe para ver golpes, fraquezas, PC de captura e sugestões do Pokébattler. Atualize pelo ícone para salvar os dados; a bolha consulta somente o que já está salvo. O filtro busca espécies e tipos de golpes: confira a forma e o conjunto recomendado. Batalhas Max mantêm o acesso externo.",
-            "Browse current raids and history. Tap a boss for moves, weaknesses, catch CP and Pokébattler counters. Refresh in the app to save data; bubble mode only reads saved results. The filter searches species and attack types: check the form and recommended moveset. Max Battles keep their external links.",
-            "Consulta las incursiones actuales y el historial. Toca un jefe para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app para guardar los datos; la burbuja solo consulta resultados guardados. Revisa la forma y los ataques al usar el filtro. Los Combates Max conservan sus enlaces externos."
-        )
     ) {
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
-            if(catalogError) Text(t(language,"Não foi possível atualizar as raids.","Could not update raids.","No se pudieron actualizar las incursiones."),Modifier.weight(1f))
-            IconButton(onClick={retry++},enabled=!catalogLoading) { Icon(androidx.compose.material.icons.Icons.Default.Refresh,contentDescription=t(language,"Atualizar","Refresh","Actualizar")) }
+        if (catalogError) {
+            AppStatusMessage(t(language, "Não foi possível atualizar as raids.", "Could not update raids.", "No se pudieron actualizar las incursiones."), error = true)
         }
         val result = loaded
         when {
@@ -765,11 +775,14 @@ fun RaidPlannerScreen(
             }
             result.getOrThrow().isEmpty() ->
                 AppStatusMessage(t(language, "Nenhuma raid disponível.", "No raids available.", "No hay raids disponibles."))
-            else -> RaidHistorySection(categories = live + result.getOrThrow(), language = language,
-                loading = loading, loadedCount = loadedCount, totalCount = totalCount, onSelectBoss = { boss, category ->
+            else -> RaidHistorySection(categories = sortRaidCategoriesByDex(live + result.getOrThrow(), counterRepository.metadata()), language = language,
+                loading = loading, loadedCount = loadedCount, totalCount = totalCount,
+                onSelectBoss = { boss, category ->
                     selectedBoss = boss.url.substringAfterLast('/').substringBefore('?')
                     selectedTier = if(category.id.startsWith("live_")) category.id.removePrefix("live_") else if(category.id == "shadow") "RAID_LEVEL_5_SHADOW" else if(category.id == "megaSuper") "RAID_LEVEL_MEGA_5" else if(category.id.contains("mega",true)) "RAID_LEVEL_MEGA" else "RAID_LEVEL_5"
-                })
+                },
+                onSelectMaxBoss = { boss -> selectedMaxBoss = boss.name }
+            )
         }
     }
 }
@@ -895,6 +908,21 @@ private data class CollectionFormEntry(
     val localizedPokemonName: String,
     val formName: String
 )
+private data class CollectionBackgroundEntry(
+    val assetPath: String,
+    val fileName: String,
+    val displayName: String
+)
+private data class CollectionCostumeEntry(
+    val id: String,
+    val dexNumber: Int,
+    val localizedPokemonName: String,
+    val costumeName: String,
+    val normalImageUrl: String,
+    val shinyImageUrl: String
+)
+
+private const val POKEMON_IMAGE_BASE_URL = "https://static.pokebattler.com/assets/pokemon/256/"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -903,6 +931,7 @@ fun CollectionsScreen(onBack: () -> Unit) {
     val language = appLanguage()
     var tabIndex by rememberSaveable { mutableStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
+    var selectedBackground by remember { mutableStateOf<CollectionBackgroundEntry?>(null) }
     val entriesState = produceState<List<CollectionFormEntry>>(initialValue = emptyList(), context, language) {
         value = withContext(Dispatchers.Default) {
             GameInfoRepository.loadPokedexCatalog(context).flatMap { entry ->
@@ -916,24 +945,108 @@ fun CollectionsScreen(onBack: () -> Unit) {
                     )
                 }
             }
+                .sortedWith(compareBy<CollectionFormEntry> { it.number }.thenBy { it.formName })
         }
+    }
+    val spriteMapState = produceState<Map<String, String>>(initialValue = emptyMap(), context) {
+        value = withContext(Dispatchers.IO) {
+            val root = JSONObject(context.assets.open("raids/images.json").bufferedReader().use { it.readText() })
+            buildMap {
+                val keys = root.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    root.optString(key).takeIf { it.isNotBlank() }?.let { put(key, it) }
+                }
+            }
+        }
+    }
+    val backgroundsState = produceState<List<CollectionBackgroundEntry>>(initialValue = emptyList(), context) {
+        value = withContext(Dispatchers.IO) {
+            context.assets.list("background_refs/location_cards")
+                .orEmpty()
+                .asSequence()
+                .filter { it.endsWith(".png", ignoreCase = true) }
+                .sorted()
+                .map { fileName ->
+                    CollectionBackgroundEntry(
+                        assetPath = "background_refs/location_cards/$fileName",
+                        fileName = fileName,
+                        displayName = backgroundCollectionDisplayName(fileName)
+                    )
+                }
+                .toList()
+        }
+    }
+    val costumeEntries = remember(spriteMapState.value, entriesState.value, language) {
+        val species = entriesState.value.distinctBy { it.number }.sortedByDescending { pokemonCollectionId(it.pokemonName).length }
+        spriteMapState.value.asSequence()
+            .filter { (id, _) -> isCostumePokemonId(id) }
+            .mapNotNull { (id, fileName) ->
+                val pokemon = species.firstOrNull { entry ->
+                    val baseId = pokemonCollectionId(entry.pokemonName)
+                    id == baseId || id.startsWith("${baseId}_")
+                } ?: return@mapNotNull null
+                val baseId = pokemonCollectionId(pokemon.pokemonName)
+                CollectionCostumeEntry(
+                    id = id,
+                    dexNumber = pokemon.number,
+                    localizedPokemonName = pokemon.localizedPokemonName,
+                    costumeName = costumeCollectionDisplayName(id.removePrefix("${baseId}_").removeSuffix("_FORM")),
+                    normalImageUrl = POKEMON_IMAGE_BASE_URL + fileName,
+                    shinyImageUrl = POKEMON_IMAGE_BASE_URL + shinyPokemonImageFile(fileName)
+                )
+            }
+            .distinctBy { it.id }
+            .sortedWith(compareBy<CollectionCostumeEntry> { it.dexNumber }.thenBy { it.costumeName })
+            .toList()
     }
     val obtained = remember {
         mutableStateMapOf<String, Boolean>().apply {
             loadCollectionObtained(context).forEach { put(it, true) }
         }
     }
+    fun updateObtained(key: String, checked: Boolean) {
+        if (checked) obtained[key] = true else obtained.remove(key)
+        persistCollectionObtained(context, obtained.keys.toList())
+    }
     val normalizedQuery = remember(query) { normalizeSearch(query) }
     val filteredEntries = remember(entriesState.value, normalizedQuery) {
-        if (normalizedQuery.isBlank()) {
-            entriesState.value
-        } else {
-            entriesState.value.filter { entry ->
-                normalizeSearch(entry.localizedPokemonName).contains(normalizedQuery) ||
-                    normalizeSearch(entry.pokemonName).contains(normalizedQuery) ||
-                    normalizeSearch(entry.formName).contains(normalizedQuery)
-            }
+        if (normalizedQuery.isBlank()) entriesState.value else entriesState.value.filter { entry ->
+            normalizeSearch(entry.localizedPokemonName).contains(normalizedQuery) ||
+                normalizeSearch(entry.pokemonName).contains(normalizedQuery) ||
+                normalizeSearch(entry.formName).contains(normalizedQuery)
         }
+    }
+    val filteredCostumes = remember(costumeEntries, normalizedQuery) {
+        if (normalizedQuery.isBlank()) costumeEntries else costumeEntries.filter { entry ->
+            normalizeSearch(entry.localizedPokemonName).contains(normalizedQuery) ||
+                normalizeSearch(entry.costumeName).contains(normalizedQuery) ||
+                normalizeSearch(entry.id).contains(normalizedQuery)
+        }
+    }
+    val filteredBackgrounds = remember(backgroundsState.value, normalizedQuery) {
+        if (normalizedQuery.isBlank()) backgroundsState.value else backgroundsState.value.filter { entry ->
+            normalizeSearch(entry.displayName).contains(normalizedQuery) || normalizeSearch(entry.fileName).contains(normalizedQuery)
+        }
+    }
+    var visiblePokemonCount by remember(tabIndex, normalizedQuery) { mutableStateOf(0) }
+    val progressivePokemonTotal = when (tabIndex) {
+        0 -> filteredEntries.size
+        1 -> filteredCostumes.size
+        else -> 0
+    }
+    LaunchedEffect(tabIndex, normalizedQuery, progressivePokemonTotal) {
+        visiblePokemonCount = 0
+        while (visiblePokemonCount < progressivePokemonTotal) {
+            visiblePokemonCount++
+            delay(16)
+        }
+    }
+    val visibleEntries = remember(filteredEntries, visiblePokemonCount) {
+        filteredEntries.take(visiblePokemonCount)
+    }
+    val visibleCostumes = remember(filteredCostumes, visiblePokemonCount) {
+        filteredCostumes.take(visiblePokemonCount)
     }
 
     Scaffold(
@@ -949,76 +1062,159 @@ fun CollectionsScreen(onBack: () -> Unit) {
         }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AppPillTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
                 listOf(
                     t(language, "Brilhantes", "Shinies", "Brillantes"),
+                    t(language, "Trajes", "Costumes", "Disfraces"),
                     t(language, "Fundos especiais", "Special backgrounds", "Fondos especiales")
                 ).forEachIndexed { index, title ->
                     AppPillTab(selected = tabIndex == index, onClick = { tabIndex = index }, text = { Text(title) })
                 }
             }
             AppGlassTextField(
-                    search = true,
-                    value = query,
+                search = true,
+                value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(t(language, "Buscar Pokémon ou forma", "Search Pokemon or form", "Buscar Pokemon o forma")) },
+                label = {
+                    Text(
+                        when (tabIndex) {
+                            0 -> t(language, "Buscar Pokémon ou forma", "Search Pokemon or form", "Buscar Pokemon o forma")
+                            1 -> t(language, "Buscar Pokémon ou traje", "Search Pokemon or costume", "Buscar Pokemon o disfraz")
+                            else -> t(language, "Buscar fundo", "Search background", "Buscar fondo")
+                        }
+                    )
+                },
                 singleLine = true
             )
-            Text(
-                t(
-                    language,
-                    "Marque as formas já obtidas para acompanhar sua coleção.",
-                    "Mark the forms you already obtained to track your collection.",
-                    "Marca las formas ya obtenidas para seguir tu colección."
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                filteredEntries.forEach { entry ->
-                    val key = collectionEntryKey(tabIndex, entry)
-                    AppSectionCard(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            AppCollectionCheckbox(
-                                checked = obtained[key] == true,
-                                onCheckedChange = { checked ->
-                                    if (checked) obtained[key] = true else obtained.remove(key)
-                                    persistCollectionObtained(context, obtained.keys.toList())
-                                }
-                            )
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(
-                                    "#${entry.number.toString().padStart(3, '0')} ${entry.localizedPokemonName}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+            val tabLoading = when (tabIndex) {
+                0 -> entriesState.value.isEmpty()
+                1 -> entriesState.value.isEmpty() || spriteMapState.value.isEmpty()
+                else -> backgroundsState.value.isEmpty()
+            }
+            if (tabLoading) {
+                InlineLoadingRow(t(language, "Carregando coleção...", "Loading collection...", "Cargando colección..."))
+            } else if (tabIndex == 0) {
+                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(items = visibleEntries, key = { entry -> collectionEntryKey(0, entry) }) { entry ->
+                        val key = collectionEntryKey(0, entry)
+                        AppSectionCard(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AppCollectionCheckbox(
+                                    checked = obtained[key] == true,
+                                    onCheckedChange = { updateObtained(key, it) }
                                 )
-                                if (entry.localizedPokemonName != entry.pokemonName) {
-                                    Text(entry.pokemonName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Text(
-                                    t(language, "Forma: ${entry.formName}", "Form: ${entry.formName}", "Forma: ${entry.formName}"),
-                                    style = MaterialTheme.typography.bodySmall
+                                coil.compose.AsyncImage(
+                                    model = coil.request.ImageRequest.Builder(context)
+                                        .data(pokemonShinyImageUrl(entry.number)).crossfade(true).build(),
+                                    contentDescription = entry.localizedPokemonName,
+                                    modifier = Modifier.size(72.dp),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
                                 )
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        "#${entry.number.toString().padStart(3, '0')} ${entry.localizedPokemonName}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    if (entry.localizedPokemonName != entry.pokemonName) {
+                                        Text(entry.pokemonName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text(
+                                        t(language, "Forma: ${entry.formName}", "Form: ${entry.formName}", "Forma: ${entry.formName}"),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (visibleEntries.size < filteredEntries.size) {
+                        item(key = "shiny-loading") {
+                            InlineLoadingRow(t(language, "Carregando Pokémon...", "Loading Pokémon...", "Cargando Pokémon..."))
+                        }
+                    }
+                }
+            } else if (tabIndex == 1) {
+                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(items = visibleCostumes, key = { it.id }) { entry ->
+                        val normalKey = "costume|${entry.id}|normal"
+                        val shinyKey = "costume|${entry.id}|shiny"
+                        AppSectionCard(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    coil.compose.AsyncImage(
+                                        model = coil.request.ImageRequest.Builder(context).data(entry.normalImageUrl).crossfade(true).build(),
+                                        contentDescription = "${entry.localizedPokemonName} ${entry.costumeName}",
+                                        modifier = Modifier.size(58.dp),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                    )
+                                    coil.compose.AsyncImage(
+                                        model = coil.request.ImageRequest.Builder(context).data(entry.shinyImageUrl).crossfade(true).build(),
+                                        contentDescription = "${entry.localizedPokemonName} ${entry.costumeName} brilhante",
+                                        modifier = Modifier.size(58.dp),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(entry.localizedPokemonName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                    Text(entry.costumeName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        CollectionVariantCheckbox(
+                                            label = t(language, "Normal", "Normal", "Normal"),
+                                            checked = obtained[normalKey] == true,
+                                            onCheckedChange = { updateObtained(normalKey, it) }
+                                        )
+                                        CollectionVariantCheckbox(
+                                            label = t(language, "Brilhante", "Shiny", "Brillante"),
+                                            checked = obtained[shinyKey] == true,
+                                            onCheckedChange = { updateObtained(shinyKey, it) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (visibleCostumes.size < filteredCostumes.size) {
+                        item(key = "costume-loading") {
+                            InlineLoadingRow(t(language, "Carregando Pokémon...", "Loading Pokémon...", "Cargando Pokémon..."))
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(items = filteredBackgrounds, key = { entry -> entry.assetPath }) { entry ->
+                        val key = "background|${entry.fileName}"
+                        AppSectionCard(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AppCollectionCheckbox(
+                                    checked = obtained[key] == true,
+                                    onCheckedChange = { updateObtained(key, it) }
+                                )
+                                AssetImageIcon(
+                                    assetPath = entry.assetPath,
+                                    contentDescription = entry.displayName,
+                                    modifier = Modifier.size(72.dp).clickable { selectedBackground = entry },
+                                    fallbackSize = 48.dp
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(entry.displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                    Text(entry.fileName.removeSuffix(".png"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
                     }
@@ -1026,8 +1222,48 @@ fun CollectionsScreen(onBack: () -> Unit) {
             }
         }
     }
+    selectedBackground?.let { entry ->
+        Dialog(onDismissRequest = { selectedBackground = null }) {
+            AppSectionCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(entry.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    AssetImageIcon(
+                        assetPath = entry.assetPath,
+                        contentDescription = entry.displayName,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 520.dp),
+                        fallbackSize = 96.dp
+                    )
+                    IconButton(onClick = { selectedBackground = null }) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = t(language, "Fechar", "Close", "Cerrar")
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
+@Composable
+private fun CollectionVariantCheckbox(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.clickable { onCheckedChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        AppCollectionCheckbox(checked = checked, onCheckedChange = onCheckedChange)
+        Text(label, style = MaterialTheme.typography.labelSmall)
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun PokemonFilterBuilder(
@@ -1499,7 +1735,7 @@ private fun TypeSelector(
     selectedTypes: MutableList<String>,
     maxSelection: Int,
     language: AppLanguage,
-    verticalSpacing: Dp = 8.dp
+    verticalSpacing: Dp = 2.dp
 ) {
     UniformOptionGrid(count = types.size, verticalSpacing = verticalSpacing) { index ->
         val type = types[index]
@@ -1507,7 +1743,7 @@ private fun TypeSelector(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(40.dp)
                     .clickable {
                         when {
                             type in selectedTypes -> selectedTypes.remove(type)
@@ -1553,12 +1789,12 @@ private fun TypeSelectorSingle(
     showAllOption: Boolean = true
 ) {
     val itemCount = types.size + if (showAllOption) 1 else 0
-    UniformOptionGrid(count = itemCount, verticalSpacing = 4.dp) { index ->
+    UniformOptionGrid(count = itemCount, verticalSpacing = 2.dp) { index ->
         if (showAllOption && index == 0) {
             AppChoiceChip(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(40.dp),
                 selected = selectedType == null,
                 onClick = { onSelect(null) },
                 label = {
@@ -1576,7 +1812,7 @@ private fun TypeSelectorSingle(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(40.dp)
                     .clickable { onSelect(if (selectedType == type) null else type) },
                 shape = RoundedCornerShape(999.dp),
                 color = Color.Transparent,
@@ -1617,11 +1853,11 @@ private fun TypeSelectorSingleTriState(
             FilterTokenMode.EXCLUDE -> "! "
             null -> ""
         }
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(40.dp)
                     .clickable { onCycle(type) },
                 shape = RoundedCornerShape(999.dp),
                 color = Color.Transparent
@@ -1678,7 +1914,7 @@ private fun JoinerSelector(
     selected: String,
     onSelect: (String) -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth().background(appControlFill(), RoundedCornerShape(16.dp)).padding(horizontal = 4.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth().background(appControlFill(), RoundedCornerShape(16.dp)).padding(horizontal = 4.dp)) {
         listOf("&", ",").forEach { option ->
             AppChoiceChip(
                 modifier = Modifier.weight(1f).height(36.dp),
@@ -1855,8 +2091,8 @@ private fun MoveCard(
     )
     AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1875,7 +2111,7 @@ private fun MoveCard(
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 MoveDetailBlock(
                     title = t(language, "Ginasio", "Gym", "Gimnasio"),
@@ -1946,53 +2182,202 @@ private fun PokedexCard(
     entry: PokedexCatalogEntry,
     language: AppLanguage
 ) {
+    val context = LocalContext.current
+    val raidRepository = remember { com.mewname.app.domain.RaidCounterRepository(context.applicationContext) }
     val primaryName = entry.localizedName(language)
-    AppSectionCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    var formsExpanded by rememberSaveable(entry.number, entry.name) { mutableStateOf(false) }
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp)),
+                        .size(72.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "#${entry.number.toString().padStart(3, '0')}",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    coil.compose.AsyncImage(
+                        model = coil.request.ImageRequest.Builder(context)
+                            .data(pokemonImageUrl(entry.number))
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = primaryName,
+                        modifier = Modifier.size(68.dp),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
                     )
                 }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(primaryName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        "#${entry.number.toString().padStart(3, '0')}  $primaryName",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                     if (primaryName != entry.name) {
                         Text(entry.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOfNotNull(entry.type1, entry.type2).forEach { type ->
+                            TypeIcon(type = type, language = language)
+                        }
+                    }
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOfNotNull(entry.type1, entry.type2).forEach { type ->
-                    TypeBadge(type = type, language = language)
+            if (entry.attack != null || entry.defense != null || entry.stamina != null) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    PokedexStat(t(language, "Ataque", "Attack", "Ataque"), entry.attack, Modifier.weight(1f))
+                    PokedexStat(t(language, "Defesa", "Defense", "Defensa"), entry.defense, Modifier.weight(1f))
+                    PokedexStat(t(language, "PS", "HP", "PS"), entry.stamina, Modifier.weight(1f))
                 }
             }
-            Text(
-                listOf(
-                    entry.attack?.let { "Atk $it" },
-                    entry.defense?.let { "Def $it" },
-                    entry.stamina?.let { "Sta $it" },
-                    entry.forms.takeIf { it.size > 1 }?.let { t(language, "${it.size} formas", "${it.size} forms", "${it.size} formas") }
-                ).joinToString("  •  "),
-                style = MaterialTheme.typography.bodySmall
-            )
+            if (entry.forms.size > 1) {
+                TextButton(
+                    onClick = { formsExpanded = !formsExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (formsExpanded) {
+                            t(language, "Ocultar formas", "Hide forms", "Ocultar formas")
+                        } else {
+                            t(language, "Ver ${entry.forms.size} formas", "View ${entry.forms.size} forms", "Ver ${entry.forms.size} formas")
+                        }
+                    )
+                }
+                if (formsExpanded) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        entry.forms.forEach { form ->
+                            PokedexFormItem(entry, form, raidRepository)
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun PokedexFormItem(
+    entry: PokedexCatalogEntry,
+    form: String,
+    repository: com.mewname.app.domain.RaidCounterRepository
+) {
+    val spriteId = remember(entry.name, form) { pokedexFormSpriteId(entry.name, form, entry.number) }
+    val fallbackUrl = pokemonImageUrl(entry.number)
+    val imageUrl by produceState(initialValue = fallbackUrl, spriteId) {
+        value = withContext(Dispatchers.IO) {
+            repository.image(spriteId) ?: repository.image(pokemonCollectionId(entry.name))
+        } ?: fallbackUrl
+    }
+    Column(
+        modifier = Modifier
+            .width(96.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 6.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        coil.compose.AsyncImage(
+            model = coil.request.ImageRequest.Builder(LocalContext.current).data(imageUrl).crossfade(true).build(),
+            contentDescription = pokedexFormLabel(form),
+            modifier = Modifier.size(64.dp),
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+        )
+        Text(
+            pokedexFormLabel(form),
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+internal fun pokedexFormSpriteId(pokemonName: String, form: String, dexNumber: Int? = null): String {
+    val baseId = when (dexNumber) {
+        29 -> "NIDORAN_FEMALE"
+        32 -> "NIDORAN_MALE"
+        else -> pokemonCollectionId(pokemonName.replace("'", ""))
+    }
+    if (form.equals("Normal", ignoreCase = true)) return baseId
+    val formId = pokemonCollectionId(form)
+    return "${baseId}_${formId}_FORM"
+}
+
+@Composable
+private fun PokedexStat(label: String, value: Int?, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(1.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value?.toString() ?: "—", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun pokedexFormLabel(form: String): String {
+    return form.replace('_', ' ').lowercase(Locale.US).replaceFirstChar { it.titlecase(Locale.US) }
+}
+
+private fun pokemonImageUrl(dexNumber: Int): String {
+    return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/$dexNumber.png"
+}
+internal fun raidCategoryTabTitle(category: RaidHistoryCategory, language: AppLanguage): String {
+    val id = category.id.removePrefix("live_").uppercase(Locale.US)
+    val raid = t(language, "Raid", "Raid", "Raid")
+    val separator = " · "
+    val level = Regex("^RAID_LEVEL_(\\d+(?:_\\d+)?)").find(id)?.groupValues?.get(1)?.replace('_', '.')
+    val raidWithLevel = level?.let { "$raid $it" }
+    return when {
+        id == "RAIDS5" -> "$raid 5"
+        id == "SHADOW" -> "$raid 5$separator${t(language, "Sombroso", "Shadow", "Oscura")}"
+        id == "MEGA" || id == "RAID_LEVEL_MEGA" -> "$raid$separator${t(language, "Mega", "Mega", "Mega")}"
+        id == "MEGASUPER" || id == "RAID_LEVEL_MEGA_5" || id == "RAID_LEVEL_MEGA_6" ->
+            "$raid$separator${t(language, "Super Mega", "Enhanced Mega", "Mega mejorada")}"
+        id.contains("MEGA_ENHANCED") ->
+            "${raidWithLevel ?: raid}$separator${t(language, "Super Mega", "Enhanced Mega", "Mega mejorada")}"
+        id.contains("ULTRA_BEAST") ->
+            "$raid$separator${t(language, "Ultra Criaturas", "Ultra Beasts", "Ultraentes")}"
+        id.contains("SHADOW") ->
+            "${raidWithLevel ?: raid}$separator${t(language, "Sombroso", "Shadow", "Oscura")}"
+        id == "GIGANTAMAX" || id.contains("GIGANTAMAX") ->
+            "$raid$separator${t(language, "Gigantamax", "Gigantamax", "Gigamax")}"
+        id == "DYNAMAX" || id.contains("DYNAMAX") ->
+            "$raid$separator${t(language, "Dynamax", "Dynamax", "Dinamax")}"
+        id.contains("ELITE") -> "$raid$separator${t(language, "Elite", "Elite", "Élite")}"
+        id.contains("EVENTS") ->
+            "${raidWithLevel ?: raid}$separator${t(language, "Eventos", "Events", "Eventos")}"
+        raidWithLevel != null -> raidWithLevel
+        else -> category.localizedTitle(language)
+    }
+}
+
+internal enum class RaidCategoryGroup { CURRENT, SAVED }
+
+internal fun raidCategoryGroup(category: RaidHistoryCategory): RaidCategoryGroup =
+    if (category.id.startsWith("live_", ignoreCase = true)) RaidCategoryGroup.CURRENT else RaidCategoryGroup.SAVED
+
+internal fun isMaxRaidCategory(category: RaidHistoryCategory): Boolean {
+    val id = category.id.uppercase(Locale.US)
+    return "DYNAMAX" in id || "GIGANTAMAX" in id || "GIGAMAX" in id ||
+        Regex("RAID_LEVEL_.+_MAX").containsMatchIn(id)
+}
+
+internal fun sortRaidCategoriesByDex(
+    categories: List<RaidHistoryCategory>,
+    metadata: com.mewname.app.domain.RaidMetadata
+): List<RaidHistoryCategory> {
+    fun bossId(item: RaidHistoryItem): String = item.url.substringAfter("/raids/").substringBefore('/').substringBefore('?')
+    fun dex(item: RaidHistoryItem): Int = metadata.resolve(bossId(item))?.dex?.takeIf { it > 0 } ?: Int.MAX_VALUE
+    return categories.map { category ->
+        category.copy(items = category.items.sortedWith(compareBy<RaidHistoryItem>(::dex).thenBy { bossId(it) }))
     }
 }
 
@@ -2001,25 +2386,45 @@ private fun PokedexCard(
 private fun RaidHistorySection(
     categories: List<RaidHistoryCategory>, language: AppLanguage,
     loading: Boolean, loadedCount: Int, totalCount: Int,
-    onSelectBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit
+    onSelectBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit,
+    onSelectMaxBoss: (RaidHistoryItem) -> Unit
 ) {
     if (categories.isEmpty()) return
-    val uriHandler = LocalUriHandler.current
+    val groupedCategories = categories.groupBy(::raidCategoryGroup)
+    val groups = listOf(
+        RaidCategoryGroup.CURRENT to t(language, "Atuais", "Current", "Actuales"),
+        RaidCategoryGroup.SAVED to t(language, "Salvas", "Saved", "Guardadas")
+    ).filter { (group) -> groupedCategories[group].orEmpty().isNotEmpty() }
+    if (groups.isEmpty()) return
+    var selectedGroupName by rememberSaveable { mutableStateOf(RaidCategoryGroup.CURRENT.name) }
     var tabIndex by rememberSaveable { mutableStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
-    val safeTabIndex = tabIndex.coerceIn(categories.indices)
-    val selectedCategory = categories[safeTabIndex]
+    val safeGroupIndex = groups.indexOfFirst { (group) -> group.name == selectedGroupName }.coerceAtLeast(0)
+    val groupCategories = groupedCategories[groups[safeGroupIndex].first].orEmpty()
+    val safeTabIndex = tabIndex.coerceIn(groupCategories.indices)
+    val selectedCategory = groupCategories[safeTabIndex]
     val normalizedQuery = remember(query) { normalizeSearch(query) }
     val visibleItems = remember(selectedCategory, normalizedQuery) {
         if (normalizedQuery.isBlank()) selectedCategory.items
         else selectedCategory.items.filter { normalizeSearch(it.name).contains(normalizedQuery) }
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        AppPillTabRow(selectedTabIndex = safeTabIndex) {
-            categories.forEachIndexed { index, category ->
-                AppPillTab(selected = index == safeTabIndex, onClick = { tabIndex = index }, text = {
-                    Text(category.localizedTitle(language), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                })
+        AppPillTabRow(selectedTabIndex = safeGroupIndex, edgePadding = 0.dp, divider = {}) {
+            groups.forEachIndexed { index, (group, title) ->
+                AppPillTab(
+                    selected = index == safeGroupIndex,
+                    onClick = { selectedGroupName = group.name; tabIndex = 0 },
+                    text = { Text(title) }
+                )
+            }
+        }
+        if (groupCategories.size > 1) {
+            AppPillTabRow(selectedTabIndex = safeTabIndex) {
+                groupCategories.forEachIndexed { index, category ->
+                    AppPillTab(selected = index == safeTabIndex, onClick = { tabIndex = index }, text = {
+                        Text(raidCategoryTabTitle(category, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    })
+                }
             }
         }
         AppGlassTextField(
@@ -2045,8 +2450,8 @@ private fun RaidHistorySection(
                 }
                 items(visibleItems) { boss ->
                     AppSectionCard(Modifier.fillMaxWidth().clickable(enabled = boss.url.isNotBlank()) {
-                        if(selectedCategory.id.contains("max",true)) runCatching { uriHandler.openUri(boss.url) }
-                        else onSelectBoss(boss,selectedCategory)
+                        if (isMaxRaidCategory(selectedCategory)) onSelectMaxBoss(boss)
+                        else onSelectBoss(boss, selectedCategory)
                     }) {
                         Text(boss.name, Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                             style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -2309,6 +2714,7 @@ private fun SimpleToolScreen(
     onBack: () -> Unit,
     helpTitle: String? = null,
     helpText: String? = null,
+    actions: @Composable RowScope.() -> Unit = {},
     scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -2323,9 +2729,10 @@ private fun SimpleToolScreen(
                     }
                 },
                 actions = {
+                    actions()
                     if (helpTitle != null && helpText != null) {
                         IconButton(onClick = { showHelp = true }) {
-                            UnownQuestionIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
+                            HelpIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
                         }
                     }
                 }
@@ -2872,10 +3279,10 @@ private fun TriStateTokenChip(
 private fun UniformOptionGrid(
     count: Int,
     modifier: Modifier = Modifier,
-    verticalSpacing: Dp = 8.dp,
+    verticalSpacing: Dp = 2.dp,
     content: @Composable (Int) -> Unit
 ) {
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+    Box(modifier = modifier.fillMaxWidth()) {
         val columns = 3
         val rows = (0 until count).toList().chunked(columns)
 
@@ -3025,6 +3432,76 @@ private fun addSavedFilter(
     return filters
 }
 
+private fun pokemonCollectionId(name: String): String {
+    return normalizeSearch(name)
+        .uppercase(Locale.US)
+        .replace(Regex("[^A-Z0-9]+"), "_")
+        .trim('_')
+}
+
+private fun pokemonShinyImageUrl(dexNumber: Int): String {
+    return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/$dexNumber.png"
+}
+
+private fun shinyPokemonImageFile(fileName: String): String {
+    return when {
+        fileName.endsWith(".icon.png", ignoreCase = true) -> fileName.dropLast(".icon.png".length) + ".s.icon.png"
+        fileName.endsWith(".png", ignoreCase = true) -> fileName.dropLast(4) + "_shiny.png"
+        else -> fileName
+    }
+}
+
+private fun isCostumePokemonId(id: String): Boolean {
+    val costumeMarkers = listOf(
+        "_COSTUME_", "_WCS_", "_GOFEST_", "_GOTOUR_", "_WILDAREA_",
+        "_WINTER_20", "_SUMMER_20", "_SPRING_20", "_HALLOWEEN_", "_PARTY_",
+        "_ADVENTURE_HAT_", "_FLYING_", "_TSHIRT_", "_VISOR_", "_KARIYUSHI_",
+        "_POP_STAR_", "_ROCK_STAR_", "_COPY_2019_", "_BB_20", "_FASHION_",
+        "_ANNIVERSARY_", "_NEW_YEAR_", "_CROWN_", "_CAP_", "_TIARA_",
+        "_SCARF_", "_GOGGLES_", "_MONOCLE_", "_TRAIN_CONDUCTOR_"
+    )
+    return costumeMarkers.any(id::contains)
+}
+
+private fun costumeCollectionDisplayName(value: String): String {
+    return value.replace('_', ' ')
+        .replace(Regex("\\s+"), " ")
+        .trim()
+        .split(' ')
+        .joinToString(" ") { token ->
+            when (token.uppercase(Locale.US)) {
+                "GOFEST" -> "GO Fest"
+                "GOTOUR" -> "GO Tour"
+                "WILDAREA" -> "GO Wild Area"
+                "WCS" -> "WCS"
+                "TSHIRT" -> "Camiseta"
+                "BB" -> "Balão"
+                else -> token.lowercase(Locale.US).replaceFirstChar(Char::titlecase)
+            }
+        }
+}
+private fun backgroundCollectionDisplayName(fileName: String): String {
+    return fileName
+        .removeSuffix(".png")
+        .removePrefix("lc_")
+        .removePrefix("sb_")
+        .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
+        .replace('_', ' ')
+        .replace(Regex("\\s+"), " ")
+        .trim()
+        .split(' ')
+        .joinToString(" ") { token ->
+            when (token.lowercase()) {
+                "go" -> "GO"
+                "gowa" -> "GO Wild Area"
+                "wcs" -> "WCS"
+                "mlb" -> "MLB"
+                "npb" -> "NPB"
+                "nfl" -> "NFL"
+                else -> token.replaceFirstChar(Char::titlecase)
+            }
+        }
+}
 private fun collectionEntryKey(tabIndex: Int, entry: CollectionFormEntry): String {
     return listOf(tabIndex.toString(), entry.number.toString(), entry.pokemonName, entry.formName).joinToString("|")
 }

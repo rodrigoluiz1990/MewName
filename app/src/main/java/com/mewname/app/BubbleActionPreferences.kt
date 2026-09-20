@@ -1,8 +1,11 @@
 package com.mewname.app
 
 import android.content.Context
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
 internal object BubbleActionSettings {
     val defaults = setOf("capture", "pokemon", "friends", "stop")
@@ -23,19 +26,21 @@ internal fun BubbleActionPreferences() {
     val context = LocalContext.current
     val language = appLanguage()
     var selected by remember { mutableStateOf(BubbleActionSettings.selected(context)) }
-    BubbleActionSettings.keys.forEach { key ->
-        val label = when (key) {
-            "capture" -> lt(language, "Ler tela", "Read screen", "Leer pantalla")
-            "pokemon" -> lt(language, "Filtros Pokémon", "Pokémon filters", "Filtros Pokémon")
-            "friends" -> lt(language, "Filtros de amigos", "Friend filters", "Filtros de amigos")
-            "stop" -> lt(language, "Remover bolha", "Remove bubble", "Quitar burbuja")
-            else -> bubbleAppShortcuts.first { it.key == key }.let { lt(language, it.pt, it.en, it.es) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        BubbleActionSettings.keys.forEach { key ->
+            val label = when (key) {
+                "capture" -> lt(language, "Ler tela", "Read screen", "Leer pantalla")
+                "pokemon" -> lt(language, "Filtros Pokémon", "Pokémon filters", "Filtros Pokémon")
+                "friends" -> lt(language, "Filtros de amigos", "Friend filters", "Filtros de amigos")
+                "stop" -> lt(language, "Remover sobreposição", "Remove overlay", "Quitar superposición")
+                else -> bubbleAppShortcuts.first { it.key == key }.let { lt(language, it.pt, it.en, it.es) }
+            }
+            val change: (Boolean) -> Unit = { checked ->
+                selected = if (checked) selected + key else selected - key
+                BubbleActionSettings.save(context, selected)
+            }
+            val enabled = key !in selected || selected.size > 1
+            BubbleShortcutBar(label, key in selected, enabled, change)
         }
-        val change: (Boolean) -> Unit = { checked ->
-            selected = if (checked) selected + key else selected - key
-            BubbleActionSettings.save(context, selected)
-        }
-        val enabled = key !in selected || selected.size > 1
-        BubbleShortcutBar(label, key in selected, enabled, change)
     }
 }

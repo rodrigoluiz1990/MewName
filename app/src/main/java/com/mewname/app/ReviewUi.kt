@@ -146,6 +146,7 @@ internal data class ReviewOptionPicker(
     val selectedValue: String?,
     val message: String? = null,
     val verticalOptions: Boolean = false,
+    val centeredContent: Boolean = false,
     val latestState: (() -> ReviewOptionPicker)? = null,
     val onOptionSelected: (String) -> Unit
 )
@@ -779,66 +780,107 @@ fun ReviewEditorCard(
                 }
             }
             if (hasIvModeField) {
-                GlassFieldRow(weights = if (NamingField.MASTER_IV_BADGE in fields) listOf(1.45f, 1f) else emptyList()) {
-                    if (NamingField.MASTER_IV_BADGE in fields) {
-                        SelectionDropdownField(
-                            label = "IV Master",
-                            value = when (reviewData.masterIvBadgeMatch) {
-                                true -> bestMasterLabel
-                                false -> otherMasterLabel
-                                null -> "-"
-                            },
-                            options = listOf("-", bestMasterLabel, otherMasterLabel),
-                            onSelected = { value ->
-                                manualMasterSelection = true
-                                draft = draft.copy(
-                                    masterIvBadgeMatch = when (value) {
-                                        bestMasterLabel -> true
-                                        otherMasterLabel -> false
-                                        else -> null
-                                    }
-                                )
-                            },
-                            headerTrailing = {
-                                UnownHeaderIcon(
-                                    selected = NamingField.MASTER_IV_BADGE in selectedDebugFields,
-                                    onClick = {
-                                        selectedDebugFields = selectedDebugFields.toggleField(NamingField.MASTER_IV_BADGE)
-                                    },
-                                    contentDescription = "Selecionar log de IV Master"
-                                )
-                            },
-                            useOptionModal = glassStyle,
-                            modifier = Modifier.weight(1.45f)
-                        )
+                GlassFieldRow(
+                    weights = listOf(1f, 1f),
+                    legacySpacing = 2.dp,
+                    legacyAlignment = Alignment.Bottom
+                ) {
+                if (NamingField.MASTER_IV_BADGE in fields) {
+                    val masterIvCombinations = remember(pvpFamilyCandidates) {
+                        masterIvBadgeCatalog.bestCombinations(context.applicationContext, pvpFamilyCandidates)
+                    }
+                    val masterIvList = listOf(98, 96, 93, 91).joinToString("\n") { percent ->
+                        val combination = masterIvCombinations[percent]
+                        if (combination == null) {
+                            "$percent%: -"
+                        } else {
+                            "$percent%: ${combination.first}/${combination.second}/${combination.third}"
+                        }
                     }
                     SelectionDropdownField(
-                        label = lt(language, "Forma", "Form", "Forma"),
-                        value = ivMode.localizedLabel(language),
-                        options = ReviewIvMode.entries.map { it.localizedLabel(language) },
-                        onSelected = { value ->
-                            ReviewIvMode.entries.firstOrNull { it.localizedLabel(language) == value }?.let { selected ->
-                                if (ivMode != selected) derivedLoading = true
-                                ivMode = selected
-                                draft = draft.copy(
-                                    isShadow = selected == ReviewIvMode.SHADOW,
-                                    isPurified = selected == ReviewIvMode.PURIFIED
-                                )
-                            }
+                        label = "IV Master",
+                        value = when (reviewData.masterIvBadgeMatch) {
+                            true -> bestMasterLabel
+                            false -> otherMasterLabel
+                            null -> "-"
                         },
-                            useOptionModal = glassStyle,
+                        options = listOf("-", bestMasterLabel, otherMasterLabel),
+                        onSelected = { value ->
+                            manualMasterSelection = true
+                            draft = draft.copy(
+                                masterIvBadgeMatch = when (value) {
+                                    bestMasterLabel -> true
+                                    otherMasterLabel -> false
+                                    else -> null
+                                }
+                            )
+                        },
+                        headerTrailing = {
+                            UnownHeaderIcon(
+                                selected = NamingField.MASTER_IV_BADGE in selectedDebugFields,
+                                onClick = {
+                                    selectedDebugFields = selectedDebugFields.toggleField(NamingField.MASTER_IV_BADGE)
+                                },
+                                contentDescription = "Selecionar log de IV Master"
+                            )
+                        },
+                        modalMessage = lt(
+                            language,
+                            "Melhores combinações da lista:\n$masterIvList",
+                            "Best combinations from the list:\n$masterIvList",
+                            "Mejores combinaciones de la lista:\n$masterIvList"
+                        ),
+                        verticalOptions = true,
+                        centeredContent = true,
+                        useOptionModal = true,
                         modifier = Modifier.weight(1f)
                     )
-                    if (!glassStyle && NamingField.PURIFY_MARKER in fields) {
-                        MarkerCheckboxField(
-                            label = NamingField.PURIFY_MARKER.localizedLabel(language),
-                            checked = draft.shouldPurify,
-                            onCheckedChange = { draft = draft.copy(shouldPurify = it) },
-                            modifier = Modifier.width(56.dp)
-                        )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
+                ) {
+                    FieldLabelRow(label = lt(language, "Forma", "Form", "Forma"))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            ReviewIvMode.SHADOW to "pvp/controls/shadow.png",
+                            ReviewIvMode.PURIFIED to "pvp/controls/purified.png"
+                        ).forEach { (mode, iconPath) ->
+                            val selected = ivMode == mode
+                            ToggleChip(
+                                label = mode.localizedLabel(language),
+                                selected = selected,
+                                onClick = {
+                                    val nextMode = if (selected) ReviewIvMode.NORMAL else mode
+                                    if (ivMode != nextMode) derivedLoading = true
+                                    ivMode = nextMode
+                                    draft = draft.copy(
+                                        isShadow = nextMode == ReviewIvMode.SHADOW,
+                                        isPurified = nextMode == ReviewIvMode.PURIFIED
+                                    )
+                                },
+                                compact = true,
+                                iconAssetPath = iconPath,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
-                    if (logsEnabled && !useLogSelectionModal && NamingField.MASTER_IV_BADGE in selectedDebugFields) {
+                }
+                if (!glassStyle && NamingField.PURIFY_MARKER in fields) {
+                    MarkerCheckboxField(
+                        label = NamingField.PURIFY_MARKER.localizedLabel(language),
+                        checked = draft.shouldPurify,
+                        onCheckedChange = { draft = draft.copy(shouldPurify = it) },
+                        modifier = Modifier.width(56.dp)
+                    )
+                }
+            }
+            if (logsEnabled && !useLogSelectionModal && NamingField.MASTER_IV_BADGE in selectedDebugFields) {
                         reviewData.masterIvBadgeDebugInfo?.let { info ->
                             Text(
                                 text = buildString {
@@ -862,7 +904,6 @@ fun ReviewEditorCard(
                             )
                         }
                     }
-            }
             }
 
             if (glassStyle && activeReviewTab == ReviewTab.BASIC &&
@@ -982,22 +1023,47 @@ fun ReviewEditorCard(
                         SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
                     }
                     }
-                    ReviewTextRow {
-                        SelectionDropdownField(
+                    GlassSection {
+                        FieldHeaderRow(
                             label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
-                            value = draft.specialBackgroundSelectionLabel(language),
-                            options = specialBackgroundSelectionOptions(language),
-                            onSelected = { value ->
-                                val type = specialBackgroundTypeFromSelection(value, language)
-                                draft = if (type == null) {
-                                    draft.copy(hasSpecialBackground = false, specialBackgroundType = null)
-                                } else {
-                                    draft.copy(hasSpecialBackground = true, specialBackgroundType = type)
-                                }
-                            },
-                            useOptionModal = glassStyle,
-                            modifier = Modifier.weight(1f)
+                            selected = NamingField.SPECIAL_BACKGROUND in selectedDebugFields,
+                            onMarkerClick = {
+                                selectedDebugFields = selectedDebugFields.toggleField(NamingField.SPECIAL_BACKGROUND)
+                                showBackgroundHelp = !showBackgroundHelp
+                            }
                         )
+                        val backgroundOptions = listOf(
+                            SpecialBackgroundType.SPECIAL,
+                            SpecialBackgroundType.GO_FEST,
+                            SpecialBackgroundType.WILD_AREA,
+                            SpecialBackgroundType.LOCATION,
+                            SpecialBackgroundType.COMMUNITY_DAY
+                        )
+                        backgroundOptions.chunked(3).forEachIndexed { rowIndex, row ->
+                            if (rowIndex > 0) Spacer(Modifier.height(2.dp))
+                            WeightedToggleRow(
+                                items = row.map { type ->
+                                    val selected = draft.hasSpecialBackground &&
+                                        (draft.specialBackgroundType ?: SpecialBackgroundType.SPECIAL) == type
+                                    WeightedToggleItem(
+                                        label = type.localizedLabel(language),
+                                        selected = selected,
+                                        onClick = {
+                                            draft = if (selected) {
+                                                draft.copy(hasSpecialBackground = false, specialBackgroundType = null)
+                                            } else {
+                                                draft.copy(hasSpecialBackground = true, specialBackgroundType = type)
+                                            }
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                        if (logsEnabled && showBackgroundHelp) {
+                            BackgroundHelpPanel(info = draft.backgroundDebugInfo)
+                        }
+                    }
+                    ReviewTextRow {
                         LabeledToggleChipField(
                             label = lt(language, "Marcadores", "Markers", "Marcadores"),
                             chipLabel = NamingField.ADVENTURE_EFFECT.localizedLabel(language),
@@ -1480,7 +1546,7 @@ fun ReviewEditorCard(
                     .fillMaxHeight()
                     .clickable { activeOptionPicker = null }
                     .padding(12.dp),
-                contentAlignment = Alignment.BottomCenter
+                contentAlignment = if (picker.centeredContent) Alignment.Center else Alignment.BottomCenter
             ) {
                 SelectionModalDialog(
                     title = picker.title,
@@ -1492,7 +1558,8 @@ fun ReviewEditorCard(
                         picker.onOptionSelected(option)
                         activeOptionPicker = null
                     },
-                    verticalOptions = picker.verticalOptions
+                    verticalOptions = picker.verticalOptions,
+                    centeredContent = picker.centeredContent
                 )
             }
         }

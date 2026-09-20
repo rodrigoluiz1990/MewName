@@ -73,7 +73,7 @@ fun TypeBadge(
     type: String,
     language: AppLanguage,
     modifier: Modifier = Modifier,
-    showAssetIcon: Boolean = false,
+    showAssetIcon: Boolean = true,
     stacked: Boolean = false,
     inlinePrefix: String? = null,
     filled: Boolean = false

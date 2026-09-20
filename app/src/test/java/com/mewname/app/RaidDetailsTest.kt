@@ -62,13 +62,16 @@ class RaidDetailsTest {
         assertEquals("RAID_LEVEL_MEGA",raidTier("METAGROSS_MEGA",emptyList()))
         assertEquals("RAID_LEVEL_5_SHADOW",raidTier("MEWTWO_SHADOW_FORM",emptyList()))
     }
-    @Test fun currentCatalogExcludesHistoricalFutureAndMaxEntries() {
+    @Test fun currentCatalogExcludesHistoricalAndFutureButKeepsMaxEntries() {
         val dir=File(context.filesDir,"raid-counters-v1").apply { mkdirs() }
         File(dir,"catalog.json").writeText("""{"tiers":[
             {"type":"RAID_TYPE_RAID","tier":"RAID_LEVEL_5","raids":[{"pokemonId":"ZACIAN_HERO_FORM"}]},
             {"type":"RAID_TYPE_RAID","tier":"RAID_LEVEL_5_LEGACY","raids":[{"pokemonId":"KYOGRE"}]},
             {"type":"RAID_TYPE_RAID","tier":"RAID_LEVEL_5_FUTURE","raids":[{"pokemonId":"MEWTWO"}]},
             {"type":"RAID_TYPE_RAID","tier":"RAID_LEVEL_5_MAX","raids":[{"pokemonId":"GENGAR"}]}]}""")
-        assertEquals(listOf(RaidChoice("ZACIAN_HERO_FORM","RAID_LEVEL_5")),repository().catalog())
+        assertEquals(listOf(
+            RaidChoice("ZACIAN_HERO_FORM","RAID_LEVEL_5"),
+            RaidChoice("GENGAR","RAID_LEVEL_5_MAX")
+        ),repository().catalog())
     }
 }

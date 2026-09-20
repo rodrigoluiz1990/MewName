@@ -132,7 +132,8 @@ internal class RaidCounterRepository(private val context: Context) {
         val tiers = raw.getJSONArray("tiers")
         val entries = (0 until tiers.length()).flatMap { i ->
             val tier = tiers.getJSONObject(i)
-            if (tier.optString("type") != "RAID_TYPE_RAID" || listOf("LEGACY","FUTURE","UNSET","MAX").any { tier.getString("tier").contains(it) }) emptyList() else {
+            val type = tier.optString("type")
+            if ((type != "RAID_TYPE_RAID" && !type.contains("MAX")) || listOf("LEGACY","FUTURE","UNSET").any { tier.getString("tier").contains(it) }) emptyList() else {
                 val raids = tier.getJSONArray("raids")
                 (0 until raids.length()).map { RaidChoice(raids.getJSONObject(it).getString("pokemonId"), tier.getString("tier")) }
             }

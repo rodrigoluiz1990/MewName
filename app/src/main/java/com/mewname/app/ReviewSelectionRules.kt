@@ -76,7 +76,7 @@ internal fun UnownHeaderIcon(
 ) {
     if (LocalHideReviewLogMarkers.current) return
     IconButton(onClick = onClick, modifier = Modifier.size(20.dp)) {
-        UnownQuestionIcon(
+        HelpIcon(
             selected = selected,
             modifier = Modifier.size(16.dp),
             contentDescription = contentDescription
@@ -361,6 +361,7 @@ internal fun ToggleChip(
     selected: Boolean,
     onClick: () -> Unit,
     compact: Boolean = false,
+    iconAssetPath: String? = null,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) GlassFieldCorner else 10.dp)
@@ -390,13 +391,22 @@ internal fun ToggleChip(
                 .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                label,
-                fontWeight = if (LocalGlassReviewStyle.current) FontWeight.Bold else FontWeight.Normal,
-                style = if (LocalGlassReviewStyle.current) MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp) else if (compact) MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp) else MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (iconAssetPath != null) {
+                AssetImageIcon(
+                    assetPath = iconAssetPath,
+                    contentDescription = label,
+                    modifier = Modifier.size(24.dp),
+                    fallbackSize = 20.dp
+                )
+            } else {
+                Text(
+                    label,
+                    fontWeight = if (LocalGlassReviewStyle.current) FontWeight.Bold else FontWeight.Normal,
+                    style = if (LocalGlassReviewStyle.current) MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp) else if (compact) MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp) else MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

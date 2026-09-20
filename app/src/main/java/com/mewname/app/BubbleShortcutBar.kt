@@ -32,15 +32,15 @@ internal fun BubbleShortcutBar(label: String, checked: Boolean, enabled: Boolean
     val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, label = "shortcutThumb")
     val background = if (appearance.glass) Color(0xFFE5E9F6) else appearance.card.first()
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 54.dp)
+        Modifier.fillMaxWidth().heightIn(min = 44.dp)
             .alpha(if (enabled) 1f else 0.6f)
             .clip(shape)
             .background(background)
             .border(0.5.dp, appearance.border, shape)
             .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(label, Modifier.weight(1f), color = appearance.text,
             style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)

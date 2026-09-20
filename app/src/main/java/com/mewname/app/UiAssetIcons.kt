@@ -47,44 +47,15 @@ fun AssetImageIcon(
 }
 
 @Composable
-fun UnownQuestionIcon(
+fun HelpIcon(
     selected: Boolean = false,
     modifier: Modifier = Modifier,
     contentDescription: String? = "Ajuda"
 ) {
-    val context = LocalContext.current
-    val bitmap = remember(selected) {
-        runCatching {
-            val preferred = if (selected) "Unown_Qu_shiny.png" else "Unown_Qu.png"
-            context.assets.open(preferred).use(BitmapFactory::decodeStream)
-                ?: context.assets.open("Unown_Qu.png").use(BitmapFactory::decodeStream)
-        }.getOrNull()
-    }
-
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = contentDescription,
-            modifier = modifier
-        )
-    } else {
-        Icon(
-            painter = painterResource(android.R.drawable.ic_menu_help),
-            contentDescription = contentDescription,
-            modifier = modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-    }
-}
-
-@Composable
-fun UnownExclamationIcon(
-    modifier: Modifier = Modifier,
-    contentDescription: String? = "Alerta"
-) {
-    AssetImageIcon(
-        assetPath = "Unown_Ex.png",
+    Icon(
+        painter = painterResource(android.R.drawable.ic_menu_help),
         contentDescription = contentDescription,
-        modifier = modifier
+        modifier = modifier,
+        tint = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
     )
 }

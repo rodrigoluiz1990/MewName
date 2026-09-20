@@ -11,6 +11,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.mewname.app.domain.TrainerProfileDraft
 import com.mewname.app.domain.TrainerProfileLine
 import com.mewname.app.domain.TrainerProfileParser
+import com.mewname.app.domain.TrainerTeamBackgroundDetector
 import com.mewname.app.ocr.OcrResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,12 +21,18 @@ import kotlin.coroutines.resume
 import java.io.File
 
 internal object TrainerScreenReader {
-    fun parse(read: OcrResult): TrainerProfileDraft {
+    fun parse(context: Context, read: OcrResult): TrainerProfileDraft {
         val image = read.bitmap
         val regions = if (image == null) emptyList() else read.blocks.flatMap { it.lines }.mapNotNull { line ->
             line.boundingBox?.let { TrainerProfileLine(line.text, it.left.toFloat() / image.width, it.top.toFloat() / image.height) }
         }
-        return TrainerProfileParser.parse(read.fullText, regions)
+        val parsed = TrainerProfileParser.parse(read.fullText, regions)
+        val visualTeam = if (parsed.team == null && image != null) {
+            TrainerTeamBackgroundDetector.detect(context, image)
+        } else {
+            null
+        }
+        return if (visualTeam == null) parsed else parsed.copy(team = visualTeam)
     }
 
     fun save(context: Context, draft: TrainerProfileDraft) {

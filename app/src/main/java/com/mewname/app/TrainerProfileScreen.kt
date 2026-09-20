@@ -35,7 +35,12 @@ import kotlinx.coroutines.withTimeout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun TrainerProfileScreen(onBack: () -> Unit) {
+internal fun TrainerProfileScreen(
+    uiState: UiState,
+    onBack: () -> Unit,
+    onRefreshAppUpdate: () -> Unit,
+    onGoToPrivacy: () -> Unit
+) {
     val context = LocalContext.current
     val language = appLanguage()
     val prefs = remember { context.getSharedPreferences("trainer_profile", 0) }
@@ -80,6 +85,11 @@ internal fun TrainerProfileScreen(onBack: () -> Unit) {
     var showPvp by rememberSaveable { mutableStateOf(false) }
     var showLayout by rememberSaveable { mutableStateOf(false) }
     var showBubbleOptions by rememberSaveable { mutableStateOf(false) }
+    var featureIntroductionEnabled by rememberSaveable {
+        mutableStateOf(FeatureIntroductionPreferences.isAutoShowEnabled(context))
+    }
+    var showHelp by rememberSaveable { mutableStateOf(false) }
+    var showUpdate by rememberSaveable { mutableStateOf(false) }
     var pictureRevision by remember { mutableStateOf(0) }
     var importingQr by rememberSaveable { mutableStateOf(false) }
     val picturePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -97,11 +107,13 @@ internal fun TrainerProfileScreen(onBack: () -> Unit) {
             }
         }
     }
-    fun closePage() { showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; editing = false }
+    fun closePage() { showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
     val page = when {
         showPvp -> "pvp"
         showLayout -> "layout"
         showBubbleOptions -> "bubble"
+        showHelp -> "help"
+        showUpdate -> "update"
         editing -> "edit"
         else -> "profile"
     }
@@ -182,8 +194,24 @@ internal fun TrainerProfileScreen(onBack: () -> Unit) {
                 HorizontalDivider()
                 ProfileMenuRow(lt(language, "Cálculo PvP", "PvP calculation", "Cálculo PvP"), onClick = { showPvp = true })
                 ProfileMenuRow("Layout", onClick = { showLayout = true })
-                ProfileMenuRow(lt(language, "Atalhos da bolha", "Bubble shortcuts", "Accesos de burbuja"),
+                ProfileMenuRow(lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición"),
                     onClick = { showBubbleOptions = true })
+                ProfileToggleRow(
+                    title = lt(language, "Apresentação inicial", "Getting started guide", "Presentación inicial"),
+                    description = lt(
+                        language,
+                        "Mostrar o guia sempre que o app for aberto.",
+                        "Show the guide whenever the app is opened.",
+                        "Mostrar la guía cada vez que se abra la aplicación."
+                    ),
+                    checked = featureIntroductionEnabled,
+                    onCheckedChange = { enabled ->
+                        featureIntroductionEnabled = enabled
+                        FeatureIntroductionPreferences.setAutoShowEnabled(context, enabled)
+                    }
+                )
+                ProfileMenuRow(lt(language, "Ajuda", "Help", "Ayuda"), onClick = { showHelp = true })
+                ProfileMenuRow(lt(language, "Atualizar", "Update", "Actualizar"), onClick = { showUpdate = true })
                 Text(
                     if (BuildConfig.RELEASE_TAG.isBlank() || BuildConfig.RELEASE_TAG == "dev") "local"
                     else BuildConfig.VERSION_NAME,
@@ -194,11 +222,15 @@ internal fun TrainerProfileScreen(onBack: () -> Unit) {
                 )
             }
         }
+    } else if (destination == "help") {
+        HelpMenuScreen(onBack = { closePage() }, onGoToPrivacy = onGoToPrivacy)
+    } else if (destination == "update") {
+        AppUpdateScreen(uiState = uiState, onBack = { closePage() }, onRefresh = onRefreshAppUpdate)
     } else {
         val title = when (destination) {
             "pvp" -> lt(language, "Cálculo PvP", "PvP calculation", "Cálculo PvP")
             "layout" -> "Layout"
-            "bubble" -> lt(language, "Atalhos da bolha", "Bubble shortcuts", "Accesos de burbuja")
+            "bubble" -> lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición")
             else -> lt(language, "Editar dados", "Edit details", "Editar datos")
         }
         Scaffold(containerColor = appearance.background.first(), topBar = {

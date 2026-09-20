@@ -35,9 +35,9 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
         LeekSection.CODES -> tr("Códigos promocionais", "Promo codes", "Códigos promocionales")
     }
     val updateInAppMessage = tr(
-        "Não encontramos informações nos dados salvos. Atualize a tela $normalScreenName no app, fora do modo bolha, e faça uma nova leitura.",
-        "No information found in saved data. Update $normalScreenName in the normal app, outside bubble mode, then scan again.",
-        "No encontramos información en los datos guardados. Actualiza $normalScreenName en la app, fuera del modo burbuja, y vuelve a leer.")
+        "Não encontramos informações nos dados salvos. Atualize a tela $normalScreenName no app, fora do modo sobreposição, e faça uma nova leitura.",
+        "No information found in saved data. Update $normalScreenName in the normal app, outside overlay mode, then scan again.",
+        "No encontramos información en los datos guardados. Actualiza $normalScreenName en la app, fuera del modo superposición, y vuelve a leer.")
     val repository = remember { LeekDuckRepository(context.applicationContext) }
     var data by remember(section) { mutableStateOf<LeekCatalog?>(null) }
     var loading by remember(section) { mutableStateOf(true) }

@@ -45,6 +45,9 @@ internal fun AppNavigationShell(
     isHome: Boolean,
     onProfileRequestConsumed: () -> Unit,
     onGoToPresets: () -> Unit,
+    uiState: UiState,
+    onRefreshAppUpdate: () -> Unit,
+    onGoToPrivacy: () -> Unit,
     onBubbleOptionVisibleChange: (Boolean) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit,
     content: @Composable () -> Unit
@@ -128,7 +131,12 @@ internal fun AppNavigationShell(
                                     .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)))
                             }
                             CompositionLocalProvider(LocalProfilePanel provides true) {
-                                TrainerProfileScreen(onBack = { showProfile = false })
+                                TrainerProfileScreen(
+                                    uiState = uiState,
+                                    onBack = { showProfile = false },
+                                    onRefreshAppUpdate = onRefreshAppUpdate,
+                                    onGoToPrivacy = { showProfile = false; onGoToPrivacy() }
+                                )
                             }
                         }
                     }
@@ -138,8 +146,8 @@ internal fun AppNavigationShell(
             HomeGlassNavigation(
                 language = language,
                 bubbleActive = bubbleActive,
-                bubbleDescription = if (bubbleActive) lt(language, "Remover modo bolha", "Remove bubble mode", "Quitar modo burbuja")
-                    else lt(language, "Iniciar modo bolha", "Start bubble mode", "Iniciar modo burbuja"),
+                bubbleDescription = if (bubbleActive) lt(language, "Remover modo sobreposição", "Remove overlay mode", "Quitar modo superposición")
+                    else lt(language, "Iniciar modo sobreposição", "Start overlay mode", "Iniciar modo superposición"),
                 onBubbleClick = {
                     if (bubbleActive) {
                         context.stopService(Intent(context, OverlayService::class.java))

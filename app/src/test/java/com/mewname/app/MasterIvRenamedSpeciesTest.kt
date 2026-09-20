@@ -25,4 +25,13 @@ class MasterIvRenamedSpeciesTest {
         assertNull(catalog.resolve(context, listOf("Meu parceiro"), 98, 14, 15, 15).isBestMatch)
         assertNull(catalog.resolve(context, listOf("Zacian (Hero)"), 98, null, 15, 15).isBestMatch)
     }
-}
+
+    @Test fun bestCombinationsAreAvailableWithoutDetectedIvs() {
+        val combinations = catalog.bestCombinations(context, listOf("Abomasnow"))
+
+        assertEquals(listOf(98, 96, 93, 91), combinations.keys.toList())
+        assertEquals(Triple(14, 15, 15), combinations[98])
+        assertEquals(Triple(13, 15, 15), combinations[96])
+        assertEquals(Triple(15, 15, 12), combinations[93])
+        assertEquals(Triple(14, 15, 12), combinations[91])
+    }}

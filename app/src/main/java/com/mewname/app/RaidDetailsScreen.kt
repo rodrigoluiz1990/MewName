@@ -31,7 +31,7 @@ import java.util.Date
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEVEL_5", bubble: Boolean = false, onBack: () -> Unit) {
+internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEVEL_5", bubble: Boolean = false, raidScreenText: String = "", detectedRaidLevel: Int? = null, onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     fun tr(pt: String,en: String,es: String) = lt(language,pt,en,es)
@@ -41,13 +41,15 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     var moveNames by remember(language) { mutableStateOf<Map<String,String>>(emptyMap()) }
     var level by rememberSaveable { mutableIntStateOf(40) }
     var tier by rememberSaveable(bossName) { mutableStateOf(initialTier) }
-    var inferredTier by remember { mutableStateOf(false) }
+    var inferredTier by remember(bossName) { mutableStateOf(false) }
+    var selectedId by rememberSaveable(bossName) { mutableStateOf<String?>(bossName) }
+    var formChoices by remember(bossName) { mutableStateOf<List<RaidChoice>>(emptyList()) }
     var refresh by remember { mutableIntStateOf(0) }
-    var report by remember(bossName,tier,level) { mutableStateOf<RaidReport?>(null) }
+    var report by remember(selectedId,tier,level) { mutableStateOf<RaidReport?>(null) }
     var loading by remember { mutableStateOf(true) }
     var failed by remember { mutableStateOf(false) }
     var weakness by remember { mutableStateOf<List<TypeMatchupEntry>>(emptyList()) }
-    val boss = remember(meta,bossName) { meta?.resolve(bossName) }
+    val boss = remember(meta,selectedId) { selectedId?.let { meta?.resolve(it) } }
     val clipboard = LocalClipboardManager.current
     var copied by remember(report,language) { mutableStateOf(false) }
     // A service overlay has no Activity back dispatcher, even for a disabled handler.
@@ -55,9 +57,17 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     LaunchedEffect(language) {
         try { withContext(Dispatchers.IO) {
             val loaded = repository.metadata()
-            val resolved = loaded.resolve(bossName)
-            val inferred = if(bubble && resolved!=null) raidTier(resolved.id,runCatching { repository.catalog() }.getOrDefault(emptyList())) else initialTier
-            withContext(Dispatchers.Main) { if(bubble && !inferredTier) { tier=inferred;inferredTier=true }; meta=loaded }
+            val identity = if (bubble) RaidBossResolver.resolve(bossName, raidScreenText, loaded,
+                runCatching { repository.catalog().ifEmpty { repository.catalog(refresh = true) } }.getOrDefault(emptyList()), detectedRaidLevel) else null
+            withContext(Dispatchers.Main) {
+                if (bubble && !inferredTier) {
+                    selectedId=identity?.selected?.id
+                    tier=identity?.selected?.tier ?: initialTier
+                    formChoices=identity?.alternatives.orEmpty()
+                    inferredTier=true
+                }
+                meta=loaded
+            }
             val names = GameTextRepository.pokemonTranslations(context.applicationContext,language)
             val localized = GameTextRepository.moveTranslations(context.applicationContext,language)
             val labels = listOf(AssetPaths.FAST_MOVES,AssetPaths.CHARGED_MOVES).flatMap { path ->
@@ -74,7 +84,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         try {
             weakness=withContext(Dispatchers.Default) { GameInfoRepository.matchupAgainst(context.applicationContext,selected.types).filter { it.multiplier > 1 } }
             report=withContext(Dispatchers.IO) { repository.cached(selected.id,tier,level) }
-            if (!bubble && (report==null || refresh>0)) report=withContext(Dispatchers.IO) { repository.refresh(selected.id,tier,level) }
+            if ((!bubble && report == null) || refresh > 0) report=withContext(Dispatchers.IO) { repository.refresh(selected.id,tier,level) }
         } catch(e: CancellationException) { throw e }
         catch(_: Exception) { failed=true }
         finally { loading=false }
@@ -93,6 +103,18 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         }
         return if(suffix.startsWith("mega")) "$form $base" else "$base ($form)"
     }
+    fun raidLabel(choice: RaidChoice): String {
+        val category=choice.tier.removePrefix("RAID_LEVEL_").split('_').joinToString(" ") { part ->
+            when(part) {
+                "SHADOW" -> tr("Sombroso","Shadow","Oscuro")
+                "MEGA" -> "Mega"
+                "ENHANCED" -> tr("Potencializada","Enhanced","Potenciada")
+                else -> part
+            }
+        }
+        val variant=if(choice.id.endsWith("_MEGA_X") || choice.id.endsWith("_MEGA_Y")) " ${choice.id.last()}" else ""
+        return "Raid $category$variant"
+    }
     fun moveLabel(id: String) = moveNames[raidKey(id)] ?: raidName(id.removeSuffix("_FAST"))
     val capture = boss?.let { b -> raidCaptureId(b.id)?.let { meta?.pokemon?.get(it) } }
     val background=LocalAppAppearance.current.background
@@ -107,7 +129,11 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             if(meta==null && !failed) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if(meta==null && failed) item { Text(tr("Não foi possível carregar os dados da raid.","Could not load raid data.","No se pudieron cargar los datos.")) }
-            if(meta!=null && boss==null) item { Text(tr("Não foi possível identificar a forma deste chefe. Selecione a raid pelo app.","Boss form not identified. Select the raid in the app.","Forma del jefe no identificada. Selecciona la incursión en la app.")) }
+            if(meta!=null && boss==null) item { Text(if(formChoices.isNotEmpty()) tr("Chefe não identificado. Escolha uma raid atual deste nível.","Boss not identified. Choose a current raid at this level.","Jefe no identificado. Elige una incursión actual de este nivel.") else tr("Não foi possível identificar o chefe nem encontrar raids atuais deste nível.","The boss could not be identified and no current raids were found at this level.","No se pudo identificar al jefe ni encontrar incursiones actuales de este nivel.")) }
+            if(bubble && boss==null && formChoices.isNotEmpty()) item {
+                RaidVariantSelector(tr("Selecionar raid","Select raid","Seleccionar incursión"),formChoices,
+                    label={"${name(it.id)} · ${raidLabel(it)}"},onSelect={selectedId=it.id; tier=it.tier})
+            }
             boss?.let { b ->
                 item { AppSectionCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment=Alignment.CenterVertically) {
@@ -116,7 +142,10 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                             FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) { b.types.forEach { TypeBadge(it,language,showAssetIcon=true) } }
                         }
                     }
-                    Text("Raid · " + tier.removePrefix("RAID_LEVEL_").replace('_',' '), style=MaterialTheme.typography.labelMedium)
+                    if(bubble && formChoices.size > 1) {
+                        RaidVariantSelector(raidLabel(RaidChoice(b.id,tier)),formChoices,
+                            label={raidLabel(it)},onSelect={selectedId=it.id; tier=it.tier})
+                    } else Text(raidLabel(RaidChoice(b.id,tier)),style=MaterialTheme.typography.labelMedium)
                     Text(tr("Golpes possíveis do chefe","Possible boss attacks","Ataques posibles del jefe"),style=MaterialTheme.typography.titleSmall)
                     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -158,7 +187,16 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                 }; Text(tr("Sem clima · Megas, sombrosos e lendários incluídos","No weather · Megas, shadows and legendaries included","Sin clima · Megas, oscuros y legendarios incluidos"),style=MaterialTheme.typography.bodySmall) }
                 if(loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 if(failed) item { Text(tr("Falha ao atualizar. Os dados salvos foram preservados.","Update failed. Saved data was preserved.","No se pudo actualizar. Se conservaron los datos guardados.")) }
-                if(!loading && report==null) item { Text(if(bubble) tr("Atualize esta raid na tela Raids do app para ver as sugestões aqui.","Update this raid in the app's Raids screen to see suggestions here.","Actualiza esta incursión en la pantalla Raids de la app para ver sugerencias aquí.") else tr("Sem sugestões salvas. Toque em atualizar para tentar novamente.","No saved suggestions. Tap refresh to retry.","Sin sugerencias guardadas. Pulsa actualizar para reintentar.")) }
+                if(!loading && report==null) item {
+                    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                        Text(tr("Ainda não há sugestões salvas para este chefe.","There are no saved suggestions for this boss yet.","Todavía no hay sugerencias guardadas para este jefe."))
+                        AppActionButton(
+                            onClick={refresh++},
+                            enabled=!loading,
+                            modifier=Modifier.fillMaxWidth()
+                        ) { Text(tr("Atualizar esta raid","Update this raid","Actualizar esta incursión")) }
+                    }
+                }
                 items(report?.counters.orEmpty(),key={it.id}) { counter -> AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
                         RaidPortrait(counter.id,bubble,Modifier.size(56.dp))
@@ -195,10 +233,30 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         Text(label + if(move.special) " ★" else "",style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))
     }
 }
-@Composable private fun RaidPortrait(id: String, offline: Boolean, modifier: Modifier) {
+@Composable internal fun RaidPortrait(id: String, offline: Boolean, modifier: Modifier) {
     val context=LocalContext.current
     val url by produceState<String?>(null,id) { value=withContext(Dispatchers.IO) { RaidCounterRepository(context.applicationContext).image(id) } }
     val request=ImageRequest.Builder(context).data(url)
         .networkCachePolicy(if(offline) CachePolicy.DISABLED else CachePolicy.ENABLED).build()
     AsyncImage(request,null,modifier)
+}
+@Composable
+private fun RaidVariantSelector(
+    selectedLabel: String,
+    choices: List<RaidChoice>,
+    label: (RaidChoice) -> String,
+    onSelect: (RaidChoice) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick={expanded=true},contentPadding=PaddingValues(horizontal=0.dp)) {
+            Text(selectedLabel,style=MaterialTheme.typography.labelLarge)
+            Icon(Icons.Default.ArrowDropDown,contentDescription=null,modifier=Modifier.size(20.dp))
+        }
+        DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
+            choices.forEach { choice ->
+                DropdownMenuItem(text={Text(label(choice))},onClick={expanded=false;onSelect(choice)})
+            }
+        }
+    }
 }

@@ -20,8 +20,5 @@ internal val bubbleAppShortcuts = listOf(
     BubbleAppShortcut("app_moves", "charged_moves", "Ataques", "Moves", "Ataques", AppScreen.MOVEDEX),
     BubbleAppShortcut("app_promo", "promo", "Códigos promocionais", "Promo codes", "Códigos promocionales", screen = AppScreen.PROMO_CODES),
     BubbleAppShortcut("app_types", "types", "Tipos", "Types", "Tipos", AppScreen.TYPE_CHART),
-    BubbleAppShortcut("app_help", "help", "Ajuda", "Help", "Ayuda", AppScreen.HELP_MENU),
-    BubbleAppShortcut("app_update", "update", "Atualizar", "Update", "Actualizar", AppScreen.APP_UPDATE),
-    BubbleAppShortcut("app_test", "test", "Teste", "Test", "Prueba", AppScreen.TEST_MENU),
     BubbleAppShortcut("app_profile", "names", "Perfil", "Profile", "Perfil", AppScreen.TRAINER_PROFILE)
 )

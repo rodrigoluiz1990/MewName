@@ -11,6 +11,14 @@ enum class BattleMode {
     MAX
 }
 
+data class BattleOcrLine(
+    val text: String,
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
+)
+
 data class BattleAdvice(
     val mode: BattleMode,
     val bossName: String?,
@@ -18,19 +26,25 @@ data class BattleAdvice(
     val weaknessTypes: List<String>,
     val suggestions: List<BattleSuggestionEntry>,
     val defenderSuggestions: List<BattleSuggestionEntry> = emptyList(),
-    val copyText: String
+    val copyText: String,
+    val raidScreenText: String = "",
+    val raidLevel: Int? = null
 )
 
 object BattleAdvisor {
     fun adviceForRaw(
         context: Context,
-        rawText: String
+        rawText: String,
+        positionedLines: List<BattleOcrLine> = emptyList(),
+        detectedRaidLevel: Int? = null
     ): BattleAdvice? {
         if (!looksLikeBattleScreen(rawText)) return null
         return buildAdvice(
             context = context,
             rawText = rawText,
-            data = null
+            data = null,
+            positionedLines = positionedLines,
+            detectedRaidLevel = detectedRaidLevel
         )
     }
 
@@ -50,10 +64,12 @@ object BattleAdvisor {
     private fun buildAdvice(
         context: Context,
         rawText: String,
-        data: PokemonScreenData?
+        data: PokemonScreenData?,
+        positionedLines: List<BattleOcrLine> = emptyList(),
+        detectedRaidLevel: Int? = null
     ): BattleAdvice {
         val mode = battleMode(rawText, data)
-        val bossName = resolveBossName(context, data, rawText)
+        val bossName = resolveBossName(context, data, rawText, positionedLines)
         val bossTypes = listOfNotNull(data?.type1, data?.type2)
             .ifEmpty { bossName?.let { findPokemonTypes(context, it) }.orEmpty() }
             .distinct()
@@ -105,7 +121,9 @@ object BattleAdvisor {
             weaknessTypes = weaknessTypes,
             suggestions = suggestions,
             defenderSuggestions = defenderSuggestions,
-            copyText = copyText
+            copyText = copyText,
+            raidScreenText = if (mode == BattleMode.RAID) rawText else "",
+            raidLevel = detectedRaidLevel.takeIf { mode == BattleMode.RAID }
         )
     }
 
@@ -328,10 +346,26 @@ object BattleAdvisor {
     private fun resolveBossName(
         context: Context,
         data: PokemonScreenData?,
-        rawText: String
+        rawText: String,
+        positionedLines: List<BattleOcrLine>
     ): String? {
         data?.pokemonName?.let { return stripBattlePrefixes(it).takeIf(String::isNotBlank) }
-        val normalizedRaw = normalizeName(rawText).replace('0', 'O')
+
+        // In the raid lobby the boss name is centered below the CP, while gym names stay at the top.
+        // Trying this calibrated band first prevents names in the gym title from winning the match.
+        val bossBandText = positionedLines
+            .filter { line ->
+                val centerY = (line.top + line.bottom) / 2f
+                centerY in 0.16f..0.39f && line.right >= 0.12f && line.left <= 0.88f && line.text.any(Char::isLetter)
+            }
+            .sortedWith(compareBy<BattleOcrLine> { it.top }.thenBy { it.left })
+            .joinToString(" ") { it.text }
+        if (bossBandText.isNotBlank()) resolveBossNameInText(context, bossBandText)?.let { return it }
+        return resolveBossNameInText(context, rawText)
+    }
+
+    private fun resolveBossNameInText(context: Context, text: String): String? {
+        val normalizedRaw = normalizeName(text).replace('0', 'O')
         val compactRaw = normalizedRaw.replace(" ", "")
         val rawTokens = normalizedRaw.split(" ").filter { it.length >= 5 }
         return GameInfoRepository.loadBattlePokemonIndex(context)
@@ -349,7 +383,6 @@ object BattleAdvisor {
             .firstOrNull()
             ?.first
     }
-
     private fun bossNameMatchRank(
         alias: String,
         normalizedRaw: String,
@@ -365,7 +398,17 @@ object BattleAdvisor {
         if (rawTokens.any { token -> isLikelyCompactBossOcrMatch(token, compactAlias) }) {
             return 2
         }
+        if (rawTokens.any { token -> isLikelyBossPrefix(token, compactAlias) }) {
+            return 3
+        }
         return null
+    }
+
+    private fun isLikelyBossPrefix(text: String, expected: String): Boolean {
+        if (text.length < 5 || expected.length < 6) return false
+        val common = text.zip(expected).takeWhile { (left, right) -> left == right }.size
+        val required = maxOf(5, (minOf(text.length, expected.length) * 0.65f).toInt())
+        return common >= required && common >= expected.length / 2
     }
 
     private fun isOneCharacterOcrMiss(text: String, expected: String): Boolean {

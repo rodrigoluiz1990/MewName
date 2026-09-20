@@ -108,6 +108,9 @@ import com.mewname.app.BuildConfig
 import com.mewname.app.domain.AdventureEffectCatalogEntry
 import com.mewname.app.domain.AppLanguage
 import com.mewname.app.domain.GameCatalogRepository
+import com.mewname.app.domain.GameInfoRepository
+import com.mewname.app.domain.MoveCatalogEntry
+import com.mewname.app.domain.MoveCategory
 import com.mewname.app.domain.LegacyMoveCatalogEntry
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.UniquePokemonCatalog
@@ -167,6 +170,9 @@ class MainActivity : ComponentActivity() {
             AppAppearanceTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val appContext = LocalContext.current
+                var showFeatureIntroduction by rememberSaveable {
+                    mutableStateOf(FeatureIntroductionPreferences.isAutoShowEnabled(appContext))
+                }
 
                 LaunchedEffect(Unit) {
                     viewModel.loadConfigs(appContext)
@@ -198,11 +204,22 @@ class MainActivity : ComponentActivity() {
                 }
 
                 CompositionLocalProvider(LocalAppLanguage provides uiState.appLanguage) {
+                if (showFeatureIntroduction) {
+                    FeatureIntroductionDialog { doNotShowAgain ->
+                        if (doNotShowAgain) {
+                            FeatureIntroductionPreferences.setAutoShowEnabled(appContext, false)
+                        }
+                        showFeatureIntroduction = false
+                    }
+                }
                 AppNavigationShell(
                     isHome = uiState.currentScreen == AppScreen.HOME,
                     profileRequested = uiState.currentScreen == AppScreen.TRAINER_PROFILE,
                     onProfileRequestConsumed = { viewModel.navigateTo(AppScreen.HOME) },
                     onGoToPresets = { viewModel.navigateTo(AppScreen.PRESET_LIST) },
+                    uiState = uiState,
+                    onRefreshAppUpdate = { viewModel.checkForAppUpdate(forceFeedback = true) },
+                    onGoToPrivacy = { viewModel.navigateTo(AppScreen.PRIVACY_POLICY) },
                     onBubbleOptionVisibleChange = viewModel::setBubbleOptionVisible,
                     onLanguageChange = { viewModel.setAppLanguage(appContext, it) }
                 ) {
@@ -220,9 +237,6 @@ class MainActivity : ComponentActivity() {
                         onGoToMoves = { viewModel.navigateTo(AppScreen.MOVEDEX) },
                         onGoToPokedex = { viewModel.navigateTo(AppScreen.POKEDEX) },
                         onGoToFilters = { viewModel.navigateTo(AppScreen.FILTER_BUILDER) },
-                        onGoToTestMenu = { viewModel.navigateTo(AppScreen.TEST_MENU) },
-                        onGoToHelp = { viewModel.navigateTo(AppScreen.HELP_MENU) },
-                        onGoToAppUpdate = { viewModel.navigateTo(AppScreen.APP_UPDATE) },
                         onDismissReview = viewModel::dismissReview,
                         onApplyReview = viewModel::applyReview,
                         onCancelProcessing = viewModel::cancelImageProcessing
@@ -375,9 +389,6 @@ fun HomeScreen(
     onGoToMoves: () -> Unit,
     onGoToPokedex: () -> Unit,
     onGoToFilters: () -> Unit,
-    onGoToTestMenu: () -> Unit,
-    onGoToHelp: () -> Unit,
-    onGoToAppUpdate: () -> Unit,
     onDismissReview: () -> Unit,
     onApplyReview: (PokemonScreenData) -> Unit,
     onCancelProcessing: () -> Unit
@@ -530,37 +541,6 @@ fun HomeScreen(
                     onClick = onGoToTypes,
                     modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
                 )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Ajuda", "Help", "Ayuda"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("help") },
-                    onClick = onGoToHelp,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = if (uiState.isCheckingForUpdate) {
-                        lt(language, "Verificando...", "Checking...", "Verificando...")
-                    } else {
-                        lt(language, "Atualizar", "Update", "Actualizar")
-                    },
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("update") },
-                    onClick = onGoToAppUpdate,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Teste", "Test", "Prueba"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("test") },
-                    onClick = onGoToTestMenu,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
             }
 
             AnalysisTabsSection(uiState = uiState, onClear = onClear)
@@ -627,7 +607,7 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AppUpdateScreen(
+internal fun AppUpdateScreen(
     uiState: UiState,
     onBack: () -> Unit,
     onRefresh: () -> Unit
@@ -657,13 +637,13 @@ private fun AppUpdateScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(lt(language, "Versao instalada", "Installed version", "Version instalada"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -693,10 +673,10 @@ private fun AppUpdateScreen(
                     val update = uiState.latestAppUpdate
                     AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(lt(language, "Nova release disponivel", "New release available", "Nueva release disponible"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(if (uiState.appUpdateAvailable) lt(language, "Nova release disponível", "New release available", "Nueva release disponible") else lt(language, "Release instalada", "Installed release", "Release instalada"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text("${lt(language, "Versao", "Version", "Version")}: ${update.tagName}", style = MaterialTheme.typography.bodyMedium)
                             if (update.releaseName.isNotBlank()) {
                                 Text("${lt(language, "Titulo", "Title", "Titulo")}: ${update.releaseName}", style = MaterialTheme.typography.bodyMedium)
@@ -709,10 +689,10 @@ private fun AppUpdateScreen(
 
                     AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(lt(language, "O que mudou", "What's changed", "Que cambio"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(lt(language, "O que mudou", "What's changed", "Qué cambió"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text(
                                 update.releaseNotes.ifBlank { lt(language, "Sem descricao cadastrada para esta release.", "No description was added for this release.", "No hay descripcion registrada para esta release.") },
                                 style = MaterialTheme.typography.bodySmall
@@ -727,13 +707,15 @@ private fun AppUpdateScreen(
                         Text(lt(language, "Ver pagina da release", "View release page", "Ver pagina de la release"))
                     }
 
-                    AppActionButton(
-                        onClick = {
-                            openExternalUrl(context, update.apkDownloadUrl ?: update.releasePageUrl)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (update.apkDownloadUrl != null) lt(language, "Baixar atualizacao", "Download update", "Descargar actualizacion") else lt(language, "Abrir release", "Open release", "Abrir release"))
+                    if (uiState.appUpdateAvailable) {
+                        AppActionButton(
+                            onClick = {
+                                openExternalUrl(context, update.apkDownloadUrl ?: update.releasePageUrl)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (update.apkDownloadUrl != null) lt(language, "Baixar atualização", "Download update", "Descargar actualización") else lt(language, "Abrir release", "Open release", "Abrir release"))
+                        }
                     }
                 }
 
@@ -743,7 +725,7 @@ private fun AppUpdateScreen(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(lt(language, "Falha ao verificar atualizacao", "Failed to check for updates", "Error al buscar actualizacion"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -763,7 +745,7 @@ private fun AppUpdateScreen(
                 else -> {
                     AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(lt(language, "Seu app ja esta atualizado", "Your app is up to date", "Tu app ya esta actualizada"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -788,14 +770,10 @@ private fun AppUpdateScreen(
 private fun LegacyMovesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
-    val entries = remember { GameCatalogRepository.loadLegacyMoveCatalog(context) }
-    var query by remember { mutableStateOf("") }
-    val normalizedQuery = remember(query) {
-        java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-            .uppercase()
-            .trim()
-    }
+    val entries = remember(context) { GameCatalogRepository.loadLegacyMoveCatalog(context) }
+    val moveIndex = remember(context) { moveCatalogIndex(GameInfoRepository.loadMoveCatalog(context)) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val normalizedQuery = remember(query) { normalizeMoveLookup(query) }
     val filteredEntries = remember(entries, normalizedQuery) {
         if (normalizedQuery.isBlank()) entries else entries.filter { entry ->
             entry.searchTerms.any { it.contains(normalizedQuery) }
@@ -815,11 +793,8 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             item {
                 AppGlassTextField(
@@ -827,34 +802,38 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(lt(language, "Buscar Pokemon ou ataque", "Search Pokemon or move", "Buscar Pokemon o ataque")) },
+                    label = { Text(lt(language, "Buscar Pokémon ou ataque", "Search Pokémon or move", "Buscar Pokémon o ataque")) },
                     singleLine = true
                 )
             }
-            items(filteredEntries) { entry ->
-                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(entry.pokemon, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text(
-                            entry.moves.joinToString(" \u2022 ").ifBlank { lt(language, "Sem golpes cadastrados", "No registered moves", "Sin ataques registrados") },
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
+            item {
+                Text(
+                    lt(language, "${filteredEntries.size} Pokémon", "${filteredEntries.size} Pokémon", "${filteredEntries.size} Pokémon"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            items(filteredEntries, key = { it.pokemon }) { entry ->
+                LegacyMoveCard(entry = entry, language = language, moveIndex = moveIndex)
             }
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AdventureEffectsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
-    val entries = remember { GameCatalogRepository.loadAdventureEffectCatalog(context) }
+    val entries = remember(context) { GameCatalogRepository.loadAdventureEffectCatalog(context) }
+    val moveIndex = remember(context) { moveCatalogIndex(GameInfoRepository.loadMoveCatalog(context)) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val normalizedQuery = remember(query) { normalizeMoveLookup(query) }
+    val filteredEntries = remember(entries, normalizedQuery) {
+        if (normalizedQuery.isBlank()) entries else entries.filter { entry ->
+            listOf(entry.pokemon, entry.displayPokemonPt, entry.move, entry.movePt, entry.effectName, entry.effectNamePt)
+                .any { normalizeMoveLookup(it).contains(normalizedQuery) }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -869,19 +848,30 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            items(entries) { entry ->
-                AdventureEffectCard(entry = entry, language = language)
+            item {
+                AppGlassTextField(
+                    search = true,
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(lt(language, "Buscar Pokémon, ataque ou efeito", "Search Pokémon, move or effect", "Buscar Pokémon, ataque o efecto")) },
+                    singleLine = true
+                )
+            }
+            items(filteredEntries, key = { "${it.pokemon}|${it.move}" }) { entry ->
+                AdventureEffectCard(
+                    entry = entry,
+                    language = language,
+                    moveDetails = moveIndex[normalizeMoveLookup(entry.move)]
+                        ?: moveIndex[normalizeMoveLookup(entry.movePt)]
+                )
             }
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DonationScreen(onBack: () -> Unit) {
@@ -988,7 +978,7 @@ private fun TestMenuScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HelpMenuScreen(
+internal fun HelpMenuScreen(
     onBack: () -> Unit,
     onGoToPrivacy: () -> Unit
 ) {
@@ -1009,30 +999,28 @@ private fun HelpMenuScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { RecentFeaturesHelp() }
             item {
                 AppSectionCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(lt(language, "Como usar cada tela", "How to use each screen", "Como usar cada pantalla"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         HelpLine("Calendario", lt(language, "Abre o calendario externo de eventos. Use para conferir raids, horas em destaque, dias comunitarios e eventos antes de montar filtros.", "Opens the external event calendar. Use it to check raids, spotlight hours, community days, and events before building filters.", "Abre el calendario externo de eventos. Usalo para revisar raids, horas destacadas, dias comunitarios y eventos antes de crear filtros."))
-                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a bolha usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. A bolha usa apenas formatos ja salvos.", "Create the formats used by the bubble to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. The bubble only uses saved formats.", "Crea los formatos que usa la burbuja para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. La burbuja solo usa formatos guardados."))
+                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. La superposición solo usa formatos guardados."))
                         HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
                         HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
-                        HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a bolha usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; bubble mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la burbuja usa datos guardados. Revisa formas y ataques al usar el filtro."))
+                        HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a sobreposição usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; overlay mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la superposición usa datos guardados. Revisa formas y ataques al usar el filtro."))
                         HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
                         HelpLine(lt(language, "Ataques rapidos/carregados", "Fast/Charged Moves", "Ataques rapidos/cargados"), lt(language, "Pesquise ataques por nome, tipo e categoria. Cada registro mostra dados de ginasio e PvP para comparar dano, energia e duracao.", "Search moves by name, type, and category. Each row shows Gym and PvP data so you can compare damage, energy, and duration.", "Busca ataques por nombre, tipo y categoria. Cada registro muestra datos de gimnasio y PvP para comparar dano, energia y duracion."))
                         HelpLine(lt(language, "Equipe GO Rocket", "Team GO Rocket", "Equipo GO Rocket"), lt(language, "Consulte recrutas, lideres e Giovanni no app. Filtre por grupo e pesquise nomes, tipos ou falas no idioma selecionado ou no original. Cada bloco mostra as tres posicoes, capturas possiveis e fraquezas. Atualizar consulta o Leek Duck; sem internet, a ultima lista salva continua disponivel.", "Browse grunts, leaders and Giovanni in the app. Filter or search names, types and quotes in your selected language or the original. Cards show three slots, catchable Pokemon and weaknesses. Refresh checks Leek Duck; saved lists remain available offline.", "Consulta reclutas, lideres y Giovanni. Filtra y busca nombres, tipos o frases en el idioma seleccionado o en el original. Se muestran posiciones, capturas y debilidades. La ultima lista queda disponible sin conexion."))
                         HelpLine(lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), lt(language, "Consulte recompensas e validade, copie o codigo ou toque em Resgatar para abrir a loja oficial. Disponivel significa listado pela fonte, sem garantia de resgate para sua conta. Validade desconhecida e mostrada quando a fonte nao informa a data.", "View rewards and expiry, copy a code or open the official redemption store. Available means listed by the source, not guaranteed redeemable for your account. Unknown expiry is shown when no public date is supplied.", "Consulta recompensas y vencimiento, copia el codigo o abre la tienda oficial. Disponible significa listado por la fuente; el canje depende de la cuenta. Se indica cuando la fecha es desconocida."))
                         HelpLine(lt(language, "Leitura de ovos, Rocket e pesquisas", "Egg, Rocket and research scanning", "Lectura de huevos, Rocket e investigaciones"), lt(language,
-                            "No jogo, abra os ovos, a fala do recruta ou as pesquisas de campo e toque na bolha. A janela mostra possibilidades para as distancias, a fala ou as tarefas visiveis. Ovos antigos e origens diferentes podem ter outras especies; falas compartilhadas mostram ambos os recrutas. Pesquisas com o mesmo texto podem ter recompensas diferentes por evento e icone: as opcoes sao separadas e nao sao todas garantidas. Tarefas nao reconhecidas ou ausentes no catalogo nao recebem uma recompensa presumida. A bolha consulta somente os dados salvos. Atualize os catalogos nas telas normais do app; X volta ao jogo.",
-                            "Open eggs, a grunt quote or field research in the game and tap the bubble. The window shows possibilities for the visible distances, quote or tasks. Older eggs and different origins may have other species; shared quotes show both grunts. Identical tasks may have different rewards by event and icon: options are separated and not all are guaranteed. Unrecognized or unlisted tasks are not assigned a guessed reward. The bubble only reads saved data. Update catalogs in the normal app screens; X returns to the game.",
-                            "Abre los huevos, la frase de un recluta o las investigaciones de campo y toca la burbuja. Se muestran posibilidades para las distancias, la frase o las tareas visibles. Los huevos antiguos pueden tener otras especies; las frases compartidas muestran ambos reclutas. Las tareas iguales pueden variar por evento e icono: no se garantizan todas las recompensas. No se inventan recompensas para tareas no reconocidas. Actualiza los catalogos en las pantallas normales de la app; X vuelve al juego."))
+                            "No jogo, abra os ovos, a fala do recruta ou as pesquisas de campo e toque na sobreposição. A janela mostra possibilidades para as distancias, a fala ou as tarefas visiveis. Ovos antigos e origens diferentes podem ter outras especies; falas compartilhadas mostram ambos os recrutas. Pesquisas com o mesmo texto podem ter recompensas diferentes por evento e icone: as opcoes sao separadas e nao sao todas garantidas. Tarefas nao reconhecidas ou ausentes no catalogo nao recebem uma recompensa presumida. A sobreposição consulta somente os dados salvos. Atualize os catalogos nas telas normais do app; X volta ao jogo.",
+                            "Open eggs, a grunt quote or field research in the game and tap the overlay. The window shows possibilities for the visible distances, quote or tasks. Older eggs and different origins may have other species; shared quotes show both grunts. Identical tasks may have different rewards by event and icon: options are separated and not all are guaranteed. Unrecognized or unlisted tasks are not assigned a guessed reward. The overlay only reads saved data. Update catalogs in the normal app screens; X returns to the game.",
+                            "Abre los huevos, la frase de un recluta o las investigaciones de campo y toca la superposición. Se muestran posibilidades para las distancias, la frase o las tareas visibles. Los huevos antiguos pueden tener otras especies; las frases compartidas muestran ambos reclutas. Las tareas iguales pueden variar por evento e icono: no se garantizan todas las recompensas. No se inventan recompensas para tareas no reconocidas. Actualiza los catalogos en las pantallas normales de la app; X vuelve al juego."))
                         HelpLine(lt(language, "Ovos", "Eggs", "Huevos"), lt(language, "Filtre por distancia e origem: comuns, presentes, rotas e Sincroaventura. Consulte Pokemon, CP, shiny e raridade quando confirmada. Avisos de listas incompletas sao preservados. Textos descritivos do Leek Duck permanecem no idioma original. A fonte e a ultima consulta aparecem no fim de cada tela.", "Filter eggs by distance and origin. View Pokemon, CP, shiny and confirmed rarity. Incomplete-list notices are preserved. Leek Duck descriptions remain in their original language. Source and last checked date appear at the bottom.", "Filtra huevos por distancia y origen. Consulta Pokemon, CP, shiny y rareza confirmada. Se conservan avisos de listas incompletas y descripciones originales. La fuente y la ultima consulta aparecen al final."))
-                        HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Consulte tarefas de campo e recompensas no app, com busca e filtros de pesquisas comuns e de evento. A tela salva o catalogo para a bolha e para consultas sem internet. Na bolha, o catalogo salvo e usado sem consulta automatica a internet; atualize somente pela tela normal de Pesquisas de Campo. Sem dados salvos ou correspondencias, a bolha pede uma atualizacao nessa tela.", "Browse field tasks and rewards in the app, with search and regular/event filters. This screen saves the shared catalog for offline bubble scans. The bubble never downloads updates. Use the normal Field Research screen to update; the bubble directs you there when saved data or matches are missing.", "Consulta tareas de campo y recompensas en la app, con búsqueda y filtros. El catálogo se guarda para consultas sin conexión. La burbuja usa exclusivamente los datos guardados. Actualiza desde la pantalla normal de investigaciones cuando falten datos o coincidencias."))
-                        HelpLine(lt(language, "Teste", "Test", "Prueba"), lt(language, "Agrupa ferramentas de manutencao: gerar nome a partir de imagem, validar amostras e abrir a tela de doacao.", "Groups maintenance tools: generate a name from an image, validate samples, and open the donation screen.", "Agrupa herramientas de mantenimiento: generar nombre desde imagen, validar muestras y abrir la pantalla de donacion."))
+                        HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Consulte tarefas de campo e recompensas no app, com busca e filtros de pesquisas comuns e de evento. A tela salva o catalogo para a sobreposição e para consultas sem internet. Na sobreposição, o catalogo salvo e usado sem consulta automatica a internet; atualize somente pela tela normal de Pesquisas de Campo. Sem dados salvos ou correspondencias, a sobreposição pede uma atualizacao nessa tela.", "Browse field tasks and rewards in the app, with search and regular/event filters. This screen saves the shared catalog for offline overlay scans. The overlay never downloads updates. Use the normal Field Research screen to update; the overlay directs you there when saved data or matches are missing.", "Consulta tareas de campo y recompensas en la app, con búsqueda y filtros. El catálogo se guarda para consultas sin conexión. La superposición usa exclusivamente los datos guardados. Actualiza desde la pantalla normal de investigaciones cuando falten datos o coincidencias."))
                         HelpLine(lt(language, "Atualizar", "Update", "Actualizar"), lt(language, "Consulta releases do app e mostra a versao instalada. Use quando quiser verificar se ha APK mais recente.", "Checks app releases and shows the installed version. Use it when you want to see whether a newer APK exists.", "Consulta releases de la app y muestra la version instalada. Usalo cuando quieras verificar si hay un APK mas reciente."))
                         HelpLine(lt(language, "Privacidade", "Privacy", "Privacidad"), lt(language, "Explica permissoes, captura de tela, processamento local, armazenamento e direitos da Pokemon Company.", "Explains permissions, screen capture, local processing, storage, and Pokemon Company rights.", "Explica permisos, captura de pantalla, procesamiento local, almacenamiento y derechos de Pokemon Company."))
                     }
@@ -1088,9 +1076,9 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
                         Text(
                             lt(
                                 language,
-                                "O MewName processa imagens escolhidas por voce ou capturadas pela bolha para reconhecer dados visiveis na tela e gerar sugestoes. A analise acontece no aparelho.",
-                                "MewName processes images you choose or capture with the bubble to recognize visible screen data and generate suggestions. Analysis happens on the device.",
-                                "MewName procesa imagenes elegidas por ti o capturadas con la burbuja para reconocer datos visibles y generar sugerencias. El analisis ocurre en el dispositivo."
+                                "O MewName processa imagens escolhidas por voce ou capturadas pela sobreposição para reconhecer dados visiveis na tela e gerar sugestoes. A analise acontece no aparelho.",
+                                "MewName processes images you choose or capture with the overlay to recognize visible screen data and generate suggestions. Analysis happens on the device.",
+                                "MewName procesa imagenes elegidas por ti o capturadas con la superposición para reconocer datos visibles y generar sugerencias. El analisis ocurre en el dispositivo."
                             ),
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -1125,9 +1113,9 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
                         Text(
                             lt(
                                 language,
-                                "Sobreposicao: usada para mostrar a bolha sobre o jogo. Captura de tela: usada somente depois da autorizacao do Android.",
-                                "Overlay: used to show the bubble over the game. Screen capture: used only after Android authorization.",
-                                "Superposicion: usada para mostrar la burbuja sobre el juego. Captura de pantalla: usada solo despues de la autorizacion de Android."
+                                "Sobreposicao: usada para mostrar a sobreposição sobre o jogo. Captura de tela: usada somente depois da autorizacao do Android.",
+                                "Overlay: used to show the overlay over the game. Screen capture: used only after Android authorization.",
+                                "Superposicion: usada para mostrar la superposición sobre el juego. Captura de pantalla: usada solo despues de la autorizacion de Android."
                             ),
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -1185,20 +1173,167 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun AdventureEffectCard(entry: AdventureEffectCatalogEntry, language: AppLanguage) {
+private fun LegacyMoveCard(
+    entry: LegacyMoveCatalogEntry,
+    language: AppLanguage,
+    moveIndex: Map<String, MoveCatalogEntry>
+) {
     AppSectionCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(entry.displayPokemonPt, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Text("${lt(language, "Ataque", "Move", "Ataque")}: ${entry.movePt}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-            Text("${lt(language, "Efeito", "Effect", "Efecto")}: ${entry.effectNamePt}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-            Text(entry.description, style = MaterialTheme.typography.bodySmall)
+            Text(entry.pokemon, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            if (entry.moves.isEmpty()) {
+                Text(
+                    lt(language, "Sem golpes cadastrados", "No registered moves", "Sin ataques registrados"),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                entry.moves.forEachIndexed { index, moveName ->
+                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                    CatalogMoveRow(
+                        displayName = moveIndex[normalizeMoveLookup(moveName)]?.localizedName(language) ?: moveName,
+                        details = moveIndex[normalizeMoveLookup(moveName)],
+                        language = language
+                    )
+                }
+            }
         }
     }
 }
 
+@Composable
+private fun AdventureEffectCard(
+    entry: AdventureEffectCatalogEntry,
+    language: AppLanguage,
+    moveDetails: MoveCatalogEntry?
+) {
+    val pokemonName = if (language == AppLanguage.PT_BR) entry.displayPokemonPt else entry.pokemon
+    val moveName = if (language == AppLanguage.PT_BR) entry.movePt else entry.move
+    val effectName = if (language == AppLanguage.PT_BR) entry.effectNamePt else entry.effectName
+    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(pokemonName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            CatalogMoveRow(displayName = moveName, details = moveDetails, language = language)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    lt(language, "Efeito", "Effect", "Efecto"),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(effectName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(adventureEffectDescription(entry, language), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CatalogMoveRow(
+    displayName: String,
+    details: MoveCatalogEntry?,
+    language: AppLanguage
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        details?.let { TypeIcon(type = it.type, language = language) }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            if (details != null) {
+                Text(
+                    lt(
+                        language,
+                        if (details.category == MoveCategory.FAST) "Ataque rápido" else "Ataque carregado",
+                        if (details.category == MoveCategory.FAST) "Fast move" else "Charged move",
+                        if (details.category == MoveCategory.FAST) "Ataque rápido" else "Ataque cargado"
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    moveCombatSummary(details.power, details.energyDelta, details.duration, language),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (details.pvpPower != null || details.pvpEnergyDelta != null) {
+                    Text(
+                        "PvP · ${moveCombatSummary(details.pvpPower, details.pvpEnergyDelta, details.pvpTurnDuration, language, turns = true)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun moveCombatSummary(
+    damage: Int?,
+    energyDelta: Int?,
+    duration: Int?,
+    language: AppLanguage,
+    turns: Boolean = false
+): String {
+    val parts = buildList {
+        damage?.let { add(lt(language, "Dano $it", "Damage $it", "Daño $it")) }
+        energyDelta?.let { value ->
+            val displayed = if (value > 0) "+$value" else kotlin.math.abs(value).toString()
+            add(lt(language, "Energia $displayed", "Energy $displayed", "Energía $displayed"))
+        }
+        duration?.let { add(if (turns) "$it t" else "$it ms") }
+    }
+    return parts.joinToString(" · ").ifBlank { "-" }
+}
+
+private fun moveCatalogIndex(entries: List<MoveCatalogEntry>): Map<String, MoveCatalogEntry> {
+    return buildMap {
+        entries.forEach { entry ->
+            listOfNotNull(entry.name, entry.namePt, entry.nameEs).forEach { name ->
+                putIfAbsent(normalizeMoveLookup(name), entry)
+            }
+        }
+    }
+}
+
+private fun normalizeMoveLookup(value: String): String {
+    return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .uppercase(java.util.Locale.US)
+        .trim()
+}
+
+private fun adventureEffectDescription(entry: AdventureEffectCatalogEntry, language: AppLanguage): String {
+    if (language == AppLanguage.PT_BR) return entry.description
+    val translations = when (entry.move) {
+        "Roar of Time" -> "Pauses timers for items such as Incense, Lucky Eggs, and Star Pieces." to
+            "Pausa los temporizadores de objetos como Incienso, Huevo Suerte y Trozo Estrella."
+        "Spacial Rend" -> "Increases the encounter range around the Trainer for a limited time." to
+            "Aumenta la distancia de encuentro alrededor del Entrenador por tiempo limitado."
+        "Sunsteel Strike" -> "Attracts Pokémon during the day and changes the cycle to daytime for a limited time." to
+            "Atrae Pokémon durante el día y cambia el ciclo al período diurno por tiempo limitado."
+        "Moongeist Beam" -> "Attracts Pokémon at night and changes the cycle to nighttime for a limited time." to
+            "Atrae Pokémon durante la noche y cambia el ciclo al período nocturno por tiempo limitado."
+        "Freeze Shock" -> "Boosts encounters associated with cold weather and electricity for a limited time." to
+            "Potencia encuentros asociados al clima frío y la electricidad por tiempo limitado."
+        "Ice Burn" -> "Boosts encounters associated with ice and fire for a limited time." to
+            "Potencia encuentros asociados al hielo y el fuego por tiempo limitado."
+        "Behemoth Blade" -> "Grants an offensive bonus in encounters and battles for a limited time." to
+            "Otorga una bonificación ofensiva en encuentros y combates por tiempo limitado."
+        "Behemoth Bash" -> "Grants a defensive bonus in encounters and battles for a limited time." to
+            "Otorga una bonificación defensiva en encuentros y combates por tiempo limitado."
+        "Dynamax Cannon" -> "Channels Dynamax energy in battles and encounters for a limited time." to
+            "Canaliza energía Dinamax en combates y encuentros por tiempo limitado."
+        else -> entry.description to entry.description
+    }
+    return if (language == AppLanguage.ES) translations.second else translations.first
+}
 @Composable
 private fun HomeActionSquare(
     title: String,
@@ -1851,7 +1986,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 },
                 actions = {
                     IconButton(onClick = { showPatternHelp = true }) {
-                        UnownQuestionIcon(
+                        HelpIcon(
                             modifier = Modifier.size(24.dp),
                             contentDescription = lt(language, "Ajuda", "Help", "Ayuda")
                         )
@@ -2086,7 +2221,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
 
 @Composable
 private fun QuestionCircleIcon() {
-    UnownQuestionIcon(modifier = Modifier.size(16.dp))
+    HelpIcon(modifier = Modifier.size(16.dp))
 }
 
 @Composable

@@ -151,7 +151,8 @@ class MainViewModel(
                 _uiState.update {
                     it.copy(
                         isCheckingForUpdate = false,
-                        latestAppUpdate = if (hasUpdate) latest else null,
+                        latestAppUpdate = latest,
+                        appUpdateAvailable = hasUpdate,
                         appUpdateStatusMessage = when {
                             hasUpdate && forceFeedback -> "Atualização disponível: ${latest.tagName}"
                             !hasUpdate && forceFeedback -> "Seu app já está na versão mais recente."
@@ -555,6 +556,7 @@ data class UiState(
     val debugIvValidationError: String? = null,
     val isCheckingForUpdate: Boolean = false,
     val latestAppUpdate: AppUpdateInfo? = null,
+    val appUpdateAvailable: Boolean = false,
     val appUpdateStatusMessage: String? = null,
     val appUpdateError: String? = null
 )
