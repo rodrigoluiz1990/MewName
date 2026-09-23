@@ -1,7 +1,6 @@
 package com.mewname.app
 
 import android.content.Context
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -101,16 +99,11 @@ internal fun FeatureIntroductionDialog(onDismiss: (doNotShowAgain: Boolean) -> U
                         "Sigue brillantes, disfraces, fondos especiales y tus preferencias."
                     )
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { doNotShowAgain = !doNotShowAgain },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(checked = doNotShowAgain, onCheckedChange = { doNotShowAgain = it })
-                    Text(
-                        lt(language, "Não mostrar novamente", "Do not show again", "No volver a mostrar"),
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
+                AppToggleRow(
+                    label = lt(language, "Não mostrar novamente", "Do not show again", "No volver a mostrar"),
+                    checked = doNotShowAgain,
+                    onCheckedChange = { doNotShowAgain = it }
+                )
             }
         },
         confirmButton = {

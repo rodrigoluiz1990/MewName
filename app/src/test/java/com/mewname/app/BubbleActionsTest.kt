@@ -18,7 +18,7 @@ import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
 class BubbleActionsTest {
-    @Test fun longPressOpensActionsAfterOneSecondAndOutsideTapDismisses() {
+    @Test fun longPressOpensActionsAfter450MillisAndOutsideTapDismisses() {
         ShadowSettings.setCanDrawOverlays(true)
         val service = Robolectric.buildService(OverlayService::class.java).get()
         ReflectionHelpers.setField(service, "windowManager",
@@ -29,7 +29,7 @@ class BubbleActionsTest {
             val event = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 20f, 20f, 0)
             bubble.dispatchTouchEvent(event)
             event.recycle()
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(999))
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(449))
             assertNull(ReflectionHelpers.getField<View?>(service, "bubbleMenuView"))
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
             val menu = ReflectionHelpers.getField<FrameLayout>(service, "bubbleMenuView")

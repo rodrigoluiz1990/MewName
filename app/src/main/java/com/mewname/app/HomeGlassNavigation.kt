@@ -67,7 +67,7 @@ internal fun HomeGlassNavigation(
 ) {
     val appearance = LocalAppAppearance.current
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val dockColors = appearance.navigation.map { it.copy(alpha = 1f) }
+    val dockColors = if (appearance.atmosphericSurface) appearance.navigation else appearance.navigation.map { it.copy(alpha = 1f) }
     Box(Modifier.fillMaxWidth().height(HomeNavigationContentHeight + bottomInset)) {
         Box(Modifier.fillMaxWidth().height(64.dp + bottomInset).offset(y = 32.dp)
             .background(Brush.verticalGradient(dockColors), HomeNavigationShape)

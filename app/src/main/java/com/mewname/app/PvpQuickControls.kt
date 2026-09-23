@@ -1,6 +1,11 @@
 package com.mewname.app
 
 import android.widget.Toast
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,8 +52,27 @@ internal fun PvpQuickControls(
 @Composable
 private fun PvpQuickIcon(asset: String, label: String, active: Boolean, onClick: () -> Unit, radio: Boolean = false) {
     val context = LocalContext.current
-    val shape = RoundedCornerShape(12.dp)
-    Box(Modifier.size(48.dp).clip(shape)
+    val shape = RoundedCornerShape(10.dp)
+    val icon = remember(asset) {
+        context.assets.open("pvp/controls/" + asset).use { input ->
+            val bitmap = requireNotNull(BitmapFactory.decodeStream(input))
+            // Normalize visible bounds, so transparent padding does not change icon height.
+            var left = bitmap.width
+            var top = bitmap.height
+            var right = -1
+            var bottom = -1
+            for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+                if ((bitmap.getPixel(x, y) ushr 24) > 16) {
+                    left = minOf(left, x); top = minOf(top, y)
+                    right = maxOf(right, x); bottom = maxOf(bottom, y)
+                }
+            }
+            if (right >= left && bottom >= top)
+                Bitmap.createBitmap(bitmap, left, top, right - left + 1, bottom - top + 1).asImageBitmap()
+            else bitmap.asImageBitmap()
+        }
+    }
+    Box(Modifier.size(36.dp).clip(shape)
         .background(if (active) Color(0xFFB6CFEE).copy(alpha = 0.65f) else Color.Transparent)
         .border(0.75.dp, if (active) Color(0xFF83A6D4) else Color.Transparent, shape)
         .combinedClickable(role = if (radio) Role.RadioButton else Role.Checkbox,
@@ -59,7 +83,8 @@ private fun PvpQuickIcon(asset: String, label: String, active: Boolean, onClick:
             if (radio) selected = active else toggleableState = if (active)
                 androidx.compose.ui.state.ToggleableState.On else androidx.compose.ui.state.ToggleableState.Off
         }, contentAlignment = Alignment.Center) {
-        AssetImageIcon("pvp/controls/$asset", null, Modifier.size(30.dp),
-            tint = if (asset == "best_buddy.png") Color(0xFFB37A20) else null)
+        Image(icon, null, Modifier.height(26.dp).aspectRatio(icon.width.toFloat() / icon.height),
+            colorFilter = if (asset == "best_buddy.png")
+                androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFB37A20)) else null)
     }
 }

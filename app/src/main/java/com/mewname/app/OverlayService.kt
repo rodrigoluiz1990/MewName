@@ -167,7 +167,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private var lastCapturedData: PokemonScreenData? = null
     private var lastBubbleLogSnapshot: BubbleLogSnapshot? = null
     private var lastBattleLogSnapshot: BattleLogSnapshot? = null
-    private val bubbleLongPressTimeoutMillis = 1000L
+    private val bubbleLongPressTimeoutMillis = 450L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -500,6 +500,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, dp(48), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             ).apply { bottomMargin = dp(24) })
         }
+        val bubbleIconSize = resources.getDimensionPixelSize(R.dimen.overlay_bubble_icon_size)
+        val bubblePadding = resources.getDimensionPixelSize(R.dimen.overlay_bubble_padding)
         val center = ImageView(this).apply {
             setImageResource(R.drawable.ic_launcher)
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
@@ -508,7 +510,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 "Close menu or drag overlay", "Cerrar menú o arrastrar superposición")
             setOnClickListener { hideBubbleActions() }
         }
-        root.addView(center, android.widget.FrameLayout.LayoutParams(dp(56), dp(56)))
+        root.addView(center, android.widget.FrameLayout.LayoutParams(bubbleIconSize, bubbleIconSize))
         center.setOnTouchListener(object : View.OnTouchListener {
             private var startX = 0
             private var startY = 0
@@ -550,10 +552,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 root.getLocationOnScreen(origin)
                 val iconView = floatingButton?.findViewById<ImageView>(R.id.floating_icon)
                 iconView?.getLocationOnScreen(iconOrigin)
-                val cx = if (iconView != null) iconOrigin[0] - origin[0] + iconView.width / 2 else anchor.x + dp(36)
-                val cy = if (iconView != null) iconOrigin[1] - origin[1] + iconView.height / 2 else anchor.y + dp(36)
+                val cx = if (iconView != null) iconOrigin[0] - origin[0] + iconView.width / 2 else anchor.x + bubblePadding + bubbleIconSize / 2
+                val cy = if (iconView != null) iconOrigin[1] - origin[1] + iconView.height / 2 else anchor.y + bubblePadding + bubbleIconSize / 2
                 center.layoutParams = (center.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
-                    leftMargin = cx - dp(28); topMargin = cy - dp(28)
+                    leftMargin = cx - bubbleIconSize / 2; topMargin = cy - bubbleIconSize / 2
                 }
                 val positions = BubbleMenuPlacement.positions(
                     root.width, root.height, cx, cy, dp(56), dp(8), actions.size
@@ -1074,7 +1076,6 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
     private fun showResultsOverlay(
         results: List<Pair<String, String>>,
-        reviewRecommended: Boolean = false,
         onOpenReview: (() -> Unit)? = null
     ) {
         removeResultsOverlay()
@@ -1108,47 +1109,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
         val title = TextView(this).apply {
             text = "Nomes sugeridos"
+            gravity = Gravity.CENTER
             textSize = 18f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.BLACK)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-        val helpBtn = ImageView(this).apply {
-            setImageResource(android.R.drawable.ic_menu_help)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            adjustViewBounds = true
-            setPadding(4, 4, 4, 4)
-            layoutParams = LinearLayout.LayoutParams(58, 58)
-            contentDescription = "Ajuda"
-        }
         titleRow.addView(title)
-        titleRow.addView(helpBtn)
         layout.addView(titleRow)
-
-        val helpTextView = TextView(this).apply {
-            text = buildString {
-                append(if (results.isEmpty()) {
-                    "Nenhum nome foi gerado para esta captura."
-                } else {
-                    "Toque em uma opção para copiar o nome."
-                })
-                if (reviewRecommended) {
-                    append("\n\nAlguns dados merecem revisão antes de usar o nome.")
-                }
-            }
-            textSize = 13f
-            setTextColor(Color.rgb(87, 96, 112))
-            setPadding(0, 0, 0, 18)
-            visibility = View.GONE
-        }
-        helpBtn.setOnClickListener {
-            helpTextView.visibility = if (helpTextView.visibility == View.VISIBLE) {
-                View.GONE
-            } else {
-                View.VISIBLE
-            }
-        }
-        layout.addView(helpTextView)
 
         results.forEach { (configName, generatedName) ->
             val btnLayout = LinearLayout(this).apply {
@@ -1540,7 +1508,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             setContent {
                 val language = rememberSavedAppLanguage(this@OverlayService)
                 androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language) {
-                MaterialTheme {
+                AppAppearanceTheme {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

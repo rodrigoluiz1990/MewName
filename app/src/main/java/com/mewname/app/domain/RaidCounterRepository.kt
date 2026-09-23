@@ -129,18 +129,15 @@ internal class RaidCounterRepository(private val context: Context) {
     fun catalog(refresh: Boolean = false): List<RaidChoice> {
         val target = File(directory, "catalog.json")
         val raw = if (refresh) get("raids") else runCatching { JSONObject(AtomicFile(target).openRead().bufferedReader().use { it.readText() }) }.getOrNull() ?: return emptyList()
-        val tiers = raw.getJSONArray("tiers")
-        val entries = (0 until tiers.length()).flatMap { i ->
-            val tier = tiers.getJSONObject(i)
-            val type = tier.optString("type")
-            if ((type != "RAID_TYPE_RAID" && !type.contains("MAX")) || listOf("LEGACY","FUTURE","UNSET").any { tier.getString("tier").contains(it) }) emptyList() else {
-                val raids = tier.getJSONArray("raids")
-                (0 until raids.length()).map { RaidChoice(raids.getJSONObject(it).getString("pokemonId"), tier.getString("tier")) }
-            }
-        }.distinct()
+        val entries = raidCatalogChoices(raw, saved = false)
         require(entries.isNotEmpty()); if (refresh) write(target,raw)
         return entries
     }
+    fun savedCatalog(): List<RaidChoice> = runCatching {
+        val raw = AtomicFile(File(directory, "catalog.json")).openRead().bufferedReader()
+            .use { JSONObject(it.readText()) }
+        raidCatalogChoices(raw, saved = true)
+    }.getOrDefault(emptyList())
     fun updateMetadata() {
         val all = get("pokemon").getJSONArray("pokemon")
         val allMoves = get("moves").getJSONArray("move")
@@ -168,7 +165,7 @@ internal class RaidCounterRepository(private val context: Context) {
         try { stream.write(data.toString().toByteArray(Charsets.UTF_8)); atomic.finishWrite(stream) }
         catch(e: Exception) { atomic.failWrite(stream); throw e }
     }
-    private fun get(path: String): JSONObject {
+    internal fun get(path: String): JSONObject {
         val connection = URL("https://fight.pokebattler.com/$path").openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 12000; connection.readTimeout = 25000
@@ -187,4 +184,22 @@ private fun java.io.InputStream.readBytesLimited(limit: Int): ByteArray {
     val out = java.io.ByteArrayOutputStream(); val buffer = ByteArray(8192)
     while (true) { val count = read(buffer); if(count < 0) break; require(out.size() + count <= limit); out.write(buffer,0,count) }
     return out.toByteArray()
+}
+
+/** LEGACY is historical; FUTURE and UNSET are not records of past raids. */
+internal fun raidCatalogChoices(raw: JSONObject, saved: Boolean): List<RaidChoice> {
+    val tiers = raw.getJSONArray("tiers")
+    return (0 until tiers.length()).flatMap { index ->
+        val tier = tiers.getJSONObject(index)
+        val id = tier.getString("tier")
+        val type = tier.optString("type")
+        if ((type != "RAID_TYPE_RAID" && !type.contains("MAX")) ||
+            "FUTURE" in id || "UNSET" in id || ("LEGACY" in id) != saved) emptyList()
+        else {
+            val raids = tier.getJSONArray("raids")
+            (0 until raids.length()).map { RaidChoice(
+                raids.getJSONObject(it).getString("pokemonId"), id.removeSuffix("_LEGACY")
+            ) }
+        }
+    }.distinct()
 }

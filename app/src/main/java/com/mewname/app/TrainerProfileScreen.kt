@@ -85,9 +85,6 @@ internal fun TrainerProfileScreen(
     var showPvp by rememberSaveable { mutableStateOf(false) }
     var showLayout by rememberSaveable { mutableStateOf(false) }
     var showBubbleOptions by rememberSaveable { mutableStateOf(false) }
-    var featureIntroductionEnabled by rememberSaveable {
-        mutableStateOf(FeatureIntroductionPreferences.isAutoShowEnabled(context))
-    }
     var showHelp by rememberSaveable { mutableStateOf(false) }
     var showUpdate by rememberSaveable { mutableStateOf(false) }
     var pictureRevision by remember { mutableStateOf(0) }
@@ -196,20 +193,6 @@ internal fun TrainerProfileScreen(
                 ProfileMenuRow("Layout", onClick = { showLayout = true })
                 ProfileMenuRow(lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición"),
                     onClick = { showBubbleOptions = true })
-                ProfileToggleRow(
-                    title = lt(language, "Apresentação inicial", "Getting started guide", "Presentación inicial"),
-                    description = lt(
-                        language,
-                        "Mostrar o guia sempre que o app for aberto.",
-                        "Show the guide whenever the app is opened.",
-                        "Mostrar la guía cada vez que se abra la aplicación."
-                    ),
-                    checked = featureIntroductionEnabled,
-                    onCheckedChange = { enabled ->
-                        featureIntroductionEnabled = enabled
-                        FeatureIntroductionPreferences.setAutoShowEnabled(context, enabled)
-                    }
-                )
                 ProfileMenuRow(lt(language, "Ajuda", "Help", "Ayuda"), onClick = { showHelp = true })
                 ProfileMenuRow(lt(language, "Atualizar", "Update", "Actualizar"), onClick = { showUpdate = true })
                 Text(

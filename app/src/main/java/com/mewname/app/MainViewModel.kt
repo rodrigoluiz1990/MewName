@@ -42,6 +42,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class AppScreen {
+    CALENDAR,
     TRAINER_PROFILE,
     HOME,
     COLLECTIONS,

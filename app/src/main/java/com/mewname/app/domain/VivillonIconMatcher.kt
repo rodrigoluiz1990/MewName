@@ -53,7 +53,7 @@ class VivillonIconMatcher {
         val candidateCrops = cropVivillonIconCandidates(bitmap, pokemonName)
         val candidateProfile = candidateProfileFor(pokemonName)
         val candidateSignatures = candidateCrops.map { crop ->
-            createSignature(crop.bitmap) to crop.rect
+            (createSignature(crop.bitmap) to crop.rect).also { crop.bitmap.recycle() }
         }
         val ranked = references.map { reference ->
             val bestCandidate = candidateSignatures.minByOrNull { candidate ->
@@ -75,10 +75,12 @@ class VivillonIconMatcher {
                 )
             )
         }
-        val second = ranked.getOrNull(1)
+        val second = ranked.firstOrNull { it.first.pattern != best.first.pattern }
         val bestDistance = best.second
         val clearlyBetter = second == null || bestDistance <= second.second * DISTINCT_FACTOR
-        val accepted = bestDistance <= MATCH_THRESHOLD || clearlyBetter
+        val threshold = if (candidateProfile == "pre_evo") BADGE_MATCH_THRESHOLD else MATCH_THRESHOLD
+        val accepted = if (candidateProfile == "pre_evo") bestDistance <= threshold && clearlyBetter
+            else bestDistance <= threshold || clearlyBetter
         val detectedPattern = if (accepted) best.first.pattern else null
         return MatchResult(
             pattern = detectedPattern,
@@ -95,7 +97,7 @@ class VivillonIconMatcher {
                     append("refs=")
                     append(references.size)
                     append("; threshold=")
-                    append(MATCH_THRESHOLD)
+                    append(threshold)
                     append("; distinctlyBetter=")
                     append(clearlyBetter)
                     append("; profile=")
@@ -124,10 +126,12 @@ class VivillonIconMatcher {
                         val pattern = VivillonPattern.fromAssetName(fileName) ?: return@mapNotNull null
                         context.assets.open("$REFS_PATH/$fileName").use { input ->
                             val bitmap = BitmapFactory.decodeStream(input) ?: return@mapNotNull null
+                            val signature = createSignature(bitmap)
+                            bitmap.recycle()
                             ReferenceSignature(
                                 pattern = pattern,
                                 fileName = fileName,
-                                signature = createSignature(bitmap)
+                                signature = signature
                             )
                         }
                     }
@@ -151,239 +155,60 @@ class VivillonIconMatcher {
             .map { rect -> CandidateCrop(Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height()), rect) }
     }
 
-    private fun preEvolutionIconCandidateRects(bitmap: Bitmap): List<Rect> {
-        val fixedCandidates = candidateBoundsFor("Scatterbug").map { bounds ->
-            normalizedRect(bitmap, bounds[0], bounds[1], bounds[2], bounds[3])
-        }
-        val minDimension = minOf(bitmap.width, bitmap.height)
-        val anchorSizes = listOf(36, 42, 52, 64, 78, 96, 118)
-            .map { (minDimension * (it / 1220f)).roundToInt().coerceAtLeast(36) }
-            .distinct()
+    private fun preEvolutionIconCandidateRects(bitmap: Bitmap): List<Rect> = circularBadgeCandidates(bitmap)
 
-        val anchorRects = buildList {
-            anchorSizes.forEach { size ->
-                val step = (size * 0.65f).roundToInt().coerceAtLeast(18)
-                val startX = (bitmap.width * 0.045f).roundToInt()
-                val endX = (bitmap.width * 0.430f).roundToInt()
-                val startY = (bitmap.height * 0.610f).roundToInt()
-                val endY = (bitmap.height * 0.825f).roundToInt()
-
-                var top = startY
-                while (top + size <= endY) {
-                    var left = startX
-                    while (left + size <= endX) {
-                        val rect = Rect(left, top, left + size, top + size)
-                        if (
-                            looksLikeIconCandidate(bitmap, rect) &&
-                            looksLikeEvolutionButtonContext(bitmap, rect)
-                        ) {
-                            add(rect)
-                        }
-                        left += step
+    /** Locate the white circular pattern badge by its rim and adjacent green button. */
+    private fun circularBadgeCandidates(bitmap: Bitmap): List<Rect> {
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        fun pixel(x: Int, y: Int) = pixels[y.coerceIn(0, height - 1) * width + x.coerceIn(0, width - 1)]
+        fun pale(c: Int) = minOf(Color.red(c), Color.green(c), Color.blue(c)) >= 205 &&
+            maxOf(Color.red(c), Color.green(c), Color.blue(c)) - minOf(Color.red(c), Color.green(c), Color.blue(c)) < 40
+        fun green(c: Int) = Color.green(c) > Color.red(c) + 12 &&
+            Color.green(c) > Color.blue(c) + 4 && Color.green(c) > 110
+        val angles = (0 until 16).map { it * Math.PI / 8.0 }
+        val matches = mutableListOf<Pair<Rect, Int>>()
+        val step = (width * .005).roundToInt().coerceAtLeast(3)
+        for (sizePart in 60..96 step 4) {
+            val size = (width * sizePart / 1000.0).roundToInt()
+            val radius = size * .43
+            for (cy in (height * .54).toInt()..(height * .93).toInt() step step) {
+                for (cx in (width * .10).toInt()..(width * .32).toInt() step step) {
+                    // The top of the badge may touch the white card; below it must be a button.
+                    if (!green(pixel(cx + size, cy + size / 2))) continue
+                    val rim = angles.count { pale(pixel(
+                        (cx + kotlin.math.cos(it) * radius).roundToInt(),
+                        (cy + kotlin.math.sin(it) * radius).roundToInt())) }
+                    if (rim < 13) continue
+                    var detail = 0
+                    for (dy in -2..2) for (dx in -2..2) {
+                        if (!pale(pixel(cx + dx * size / 9, cy + dy * size / 9))) detail++
                     }
-                    top += step
+                    if (detail < 7 || detail > 24) continue
+                    matches += candidateRectAround(bitmap, cx, cy, size, size) to (rim * 3 + detail)
                 }
             }
         }
-        val evolveAnchors = preferPatternIconRows(bitmap, anchorRects)
-        val expandedRects = evolveAnchors
-            .take(MAX_SCAN_ANCHORS)
-            .flatMap { anchor -> expandedPreEvolutionIconRects(bitmap, anchor) }
-
-        return fixedCandidates + expandedRects.take(MAX_SCAN_CANDIDATES) + evolveAnchors.take(MAX_SCAN_CANDIDATES)
-    }
-
-    private fun preferPatternIconRows(bitmap: Bitmap, rects: List<Rect>): List<Rect> {
-        if (rects.size < 8) return rects
-
-        val tolerance = (rects.minOf { it.height() } * 0.95f).roundToInt().coerceAtLeast(28)
-        val rows = rects
-            .sortedBy { it.centerY() }
-            .fold(mutableListOf<MutableList<Rect>>()) { groups, rect ->
-                val group = groups.firstOrNull { existing ->
-                    abs(existing.map { it.centerY() }.average() - rect.centerY()) <= tolerance
-                }
-                if (group == null) {
-                    groups.add(mutableListOf(rect))
-                } else {
-                    group.add(rect)
-                }
-                groups
+        // Refine around geometric anchors instead of penalizing a badge's vertical position.
+        return matches.sortedByDescending { it.second }.take(30).flatMap { (rect, _) ->
+            buildList {
+                for (dx in listOf(-step / 2, 0, step / 2))
+                    for (dy in listOf(-step / 2, 0, step / 2))
+                        for (delta in listOf(-step, 0, step)) {
+                            val size = rect.width() + delta
+                            add(candidateRectAround(bitmap, rect.centerX() + dx, rect.centerY() + dy, size, size))
+                        }
             }
-            .filter { group -> group.size >= MIN_BUTTON_ROW_ANCHORS }
-            .sortedBy { group -> group.map { it.centerY() }.average() }
-
-        val targetY = bitmap.height * 0.705
-        val selectedRows = rows
-            .sortedBy { group -> abs(group.map { it.centerY() }.average() - targetY) }
-            .take(3)
-        val selected = selectedRows
-            .flatten()
-            .filter { rect ->
-                val centerY = rect.centerY().toFloat() / bitmap.height.toFloat()
-                centerY in 0.61f..0.79f
-            }
-        if (selected.isEmpty()) {
-            return rects.sortedWith(
-                compareBy<Rect> { abs(it.centerY() - targetY) }
-                    .thenBy { it.left }
-            )
-        }
-        return selected.sortedWith(
-            compareBy<Rect> { abs(it.centerY() - targetY) }
-                .thenBy { it.left }
-        )
+        }.distinctBy { listOf(it.left, it.top, it.right, it.bottom) }
     }
-
-    private fun expandedPreEvolutionIconRects(bitmap: Bitmap, anchor: Rect): List<Rect> {
-        val minDimension = minOf(bitmap.width, bitmap.height)
-        val squareSizes = listOf(52, 64, 78, 96, 118, 144, 170)
-            .map { (minDimension * (it / 1220f)).roundToInt().coerceAtLeast(anchor.width()) }
-            .distinct()
-        val tallSizes = listOf(
-            52 to 64,
-            64 to 82,
-            78 to 104,
-            96 to 128,
-            118 to 158,
-            144 to 190
-        ).map { (width, height) ->
-            (minDimension * (width / 1220f)).roundToInt().coerceAtLeast(anchor.width()) to
-                (minDimension * (height / 1220f)).roundToInt().coerceAtLeast(anchor.height())
-        }.distinct()
-
-        val centers = listOf(
-            anchor.centerX() to anchor.centerY(),
-            anchor.centerX() to (anchor.centerY() - anchor.height() * 0.20f).roundToInt(),
-            (anchor.centerX() - anchor.width() * 0.18f).roundToInt() to anchor.centerY(),
-            (anchor.centerX() + anchor.width() * 0.18f).roundToInt() to anchor.centerY()
-        )
-        return buildList {
-            centers.forEach { (centerX, centerY) ->
-                squareSizes.forEach { size ->
-                    add(candidateRectAround(bitmap, centerX, centerY, size, size))
-                }
-                tallSizes.forEach { (width, height) ->
-                    add(candidateRectAround(bitmap, centerX, centerY, width, height))
-                }
-            }
-        }.filter { rect ->
-            rect.width() > 1 && rect.height() > 1 && isPreEvolutionPatternArea(bitmap, rect)
-        }
-    }
-
-    private fun isPreEvolutionPatternArea(bitmap: Bitmap, rect: Rect): Boolean {
-        val centerX = rect.centerX().toFloat() / bitmap.width.toFloat()
-        val centerY = rect.centerY().toFloat() / bitmap.height.toFloat()
-        if (centerX !in 0.05f..0.40f || centerY !in 0.61f..0.82f) return false
-
-        val hsv = FloatArray(3)
-        var sampled = 0
-        var greenPixels = 0
-        var palePixels = 0
-        var saturatedPixels = 0
-        val step = maxOf(2, minOf(rect.width(), rect.height()) / 16)
-        var y = rect.top
-        while (y < rect.bottom) {
-            var x = rect.left
-            while (x < rect.right) {
-                val color = bitmap.getPixel(x, y)
-                Color.colorToHSV(color, hsv)
-                sampled++
-                val hue = hsv[0]
-                val saturation = hsv[1]
-                val value = hsv[2]
-                if (hue in 80f..170f && saturation >= 0.28f && value >= 0.38f) greenPixels++
-                if (value >= 0.76f && saturation <= 0.36f) palePixels++
-                if (saturation >= 0.18f && value >= 0.28f) saturatedPixels++
-                x += step
-            }
-            y += step
-        }
-        if (sampled == 0) return false
-        val greenRatio = greenPixels.toDouble() / sampled.toDouble()
-        val paleRatio = palePixels.toDouble() / sampled.toDouble()
-        val saturatedRatio = saturatedPixels.toDouble() / sampled.toDouble()
-        return greenRatio <= 0.42 && paleRatio >= 0.05 && saturatedRatio >= 0.04
-    }
-
     private fun candidateRectAround(bitmap: Bitmap, centerX: Int, centerY: Int, width: Int, height: Int): Rect {
         val actualWidth = width.coerceIn(2, bitmap.width)
         val actualHeight = height.coerceIn(2, bitmap.height)
         val left = (centerX - actualWidth / 2).coerceIn(0, bitmap.width - actualWidth)
         val top = (centerY - actualHeight / 2).coerceIn(0, bitmap.height - actualHeight)
         return Rect(left, top, left + actualWidth, top + actualHeight)
-    }
-
-    private fun looksLikeIconCandidate(bitmap: Bitmap, rect: Rect): Boolean {
-        val hsv = FloatArray(3)
-        var sampled = 0
-        var palePixels = 0
-        var detailPixels = 0
-        val step = maxOf(2, minOf(rect.width(), rect.height()) / 18)
-
-        var y = rect.top
-        while (y < rect.bottom) {
-            var x = rect.left
-            while (x < rect.right) {
-                val color = bitmap.getPixel(x, y)
-                Color.colorToHSV(color, hsv)
-                val saturation = hsv[1]
-                val value = hsv[2]
-                sampled++
-                if (value >= 0.74f && saturation <= 0.36f) palePixels++
-                if (value in 0.18f..0.92f && saturation >= 0.10f) detailPixels++
-                x += step
-            }
-            y += step
-        }
-
-        if (sampled == 0) return false
-        val paleRatio = palePixels.toDouble() / sampled.toDouble()
-        val detailRatio = detailPixels.toDouble() / sampled.toDouble()
-        return paleRatio in 0.08..0.82 && detailRatio >= 0.04
-    }
-
-    private fun looksLikeEvolutionButtonContext(bitmap: Bitmap, rect: Rect): Boolean {
-        val centerY = rect.centerY()
-        val bandHeight = (rect.height() * 0.90f).roundToInt().coerceAtLeast(28)
-        val top = (centerY - bandHeight / 2).coerceAtLeast(0)
-        val bottom = (centerY + bandHeight / 2).coerceAtMost(bitmap.height)
-        val left = (rect.left - rect.width() * 0.75f).roundToInt().coerceAtLeast(0)
-        val right = minOf(
-            bitmap.width,
-            (rect.left + rect.width() * 4.75f).roundToInt(),
-            (bitmap.width * 0.52f).roundToInt()
-        )
-        if (right <= left || bottom <= top) return false
-
-        val hsv = FloatArray(3)
-        var sampled = 0
-        var greenPixels = 0
-        var buttonPixels = 0
-        val step = maxOf(2, minOf(right - left, bottom - top) / 20)
-
-        var y = top
-        while (y < bottom) {
-            var x = left
-            while (x < right) {
-                val color = bitmap.getPixel(x, y)
-                Color.colorToHSV(color, hsv)
-                val hue = hsv[0]
-                val saturation = hsv[1]
-                val value = hsv[2]
-                sampled++
-                if (hue in 80f..170f && saturation >= 0.16f && value >= 0.35f) greenPixels++
-                if (hue in 80f..170f && saturation >= 0.28f && value in 0.42f..0.92f) buttonPixels++
-                x += step
-            }
-            y += step
-        }
-
-        if (sampled == 0) return false
-        val greenRatio = greenPixels.toDouble() / sampled.toDouble()
-        val buttonRatio = buttonPixels.toDouble() / sampled.toDouble()
-        return greenRatio >= 0.18 && buttonRatio >= 0.08
     }
 
     private fun candidateBoundsFor(pokemonName: String?): List<FloatArray> {
@@ -446,12 +271,21 @@ class VivillonIconMatcher {
     private fun signatureDistance(a: IntArray, b: IntArray): Double {
         if (a.size != b.size) return Double.MAX_VALUE
         var total = 0.0
-        for (i in a.indices) {
-            total += abs(a[i] - b[i]).toDouble()
+        var weights = 0.0
+        for (index in a.indices step 3) {
+            val x = (index / 3) % SIGNATURE_SIZE
+            val y = (index / 3) / SIGNATURE_SIZE
+            // Most of the distinguishing colour is on the wings, not the white circular rim.
+            val weight = if (x in 3..14 && y in 5..13) 3.0 else 1.0
+            val rgb = (abs(a[index] - b[index]) + abs(a[index + 1] - b[index + 1]) +
+                abs(a[index + 2] - b[index + 2])) / 3.0
+            val chroma = (abs((a[index] - a[index + 1]) - (b[index] - b[index + 1])) +
+                abs((a[index + 1] - a[index + 2]) - (b[index + 1] - b[index + 2]))) / 2.0
+            total += weight * (rgb * .6 + chroma * .4)
+            weights += weight
         }
-        return total / a.size.toDouble()
+        return total / weights
     }
-
     private fun candidateMatchScore(
         bitmap: Bitmap,
         profile: String,
@@ -459,23 +293,10 @@ class VivillonIconMatcher {
         reference: IntArray,
         rect: Rect
     ): Double {
-        val distance = signatureDistance(candidate, reference)
-        if (profile != "pre_evo") return distance
-
-        val minDimension = minOf(bitmap.width, bitmap.height).toDouble()
-        val targetWidth = minDimension * 0.075
-        val targetHeight = minDimension * 0.095
-        val widthPenalty = ((targetWidth - rect.width()).coerceAtLeast(0.0) / targetWidth) * 0.65
-        val heightPenalty = ((targetHeight - rect.height()).coerceAtLeast(0.0) / targetHeight) * 0.55
-        val centerX = rect.centerX().toDouble() / bitmap.width.toDouble()
-        val centerY = rect.centerY().toDouble() / bitmap.height.toDouble()
-        val targetCenterX = 0.18
-        val targetCenterY = 0.705
-        val positionPenalty = (abs(centerX - targetCenterX) * 1.8) + (abs(centerY - targetCenterY) * 3.0)
-        val lowerButtonPenalty = if (centerY > 0.79) (centerY - 0.79) * 12.0 else 0.0
-        return distance + widthPenalty + heightPenalty + positionPenalty + lowerButtonPenalty
+        if (profile == "pre_evo") return signatureDistance(candidate, reference)
+        // Preserve the existing comparison for an already evolved Vivillon.
+        return candidate.indices.sumOf { abs(candidate[it] - reference[it]).toDouble() } / candidate.size
     }
-
     private fun normalizedRect(
         bitmap: Bitmap,
         minX: Float,
@@ -494,10 +315,11 @@ class VivillonIconMatcher {
         const val REFS_PATH = "unique_pokemon_refs/vivillon"
         const val SIGNATURE_SIZE = 18
         const val MATCH_THRESHOLD = 4.0
+        const val BADGE_MATCH_THRESHOLD = 1.8
         const val DISTINCT_FACTOR = 0.92
-        const val MIN_BUTTON_ROW_ANCHORS = 4
-        const val MAX_SCAN_ANCHORS = 96
-        const val MAX_SCAN_CANDIDATES = 1200
+
+
+
         const val DEBUG_CANDIDATE_LIMIT = 24
     }
 }

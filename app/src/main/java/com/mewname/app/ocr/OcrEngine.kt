@@ -25,7 +25,34 @@ class OcrEngine {
         }
         return extract(bitmap)
     }
-    suspend fun extract(bitmap: Bitmap): OcrResult = suspendCancellableCoroutine { cont ->
+    suspend fun extract(bitmap: Bitmap): OcrResult {
+        val original = extractRaw(bitmap)
+        var result = original
+        for (line in original.blocks.flatMap { it.lines }.filter {
+            sizeBadgeCrop(it, bitmap.width, bitmap.height) != null
+        }.take(2)) {
+            val rect = sizeBadgeCrop(line, bitmap.width, bitmap.height) ?: continue
+            try {
+                val cropped = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
+                val enlarged = Bitmap.createScaledBitmap(cropped, rect.width() * 4, rect.height() * 4, true)
+                val detail = extractRaw(enlarged)
+                val corrected = confirmedSizeBadge(line.text, detail.blocks.flatMap { it.lines }.map { it.text })
+                    ?: continue
+                val blocks = result.blocks.map { block ->
+                    val lines = block.lines.map { if (it == line) it.copy(text = corrected) else it }
+                    if (lines == block.lines) block else block.copy(text = lines.joinToString("\n") { it.text }, lines = lines)
+                }
+                result = result.copy(blocks = blocks, fullText = blocks.joinToString("\n") { it.text })
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // A failed detail read must not discard the successful full-screen OCR.
+            }
+        }
+        return result
+    }
+
+    private suspend fun extractRaw(bitmap: Bitmap): OcrResult = suspendCancellableCoroutine { cont ->
         val image = InputImage.fromBitmap(bitmap, 0)
         processImage(image, bitmap, cont)
     }

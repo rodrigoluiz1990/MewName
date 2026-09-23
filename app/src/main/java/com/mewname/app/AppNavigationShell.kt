@@ -45,6 +45,7 @@ internal fun AppNavigationShell(
     isHome: Boolean,
     onProfileRequestConsumed: () -> Unit,
     onGoToPresets: () -> Unit,
+    onGoToCalendar: () -> Unit,
     uiState: UiState,
     onRefreshAppUpdate: () -> Unit,
     onGoToPrivacy: () -> Unit,
@@ -69,6 +70,16 @@ internal fun AppNavigationShell(
         if (profileRequested) { showProfile = true; onProfileRequestConsumed() }
     }
     BackHandler(showProfile) { showProfile = false }
+    val atmosphericHome = isHome && appearance.homeLayout == HomeLayout.ATMOSPHERIC
+    val view = androidx.compose.ui.platform.LocalView.current
+    SideEffect {
+        (context as? Activity)?.window?.let { window ->
+            androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !appearance.dark && !atmosphericHome
+                isAppearanceLightNavigationBars = !appearance.dark && !(atmosphericHome && !showProfile)
+            }
+        }
+    }
     val bubbleActive by OverlayService.isBubbleActive.collectAsStateWithLifecycle()
     val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -83,11 +94,12 @@ internal fun AppNavigationShell(
     CompositionLocalProvider(LocalLanguageChange provides onLanguageChange) {
         val navigationSpace = HomeNavigationContentHeight + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Box(Modifier.fillMaxSize().background(appearance.background.first())) {
-            // On Home, allow the list to draw beside the raised bubble button.
-            // Its scrollable bottom padding keeps the final item fully reachable.
-            Box(Modifier.fillMaxSize().padding(bottom = navigationSpace - if (isHome) 32.dp else 0.dp)
+            if (atmosphericHome) AtmosphericSky(Modifier.matchParentSize())
+            // Allow every screen to draw beside the raised bubble button.
+            // Reserve only the dock below it, keeping the final content reachable.
+            Box(Modifier.fillMaxSize().padding(bottom = navigationSpace - 32.dp)
                 .consumeWindowInsets(WindowInsets.navigationBars)) {
-                content()
+                AtmosphericHomeTheme(atmosphericHome) { content() }
             }
             androidx.compose.animation.AnimatedVisibility(
                 visible = showProfile, modifier = Modifier.matchParentSize(),
@@ -108,7 +120,7 @@ internal fun AppNavigationShell(
                     Surface(Modifier.offset { IntOffset(0, panelOffset.roundToInt()) }.fillMaxWidth().heightIn(max = panelMaxHeight).padding(horizontal = 8.dp)
                         .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
                         color = appearance.background.first(), shadowElevation = 0.dp) {
-                        Column(Modifier.padding(bottom = navigationSpace)) {
+                        Column(Modifier.padding(bottom = navigationSpace - 32.dp)) {
                             Box(
                                 Modifier.fillMaxWidth().height(40.dp)
                                     .draggable(
@@ -143,6 +155,7 @@ internal fun AppNavigationShell(
                 }
             }
             Box(Modifier.align(Alignment.BottomCenter)) {
+            AtmosphericHomeTheme(atmosphericHome && !showProfile) {
             HomeGlassNavigation(
                 language = language,
                 bubbleActive = bubbleActive,
@@ -163,11 +176,12 @@ internal fun AppNavigationShell(
                         projectionLauncher.launch(mpManager.createScreenCaptureIntent())
                     }
                 },
-                onCalendarClick = { openExternalUrl(context, "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Calendario/calendario.html") },
+                onCalendarClick = { showProfile = false; onGoToCalendar() },
                 onNamesClick = { showProfile = false; onGoToPresets() },
                 onChatClick = { android.widget.Toast.makeText(context, lt(language, "Chat: em breve", "Chat: coming soon", "Chat: próximamente"), android.widget.Toast.LENGTH_SHORT).show() },
                 onProfileClick = { showProfile = !showProfile }
             )
+            }
             }
         }
     }

@@ -6,7 +6,7 @@ internal data class BubbleAppShortcut(
 )
 internal val bubbleAppShortcuts = listOf(
     BubbleAppShortcut("app_calendar", "calendar", "Calendário", "Calendar", "Calendario",
-        url = "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Calendario/calendario.html"),
+        screen = AppScreen.CALENDAR),
     BubbleAppShortcut("app_names", "names", "Definir nomes", "Name presets", "Definir nombres", AppScreen.PRESET_LIST),
     BubbleAppShortcut("app_filters", "filters", "Filtros", "Filters", "Filtros", AppScreen.FILTER_BUILDER),
     BubbleAppShortcut("app_pokedex", "pokedex", "Pokédex", "Pokédex", "Pokédex", AppScreen.POKEDEX),

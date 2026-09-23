@@ -13,8 +13,8 @@ import androidx.compose.ui.unit.dp
 internal fun HomeGlassMenuIcon(kind: String, iconSize: Dp = 48.dp) {
     if (kind == "moves") {
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            HomeGlassMenuIcon("fast_moves", 36.dp)
-            HomeGlassMenuIcon("charged_moves", 36.dp)
+            HomeGlassMenuIcon("fast_moves", iconSize * .75f)
+            HomeGlassMenuIcon("charged_moves", iconSize * .75f)
         }
     } else {
         AssetImageIcon(

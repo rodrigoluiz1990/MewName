@@ -75,7 +75,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -184,6 +183,7 @@ class MainActivity : ComponentActivity() {
 
                         AppScreen.PRESET_EDIT -> viewModel.navigateTo(AppScreen.PRESET_LIST)
                         AppScreen.TRAINER_PROFILE,
+                        AppScreen.CALENDAR,
                         AppScreen.COLLECTIONS,
                         AppScreen.PRESET_LIST,
                         AppScreen.LEGACY_MOVES,
@@ -217,6 +217,7 @@ class MainActivity : ComponentActivity() {
                     profileRequested = uiState.currentScreen == AppScreen.TRAINER_PROFILE,
                     onProfileRequestConsumed = { viewModel.navigateTo(AppScreen.HOME) },
                     onGoToPresets = { viewModel.navigateTo(AppScreen.PRESET_LIST) },
+                    onGoToCalendar = { viewModel.navigateTo(AppScreen.CALENDAR) },
                     uiState = uiState,
                     onRefreshAppUpdate = { viewModel.checkForAppUpdate(forceFeedback = true) },
                     onGoToPrivacy = { viewModel.navigateTo(AppScreen.PRIVACY_POLICY) },
@@ -229,6 +230,7 @@ class MainActivity : ComponentActivity() {
                         onClear = viewModel::clearResults,
                         onGoToCollections = { viewModel.navigateTo(AppScreen.COLLECTIONS) },
                         onGoToPresets = { viewModel.navigateTo(AppScreen.PRESET_LIST) },
+                        onGoToCalendar = { viewModel.navigateTo(AppScreen.CALENDAR) },
                         onGoToLegacyMoves = { viewModel.navigateTo(AppScreen.LEGACY_MOVES) },
                         onGoToAdventureEffects = { viewModel.navigateTo(AppScreen.ADVENTURE_EFFECTS) },
                         onGoToRaidPlanner = { viewModel.navigateTo(AppScreen.RAID_PLANNER) },
@@ -241,6 +243,8 @@ class MainActivity : ComponentActivity() {
                         onApplyReview = viewModel::applyReview,
                         onCancelProcessing = viewModel::cancelImageProcessing
                     )
+
+                    AppScreen.CALENDAR -> CalendarScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
 
                     AppScreen.COLLECTIONS -> {
                         CollectionsScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
@@ -380,6 +384,7 @@ fun HomeScreen(
     uiState: UiState,
     onClear: () -> Unit,
     onGoToCollections: () -> Unit,
+    onGoToCalendar: () -> Unit,
     onGoToPresets: () -> Unit,
     onGoToLegacyMoves: () -> Unit,
     onGoToAdventureEffects: () -> Unit,
@@ -393,159 +398,52 @@ fun HomeScreen(
     onApplyReview: (PokemonScreenData) -> Unit,
     onCancelProcessing: () -> Unit
 ) {
-    val context = LocalContext.current
     val language = appLanguage()
     val appearance = LocalAppAppearance.current
-    val compactHome = appearance.compact
+    val compactHome = appearance.homeLayout == HomeLayout.COMPACT
+    val homeActions = listOf(
+        HomeMenuAction("calendar", lt(language, "Calendário", "Calendar", "Calendario"), onGoToCalendar),
+        HomeMenuAction("names", lt(language, "Definir nomes", "Name presets", "Definir nombres"), onGoToPresets),
+        HomeMenuAction("filters", lt(language, "Filtros", "Filters", "Filtros"), onGoToFilters),
+        HomeMenuAction("pokedex", "Pokedex", onGoToPokedex),
+        HomeMenuAction("collections", lt(language, "Cole\u00e7\u00f5es", "Collections", "Colecciones"), onGoToCollections),
+        HomeMenuAction("raid", lt(language, "Raids", "Raids", "Raids"), onGoToRaidPlanner),
+        HomeMenuAction("rocket", lt(language, "Equipe GO Rocket", "GO Rocket Team", "Equipo GO Rocket"), { onGoToLeek(AppScreen.ROCKET) }),
+        HomeMenuAction("research", lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), { onGoToLeek(AppScreen.RESEARCH) }),
+        HomeMenuAction("eggs", lt(language, "Ovos", "Eggs", "Huevos"), { onGoToLeek(AppScreen.EGGS) }),
+        HomeMenuAction("adventure", lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura"), onGoToAdventureEffects),
+        HomeMenuAction("legacy", lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legado"), onGoToLegacyMoves),
+        HomeMenuAction("moves", lt(language, "Ataques rápidos\ne carregados", "Fast / Charged\nMoves", "Ataques rápidos\ny cargados"), onGoToMoves),
+        HomeMenuAction("promo", lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), { onGoToLeek(AppScreen.PROMO_CODES) }),
+        HomeMenuAction("types", lt(language, "Tipos", "Types", "Tipos"), onGoToTypes)
+    )
     Scaffold(
 
         containerColor = Color.Transparent,
-        topBar = { HomeGreeting() }
+        topBar = { if (appearance.homeLayout != HomeLayout.ATMOSPHERIC) HomeGreeting() }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(top = padding.calculateTopPadding())
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp,
-                    bottom = padding.calculateBottomPadding() + 48.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        HomeContentLayout(
+            padding = padding,
+            analysis = { AnalysisTabsSection(uiState = uiState, onClear = onClear) }
         ) {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Calendário", "Calendar", "Calendario"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("calendar") },
-                    onClick = { openExternalUrl(context, "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Calendario/calendario.html") },
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Definir nomes", "Name presets", "Definir nombres"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("names") },
-                    onClick = onGoToPresets,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Filtros", "Filters", "Filtros"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("filters") },
-                    onClick = onGoToFilters,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = "Pokedex",
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("pokedex") },
-                    onClick = onGoToPokedex,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Cole\u00e7\u00f5es", "Collections", "Colecciones"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("collections") },
-                    onClick = onGoToCollections,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Raids", "Raids", "Raids"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("raid") },
-                    onClick = onGoToRaidPlanner,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Equipe GO Rocket", "GO Rocket Team", "Equipo GO Rocket"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("rocket") },
-                    onClick = { onGoToLeek(AppScreen.ROCKET) },
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("research") },
-                    onClick = { onGoToLeek(AppScreen.RESEARCH) },
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Ovos", "Eggs", "Huevos"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("eggs") },
-                    onClick = { onGoToLeek(AppScreen.EGGS) },
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("adventure") },
-                    onClick = onGoToAdventureEffects,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legado"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("legacy") },
-                    onClick = onGoToLegacyMoves,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Ataques rápidos\ne carregados", "Fast / Charged\nMoves", "Ataques rápidos\ny cargados"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("moves") },
-                    onClick = onGoToMoves,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("promo") },
-                    onClick = { onGoToLeek(AppScreen.PROMO_CODES) },
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
-                HomeActionSquare(
-                    glass = true,
-                    compact = compactHome,
-                    title = lt(language, "Tipos", "Types", "Tipos"),
-                    iconRes = null,
-                    customIcon = { HomeGlassMenuIcon("types") },
-                    onClick = onGoToTypes,
-                    modifier = Modifier.fillMaxWidth(if (compactHome) 1f else 0.31f)
-                )
+            if (appearance.homeLayout == HomeLayout.ATMOSPHERIC) {
+                AtmosphericActionGroups(homeActions)
+            } else {
+                HomeActionsGrid(compactHome) { tileWidth ->
+                    homeActions.forEach { action ->
+                        HomeActionSquare(
+                            glass = true,
+                            compact = compactHome,
+                            title = action.title,
+                            iconRes = null,
+                            customIcon = { HomeGlassMenuIcon(action.icon) },
+                            onClick = action.onClick,
+                            modifier = Modifier.fillMaxWidth(tileWidth)
+                        )
+                    }
+                }
             }
-
-            AnalysisTabsSection(uiState = uiState, onClear = onClear)
         }
-
         if (uiState.isProcessing) {
             Box(
                 modifier = Modifier
@@ -982,6 +880,10 @@ internal fun HelpMenuScreen(
     onBack: () -> Unit,
     onGoToPrivacy: () -> Unit
 ) {
+    val context = LocalContext.current
+    var featureIntroductionEnabled by rememberSaveable {
+        mutableStateOf(FeatureIntroductionPreferences.isAutoShowEnabled(context))
+    }
     val language = appLanguage()
     Scaffold(
         topBar = {
@@ -1003,12 +905,29 @@ internal fun HelpMenuScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
+                AppToggleRow(
+                    label = lt(language, "Apresentação inicial", "Getting started guide", "Presentación inicial"),
+                    description = lt(
+                        language,
+                        "Mostrar o guia sempre que o app for aberto.",
+                        "Show the guide whenever the app is opened.",
+                        "Mostrar la guía cada vez que se abra la aplicación."
+                    ),
+                    checked = featureIntroductionEnabled,
+                    onCheckedChange = { enabled ->
+                        featureIntroductionEnabled = enabled
+                        FeatureIntroductionPreferences.setAutoShowEnabled(context, enabled)
+                    }
+                )
+            }
+            item {
                 AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(lt(language, "Como usar cada tela", "How to use each screen", "Como usar cada pantalla"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        HelpLine("Calendario", lt(language, "Abre o calendario externo de eventos. Use para conferir raids, horas em destaque, dias comunitarios e eventos antes de montar filtros.", "Opens the external event calendar. Use it to check raids, spotlight hours, community days, and events before building filters.", "Abre el calendario externo de eventos. Usalo para revisar raids, horas destacadas, dias comunitarios y eventos antes de crear filtros."))
-                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. La superposición solo usa formatos guardados."))
-                        HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
+                        HelpLine("Calendario", lt(language, "Consulte o mês, selecione um dia e filtre os eventos por categoria. Toque em um evento para ver datas e a publicação original. Atualizar busca os dados do calendário; a última consulta fica salva para uso sem internet.", "Browse the month, select a day and filter events by category. Tap an event for dates and the original post. Refresh downloads calendar data; the last successful update remains available offline.", "Consulta el mes, selecciona un día y filtra por categoría. Toca un evento para ver las fechas y la publicación original. Actualizar descarga los datos; la última consulta queda disponible sin conexión."))
+                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. Toque em um campo para configurar os simbolos e adiciona-lo ao nome. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. Tap a field to configure its symbols and add it to the name. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. Toca un campo para configurar sus simbolos y agregarlo al nombre. La superposición solo usa formatos guardados."))
+                        HelpLine(lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"), lt(language, "Na janela de nomes sugeridos, toque em uma opcao para copiar o nome. Confira os dados da leitura antes de usar o apelido. Se nenhum nome aparecer, revise a captura e os formatos salvos.", "In the suggested names window, tap an option to copy the name. Check the scanned data before using the nickname. If no name appears, review the capture and saved presets.", "En la ventana de nombres sugeridos, toca una opcion para copiar el nombre. Revisa los datos leidos antes de usar el apodo. Si no aparece ningun nombre, revisa la captura y los formatos guardados."))
+                        HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e mais uma vez para limpar. Escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and once more to clear it. Choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y una vez mas para limpiarla. Elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
                         HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
                         HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a sobreposição usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; overlay mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la superposición usa datos guardados. Revisa formas y ataques al usar el filtro."))
                         HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
@@ -1085,10 +1004,17 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
                         Text(
                             lt(
                                 language,
-                                "O app nao exige cadastro, nao coleta localizacao propria, nao vende dados pessoais e nao envia suas capturas para servidores do MewName.",
-                                "The app does not require an account, does not collect its own location data, does not sell personal data, and does not send captures to MewName servers.",
-                                "La app no requiere cuenta, no recopila ubicacion propia, no vende datos personales y no envia capturas a servidores de MewName."
+                                "O app nao exige cadastro, nao vende dados pessoais e nao envia suas capturas para servidores do MewName.",
+                                "The app does not require an account, does not sell personal data, and does not send captures to MewName servers.",
+                                "La app no requiere cuenta, no vende datos personales y no envia capturas a servidores de MewName."
                             ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            lt(language,
+                                "A temperatura é opcional. Ao buscar uma cidade, o nome pesquisado é enviado ao Open-Meteo; após a seleção, as coordenadas dessa cidade são usadas para consultar o clima. Com sua permissão, o modo automático usa a localização aproximada do aparelho apenas enquanto a Home está visível e envia coordenadas arredondadas ao Open-Meteo. Não há acesso à localização em segundo plano. A localização escolhida e a temperatura recente ficam salvas no aparelho.",
+                                "Temperature is optional. City searches send the search term to Open-Meteo; after selection, that city's coordinates are used for weather requests. With your permission, automatic mode uses approximate device location only while Home is visible and sends rounded coordinates to Open-Meteo. There is no background location access. The selected location and recent temperature are saved on the device.",
+                                "La temperatura es opcional. Las búsquedas envían el nombre al Open-Meteo; tras seleccionar una ciudad, sus coordenadas se usan para consultar el clima. Con tu permiso, el modo automático usa la ubicación aproximada solo mientras Inicio está visible y envía coordenadas redondeadas al Open-Meteo. No se accede a la ubicación en segundo plano. La ubicación elegida y la temperatura reciente se guardan en el dispositivo."),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
@@ -1874,7 +1800,6 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
     var selectedField by remember { mutableStateOf<NamingField?>(null) }
     var showFixedTextDialog by remember { mutableStateOf(false) }
     var selectedIndexForMove by remember { mutableStateOf<Int?>(null) }
-    var showPatternHelp by remember { mutableStateOf(false) }
 
     val generator = remember { NameGenerator() }
     val availableVariableFields = remember {
@@ -1982,14 +1907,6 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showPatternHelp = true }) {
-                        HelpIcon(
-                            modifier = Modifier.size(24.dp),
-                            contentDescription = lt(language, "Ajuda", "Help", "Ayuda")
-                        )
                     }
                 }
             )
@@ -2153,23 +2070,6 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
         }
     }
 
-    if (showPatternHelp) {
-        AlertDialog(
-            onDismissRequest = { showPatternHelp = false },
-            title = { Text(lt(language, "Como Funciona o Padrao do Nome", "How the Name Pattern Works", "Como Funciona el Patron del Nombre")) },
-            text = {
-                Text(
-                    lt(language, "Toque em um campo para abrir o modal, configurar os simbolos e depois adicionar ao nome.", "Tap a field to open the dialog, configure symbols, and add it to the name.", "Toca un campo para abrir el dialogo, configurar simbolos y luego agregarlo al nombre.")
-                )
-            },
-            confirmButton = {
-                AppSecondaryButton(onClick = { showPatternHelp = false }) {
-                    Text(lt(language, "Fechar", "Close", "Cerrar"))
-                }
-            }
-        )
-    }
-
     selectedField?.let { field ->
         FieldConfigDialog(
             field = field,
@@ -2217,11 +2117,6 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             }
         )
     }
-}
-
-@Composable
-private fun QuestionCircleIcon() {
-    HelpIcon(modifier = Modifier.size(16.dp))
 }
 
 @Composable
@@ -2550,6 +2445,7 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
             option("SPECIAL_BACKGROUND_GO_FEST", "GO Fest"),
             option("SPECIAL_BACKGROUND_WILD_AREA", "Wild Area"),
             option("SPECIAL_BACKGROUND_LOCATION", "Localidade"),
+            option("SPECIAL_BACKGROUND_MEGA_EVOLUTION", "Mega evolução"),
             option("SPECIAL_BACKGROUND_COMMUNITY_DAY", "Dia da Comunidade")
         )
         NamingField.ADVENTURE_EFFECT -> listOf(option("ADVENTURE_EFFECT", "Efeito aventura"))

@@ -1,5 +1,6 @@
 package com.mewname.app
 
+import androidx.compose.ui.layout.onSizeChanged
 import android.content.Intent
 import android.content.Context
 import android.graphics.Bitmap
@@ -36,6 +37,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -147,6 +149,7 @@ internal data class ReviewOptionPicker(
     val message: String? = null,
     val verticalOptions: Boolean = false,
     val centeredContent: Boolean = false,
+    val anchorBottom: Boolean = false,
     val latestState: (() -> ReviewOptionPicker)? = null,
     val onOptionSelected: (String) -> Unit
 )
@@ -521,7 +524,7 @@ fun ReviewEditorCard(
                 .heightIn(max = maxCardHeight)
                 .align(Alignment.BottomCenter),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
-            border = if (glassStyle) androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.35f)) else null,
+            border = if (glassStyle) androidx.compose.foundation.BorderStroke(0.75.dp, LocalAppAppearance.current.border) else null,
             colors = CardDefaults.cardColors(containerColor = if (glassStyle) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.68f))
         ) {
             GlassReviewBackdrop(bitmap, glassStyle) {
@@ -695,28 +698,50 @@ fun ReviewEditorCard(
                         }
                     }
                 }
-                if (uniqueFormOptions.isNotEmpty()) {
-                    SelectionDropdownField(
-                        label = NamingField.UNIQUE_FORM.localizedLabel(language),
-                        value = draft.uniqueForm ?: "-",
-                        options = buildList {
-                            add("-")
-                            addAll(uniqueFormOptions.map { it.label })
-                        },
-                        onSelected = { value ->
-                            val selected = value.takeUnless { it == "-" }
-                            draft = if (draft.pokemonName.equals("Unown", ignoreCase = true)) {
-                                draft.copy(
-                                    uniqueForm = selected,
-                                    unownLetter = selected
-                                )
+                val isVivillonForm = isVivillonReviewFamily(draft.pokemonName)
+                if (isVivillonForm || uniqueFormOptions.isNotEmpty()) {
+                    GlassFieldRow {
+                        SelectionDropdownField(
+                            label = NamingField.UNIQUE_FORM.localizedLabel(language),
+                            value = if (isVivillonForm) draft.vivillonPattern?.label ?: unknownLabel
+                                else draft.uniqueForm ?: "-",
+                            options = if (isVivillonForm) {
+                                listOf(unknownLabel) + VivillonPattern.entries.map { it.label }
                             } else {
-                                draft.copy(uniqueForm = selected)
-                            }
-                        },
+                                listOf("-") + uniqueFormOptions.map { it.label }
+                            },
+                            onSelected = { value ->
+                                val selected = value.takeUnless { it == "-" }
+                                draft = when {
+                                    isVivillonForm -> draft.copy(
+                                        vivillonPattern = VivillonPattern.entries.firstOrNull { it.label == value }
+                                    )
+                                    draft.pokemonName.equals("Unown", ignoreCase = true) -> draft.copy(
+                                        uniqueForm = selected,
+                                        unownLetter = selected
+                                    )
+                                    else -> draft.copy(uniqueForm = selected)
+                                }
+                            },
+                            headerTrailing = if (isVivillonForm) {
+                                {
+                                    UnownHeaderIcon(
+                                        selected = NamingField.VIVILLON_PATTERN in selectedDebugFields,
+                                        onClick = {
+                                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.VIVILLON_PATTERN)
+                                            showVivillonHelp = !showVivillonHelp
+                                        },
+                                        contentDescription = "Log da forma única"
+                                    )
+                                }
+                            } else null,
                             useOptionModal = glassStyle,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (isVivillonForm && logsEnabled && showVivillonHelp) {
+                        VivillonHelpPanel(pattern = draft.vivillonPattern, info = draft.vivillonDebugInfo, bitmap = bitmap)
+                    }
                 }
                 if (logsEnabled && (showPokemonHelp)) {
                     PokemonHelpPanel(
@@ -786,8 +811,8 @@ fun ReviewEditorCard(
                     legacyAlignment = Alignment.Bottom
                 ) {
                 if (NamingField.MASTER_IV_BADGE in fields) {
-                    val masterIvCombinations = remember(pvpFamilyCandidates) {
-                        masterIvBadgeCatalog.bestCombinations(context.applicationContext, pvpFamilyCandidates)
+                    val masterIvCombinations = remember(pvpFamilyCandidates, draft.pokemonName) {
+                        masterIvBadgeCatalog.bestCombinations(context.applicationContext, pvpFamilyCandidates, draft.pokemonName)
                     }
                     val masterIvList = listOf(98, 96, 93, 91).joinToString("\n") { percent ->
                         val combination = masterIvCombinations[percent]
@@ -832,6 +857,7 @@ fun ReviewEditorCard(
                         ),
                         verticalOptions = true,
                         centeredContent = true,
+                        anchorBottom = true,
                         useOptionModal = true,
                         modifier = Modifier.weight(1f)
                     )
@@ -910,12 +936,14 @@ fun ReviewEditorCard(
                 (NamingField.EVOLVE_MARKER in fields || NamingField.PURIFY_MARKER in fields)) {
                 GlassFieldRow {
                     if (NamingField.EVOLVE_MARKER in fields) {
-                        GlassSwitchField(NamingField.EVOLVE_MARKER.localizedLabel(language), draft.shouldEvolve,
-                            { draft = draft.copy(shouldEvolve = it) }, Modifier.weight(1f))
+                        AppToggleRow(NamingField.EVOLVE_MARKER.localizedLabel(language), draft.shouldEvolve,
+                            { draft = draft.copy(shouldEvolve = it) }, Modifier.weight(1f),
+                            containerColor = Color.Transparent)
                     }
                     if (NamingField.PURIFY_MARKER in fields) {
-                        GlassSwitchField(NamingField.PURIFY_MARKER.localizedLabel(language), draft.shouldPurify,
-                            { draft = draft.copy(shouldPurify = it) }, Modifier.weight(1f))
+                        AppToggleRow(NamingField.PURIFY_MARKER.localizedLabel(language), draft.shouldPurify,
+                            { draft = draft.copy(shouldPurify = it) }, Modifier.weight(1f),
+                            containerColor = Color.Transparent)
                     }
                 }
             }
@@ -1037,6 +1065,7 @@ fun ReviewEditorCard(
                             SpecialBackgroundType.GO_FEST,
                             SpecialBackgroundType.WILD_AREA,
                             SpecialBackgroundType.LOCATION,
+                            SpecialBackgroundType.MEGA_EVOLUTION,
                             SpecialBackgroundType.COMMUNITY_DAY
                         )
                         backgroundOptions.chunked(3).forEachIndexed { rowIndex, row ->
@@ -1342,35 +1371,6 @@ fun ReviewEditorCard(
                     )
                 }
             }
-            if (activeReviewTab == ReviewTab.BASIC) {
-            if (isVivillonReviewFamily(draft.pokemonName)) {
-                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    FieldHeaderRow(
-                        label = NamingField.VIVILLON_PATTERN.localizedLabel(language),
-                        selected = NamingField.VIVILLON_PATTERN in selectedDebugFields,
-                        onMarkerClick = {
-                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.VIVILLON_PATTERN)
-                            showVivillonHelp = !showVivillonHelp
-                        }
-                    )
-                    SelectionDropdownField(
-                        label = "",
-                        value = draft.vivillonPattern?.label ?: unknownLabel,
-                        options = listOf(unknownLabel) + VivillonPattern.entries.map { it.label },
-                        onSelected = { value ->
-                            draft = draft.copy(
-                                vivillonPattern = VivillonPattern.entries.firstOrNull { it.label == value }
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (logsEnabled && (showVivillonHelp)) {
-                        VivillonHelpPanel(pattern = draft.vivillonPattern, info = draft.vivillonDebugInfo, bitmap = bitmap)
-                    }
-                }
-            }
-            }
-
             val hasBooleanSection = listOf(
                 NamingField.SPECIAL_BACKGROUND,
                 NamingField.ADVENTURE_EFFECT,
@@ -1546,7 +1546,7 @@ fun ReviewEditorCard(
                     .fillMaxHeight()
                     .clickable { activeOptionPicker = null }
                     .padding(12.dp),
-                contentAlignment = if (picker.centeredContent) Alignment.Center else Alignment.BottomCenter
+                contentAlignment = if (picker.centeredContent && !picker.anchorBottom) Alignment.Center else Alignment.BottomCenter
             ) {
                 SelectionModalDialog(
                     title = picker.title,
@@ -1957,24 +1957,34 @@ private fun SuggestedNamesBlock(
                 .padding(horizontal = 12.dp, vertical = if (LocalGlassReviewStyle.current) 5.dp else 10.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Row(
+            var headerActionsWidth by remember { mutableStateOf(0) }
+            val headerSidePadding = with(androidx.compose.ui.platform.LocalDensity.current) {
+                headerActionsWidth.toDp().coerceAtLeast(48.dp)
+            }
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = headerSidePadding),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                if (logOptionsEnabled() && onExportLog != null) {
-                    TextButton(onClick = onExportLog, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
-                        Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp)
+                Row(
+                    modifier = Modifier.align(Alignment.CenterEnd).onSizeChanged { headerActionsWidth = it.width },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (logOptionsEnabled() && onExportLog != null) {
+                        TextButton(onClick = onExportLog, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
+                            Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp)
+                        }
                     }
-                }
-                TextButton(onClick = onCancel, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
-                    Text(lt(language, "Cancelar", "Cancel", "Cancelar"), fontSize = 11.sp)
+                    IconButton(onClick = onCancel) {
+                        Icon(Icons.Default.Close, contentDescription = lt(language, "Cancelar", "Cancel", "Cancelar"), modifier = Modifier.size(22.dp))
+                    }
                 }
             }
             if (suggestions.isEmpty()) {
@@ -2003,7 +2013,7 @@ private fun SuggestedNamesBlock(
                             color = MaterialTheme.colorScheme.surface.copy(alpha = if (LocalGlassReviewStyle.current) 0.60f else 0.90f),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (LocalGlassReviewStyle.current) Color.White.copy(alpha = 0.30f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.50f)
+                                if (LocalGlassReviewStyle.current) LocalAppAppearance.current.border else MaterialTheme.colorScheme.outline.copy(alpha = 0.50f)
                             )
                         ) {
                             if (LocalGlassReviewStyle.current) {

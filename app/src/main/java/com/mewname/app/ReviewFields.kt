@@ -480,6 +480,7 @@ internal fun SelectionDropdownField(
     verticalOptions: Boolean = false,
     centeredContent: Boolean = false,
     useOptionModal: Boolean = true,
+    anchorBottom: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val optionPicker = LocalReviewOptionPicker.current
@@ -504,6 +505,7 @@ internal fun SelectionDropdownField(
                                     message = modalMessage,
                                     verticalOptions = verticalOptions,
                                     centeredContent = centeredContent,
+                                    anchorBottom = anchorBottom,
                                     onOptionSelected = onSelected
                                 )
                             ) ?: run { expanded = !expanded }

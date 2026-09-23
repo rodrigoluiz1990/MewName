@@ -40,7 +40,7 @@ internal fun BubbleActionPreferences() {
                 BubbleActionSettings.save(context, selected)
             }
             val enabled = key !in selected || selected.size > 1
-            BubbleShortcutBar(label, key in selected, enabled, change)
+            AppToggleRow(label = label, checked = key in selected, enabled = enabled, onCheckedChange = change)
         }
     }
 }

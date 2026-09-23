@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -23,27 +22,41 @@ import androidx.compose.ui.unit.dp
 
 /** One accessible switch target across the entire row, including its decorative thumb. */
 @Composable
-internal fun BubbleShortcutBar(label: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+internal fun AppToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    description: String? = null,
+    containerColor: Color? = null
+) {
     val appearance = LocalAppAppearance.current
     val shape = RoundedCornerShape(10.dp)
     val track by animateColorAsState(
         if (checked) Color(0xFF39BCCD) else if (appearance.dark) Color(0xFF636774) else Color(0xFFB7C3D5),
-        label = "shortcutTrack")
-    val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, label = "shortcutThumb")
+        label = "toggleTrack")
+    val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, label = "toggleThumb")
     val background = if (appearance.glass) Color(0xFFE5E9F6) else appearance.card.first()
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 44.dp)
+        modifier.fillMaxWidth().heightIn(min = 44.dp)
             .alpha(if (enabled) 1f else 0.6f)
             .clip(shape)
-            .background(background)
+            .background(containerColor ?: background)
             .border(0.5.dp, appearance.border, shape)
-            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(label, Modifier.weight(1f), color = appearance.text,
-            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, color = appearance.text,
+                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            if (!description.isNullOrBlank()) {
+                Text(description, color = appearance.text.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.bodySmall)
+            }
+        }
         Box(Modifier.size(40.dp, 22.dp).clip(RoundedCornerShape(50)).background(track).padding(3.dp)) {
             Box(Modifier.offset(x = thumbOffset).size(16.dp)
                 .shadow(1.dp, RoundedCornerShape(50))

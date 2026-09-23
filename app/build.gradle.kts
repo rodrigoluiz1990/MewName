@@ -22,7 +22,7 @@ val releaseTag = System.getenv("MEWNAME_RELEASE_TAG")?.takeIf { it.isNotBlank() 
 val releaseVersionName = releaseTag
     .takeIf { it != "dev" }
     ?.removePrefix("v")
-    ?: "1.0.26"
+    ?: "1.0.27"
 val hasReleaseSigning = releaseStoreFilePath != null &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
@@ -130,7 +130,7 @@ val validateCatalogSemantics by tasks.registering {
             "Growlithe (Hisui)", "Hoopa (Unbound)", "Keldeo (Resolute)", "Landorus (Therian)",
             "Lilligant (Hisui)", "Meloetta (Aria)", "Meloetta (Pirouette)",
             "Necrozma (Asas da Alvorada)", "Necrozma (Juba do Crepúsculo)", "Necrozma (Ultra)",
-            "Palkia (Origem)", "Qwilfish (Hisui)", "Samurott (Hisui)", "Shaymin (Céu)",
+            "Palkia (Origem)", "Qwilfish (Hisui)", "Shaymin (Céu)",
             "Sliggoo (Hisui)", "Sneasel (Hisui)", "Thundurus (Therian)", "Tornadus (Therian)",
             "Typhlosion (Hisui)", "Voltorb (Hisui)", "Zamazenta (Coroado)",
             "Zoroark (Hisui)", "Zorua (Hisui)"

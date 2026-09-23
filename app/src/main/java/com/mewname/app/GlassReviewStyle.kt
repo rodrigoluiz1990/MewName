@@ -14,8 +14,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.asImageBitmap
+
+
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -35,7 +35,7 @@ internal val GlassBlockMargin = 1.5.dp
 internal val GlassLabelHeight = 16.dp
 internal val GlassFieldHeight = 28.dp
 internal val GlassFieldCorner = 6.dp
-internal val GlassAccent = Color(0xFF587BDB)
+
 
 /** One shared surface per row; individual controls retain their original callbacks. */
 @Composable
@@ -50,14 +50,10 @@ internal fun GlassFieldRow(
         Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(legacySpacing), verticalAlignment = legacyAlignment, content = content)
         return
     }
-    Surface(
+    val dividerColor = LocalAppAppearance.current.border
+    AppSectionCard(
         modifier = modifier.fillMaxWidth().padding(vertical = GlassBlockMargin),
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFF5F4FF).copy(alpha = 0.45f),
-        contentColor = Color(0xFF283047),
-        border = BorderStroke(0.5.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(
-            Color.White.copy(alpha = 0.45f), Color(0xFFB9CDFB).copy(alpha = 0.18f), Color.White.copy(alpha = 0.30f)
-        )))
+        shape = RoundedCornerShape(12.dp)
     ) {
         CompositionLocalProvider(LocalGlassFieldGroup provides true) {
             Row(
@@ -69,7 +65,7 @@ internal fun GlassFieldRow(
                         val available = size.width - 20.dp.toPx() - gap * (weights.size - 1)
                         weights.dropLast(1).forEach {
                             x += it / total * available + gap / 2
-                            drawLine(Color(0xFFDADDEE), Offset(x, 10.dp.toPx()), Offset(x, size.height - 10.dp.toPx()), 1.dp.toPx())
+                            drawLine(dividerColor, Offset(x, 10.dp.toPx()), Offset(x, size.height - 10.dp.toPx()), 1.dp.toPx())
                             x += gap / 2
                         }
                     }
@@ -86,7 +82,7 @@ internal fun GlassFieldRow(
 internal fun GlassTabs(labels: List<String>, selected: Int, onSelected: (Int) -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 3.5.dp, bottom = 0.dp)
-            .clip(RoundedCornerShape(50)).background(Color(0xFFDCE5FB).copy(alpha = 0.36f))
+            .clip(RoundedCornerShape(50)).background(appControlFill())
             .selectableGroup().padding(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -94,13 +90,13 @@ internal fun GlassTabs(labels: List<String>, selected: Int, onSelected: (Int) ->
             Box(
                 Modifier.weight(1f).heightIn(min = 36.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (index == selected) GlassAccent else Color.Transparent)
+                    .background(if (index == selected) appControlFill(true) else Color.Transparent)
                     .selectable(index == selected, role = Role.Tab, onClick = { onSelected(index) })
                     .padding(horizontal = 5.dp, vertical = 4.5.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (index == selected) Color.White else Color(0xFF435781))
+                    color = appControlInk())
             }
         }
     }
@@ -109,60 +105,35 @@ internal fun GlassTabs(labels: List<String>, selected: Int, onSelected: (Int) ->
 @Composable
 internal fun GlassGenderSegments(items: List<WeightedToggleItem>) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(GlassFieldCorner))
-        .background(Color(0xFFE3E8F7).copy(alpha = 0.5f))) {
+        .background(appControlFill())) {
         items.forEach { item ->
             Box(Modifier.weight(1f).height(GlassFieldHeight)
-                .background(if (item.selected) GlassAccent else Color.Transparent)
+                .background(if (item.selected) appControlFill(true) else Color.Transparent)
                 .toggleable(item.selected, role = Role.Checkbox, onValueChange = { item.onClick() }),
                 contentAlignment = Alignment.Center) {
                 Text(item.label, fontSize = 18.sp,
-                    color = if (item.selected) Color.White else Color(0xFF48516A))
+                    color = appControlInk())
             }
         }
     }
 }
 
+/** Use the same background palette as the app; captured images remain OCR/debug input only. */
 @Composable
-internal fun GlassSwitchField(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    Row(modifier.height(GlassFieldHeight)
-        .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Normal)
-        Box(Modifier.width(40.dp).height(24.dp).clip(RoundedCornerShape(50))
-            .background(if (checked) GlassAccent else Color(0xFFA8ADBF)).padding(1.dp),
-            contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart) {
-            Box(Modifier.size(22.dp).shadow(1.dp, RoundedCornerShape(50))
-                .clip(RoundedCornerShape(50)).background(Color(0xFFFAFAFF)))
-        }
-    }
-}
-/** Blur only the captured game backdrop, never the controls drawn above it. */
-@Composable
-internal fun GlassReviewBackdrop(bitmap: android.graphics.Bitmap?, enabled: Boolean, content: @Composable () -> Unit) {
+internal fun GlassReviewBackdrop(
+    @Suppress("UNUSED_PARAMETER") bitmap: android.graphics.Bitmap?,
+    enabled: Boolean,
+    content: @Composable () -> Unit
+) {
     if (!enabled) {
         content()
         return
     }
-    val canBlur = android.os.Build.VERSION.SDK_INT >= 31 && bitmap != null && !bitmap.isRecycled
-    Box(Modifier.fillMaxWidth()) {
-        if (canBlur && bitmap != null) {
-            androidx.compose.foundation.Image(
-                bitmap = remember(bitmap) { bitmap.asImageBitmap() },
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                alignment = Alignment.BottomCenter,
-                modifier = Modifier.matchParentSize().blur(18.dp)
-            )
-        }
-        Box(Modifier.matchParentSize().background(
-            androidx.compose.ui.graphics.Brush.linearGradient(listOf(
-                Color(0xFFF4F4FF).copy(alpha = if (canBlur) 0.56f else 0.78f),
-                Color(0xFFBFCFF8).copy(alpha = if (canBlur) 0.44f else 0.72f)
-            ))
-        ))
-        content()
+    val appearance = LocalAppAppearance.current
+    CompositionLocalProvider(LocalContentColor provides appearance.text) {
+        Box(Modifier.fillMaxWidth().background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(appearance.background)
+        )) { content() }
     }
 }
 @Composable
@@ -175,9 +146,8 @@ internal fun GlassSection(
         Column(modifier, verticalArrangement = verticalArrangement, content = content)
         return
     }
-    Surface(modifier.fillMaxWidth().padding(vertical = GlassBlockMargin),
-        shape = RoundedCornerShape(12.dp), color = Color(0xFFF5F4FF).copy(alpha = 0.45f),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.3f))) {
+    AppSectionCard(modifier.fillMaxWidth().padding(vertical = GlassBlockMargin),
+        shape = RoundedCornerShape(12.dp)) {
         CompositionLocalProvider(LocalGlassSectionContent provides true) {
             Column(Modifier.padding(horizontal = 10.dp, vertical = GlassBlockInset), verticalArrangement = verticalArrangement, content = content)
         }
@@ -201,11 +171,13 @@ internal fun GlassFieldValue(value: String, trailing: (@Composable () -> Unit)? 
 internal fun Modifier.glassFieldSize(): Modifier =
     if (LocalGlassReviewStyle.current) height(GlassFieldHeight) else this
 
-internal fun glassFieldColor(selected: Boolean) =
-    if (selected) Color(0xFFDCE5FC).copy(alpha = 0.92f) else Color(0xFFF8F7FF).copy(alpha = 0.78f)
+@Composable
+internal fun glassFieldColor(selected: Boolean) = appControlFill(selected)
 
+@Composable
 internal fun glassFieldBorder(selected: Boolean) = BorderStroke(
-    0.5.dp, if (selected) GlassAccent.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.25f)
+    0.75.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+    else LocalAppAppearance.current.border
 )
 @Composable
 internal fun ReviewModalCard(
@@ -217,15 +189,12 @@ internal fun ReviewModalCard(
         Card(modifier = modifier, colors = colors, content = content)
         return
     }
-    MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = GlassAccent,
-        primaryContainer = Color(0xFFDCE5FC), onPrimary = Color.White)) {
-        Card(modifier = modifier.clickable { }, shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.35f)),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
-            GlassReviewBackdrop(LocalGlassCapture.current, true) {
-                // Keep text legible even over a busy captured screen.
-                Column(Modifier.background(Color(0xFFF4F4FF).copy(alpha = 0.30f)), content = content)
-            }
+    Card(modifier = modifier.clickable { }, shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(0.75.dp, LocalAppAppearance.current.border),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent,
+            contentColor = LocalAppAppearance.current.text)) {
+        GlassReviewBackdrop(LocalGlassCapture.current, true) {
+            Column(content = content)
         }
     }
 }

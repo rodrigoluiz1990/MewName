@@ -1,0 +1,107 @@
+{
+    "attackers":  [
+                      {
+                          "pokemonId":  "ARTICUNO",
+                          "boss":  "RAID_LEVEL_5_MAX",
+                          "randomMove":  {
+                                             "defenders":  [
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "SPARK_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  1.2545046
+                                                                                                 },
+                                                                                      "move2":  "WILD_CHARGE"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "SPARK_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  1.0947608
+                                                                                                 },
+                                                                                      "move2":  "MOVE_NONE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "TOXTRICITY_LOW_KEY_FORM"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "SMACK_DOWN_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.448073
+                                                                                                 },
+                                                                                      "move2":  "METEOR_BEAM"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "SMACK_DOWN_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.47115594
+                                                                                                 },
+                                                                                      "move2":  "ROCK_SLIDE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "GIGALITH"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "TACKLE_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.53738415
+                                                                                                 },
+                                                                                      "move2":  "PYROBALL"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "TACKLE_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.53113854
+                                                                                                 },
+                                                                                      "move2":  "MOVE_NONE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "CINDERACE_GIGANTAMAX"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.3393939
+                                                                                                 },
+                                                                                      "move2":  "CLOSE_COMBAT"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.34214568
+                                                                                                 },
+                                                                                      "move2":  "MOVE_NONE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "ZAMAZENTA_CROWNED_SHIELD_FORM"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.26663375
+                                                                                                 },
+                                                                                      "move2":  "CLOSE_COMBAT"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.25681013
+                                                                                                 },
+                                                                                      "move2":  "MOVE_NONE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "ZACIAN_CROWNED_SWORD_FORM"
+                                                               }
+                                                           ]
+                                         }
+                      }
+                  ]
+}

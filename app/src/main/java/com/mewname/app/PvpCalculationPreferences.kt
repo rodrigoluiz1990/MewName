@@ -1,4 +1,4 @@
-﻿package com.mewname.app
+package com.mewname.app
 
 import android.content.SharedPreferences
 import androidx.compose.runtime.*
@@ -44,7 +44,7 @@ internal fun PvpCalculationPreferences() {
         }
     }
     AppSectionCard(Modifier.fillMaxWidth()) {
-        GlassSwitchField(
+        AppToggleRow(
             label = lt(language, "Considerar melhor companheiro", "Include Best Buddy", "Incluir mejor compañero"),
             checked = options.bestBuddy,
             onCheckedChange = { PvpCalculationSettings.save(context, options.copy(bestBuddy = it)) },

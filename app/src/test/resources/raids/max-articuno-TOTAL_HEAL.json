@@ -1,0 +1,107 @@
+{
+    "attackers":  [
+                      {
+                          "pokemonId":  "ARTICUNO",
+                          "boss":  "RAID_LEVEL_5_MAX",
+                          "randomMove":  {
+                                             "defenders":  [
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  25.442965
+                                                                                                 },
+                                                                                      "move2":  "MOVE_NONE"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  12.5422
+                                                                                                 },
+                                                                                      "move2":  "ROCK_SLIDE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "EXCADRILL"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.37513664
+                                                                                                 },
+                                                                                      "move2":  "MOVE_NONE"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "METAL_CLAW_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  0.7061059
+                                                                                                 },
+                                                                                      "move2":  "BEHEMOTH_BLADE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "ZACIAN_CROWNED_SWORD_FORM"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "PSYWAVE_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  2.1098816
+                                                                                                 },
+                                                                                      "move2":  "SKULL_BASH"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "PSYWAVE_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  1.9618576
+                                                                                                 },
+                                                                                      "move2":  "BODY_SLAM"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "SNORLAX_GIGANTAMAX"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "POUND_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  2.0954313
+                                                                                                 },
+                                                                                      "move2":  "MOVE_NONE"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "POUND_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  1.4014934
+                                                                                                 },
+                                                                                      "move2":  "WILD_CHARGE"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "BLISSEY"
+                                                               },
+                                                               {
+                                                                   "byMove":  [
+                                                                                  {
+                                                                                      "move1":  "WATER_GUN_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  21.016949
+                                                                                                 },
+                                                                                      "move2":  "BLIZZARD"
+                                                                                  },
+                                                                                  {
+                                                                                      "move1":  "WATER_GUN_FAST",
+                                                                                      "result":  {
+                                                                                                     "estimator":  18.5857
+                                                                                                 },
+                                                                                      "move2":  "SURF"
+                                                                                  }
+                                                                              ],
+                                                                   "pokemonId":  "WAILORD"
+                                                               }
+                                                           ]
+                                         }
+                      }
+                  ]
+}

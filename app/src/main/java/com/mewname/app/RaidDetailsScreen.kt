@@ -31,7 +31,7 @@ import java.util.Date
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEVEL_5", bubble: Boolean = false, raidScreenText: String = "", detectedRaidLevel: Int? = null, onBack: () -> Unit) {
+internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEVEL_5", bubble: Boolean = false, raidScreenText: String = "", detectedRaidLevel: Int? = null, shielded: Boolean = false, onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     fun tr(pt: String,en: String,es: String) = lt(language,pt,en,es)
@@ -104,16 +104,10 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         return if(suffix.startsWith("mega")) "$form $base" else "$base ($form)"
     }
     fun raidLabel(choice: RaidChoice): String {
-        val category=choice.tier.removePrefix("RAID_LEVEL_").split('_').joinToString(" ") { part ->
-            when(part) {
-                "SHADOW" -> tr("Sombroso","Shadow","Oscuro")
-                "MEGA" -> "Mega"
-                "ENHANCED" -> tr("Potencializada","Enhanced","Potenciada")
-                else -> part
-            }
-        }
+        val titleTier = if (shielded || raidHasShields(choice.tier)) "RAID_LEVEL_4_MEGA_ENHANCED" else choice.tier
+        val category = raidCategoryTabTitle(RaidHistoryCategory(titleTier, "", "", "", emptyList()), language)
         val variant=if(choice.id.endsWith("_MEGA_X") || choice.id.endsWith("_MEGA_Y")) " ${choice.id.last()}" else ""
-        return "Raid $category$variant"
+        return "$category$variant"
     }
     fun moveLabel(id: String) = moveNames[raidKey(id)] ?: raidName(id.removeSuffix("_FAST"))
     val capture = boss?.let { b -> raidCaptureId(b.id)?.let { meta?.pokemon?.get(it) } }
@@ -146,6 +140,16 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                         RaidVariantSelector(raidLabel(RaidChoice(b.id,tier)),formChoices,
                             label={raidLabel(it)},onSelect={selectedId=it.id; tier=it.tier})
                     } else Text(raidLabel(RaidChoice(b.id,tier)),style=MaterialTheme.typography.labelMedium)
+                    if (shielded || raidHasShields(tier)) Text(
+                        tr("Com escudos: leve um Pokémon megaevoluído. Cada treinador quebra um escudo; Groudon e Kyogre Primais não quebram escudos.",
+                           "Shielded: bring a Mega-Evolved Pokémon. Each Trainer breaks one shield; Primal Groudon and Kyogre cannot break shields.",
+                           "Con escudos: lleva un Pokémon megaevolucionado. Cada Entrenador rompe un escudo; Groudon y Kyogre Primigenios no los rompen."),
+                        style = MaterialTheme.typography.bodySmall)
+                    if (shielded && !raidHasShields(tier)) Text(
+                        tr("As sugestões usam os dados Mega disponíveis; a estimativa não inclui a fase de escudos.",
+                           "Suggestions use available Mega data; estimates do not include the shield phase.",
+                           "Las sugerencias usan los datos Mega disponibles; la estimación no incluye la fase de escudos."),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(tr("Golpes possíveis do chefe","Possible boss attacks","Ataques posibles del jefe"),style=MaterialTheme.typography.titleSmall)
                     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -223,11 +227,11 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         },modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)) { Text(if(copied) tr("Copiado","Copied","Copiado") else tr("Copiar filtro","Copy filter","Copiar filtro")) }
     }
 }
-@Composable private fun RaidCpRow(label: String, low: String, high: String) {
+@Composable internal fun RaidCpRow(label: String, low: String, high: String) {
     Row(Modifier.fillMaxWidth()) { Text(label,Modifier.weight(1.7f),style=MaterialTheme.typography.bodySmall)
         Text(low,Modifier.weight(1f)); Text(high,Modifier.weight(1f)) }
 }
-@Composable private fun RaidMoveRow(move: RaidMove, label: String) {
+@Composable internal fun RaidMoveRow(move: RaidMove, label: String) {
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
         if(move.type.isNotBlank()) AsyncImage("file:///android_asset/types/POKEMON_TYPE_${move.type.uppercase()}.png",localizedTypeLabel(move.type,appLanguage()),Modifier.size(20.dp))
         Text(label + if(move.special) " ★" else "",style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))

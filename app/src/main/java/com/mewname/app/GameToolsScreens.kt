@@ -268,14 +268,7 @@ fun TypesScreen(onBack: () -> Unit) {
 
     SimpleToolScreen(
         title = t(language, "Tipos", "Types", "Tipos"),
-        onBack = onBack,
-        helpTitle = t(language, "Como usar Tipos", "How to use Types", "Como usar Tipos"),
-        helpText = t(
-            language,
-            "Selecione um ou dois tipos para ver fraquezas, resistencias e resistencias duplas. Use esta tela para decidir quais ataques funcionam melhor contra um chefe ou quais tipos resistem melhor a uma batalha.",
-            "Select one or two types to see weaknesses, resistances, and double resistances. Use this screen to decide which attacks work best against a boss or which typings resist a battle better.",
-            "Selecciona uno o dos tipos para ver debilidades, resistencias y resistencias dobles. Usa esta pantalla para decidir que ataques funcionan mejor contra un jefe o que tipos resisten mejor una batalla."
-        )
+        onBack = onBack
     ) {
         AppSectionCard(
             modifier = Modifier.fillMaxWidth()
@@ -309,7 +302,6 @@ fun TypesScreen(onBack: () -> Unit) {
 fun MovesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
-    var showHelp by rememberSaveable { mutableStateOf(false) }
     val catalogState = produceState<List<MoveCatalogEntry>>(initialValue = emptyList(), context) {
         val appContext = context.applicationContext
         withContext(Dispatchers.Default) {
@@ -361,11 +353,6 @@ fun MovesScreen(onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showHelp = true }) {
-                        HelpIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
                     }
                 }
             )
@@ -440,18 +427,6 @@ fun MovesScreen(onBack: () -> Unit) {
             }
         }
     }
-    if (showHelp) {
-        ToolHelpDialog(
-            title = t(language, "Como usar Ataques", "How to use Moves", "Como usar Ataques"),
-            body = t(
-                language,
-                "Pesquise ataques por nome, filtre por tipo ou por categoria rapido/carregado. Cada linha mostra o nome no idioma selecionado, o tipo e os dados de ginasio e PvP para comparar dano, energia e duracao.",
-                "Search moves by name, filter by type or by fast/charged category. Each row shows the selected-language name, type, and Gym/PvP data so you can compare damage, energy, and duration.",
-                "Busca ataques por nombre, filtra por tipo o categoria rapido/cargado. Cada fila muestra el nombre en el idioma seleccionado, el tipo y los datos de gimnasio y PvP para comparar dano, energia y duracion."
-            ),
-            onDismiss = { showHelp = false }
-        )
-    }
 }
 
 private data class PokedexLoadState(
@@ -464,7 +439,6 @@ private data class PokedexLoadState(
 fun PokedexScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
-    var showHelp by rememberSaveable { mutableStateOf(false) }
     val loadState by produceState(initialValue = PokedexLoadState(), context) {
         val appContext = context.applicationContext
         val finalEntries = withContext(Dispatchers.Default) {
@@ -504,11 +478,6 @@ fun PokedexScreen(onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t(language, "Voltar", "Back", "Volver"))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showHelp = true }) {
-                        HelpIcon(modifier = Modifier.size(24.dp), contentDescription = t(language, "Ajuda", "Help", "Ayuda"))
                     }
                 }
             )
@@ -578,18 +547,6 @@ fun PokedexScreen(onBack: () -> Unit) {
             }
         }
     }
-    if (showHelp) {
-        ToolHelpDialog(
-            title = t(language, "Como usar a Pokédex", "How to use the Pokédex", "Cómo usar la Pokédex"),
-            body = t(
-                language,
-                "Busque pelo nome, número ou apelido do catálogo e filtre por tipo. Cada cartão mostra a imagem, os atributos base e as formas conhecidas da espécie.",
-                "Search by name, number, or catalog alias and filter by type. Each card shows the image, base stats, and known forms for the species.",
-                "Busca por nombre, número o alias del catálogo y filtra por tipo. Cada tarjeta muestra la imagen, las estadísticas base y las formas conocidas de la especie."
-            ),
-            onDismiss = { showHelp = false }
-        )
-    }
 }
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -597,7 +554,6 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     var tabIndex by rememberSaveable { mutableStateOf(0) }
-    var showHelp by rememberSaveable { mutableStateOf(false) }
     val tabTitles = listOf(
         t(language, "Pokemon", "Pokemon", "Pokemon"),
         t(language, "Pessoas", "People", "Personas")
@@ -610,11 +566,6 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showHelp = true }) {
-                        HelpIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors()
@@ -641,27 +592,6 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
         }
     }
 
-    if (showHelp) {
-        AlertDialog(
-            onDismissRequest = { showHelp = false },
-                confirmButton = {
-                    AppActionButton(onClick = { showHelp = false }) {
-                    Text(t(language, "OK", "OK", "OK"))
-                }
-            },
-            title = { Text(t(language, "Como usar filtros", "How to use filters", "Como usar filtros")) },
-            text = {
-                Text(
-                    t(
-                        language,
-                        "Toque uma vez para incluir, toque de novo para excluir, e mais uma vez para limpar. Para cada opcao selecionada, escolha se ela entra com & para combinar regras ou com virgula para alternativa de busca.",
-                        "Tap once to include, tap again to exclude, and once more to clear. For each selected option, choose & to combine rules or comma for an alternative search.",
-                        "Toca una vez para incluir, otra vez para excluir y una vez mas para limpiar. Para cada opcion seleccionada, elige & para combinar reglas o coma para busqueda alternativa."
-                    )
-                )
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -673,28 +603,13 @@ fun RaidPlannerScreen(
     val language = appLanguage()
     var selectedBoss by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedMaxBoss by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedMaxSprite by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedTier by rememberSaveable { mutableStateOf("RAID_LEVEL_5") }
-    if (selectedBoss != null) {
-        RaidDetailsScreen(selectedBoss!!, selectedTier, onBack = { selectedBoss = null })
-        return
-    }
-    selectedMaxBoss?.let { maxBoss ->
-        val advice = remember(maxBoss) {
-            BattleAdvisor.adviceForRaw(context, "BATALHA MAX\n$maxBoss\nGRUPO PRIVADO")
-        }
-        if (advice != null) {
-            MaxBattleSuggestionsScreen(
-                advice = advice,
-                showLogAction = false,
-                onCopy = { copyPlainText(context, it, language) },
-                onExportLog = {},
-                onClose = { selectedMaxBoss = null }
-            )
-            return
-        }
-    }
+    var selectedShields by rememberSaveable { mutableStateOf(false) }
+    val searchState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     val counterRepository = remember { com.mewname.app.domain.RaidCounterRepository(context.applicationContext) }
     var live by remember { mutableStateOf<List<RaidHistoryCategory>>(emptyList()) }
+    var savedRaids by remember { mutableStateOf<List<RaidHistoryCategory>>(emptyList()) }
     var catalogError by remember { mutableStateOf(false) }
     var catalogLoading by remember { mutableStateOf(false) }
     var retry by rememberSaveable { mutableStateOf(0) }
@@ -710,8 +625,8 @@ fun RaidPlannerScreen(
             value = Result.success(categories)
             loadedCount = count
             totalCount = total
-            // Give Compose a frame to display each boss and handle input before adding the next.
-            androidx.compose.runtime.withFrameNanos { }
+            // Yield in small batches so a large offline history stays responsive without waiting a frame per boss.
+            if (count == 1 || count % 24 == 0 || count == total) androidx.compose.runtime.withFrameNanos { }
         }
         loading = false
     }
@@ -720,17 +635,19 @@ fun RaidPlannerScreen(
         fun groups(entries: List<com.mewname.app.domain.RaidChoice>) = entries.groupBy { it.tier }.map { (tier, rows) ->
             val suffix=tier.removePrefix("RAID_LEVEL_").replace('_',' ')
             RaidHistoryCategory("live_$tier", "Raid · $suffix", "Raid · $suffix", "Raid · $suffix",
-                rows.map { RaidHistoryItem(com.mewname.app.domain.raidName(it.id), "https://www.pokebattler.com/raids/${it.id}", "", "") })
+                rows.map { RaidHistoryItem(com.mewname.app.domain.raidName(it.id), "https://www.pokebattler.com/raids/${it.id}", "", "", battleTier = it.tier) })
         }
         try {
             catalogError = false
             catalogLoading = true
             val cached = withContext(Dispatchers.IO) { counterRepository.catalog() }
             live = groups(cached)
+            savedRaids = groups(withContext(Dispatchers.IO) { counterRepository.savedCatalog() }).map { it.copy(id = it.id.removePrefix("live_")) }
             if (cached.isEmpty() || retry > 0) {
                 try {
                     val refreshed = withContext(Dispatchers.IO) { counterRepository.catalog(refresh = true) }
                     live = groups(refreshed)
+                    savedRaids = groups(withContext(Dispatchers.IO) { counterRepository.savedCatalog() }).map { it.copy(id = it.id.removePrefix("live_")) }
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -748,41 +665,85 @@ fun RaidPlannerScreen(
             catalogLoading = false
         }
     }
-    SimpleToolScreen(
-        scrollable = false,
-        actions = {
-            IconButton(onClick = { retry++ }, enabled = !catalogLoading) {
-                Icon(Icons.Default.Refresh, contentDescription = t(language, "Atualizar", "Refresh", "Actualizar"))
-            }
-        },
-        title = t(language, "Raids", "Raids", "Raids"),
-        onBack = onBack,
-    ) {
-        if (catalogError) {
-            AppStatusMessage(t(language, "Não foi possível atualizar as raids.", "Could not update raids.", "No se pudieron actualizar las incursiones."), error = true)
-        }
-        val result = loaded
-        when {
-            result == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AppLoadingIndicator()
-                    Text(t(language, "Carregando raids...", "Loading raids...", "Cargando raids..."))
+    val displayCategories = remember(live, savedRaids, loaded, catalogLoading) {
+        sortRaidCategoriesByDex(normalizeRaidCategories(live, saved = false) +
+            mergeSavedRaidCategories(loaded?.getOrNull().orEmpty(), savedRaids), counterRepository.metadata())
+    }
+    if (selectedBoss != null) {
+        RaidDetailsScreen(selectedBoss!!, selectedTier, shielded = selectedShields, onBack = { selectedBoss = null })
+        return
+    }
+    selectedMaxBoss?.let { maxBoss ->
+        val result by androidx.compose.runtime.produceState<Result<com.mewname.app.domain.BattleAdvice>?>(null, maxBoss) {
+            value = withContext(Dispatchers.Default) {
+                runCatching {
+                    requireNotNull(BattleAdvisor.adviceForRaw(context.applicationContext, "BATALHA MAX\n" + maxBoss + "\nGRUPO PRIVADO"))
                 }
             }
-            result.isFailure -> {
-                AppStatusMessage(t(language, "Não foi possível carregar as raids.", "Could not load raids.", "No se pudieron cargar las raids."), error = true)
-                AppActionButton(onClick = { retry++ }) { Text(t(language, "Tentar novamente", "Retry", "Reintentar")) }
-            }
-            result.getOrThrow().isEmpty() ->
-                AppStatusMessage(t(language, "Nenhuma raid disponível.", "No raids available.", "No hay raids disponibles."))
-            else -> RaidHistorySection(categories = sortRaidCategoriesByDex(live + result.getOrThrow(), counterRepository.metadata()), language = language,
-                loading = loading, loadedCount = loadedCount, totalCount = totalCount,
-                onSelectBoss = { boss, category ->
-                    selectedBoss = boss.url.substringAfterLast('/').substringBefore('?')
-                    selectedTier = if(category.id.startsWith("live_")) category.id.removePrefix("live_") else if(category.id == "shadow") "RAID_LEVEL_5_SHADOW" else if(category.id == "megaSuper") "RAID_LEVEL_MEGA_5" else if(category.id.contains("mega",true)) "RAID_LEVEL_MEGA" else "RAID_LEVEL_5"
-                },
-                onSelectMaxBoss = { boss -> selectedMaxBoss = boss.name }
+        }
+        val advice = result?.getOrNull()
+        if (advice != null) {
+            MaxBattleSuggestionsScreen(
+                advice = advice,
+                showLogAction = false,
+                bossSpriteId = selectedMaxSprite,
+                bossTier = selectedTier,
+                onCopy = { copyPlainText(context, it, language) },
+                onExportLog = {},
+                onClose = { selectedMaxBoss = null }
             )
+            return
+        }
+        androidx.activity.compose.BackHandler { selectedMaxBoss = null }
+        SimpleToolScreen(title = t(language, "Batalha Max", "Max Battle", "Combate Max"),
+            onBack = { selectedMaxBoss = null }) {
+            if (result?.isFailure == true) {
+                AppStatusMessage(t(language, "Não foi possível calcular as sugestões.", "Could not calculate suggestions.", "No se pudieron calcular las sugerencias."), error = true)
+            } else {
+                AppLoadingIndicator()
+                Text(t(language, "Calculando sugestões...", "Calculating suggestions...", "Calculando sugerencias..."))
+            }
+        }
+        return
+    }
+    searchState.SaveableStateProvider("raid-search") {
+        SimpleToolScreen(
+            scrollable = false,
+            actions = {
+                IconButton(onClick = { retry++ }, enabled = !catalogLoading) {
+                    Icon(Icons.Default.Refresh, contentDescription = t(language, "Atualizar", "Refresh", "Actualizar"))
+                }
+            },
+            title = t(language, "Raids", "Raids", "Raids"),
+            onBack = onBack,
+        ) {
+            if (catalogError) {
+                AppStatusMessage(t(language, "Não foi possível atualizar as raids.", "Could not update raids.", "No se pudieron actualizar las incursiones."), error = true)
+            }
+            val result = loaded
+            when {
+                result == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AppLoadingIndicator()
+                        Text(t(language, "Carregando raids...", "Loading raids...", "Cargando raids..."))
+                    }
+                }
+                result.isFailure -> {
+                    AppStatusMessage(t(language, "Não foi possível carregar as raids.", "Could not load raids.", "No se pudieron cargar las raids."), error = true)
+                    AppActionButton(onClick = { retry++ }) { Text(t(language, "Tentar novamente", "Retry", "Reintentar")) }
+                }
+                result.getOrThrow().isEmpty() ->
+                    AppStatusMessage(t(language, "Nenhuma raid disponível.", "No raids available.", "No hay raids disponibles."))
+                else -> RaidHistorySection(categories = displayCategories, language = language,
+                    loading = loading, loadedCount = loadedCount, totalCount = totalCount,
+                    onSelectBoss = { boss, category ->
+                        selectedBoss = raidHistorySpriteId(boss)
+                        selectedTier = raidBattleTier(boss, category)
+                        selectedShields = raidHasShields(raidCategoryTier(category))
+                    },
+                    onSelectMaxBoss = { boss, category -> selectedMaxBoss = boss.name; selectedMaxSprite = raidHistorySpriteId(boss); selectedTier = raidBattleTier(boss, category) }
+                )
+            }
         }
     }
 }
@@ -2330,7 +2291,7 @@ private fun pokemonImageUrl(dexNumber: Int): String {
     return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/$dexNumber.png"
 }
 internal fun raidCategoryTabTitle(category: RaidHistoryCategory, language: AppLanguage): String {
-    val id = category.id.removePrefix("live_").uppercase(Locale.US)
+    val id = raidCategoryTier(category)
     val raid = t(language, "Raid", "Raid", "Raid")
     val separator = " · "
     val level = Regex("^RAID_LEVEL_(\\d+(?:_\\d+)?)").find(id)?.groupValues?.get(1)?.replace('_', '.')
@@ -2338,19 +2299,16 @@ internal fun raidCategoryTabTitle(category: RaidHistoryCategory, language: AppLa
     return when {
         id == "RAIDS5" -> "$raid 5"
         id == "SHADOW" -> "$raid 5$separator${t(language, "Sombroso", "Shadow", "Oscura")}"
-        id == "MEGA" || id == "RAID_LEVEL_MEGA" -> "$raid$separator${t(language, "Mega", "Mega", "Mega")}"
-        id == "MEGASUPER" || id == "RAID_LEVEL_MEGA_5" || id == "RAID_LEVEL_MEGA_6" ->
-            "$raid$separator${t(language, "Super Mega", "Enhanced Mega", "Mega mejorada")}"
-        id.contains("MEGA_ENHANCED") ->
-            "${raidWithLevel ?: raid}$separator${t(language, "Super Mega", "Enhanced Mega", "Mega mejorada")}"
+        id == "MEGA" || id == "RAID_LEVEL_MEGA" || id == "RAID_LEVEL_MEGA_5" || id == "RAID_LEVEL_MEGA_6" -> "$raid$separator${t(language, "Mega", "Mega", "Mega")}"
+        id.contains("MEGA_ENHANCED") -> raid + separator + "Super Mega"
         id.contains("ULTRA_BEAST") ->
             "$raid$separator${t(language, "Ultra Criaturas", "Ultra Beasts", "Ultraentes")}"
         id.contains("SHADOW") ->
             "${raidWithLevel ?: raid}$separator${t(language, "Sombroso", "Shadow", "Oscura")}"
-        id == "GIGANTAMAX" || id.contains("GIGANTAMAX") ->
+        id == "RAID_LEVEL_6_MAX" || id.contains("GIGANTAMAX") || id.contains("GIGAMAX") ->
             "$raid$separator${t(language, "Gigantamax", "Gigantamax", "Gigamax")}"
-        id == "DYNAMAX" || id.contains("DYNAMAX") ->
-            "$raid$separator${t(language, "Dynamax", "Dynamax", "Dinamax")}"
+        isMaxRaidCategory(category) ->
+            "${raidWithLevel ?: raid}$separator${t(language, "Dinamax", "Dynamax", "Dinamax")}"
         id.contains("ELITE") -> "$raid$separator${t(language, "Elite", "Elite", "Élite")}"
         id.contains("EVENTS") ->
             "${raidWithLevel ?: raid}$separator${t(language, "Eventos", "Events", "Eventos")}"
@@ -2359,6 +2317,10 @@ internal fun raidCategoryTabTitle(category: RaidHistoryCategory, language: AppLa
     }
 }
 
+internal fun raidHistorySpriteId(item: RaidHistoryItem): String =
+    item.url.substringAfter("/raids/", "").substringBefore('/').substringBefore('?')
+        .ifBlank { maxPortraitId(item.name) }
+
 internal enum class RaidCategoryGroup { CURRENT, SAVED }
 
 internal fun raidCategoryGroup(category: RaidHistoryCategory): RaidCategoryGroup =
@@ -2366,7 +2328,7 @@ internal fun raidCategoryGroup(category: RaidHistoryCategory): RaidCategoryGroup
 
 internal fun isMaxRaidCategory(category: RaidHistoryCategory): Boolean {
     val id = category.id.uppercase(Locale.US)
-    return "DYNAMAX" in id || "GIGANTAMAX" in id || "GIGAMAX" in id ||
+    return "DYNAMAX" in id || "DINAMAX" in id || "GIGANTAMAX" in id || "GIGAMAX" in id ||
         Regex("RAID_LEVEL_.+_MAX").containsMatchIn(id)
 }
 
@@ -2387,10 +2349,10 @@ private fun RaidHistorySection(
     categories: List<RaidHistoryCategory>, language: AppLanguage,
     loading: Boolean, loadedCount: Int, totalCount: Int,
     onSelectBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit,
-    onSelectMaxBoss: (RaidHistoryItem) -> Unit
+    onSelectMaxBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit
 ) {
     if (categories.isEmpty()) return
-    val groupedCategories = categories.groupBy(::raidCategoryGroup)
+    val groupedCategories = orderedRaidCategories(categories).groupBy(::raidCategoryGroup)
     val groups = listOf(
         RaidCategoryGroup.CURRENT to t(language, "Atuais", "Current", "Actuales"),
         RaidCategoryGroup.SAVED to t(language, "Salvas", "Saved", "Guardadas")
@@ -2450,7 +2412,7 @@ private fun RaidHistorySection(
                 }
                 items(visibleItems) { boss ->
                     AppSectionCard(Modifier.fillMaxWidth().clickable(enabled = boss.url.isNotBlank()) {
-                        if (isMaxRaidCategory(selectedCategory)) onSelectMaxBoss(boss)
+                        if (isMaxRaidCategory(selectedCategory)) onSelectMaxBoss(boss, selectedCategory)
                         else onSelectBoss(boss, selectedCategory)
                     }) {
                         Text(boss.name, Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -2712,13 +2674,10 @@ private fun SavedFiltersDialog(
 private fun SimpleToolScreen(
     title: String,
     onBack: () -> Unit,
-    helpTitle: String? = null,
-    helpText: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
     scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    var showHelp by rememberSaveable { mutableStateOf(false) }
     androidx.compose.material3.Scaffold(
         topBar = {
             AppTopBar(
@@ -2728,14 +2687,7 @@ private fun SimpleToolScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
-                actions = {
-                    actions()
-                    if (helpTitle != null && helpText != null) {
-                        IconButton(onClick = { showHelp = true }) {
-                            HelpIcon(modifier = Modifier.size(24.dp), contentDescription = "Ajuda")
-                        }
-                    }
-                }
+                actions = actions
             )
         }
     ) { padding ->
@@ -2749,28 +2701,6 @@ private fun SimpleToolScreen(
             content = content
         )
     }
-    if (showHelp && helpTitle != null && helpText != null) {
-        ToolHelpDialog(title = helpTitle, body = helpText, onDismiss = { showHelp = false })
-    }
-}
-
-@Composable
-private fun ToolHelpDialog(
-    title: String,
-    body: String,
-    onDismiss: () -> Unit
-) {
-    val language = appLanguage()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            AppActionButton(onClick = onDismiss) {
-                Text(t(language, "OK", "OK", "OK"))
-            }
-        },
-        title = { Text(title) },
-        text = { Text(body) }
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

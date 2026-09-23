@@ -15,12 +15,16 @@ class RaidCategoryTitleTest {
     fun currentRaidCategoriesAreLocalized() {
         val cases = listOf(
             "live_RAID_LEVEL_1" to listOf("Raid 1", "Raid 1", "Raid 1"),
+            "live_RAID_LEVEL_1_MAX" to listOf("Raid 1 · Dinamax", "Raid 1 · Dynamax", "Raid 1 · Dinamax"),
+            "live_RAID_LEVEL_3_MAX" to listOf("Raid 3 · Dinamax", "Raid 3 · Dynamax", "Raid 3 · Dinamax"),
+            "live_RAID_LEVEL_5_MAX" to listOf("Raid 5 · Dinamax", "Raid 5 · Dynamax", "Raid 5 · Dinamax"),
+            "dynamax" to listOf("Raid · Dinamax", "Raid · Dynamax", "Raid · Dinamax"),
             "live_RAID_LEVEL_3" to listOf("Raid 3", "Raid 3", "Raid 3"),
             "live_RAID_LEVEL_4_5" to listOf("Raid 4.5", "Raid 4.5", "Raid 4.5"),
             "live_RAID_LEVEL_MEGA" to listOf("Raid \u00B7 Mega", "Raid \u00B7 Mega", "Raid \u00B7 Mega"),
             "live_RAID_LEVEL_ULTRA_BEAST" to listOf("Raid \u00B7 Ultra Criaturas", "Raid \u00B7 Ultra Beasts", "Raid \u00B7 Ultraentes"),
             "live_RAID_LEVEL_5_SHADOW" to listOf("Raid 5 \u00B7 Sombroso", "Raid 5 \u00B7 Shadow", "Raid 5 \u00B7 Oscura"),
-            "live_RAID_LEVEL_4_MEGA_ENHANCED" to listOf("Raid 4 \u00B7 Super Mega", "Raid 4 \u00B7 Enhanced Mega", "Raid 4 \u00B7 Mega mejorada"),
+            "live_RAID_LEVEL_4_MEGA_ENHANCED" to listOf("Raid \u00B7 Super Mega", "Raid \u00B7 Super Mega", "Raid \u00B7 Super Mega"),
             "live_RAID_LEVEL_ELITE" to listOf("Raid \u00B7 Elite", "Raid \u00B7 Elite", "Raid \u00B7 \u00C9lite"),
             "live_RAID_LEVEL_4_EVENTS" to listOf("Raid 4 \u00B7 Eventos", "Raid 4 \u00B7 Events", "Raid 4 \u00B7 Eventos")
         )
@@ -39,7 +43,7 @@ class RaidCategoryTitleTest {
         assertEquals("Raid \u00B7 Mega", raidCategoryTabTitle(category("mega"), AppLanguage.PT_BR))
         assertEquals("Raid \u00B7 Super Mega", raidCategoryTabTitle(category("megaSuper"), AppLanguage.PT_BR))
         assertEquals("Raid \u00B7 Gigamax", raidCategoryTabTitle(category("gigantamax"), AppLanguage.ES))
-        assertEquals("Raid \u00B7 Dynamax", raidCategoryTabTitle(category("dynamax"), AppLanguage.EN))
+        assertEquals("Raid · Dynamax", raidCategoryTabTitle(category("dynamax"), AppLanguage.EN))
     }
 
     @Test

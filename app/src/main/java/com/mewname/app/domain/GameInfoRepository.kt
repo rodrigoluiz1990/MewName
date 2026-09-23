@@ -102,7 +102,8 @@ data class RaidHistoryItem(
     val name: String,
     val url: String,
     val lastStart: String,
-    val lastEnd: String
+    val lastEnd: String,
+    val battleTier: String? = null
 )
 
 private data class PvpMoveStats(
@@ -421,7 +422,8 @@ object GameInfoRepository {
                                     name = item.optString("name"),
                                     url = item.optString("url"),
                                     lastStart = item.optString("lastStart"),
-                                    lastEnd = item.optString("lastEnd")
+                                    lastEnd = item.optString("lastEnd"),
+                                    battleTier = item.optString("battleTier").takeIf { it.isNotBlank() }
                                 )
                             )
                         }
@@ -623,7 +625,10 @@ object GameInfoRepository {
         maxBattleEntry("Dynamax Lapras", listOf("Water", "Ice"), "dmax", "lapras"),
         maxBattleEntry("Dynamax Kingler", listOf("Water"), "dmax", "kingler"),
         maxBattleEntry("Dynamax Snorlax", listOf("Normal"), "dmax", "snorlax"),
-        maxBattleEntry("Dynamax Butterfree", listOf("Bug", "Flying"), "dmax", "butterfree")
+        maxBattleEntry("Dynamax Butterfree", listOf("Bug", "Flying"), "dmax", "butterfree"),
+        maxBattleEntry("Dynamax Chansey", listOf("Normal"), "dmax", "chansey"),
+        maxBattleEntry("Dynamax Blissey", listOf("Normal"), "dmax", "blissey"),
+        maxBattleEntry("Dynamax Shuckle", listOf("Bug", "Rock"), "dmax", "shuckle")
     )
 
     fun matchupAgainst(

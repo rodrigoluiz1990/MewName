@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "categorias": {
+      "events":          { "label": "Evento",            "icon": "../Assets/icon-event2.png" },
+      "research":        { "label": "Pesquisa",          "icon": "../Assets/icon-research.png" },
+      "community_day":   { "label": "Dia da Comunidade", "icon": "../Assets/icon-community-day.png" },
+      "raid":            { "label": "Raid",              "icon": "../Assets/icon-raid.png" },
+      "raid_hour":       { "label": "Hora Lendária",     "icon": "../Assets/icon-raid-hour.png" },
+      "raid_mega":       { "label": "Mega Raid",         "icon": "../Assets/icon-raid-mega.png" },
+      "raid_mega_super": { "label": "Super Mega Raid",   "icon": "../Assets/icon-raid-mega-super.png" },
+      "raid_shadow":     { "label": "Raid Sombrosa",     "icon": "../Assets/icon-raid-shadow.png" },
+      "dynamax":         { "label": "Dynamax",           "icon": "../Assets/icon-dynamax.png" },
+      "gigantamax":      { "label": "Gigantamax",        "icon": "../Assets/icon-gigantamax.png" },
+      "max_monday":      { "label": "Segundas Max",      "icon": "../Assets/icon-powerstop.png" },
+      "spotlights":      { "label": "Hora do Holofote",  "icon": "../Assets/icon-encounter.png" }
+    }
+  }
+}

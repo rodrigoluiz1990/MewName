@@ -39,7 +39,7 @@ internal fun logOptionsEnabled(): Boolean {
 internal fun LogOptionsPreference() {
     val context = LocalContext.current
     val language = appLanguage()
-    GlassSwitchField(
+    AppToggleRow(
         label = lt(language, "Mostrar opções de log", "Show log options", "Mostrar opciones de registro"),
         checked = logOptionsEnabled(),
         onCheckedChange = { LogOptionsSettings.setEnabled(context, it) },

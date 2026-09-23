@@ -8,6 +8,7 @@ import java.text.Normalizer
 import java.util.Locale
 
 class PokemonReadSessionMerger {
+    private val masterForms = MasterIvBadgeCatalog()
     fun mergeIfSamePokemon(current: PokemonScreenData, previous: PokemonScreenData?): PokemonScreenData {
         if (previous == null || !isSamePokemon(current, previous)) return current
         // Older reads could infer Dynamax solely from blue/purple pixels. Do not carry that guess forward.
@@ -134,6 +135,11 @@ class PokemonReadSessionMerger {
     }
 
     private fun isSamePokemon(current: PokemonScreenData, previous: PokemonScreenData): Boolean {
+        // Matching candy, CP and IVs do not make two regional forms the same Pokemon.
+        if (!current.pokemonName.isNullOrBlank() && !previous.pokemonName.isNullOrBlank() &&
+            masterForms.regionalBranch(current.pokemonName) != masterForms.regionalBranch(previous.pokemonName)) {
+            return false
+        }
         val sameCp = current.cp != null && previous.cp != null && current.cp == previous.cp
         val sameIv = current.attIv != null && current.attIv == previous.attIv &&
             current.defIv != null && current.defIv == previous.defIv &&

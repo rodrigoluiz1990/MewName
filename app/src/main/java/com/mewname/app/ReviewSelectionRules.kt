@@ -679,6 +679,7 @@ internal fun specialBackgroundSelectionOptions(language: AppLanguage): List<Stri
         SpecialBackgroundType.GO_FEST.localizedLabel(language),
         SpecialBackgroundType.WILD_AREA.localizedLabel(language),
         SpecialBackgroundType.LOCATION.localizedLabel(language),
+        SpecialBackgroundType.MEGA_EVOLUTION.localizedLabel(language),
         SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language)
     )
 }
@@ -692,6 +693,7 @@ internal fun specialBackgroundTypeFromSelection(
         SpecialBackgroundType.GO_FEST.localizedLabel(language) -> SpecialBackgroundType.GO_FEST
         SpecialBackgroundType.WILD_AREA.localizedLabel(language) -> SpecialBackgroundType.WILD_AREA
         SpecialBackgroundType.LOCATION.localizedLabel(language) -> SpecialBackgroundType.LOCATION
+        SpecialBackgroundType.MEGA_EVOLUTION.localizedLabel(language) -> SpecialBackgroundType.MEGA_EVOLUTION
         SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language) -> SpecialBackgroundType.COMMUNITY_DAY
         else -> null
     }
@@ -729,7 +731,8 @@ internal fun buildMasterIvReviewData(context: Context, data: PokemonScreenData, 
             ivPercent = data.ivPercent,
             attack = attack,
             defense = defense,
-            stamina = stamina
+            stamina = stamina,
+            selectedPokemonName = data.pokemonName
         )
     }.getOrNull()
     return data.copy(

@@ -2,12 +2,12 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:padding="8.dp">
+    android:padding="@dimen/overlay_bubble_padding">
 
     <ImageView
         android:id="@+id/floating_icon"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="@dimen/overlay_bubble_icon_size"
+        android:layout_height="@dimen/overlay_bubble_icon_size"
         android:background="@android:drawable/btn_default"
         android:src="@drawable/ic_launcher"
         android:scaleType="centerCrop"

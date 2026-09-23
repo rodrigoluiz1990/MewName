@@ -28,7 +28,8 @@ data class BattleAdvice(
     val defenderSuggestions: List<BattleSuggestionEntry> = emptyList(),
     val copyText: String,
     val raidScreenText: String = "",
-    val raidLevel: Int? = null
+    val raidLevel: Int? = null,
+    val healerSuggestions: List<BattleSuggestionEntry> = emptyList()
 )
 
 object BattleAdvisor {
@@ -97,21 +98,9 @@ object BattleAdvisor {
                 )
                 .ifEmpty { source.take(10) }
         }
-        val defenderSuggestions = if (bossTypes.isEmpty()) {
-            source.take(10)
-        } else {
-            val chart = GameInfoRepository.loadTypeEffectiveness(context)
-            source.sortedWith(
-                compareBy<BattleSuggestionEntry> { entry ->
-                    val defenderTypes = entry.attackTypes.ifEmpty { listOf("Normal") }
-                    bossTypes.flatMap { bossType ->
-                        defenderTypes.map { defenderType ->
-                            chart[bossType].orEmpty().getOrDefault(defenderType, 1.0)
-                        }
-                    }.average()
-                }.thenBy { entry -> sourceOrder[entry.name] ?: Int.MAX_VALUE }
-            ).take(10)
-        }
+        val support = maxSupportSuggestions(source, bossTypes,
+            GameInfoRepository.loadTypeEffectiveness(context),
+            RaidCounterRepository(context.applicationContext).metadata())
         val copyText = buildFastCopyText(context, mode, suggestions)
 
         return BattleAdvice(
@@ -120,7 +109,8 @@ object BattleAdvisor {
             bossTypes = bossTypes,
             weaknessTypes = weaknessTypes,
             suggestions = suggestions,
-            defenderSuggestions = defenderSuggestions,
+            defenderSuggestions = support.first,
+            healerSuggestions = support.second,
             copyText = copyText,
             raidScreenText = if (mode == BattleMode.RAID) rawText else "",
             raidLevel = detectedRaidLevel.takeIf { mode == BattleMode.RAID }
@@ -159,7 +149,7 @@ object BattleAdvisor {
             .distinct()
         return if (mode == BattleMode.MAX) {
             val allowedMaxTerms = maxAllowedTerms(selectedLanguage(context))
-            val maxSuggestionTerms = (suggestionTerms + listOf("zacian", "zamazenta")).distinct()
+            val maxSuggestionTerms = suggestionTerms.distinct()
             "${allowedMaxTerms.joinToString(",")}&${maxSuggestionTerms.joinToString(",")}"
         } else {
             suggestionTerms.joinToString(",")
@@ -179,9 +169,7 @@ object BattleAdvisor {
 
         return if (mode == BattleMode.MAX) {
             val allowedMaxTerms = maxAllowedTerms(language)
-            val maxSuggestionTerms = (suggestionTerms + listOf("zacian", "zamazenta").map {
-                localizedSearchTerm(context, it, language)
-            }).distinct()
+            val maxSuggestionTerms = suggestionTerms.distinct()
             if (maxSuggestionTerms.isEmpty()) {
                 allowedMaxTerms.joinToString(",")
             } else {

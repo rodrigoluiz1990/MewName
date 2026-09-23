@@ -503,7 +503,8 @@ class OcrPokemonParser {
             ivPercent = ivPercent,
             attack = att,
             defense = def,
-            stamina = sta
+            stamina = sta,
+            selectedPokemonName = name
         )
 
         val selectableFamilySpeciesRanks = familySpeciesRanks
@@ -1101,7 +1102,7 @@ class OcrPokemonParser {
             when {
                 normalized.contains("ATTACK") || normalized.contains("ATAQUE") -> labelMap["ATTACK"] = rect
                 normalized.contains("DEFENSE") || normalized.contains("DEFESA") -> labelMap["DEFENSE"] = rect
-                normalized == "HP" || normalized == "PS" || normalized.contains(" PS") -> labelMap["HP"] = rect
+                Regex("""(^|\s)(HP|PS)(\s|$)""").containsMatchIn(normalized) -> labelMap["HP"] = rect
             }
         }
 
