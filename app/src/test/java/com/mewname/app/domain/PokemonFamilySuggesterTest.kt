@@ -72,7 +72,12 @@ class PokemonFamilySuggesterTest {
         val canonical = calculator.estimateCpAtLevel(context, "Alolan Raichu", 15, 15, 15, 40.0)
         org.junit.Assert.assertNotNull(canonical)
         assertEquals(canonical, calculator.estimateCpAtLevel(context, "Raichu (Alola)", 15, 15, 15, 40.0))
-        org.junit.Assert.assertNull(calculator.estimateCpAtLevel(context, "Zamazenta (Coroado)", 15, 15, 15, 40.0))
+        // Crowned form now has its own audited stats; never fall back to Hero.
+        val crowned = calculator.estimateCpAtLevel(context, "Zamazenta (Coroado)", 15, 15, 15, 40.0)
+        assertEquals(4172, crowned)
+        org.junit.Assert.assertNotEquals(
+            calculator.estimateCpAtLevel(context, "Zamazenta", 15, 15, 15, 40.0), crowned
+        )
     }
     @Test
     fun `Nidoran without gender offers only its two evolution branches`() {
