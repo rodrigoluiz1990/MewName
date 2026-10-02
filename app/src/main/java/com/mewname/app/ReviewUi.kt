@@ -50,6 +50,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -393,11 +394,13 @@ fun ReviewEditorCard(
             }
         }
     }
-    val fastMoveRating = remember(draft.selectedFastMove, moveSet.fastMoves) {
-        moveSet.fastMoves.firstOrNull { it.name == draft.selectedFastMove }?.rating
-    }
-    val chargedMoveRating = remember(draft.selectedChargedMove, moveSet.chargedMoves) {
-        moveSet.chargedMoves.firstOrNull { it.name == draft.selectedChargedMove }?.rating
+    val movesetRating by produceState<com.mewname.app.domain.MovesetRating?>(null,
+        selectedPvpSpecies, moveSet, draft.selectedFastMove, draft.selectedChargedMove) {
+        value = null
+        value = withContext(Dispatchers.IO) {
+            com.mewname.app.domain.MovesetRater.load(context.applicationContext, selectedPvpSpecies,
+                moveSet, draft.selectedFastMove, draft.selectedChargedMove)
+        }
     }
     val previewUsesLegacyMove = remember(configs) {
         configs.any { config ->
@@ -546,6 +549,7 @@ fun ReviewEditorCard(
                     } },
                     modifier = Modifier.fillMaxWidth()
                 )
+                PersonalCollectionReview(data = draft)
                 if (glassStyle) {
                     GlassTabs(
                         labels = reviewTabs.map { tab -> when (tab) {
@@ -814,6 +818,9 @@ fun ReviewEditorCard(
                     val masterIvCombinations = remember(pvpFamilyCandidates, draft.pokemonName) {
                         masterIvBadgeCatalog.bestCombinations(context.applicationContext, pvpFamilyCandidates, draft.pokemonName)
                     }
+                    val masterFamilyName = remember(pvpFamilyCandidates, draft.pokemonName) {
+                        masterIvBadgeCatalog.combinationFamilyName(pvpFamilyCandidates, draft.pokemonName)
+                    }
                     val masterIvList = listOf(98, 96, 93, 91).joinToString("\n") { percent ->
                         val combination = masterIvCombinations[percent]
                         if (combination == null) {
@@ -851,9 +858,9 @@ fun ReviewEditorCard(
                         },
                         modalMessage = lt(
                             language,
-                            "Melhores combinações da lista:\n$masterIvList",
-                            "Best combinations from the list:\n$masterIvList",
-                            "Mejores combinaciones de la lista:\n$masterIvList"
+                            "Melhores combinações da família $masterFamilyName:\n$masterIvList",
+                            "Best combinations for the $masterFamilyName family:\n$masterIvList",
+                            "Mejores combinaciones de la familia $masterFamilyName:\n$masterIvList"
                         ),
                         verticalOptions = true,
                         centeredContent = true,
@@ -1051,47 +1058,6 @@ fun ReviewEditorCard(
                         SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
                     }
                     }
-                    GlassSection {
-                        FieldHeaderRow(
-                            label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
-                            selected = NamingField.SPECIAL_BACKGROUND in selectedDebugFields,
-                            onMarkerClick = {
-                                selectedDebugFields = selectedDebugFields.toggleField(NamingField.SPECIAL_BACKGROUND)
-                                showBackgroundHelp = !showBackgroundHelp
-                            }
-                        )
-                        val backgroundOptions = listOf(
-                            SpecialBackgroundType.SPECIAL,
-                            SpecialBackgroundType.GO_FEST,
-                            SpecialBackgroundType.WILD_AREA,
-                            SpecialBackgroundType.LOCATION,
-                            SpecialBackgroundType.MEGA_EVOLUTION,
-                            SpecialBackgroundType.COMMUNITY_DAY
-                        )
-                        backgroundOptions.chunked(3).forEachIndexed { rowIndex, row ->
-                            if (rowIndex > 0) Spacer(Modifier.height(2.dp))
-                            WeightedToggleRow(
-                                items = row.map { type ->
-                                    val selected = draft.hasSpecialBackground &&
-                                        (draft.specialBackgroundType ?: SpecialBackgroundType.SPECIAL) == type
-                                    WeightedToggleItem(
-                                        label = type.localizedLabel(language),
-                                        selected = selected,
-                                        onClick = {
-                                            draft = if (selected) {
-                                                draft.copy(hasSpecialBackground = false, specialBackgroundType = null)
-                                            } else {
-                                                draft.copy(hasSpecialBackground = true, specialBackgroundType = type)
-                                            }
-                                        }
-                                    )
-                                }
-                            )
-                        }
-                        if (logsEnabled && showBackgroundHelp) {
-                            BackgroundHelpPanel(info = draft.backgroundDebugInfo)
-                        }
-                    }
                     ReviewTextRow {
                         LabeledToggleChipField(
                             label = lt(language, "Marcadores", "Markers", "Marcadores"),
@@ -1119,6 +1085,40 @@ fun ReviewEditorCard(
                             },
                             modifier = Modifier.weight(1f)
                         )
+                    }
+                    GlassSection {
+                        FieldHeaderRow(
+                            label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
+                            selected = NamingField.SPECIAL_BACKGROUND in selectedDebugFields,
+                            onMarkerClick = {
+                                selectedDebugFields = selectedDebugFields.toggleField(NamingField.SPECIAL_BACKGROUND)
+                                showBackgroundHelp = !showBackgroundHelp
+                            }
+                        )
+                        val backgroundOptions = SpecialBackgroundType.entries
+                        backgroundOptions.chunked(3).forEachIndexed { rowIndex, row ->
+                            if (rowIndex > 0) Spacer(Modifier.height(2.dp))
+                            WeightedToggleRow(
+                                items = row.map { type ->
+                                    val selected = draft.hasSpecialBackground &&
+                                        (draft.specialBackgroundType ?: SpecialBackgroundType.SPECIAL) == type
+                                    WeightedToggleItem(
+                                        label = type.localizedLabel(language),
+                                        selected = selected,
+                                        onClick = {
+                                            draft = if (selected) {
+                                                draft.copy(hasSpecialBackground = false, specialBackgroundType = null)
+                                            } else {
+                                                draft.copy(hasSpecialBackground = true, specialBackgroundType = type)
+                                            }
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                        if (logsEnabled && showBackgroundHelp) {
+                            BackgroundHelpPanel(info = draft.backgroundDebugInfo)
+                        }
                     }
                     GlassSection {
                     FieldHeaderRow(
@@ -1330,7 +1330,7 @@ fun ReviewEditorCard(
                     }
                 }
 
-                GlassFieldRow(legacySpacing = 2.dp) {
+                GlassFieldRow(weights = listOf(1f, 1f, .65f), legacySpacing = 2.dp) {
                     val fastMoveOptions = remember(moveSet.fastMoves, legacyMoveSymbol) {
                         moveDropdownOptions(moveSet.fastMoves, legacyMoveSymbol)
                     }
@@ -1350,7 +1350,6 @@ fun ReviewEditorCard(
                             )
                         },
                         modifier = Modifier.weight(1f),
-                        ratingLabel = fastMoveRating?.label,
                         statusMessage = moveStatusMessage
                     )
                     MoveDropdownField(
@@ -1366,9 +1365,18 @@ fun ReviewEditorCard(
                             )
                         },
                         modifier = Modifier.weight(1f),
-                        ratingLabel = chargedMoveRating?.label,
                         statusMessage = moveStatusMessage
                     )
+                    Column(Modifier.weight(.65f)) {
+                        FieldLabelRow(label = lt(language, "PvE (est.)", "PvE (est.)", "PvE (est.)"))
+                        CompactTextInput(value = movesetRating?.label ?: "—", onValueChange = {}, readOnly = true,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                android.widget.Toast.makeText(context, lt(language,
+                                    "Estimativa PvE: compara dano, energia, duração e bônus de tipo com os outros pares desta forma. A ≥90%, B ≥80%, C ≥70%, D ≥60%, E <60%. Não simula o adversário.",
+                                    "PvE estimate: compares damage, energy, duration and STAB with this form's other pairs. A ≥90%, B ≥80%, C ≥70%, D ≥60%, E <60%. No opponent simulation.",
+                                    "Estimación PvE: compara daño, energía, duración y bono de tipo con los pares de esta forma. A ≥90%, B ≥80%, C ≥70%, D ≥60%, E <60%. No simula al rival."), android.widget.Toast.LENGTH_LONG).show()
+                            })
+                    }
                 }
             }
             val hasBooleanSection = listOf(

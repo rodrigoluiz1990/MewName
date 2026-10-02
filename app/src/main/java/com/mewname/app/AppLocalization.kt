@@ -61,6 +61,10 @@ fun NamingBlock.localizedLabel(language: AppLanguage): String = when (type) {
 fun SpecialBackgroundType.localizedLabel(language: AppLanguage): String = when (this) {
     SpecialBackgroundType.SPECIAL -> lt(language, "Fundo especial", "Special background", "Fondo especial")
     SpecialBackgroundType.MEGA_EVOLUTION -> lt(language, "Mega evolução", "Mega Evolution", "Megaevolución")
+    SpecialBackgroundType.ANNIVERSARY -> lt(language, "Aniversário", "Anniversary", "Aniversario")
+    SpecialBackgroundType.GO_TOUR -> "GO Tour"
+    SpecialBackgroundType.SEASON -> lt(language, "Temporada", "Season", "Temporada")
+    SpecialBackgroundType.TEAM_LEADER -> lt(language, "Líder de equipe", "Team leader", "Líder de equipo")
     SpecialBackgroundType.GO_FEST -> "GO Fest"
     SpecialBackgroundType.WILD_AREA -> "Wild Area"
     SpecialBackgroundType.LOCATION -> lt(language, "Localidade", "Location", "Localidad")

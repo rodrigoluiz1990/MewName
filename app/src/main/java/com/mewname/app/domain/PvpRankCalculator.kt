@@ -57,6 +57,43 @@ class PvpRankCalculator {
     private var canonicalNameByAlias: Map<String, String>? = null
     private val rankTableCache = mutableMapOf<String, RankTable>()
 
+    data class CpIvEvidence(val matches: Int, val attack: Int?, val defense: Int?, val stamina: Int?, val level: Double?)
+
+    /** Exact CP/maximum HP constraints. Ambiguous spreads must never become a guessed IV. */
+    fun resolveIvEvidence(context: Context, pokemonName: String, cp: Int, maxHp: Int?,
+        knownAttack: Int? = null, knownDefense: Int? = null, knownStamina: Int? = null,
+        knownLevel: Double? = null): CpIvEvidence {
+        val empty = CpIvEvidence(0, null, null, null, null)
+        if (cp < 10 || (maxHp == null && knownLevel == null) || (maxHp != null && maxHp < 10)) return empty
+        if (listOf(knownAttack, knownDefense, knownStamina).any { it != null && it !in 0..15 }) return empty
+        if (knownLevel != null && (knownLevel !in 1.0..51.0 || knownLevel * 2 != kotlin.math.floor(knownLevel * 2))) return empty
+        val base = loadBaseStats(context, pokemonName) ?: return empty
+        val a = base.getInt("attack"); val d = base.getInt("defense"); val h = base.getInt("stamina")
+        var matches = 0
+        var first: Triple<Int, Int, Int>? = null
+        var sameIv = true
+        var firstLevel: Double? = null
+        var sameLevel = true
+        for (i in cpmTable.indices) {
+            if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException("IV resolution cancelled")
+            val level = 1.0 + i * 0.5
+            if (knownLevel != null && level != knownLevel) continue
+            val cpm = cpmTable[i]
+            for (sta in (knownStamina?.let { it..it } ?: 0..15)) {
+                if (maxHp != null && floor((h + sta) * cpm).toInt().coerceAtLeast(10) != maxHp) continue
+                for (atk in (knownAttack?.let { it..it } ?: 0..15)) for (def in (knownDefense?.let { it..it } ?: 0..15)) {
+                    if (calculateCp(a + atk, d + def, h + sta, cpm) != cp) continue
+                    val iv = Triple(atk, def, sta)
+                    if (matches == 0) { first = iv; firstLevel = level }
+                    else { if (first != iv) sameIv = false; if (firstLevel != level) sameLevel = false }
+                    matches++
+                }
+            }
+        }
+        return CpIvEvidence(matches, first?.first?.takeIf { sameIv }, first?.second?.takeIf { sameIv },
+            first?.third?.takeIf { sameIv }, firstLevel?.takeIf { sameLevel })
+    }
+
     fun estimateLevel(
         context: Context,
         pokemonName: String,
@@ -187,6 +224,10 @@ class PvpRankCalculator {
         val familyCandidates = pokemonNames.filter { it.isNotBlank() }.map { resolveCanonicalPokemonName(context, it) }.distinct()
         if (familyCandidates.isEmpty()) return emptyList()
 
+        // Resolve the source level once; all evolutions keep that level.
+        val sourceLevel = currentLevel ?: if (currentPokemonName != null && currentCp != null) {
+            estimateLevel(context, currentPokemonName, currentCp, atk, def, sta)
+        } else null
         return listOf(PvpLeague.LITTLE, PvpLeague.GREAT, PvpLeague.ULTRA, PvpLeague.MASTER).flatMap { league ->
             familyCandidates.mapNotNull { name ->
                 val baseStats = loadBaseStats(context, name) ?: return@mapNotNull null
@@ -198,7 +239,7 @@ class PvpRankCalculator {
                     sta = sta,
                     league = league,
                     currentPokemonName = currentPokemonName,
-                    currentLevel = currentLevel,
+                    currentLevel = sourceLevel,
                     currentCp = currentCp,
                     options = options,
                     context = context

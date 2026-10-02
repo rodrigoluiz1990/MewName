@@ -21,6 +21,8 @@ import kotlin.coroutines.resume
 import java.io.File
 
 internal object TrainerScreenReader {
+    private var recentReadName: String? = null
+    private var recentReadAt: Long = 0
     fun parse(context: Context, read: OcrResult): TrainerProfileDraft {
         val image = read.bitmap
         val regions = if (image == null) emptyList() else read.blocks.flatMap { it.lines }.mapNotNull { line ->
@@ -35,14 +37,39 @@ internal object TrainerScreenReader {
         return if (visualTeam == null) parsed else parsed.copy(team = visualTeam)
     }
 
-    fun save(context: Context, draft: TrainerProfileDraft) {
+    fun save(context: Context, draft: TrainerProfileDraft): Boolean {
         val prefs = context.getSharedPreferences("trainer_profile", 0)
+        val now = android.os.SystemClock.elapsedRealtime()
+        val explicitName = draft.name?.trim()?.takeIf { it.isNotBlank() }
+        if (explicitName != null) {
+            recentReadName = explicitName
+            recentReadAt = now
+        }
+        val experienceName = explicitName ?: recentReadName?.takeIf {
+            now - recentReadAt in 0..120_000 && it.equals(prefs.getString("name",null),ignoreCase = true)
+        }
+        val experienceSaved = draft.totalExperience != null && experienceName != null
         prefs.edit().apply {
             draft.name?.let { putString("name", it) }
             draft.level?.let { putString("level", it) }
             draft.team?.let { putString("team", it) }
             draft.friendCode?.let { putString("code", it) }
+            val readName = explicitName
+            if (readName != null) {
+                if (experienceSaved) {
+                    putLong("total_experience", requireNotNull(draft.totalExperience))
+                    putString("experience_trainer", readName)
+                } else if (!readName.equals(prefs.getString("experience_trainer", null), ignoreCase = true)) {
+                    remove("total_experience")
+                    remove("experience_trainer")
+                }
+            }
         }.apply()
+        if (explicitName == null && experienceSaved) {
+            prefs.edit().putLong("total_experience",requireNotNull(draft.totalExperience))
+                .putString("experience_trainer",experienceName).apply()
+        }
+        return experienceSaved
     }
 
     suspend fun saveQr(context: Context, read: OcrResult): Boolean {

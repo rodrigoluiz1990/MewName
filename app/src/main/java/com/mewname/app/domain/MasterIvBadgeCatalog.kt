@@ -117,6 +117,12 @@ class MasterIvBadgeCatalog {
         }.distinctBy { it.signature }
     }
 
+    fun combinationFamilyName(familyMembers: List<String>, selectedPokemonName: String?): String {
+        // Family assets are ordered by evolution; keep the selected regional branch.
+        if (selectedPokemonName?.startsWith("Lycanroc", true) == true) return selectedPokemonName
+        val branch = selectedPokemonName?.let(::regionalBranch)
+        return familyMembers.lastOrNull { regionalBranch(it) == branch } ?: selectedPokemonName.orEmpty()
+    }
     internal fun regionalBranch(name: String): String? = region(normalize(name))
 
     private fun region(key: String): String? =

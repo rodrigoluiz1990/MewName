@@ -173,6 +173,7 @@ data class AdventureEffectDebugInfo(
 )
 
 data class BackgroundDebugInfo(
+    val detectedSpecialType: SpecialBackgroundType? = null,
     val textMatch: Boolean = false,
     val topRegionMatch: Boolean = false,
     val eventBadgeVisualMatch: Boolean = false,

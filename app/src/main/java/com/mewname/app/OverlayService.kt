@@ -476,6 +476,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         bubbleAppShortcuts.forEach { shortcut ->
             action(shortcut.key, lt(language, shortcut.pt, shortcut.en, shortcut.es), shortcut.icon) {
                 try {
+                    if (shortcut.screen == AppScreen.CALENDAR) {
+                        showCalendarOverlay()
+                        return@action
+                    }
                     val destination = if (shortcut.url != null) {
                         Intent(Intent.ACTION_VIEW, android.net.Uri.parse(shortcut.url))
                     } else {
@@ -826,13 +830,15 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
                 if (readTarget == com.mewname.app.domain.BubbleScreenRouter.Target.Trainer) {
                     val profile = TrainerScreenReader.parse(this@OverlayService, ocrResult)
-                    TrainerScreenReader.save(this@OverlayService, profile)
+                    val experienceSaved = TrainerScreenReader.save(this@OverlayService, profile)
                     val qrSaved = if (profile.friendCode != null) TrainerScreenReader.saveQr(this@OverlayService, ocrResult) else false
                     val log = profileReadDiagnostics(ocrResult, "sobreposição_perfil",
                         android.os.SystemClock.elapsedRealtime() - started, savedAppLanguage(this@OverlayService).toString(),
                         profile, profile) + "\nqr_salvo=" + qrSaved
                     getSharedPreferences("trainer_profile", 0).edit().putString("last_read_log", log).apply()
-                    if (qrSaved || listOf(profile.name, profile.level, profile.team, profile.friendCode).any { it != null }) {
+                    if (profile.totalExperience != null && !experienceSaved) {
+                        Toast.makeText(this@OverlayService, "Leia primeiro o topo do perfil com o nome; depois role até Total de PE e leia novamente.", Toast.LENGTH_LONG).show()
+                    } else if (experienceSaved || qrSaved || listOf(profile.name, profile.level, profile.team, profile.friendCode).any { it != null }) {
                         showProfileUpdatedFeedback()
                     }
                     return@runCatching
@@ -1368,6 +1374,39 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
 
         addOverlayView(layout, params)
         resultsView = layout
+    }
+
+    private fun showCalendarOverlay() {
+        if (closingForPermissionLoss) return
+        removeResultsOverlay()
+        val params = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_DIM_BEHIND, PixelFormat.TRANSLUCENT)
+            .apply { gravity = Gravity.CENTER; dimAmount = 0.5f }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            setOnKeyListener { _, key, event ->
+                if (key == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    removeResultsOverlay(); true
+                } else false
+            }
+            setContent {
+                val language = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language) {
+                    AppAppearanceTheme {
+                        Box(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 28.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            androidx.compose.material3.Surface(Modifier.fillMaxWidth().fillMaxHeight(0.8f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp)) {
+                                CalendarScreen(onBack = { removeResultsOverlay() }, compactToday = true)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (addOverlayView(view, params)) resultsView = view
     }
 
     private fun showRaidDetailsOverlay(advice: BattleAdvice) {

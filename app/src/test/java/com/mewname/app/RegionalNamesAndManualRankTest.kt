@@ -27,7 +27,7 @@ class RegionalNamesAndManualRankTest {
             for (j in 0 until aliases.length()) {
                 val alias = aliases.getString(j)
                 if (!prefix.matches(alias)) continue
-                assertTrue(name, Regex(".* \\((Alola|Galar|Hisui|Paldea)\\)$").matches(name))
+                assertTrue(name, Regex(".* \\((Alola|Galar|Hisui|Paldea)(?: [^)]+)?\\)$").matches(name))
                 assertEquals(name, calculator.canonicalName(context, alias))
                 assertFalse(alias, prefix.matches(pokemonDisplayName(alias)))
                 assertNotNull(name, calculator.estimateCpAtLevel(context, name, 12, 5, 10, 40.0))

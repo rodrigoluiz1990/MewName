@@ -7,7 +7,7 @@ internal object RaidBossResolver {
     private fun baseId(id: String) = id.replace(Regex("_SHADOW(?=_FORM|$)"), "")
         .replace(Regex("_MEGA(?:_[XY])?$|_PRIMAL$"), "").removeSuffix("_FORM")
 
-    fun resolve(name: String, screenText: String, meta: RaidMetadata, catalog: List<RaidChoice>, detectedLevel: Int? = null): Result {
+    fun resolve(name: String, screenText: String, meta: RaidMetadata, catalog: List<RaidChoice>, detectedLevel: Int? = null, fallbackCatalog: List<RaidChoice> = emptyList()): Result {
         val levelCatalog = catalog.filter { choice ->
             !choice.tier.contains("MAX", ignoreCase = true) &&
                 (detectedLevel == null || Regex("RAID_LEVEL_(\\d+)").find(choice.tier)?.groupValues?.get(1)?.toIntOrNull() == detectedLevel)
@@ -24,9 +24,20 @@ internal object RaidBossResolver {
                 fromCatalog = levelCatalog.isNotEmpty()
             )
         val family = meta.pokemon.values.filter { baseId(it.id) == baseId(identified.id) }
-        val alternatives = family.map { pokemon ->
-            val detectedChoice = levelCatalog.singleOrNull { it.id == pokemon.id }
-            detectedChoice ?: RaidChoice(pokemon.id, detectedLevel?.let { "RAID_LEVEL_$it" } ?: raidTier(pokemon.id, catalog))
+        // A recognized boss has authoritative category IDs (e.g. ULTRA_BEAST), not just OCR stars.
+        val familyIds = family.map { it.id }.toSet()
+        val known = catalog.filter { it.id in familyIds && !it.tier.contains("MAX") }
+            .ifEmpty { fallbackCatalog.filter { it.id in familyIds && !it.tier.contains("MAX") } }
+            .distinct()
+        val matchingLevel = known.filter { choice ->
+            detectedLevel == null || Regex("RAID_LEVEL_(\\d+)").find(choice.tier)?.groupValues?.get(1)?.toIntOrNull() == detectedLevel ||
+                choice.tier == "RAID_LEVEL_ULTRA_BEAST" || choice.tier == "RAID_LEVEL_MEGA"
+        }
+        val preferred = matchingLevel.ifEmpty { known }
+        val alternatives = family.flatMap { pokemon ->
+            known.filter { it.id == pokemon.id }.ifEmpty {
+                listOf(RaidChoice(pokemon.id, detectedLevel?.let { "RAID_LEVEL_$it" } ?: raidTier(pokemon.id, catalog)))
+            }
         }
             .sortedWith(compareBy<RaidChoice> { form(it.id) }.thenBy { it.id })
         val text = raidKey(screenText)
@@ -41,7 +52,7 @@ internal object RaidBossResolver {
             else -> null
         }
         val eligible = alternatives.filter { explicit == null || form(it.id) == explicit }
-        val active = levelCatalog.filter { choice -> eligible.any { it.id == choice.id } }.distinct()
+        val active = preferred.filter { choice -> eligible.any { it == choice } }.distinct()
         if (explicit != null) {
             // Keep X/Y when explicitly read; never choose arbitrarily between two Mega forms.
             val exact = eligible.singleOrNull { choice ->
@@ -50,7 +61,7 @@ internal object RaidBossResolver {
                     Regex("\\bmega ${Regex.escape(baseName)} ${choice.id.takeLast(1).lowercase()}\\b").containsMatchIn(text)
             }
             val namedForm = eligible.singleOrNull { it.id == identified.id && form(identified.id) != "normal" }
-            val selected = exact ?: namedForm ?: eligible.singleOrNull() ?: active.singleOrNull()
+            val selected = exact ?: namedForm ?: active.singleOrNull() ?: eligible.singleOrNull()
             return Result(selected, alternatives, false)
         }
         val selected = active.singleOrNull() ?: alternatives.singleOrNull { it.id == identified.id }

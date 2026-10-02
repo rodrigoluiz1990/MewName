@@ -25,3 +25,27 @@ internal fun confirmedSizeBadge(original: String, detailLines: List<String>): St
         .filter { it in setOf("XS", "XL", "XXS", "XXL") }.toSet()
     return expected.takeIf { sizes == setOf(expected) }
 }
+/** Re-read above a height measurement when the full-screen OCR missed the entire badge. */
+internal fun missingSizeBadgeCrop(lines: List<OcrTextLine>, width: Int, height: Int): Rect? {
+    if (width <= 0 || height <= 0) return null
+    fun inHeightArea(line: OcrTextLine): Boolean {
+        val rect = line.boundingBox ?: return false
+        return rect.centerX() in (width * .65f).toInt()..(width * .96f).toInt() &&
+            rect.centerY() in (height * .35f).toInt()..(height * .68f).toInt()
+    }
+    if (lines.any { inHeightArea(it) && it.text.trim().uppercase(Locale.ROOT) in setOf("XS", "XL", "XXS", "XXL") }) return null
+    val anchor = lines.firstOrNull {
+        inHeightArea(it) && Regex("""\d+[.,]\d+\s*m""", RegexOption.IGNORE_CASE).matches(it.text.trim())
+    }?.boundingBox ?: return null
+    return Rect(
+        (width * .70f).toInt(),
+        (anchor.top - height * .045f).toInt().coerceAtLeast(0),
+        (width * .96f).toInt(),
+        anchor.top
+    ).takeIf { it.width() > 0 && it.height() > 0 }
+}
+
+internal fun unambiguousSizeBadge(lines: List<String>): String? = lines
+    .map { it.trim().uppercase(Locale.ROOT) }
+    .filter { it in setOf("XS", "XL", "XXS", "XXL") }
+    .distinct().singleOrNull()

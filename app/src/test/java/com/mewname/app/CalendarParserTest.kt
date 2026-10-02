@@ -10,6 +10,17 @@ import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
 class CalendarParserTest {
+    @Test fun swipingWeeksCrossesYearBoundariesInBothDirections() {
+        val date = LocalDate.of(2026, 12, 29)
+        val next = shiftCalendarPeriod(date, true, 1)
+        assertEquals(LocalDate.of(2027, 1, 5), next)
+        assertEquals(date, shiftCalendarPeriod(next, true, -1))
+    }
+    @Test fun swipingMonthsClampsToValidDayIncludingLeapYears() {
+        assertEquals(LocalDate.of(2028, 2, 29), shiftCalendarPeriod(LocalDate.of(2028, 1, 31), false, 1))
+        assertEquals(LocalDate.of(2026, 2, 28), shiftCalendarPeriod(LocalDate.of(2026, 3, 31), false, -1))
+    }
+
     private val refs = JSONObject("""{"raid":[{"raid_x":{"titulo":"Raid X","link":"https://example.com/event","img":"../Assets/x.png"}}]}""")
     private val meta = JSONObject("""{"meta":{"categorias":{"raid_hour":{"label":"Hora Lendária","icon":"../Assets/hour.png"}}}}""")
 

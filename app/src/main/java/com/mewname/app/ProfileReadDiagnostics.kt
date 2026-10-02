@@ -19,6 +19,7 @@ internal fun profileReadDiagnostics(
     }
     field("nome", draft?.name, shown?.name)
     field("nivel", draft?.level, shown?.level)
+    field("total_pe", draft?.totalExperience?.toString(), shown?.totalExperience?.toString())
     field("equipe", draft?.team, shown?.team)
     field("codigo_amizade", draft?.friendCode, shown?.friendCode)
     appendLine("REGRAS: nome regional x<0.50/y=0.10..0.25; nivel regional x<0.25/y=0.35..0.70.")

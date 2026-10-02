@@ -672,32 +672,11 @@ internal fun PokemonScreenData.applySelectedLegacyMove(
     )
 }
 
-internal fun specialBackgroundSelectionOptions(language: AppLanguage): List<String> {
-    return listOf(
-        "-",
-        SpecialBackgroundType.SPECIAL.localizedLabel(language),
-        SpecialBackgroundType.GO_FEST.localizedLabel(language),
-        SpecialBackgroundType.WILD_AREA.localizedLabel(language),
-        SpecialBackgroundType.LOCATION.localizedLabel(language),
-        SpecialBackgroundType.MEGA_EVOLUTION.localizedLabel(language),
-        SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language)
-    )
-}
+internal fun specialBackgroundSelectionOptions(language: AppLanguage): List<String> =
+    listOf("-") + SpecialBackgroundType.entries.map { it.localizedLabel(language) }
 
-internal fun specialBackgroundTypeFromSelection(
-    value: String,
-    language: AppLanguage
-): SpecialBackgroundType? {
-    return when (value) {
-        SpecialBackgroundType.SPECIAL.localizedLabel(language) -> SpecialBackgroundType.SPECIAL
-        SpecialBackgroundType.GO_FEST.localizedLabel(language) -> SpecialBackgroundType.GO_FEST
-        SpecialBackgroundType.WILD_AREA.localizedLabel(language) -> SpecialBackgroundType.WILD_AREA
-        SpecialBackgroundType.LOCATION.localizedLabel(language) -> SpecialBackgroundType.LOCATION
-        SpecialBackgroundType.MEGA_EVOLUTION.localizedLabel(language) -> SpecialBackgroundType.MEGA_EVOLUTION
-        SpecialBackgroundType.COMMUNITY_DAY.localizedLabel(language) -> SpecialBackgroundType.COMMUNITY_DAY
-        else -> null
-    }
-}
+internal fun specialBackgroundTypeFromSelection(value: String, language: AppLanguage): SpecialBackgroundType? =
+    SpecialBackgroundType.entries.firstOrNull { it.localizedLabel(language) == value }
 
 internal fun PokemonScreenData.specialBackgroundSelectionLabel(language: AppLanguage): String {
     if (!hasSpecialBackground) return "-"

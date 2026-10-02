@@ -312,6 +312,9 @@ fun MovesScreen(onBack: () -> Unit) {
             }
         }
     }
+    val effects by produceState<Map<Int, Map<String, Double>>>(emptyMap(), context) {
+        value = withContext(Dispatchers.IO) { loadMoveEffects(context.applicationContext) }
+    }
     val catalog = catalogState.value
     val isLoading = catalog.isEmpty()
     var query by rememberSaveable { mutableStateOf("") }
@@ -413,7 +416,7 @@ fun MovesScreen(onBack: () -> Unit) {
                 }
             }
             items(visibleEntries, key = { it.moveId ?: it.name.hashCode() }) { entry ->
-                MoveCard(entry = entry, language = language)
+                MainMoveCard(entry = entry, language = language, effects = effects[entry.moveId].orEmpty())
             }
             if (filtered.size > visibleEntries.size) {
                 item {
@@ -451,6 +454,7 @@ fun PokedexScreen(onBack: () -> Unit) {
         value = PokedexLoadState(entries = finalEntries, complete = true)
     }
     val pokedex = loadState.entries
+    var detailsEntry by remember { mutableStateOf<PokedexCatalogEntry?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
     var visibleCount by rememberSaveable(query, selectedType) { mutableStateOf(60) }
@@ -536,7 +540,7 @@ fun PokedexScreen(onBack: () -> Unit) {
                 }
             }
             items(visibleEntries, key = { "${it.number}-${it.name}" }) { entry ->
-                PokedexCard(entry = entry, language = language)
+                PokedexCard(entry = entry, language = language, onOpen = { detailsEntry = entry })
             }
             if (visibleCount < filtered.size) {
                 item {
@@ -547,6 +551,7 @@ fun PokedexScreen(onBack: () -> Unit) {
             }
         }
     }
+    detailsEntry?.let { PokedexDetailsWindow(it, pokedex) { detailsEntry = null } }
 }
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -887,7 +892,11 @@ private const val POKEMON_IMAGE_BASE_URL = "https://static.pokebattler.com/asset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CollectionsScreen(onBack: () -> Unit) {
+fun CollectionsScreen(onBack: () -> Unit) = PersonalCollectionScreen(onBack)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     var tabIndex by rememberSaveable { mutableStateOf(0) }
@@ -923,16 +932,15 @@ fun CollectionsScreen(onBack: () -> Unit) {
     }
     val backgroundsState = produceState<List<CollectionBackgroundEntry>>(initialValue = emptyList(), context) {
         value = withContext(Dispatchers.IO) {
-            context.assets.list("background_refs/location_cards")
-                .orEmpty()
+            com.mewname.app.domain.SpecialBackgroundCatalog.files(context)
                 .asSequence()
                 .filter { it.endsWith(".png", ignoreCase = true) }
                 .sorted()
                 .map { fileName ->
                     CollectionBackgroundEntry(
-                        assetPath = "background_refs/location_cards/$fileName",
-                        fileName = fileName,
-                        displayName = backgroundCollectionDisplayName(fileName)
+                        assetPath = fileName,
+                        fileName = fileName.substringAfterLast('/'),
+                        displayName = backgroundCollectionDisplayName(fileName.substringAfterLast('/'))
                     )
                 }
                 .toList()
@@ -1333,28 +1341,28 @@ private fun PokemonFilterBuilder(
     }
     val sectionEntries = remember(sections) { sections.entries.toList() }
     var sectionTabIndex by rememberSaveable { mutableStateOf(0) }
-    val output = remember(names, moveFilters, manualFilters, typeSelections.toMap(), tokenSelections.toMap()) {
-        buildPokemonFilter(
-            names = names,
-            selectedType = null,
-            selectedTokens = buildList {
-                addAll(resolveTypeExpressions(typeSelections, language))
-                addAll(resolveTokenExpressions(tokenSelections, sections.values.flatten(), language))
-                addAll(
-                    moveFilters.lineSequence()
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
-                        .map { FilterExpression(it) }
-                )
-                addAll(
-                    manualFilters.lineSequence()
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
-                        .map { FilterExpression(it) }
-                )
-            }
-        )
+    var selectionOrder by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    fun expressionGroups(): Map<String, List<FilterExpression>> = buildMap {
+        names.split(',').map { it.trim() }.filter { it.isNotBlank() }.forEach {
+            put("name:$it", listOf(FilterExpression(it)))
+        }
+        typeSelections.forEach { (key, value) ->
+            put("type:$key", resolveTypeExpressions(mapOf(key to value), language))
+        }
+        tokenSelections.forEach { (key, value) ->
+            put("token:$key", resolveTokenExpressions(mapOf(key to value), sections.values.flatten(), language))
+        }
+        moveFilters.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach {
+            put("move:$it", listOf(FilterExpression(it)))
+        }
+        manualFilters.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach {
+            put("manual:$it", listOf(FilterExpression(it)))
+        }
     }
+    fun syncSelectionOrder() {
+        selectionOrder = reconcileFilterOrder(selectionOrder, expressionGroups().keys)
+    }
+    val output = buildOrderedFilter(selectionOrder, expressionGroups())
     val allTypes = remember {
         listOf("Bug", "Dark", "Dragon", "Electric", "Fairy", "Fighting", "Fire", "Flying", "Ghost", "Grass", "Ground", "Ice", "Normal", "Poison", "Psychic", "Rock", "Steel", "Water")
     }
@@ -1396,6 +1404,7 @@ private fun PokemonFilterBuilder(
                 manualFilters = ""
                 typeSelections.clear()
                 tokenSelections.clear()
+                selectionOrder = emptyList()
             }
         )
         val tabTitles = remember(sectionEntries) {
@@ -1415,7 +1424,7 @@ private fun PokemonFilterBuilder(
                 TypeSelectorSingleTriState(
                     types = allTypes,
                     selections = typeSelections,
-                    onCycle = { type -> typeSelections.cycleSelection(type) },
+                    onCycle = { type -> typeSelections.cycleSelection(type); syncSelectionOrder() },
                     onJoinerChange = { type, joiner -> typeSelections.updateJoiner(type, joiner) },
                     language = language
                 )
@@ -1429,7 +1438,7 @@ private fun PokemonFilterBuilder(
                         option = option,
                         language = language,
                         selection = tokenSelections[option.token],
-                        onCycle = { tokenSelections.cycleSelection(option.token) },
+                        onCycle = { tokenSelections.cycleSelection(option.token); syncSelectionOrder() },
                         onJoinerChange = { joiner -> tokenSelections.updateJoiner(option.token, joiner) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1448,6 +1457,7 @@ private fun PokemonFilterBuilder(
                                 val trimmed = nameDraft.trim()
                                 if (trimmed.isNotBlank()) {
                                     names = appendCommaSeparatedValue(names, trimmed)
+                                    syncSelectionOrder()
                                     nameDraft = ""
                                 }
                             },
@@ -1470,6 +1480,7 @@ private fun PokemonFilterBuilder(
                                 val trimmed = moveDraft.trim()
                                 if (trimmed.isNotBlank()) {
                                     moveFilters = appendLineSeparatedValue(moveFilters, "@$trimmed")
+                                    syncSelectionOrder()
                                     moveDraft = ""
                                 }
                             },
@@ -1501,6 +1512,7 @@ private fun PokemonFilterBuilder(
                                 val trimmed = manualDraft.trim()
                                 if (trimmed.isNotBlank()) {
                                     manualFilters = appendLineSeparatedValue(manualFilters, trimmed)
+                                    syncSelectionOrder()
                                     manualDraft = ""
                                 }
                             },
@@ -1555,12 +1567,19 @@ private fun PeopleFilterBuilder(
             FilterTokenOption("Nivel 5", "Friendship 5", "Amistad 5", "friendlevel5", tokenPt = "níveldeamizade5", tokenEs = "nivel de amistad 5")
         )
     }
-    val output = remember(names, tokenSelections.toMap()) {
-        buildPeopleFilter(
-            names = names,
-            selectedTokens = resolveTokenExpressions(tokenSelections, options, language)
-        )
+    var selectionOrder by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    fun expressionGroups(): Map<String, List<FilterExpression>> = buildMap {
+        names.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach {
+            put("name:$it", listOf(FilterExpression(it)))
+        }
+        tokenSelections.forEach { (key, value) ->
+            put("token:$key", resolveTokenExpressions(mapOf(key to value), options, language))
+        }
     }
+    fun syncSelectionOrder() {
+        selectionOrder = reconcileFilterOrder(selectionOrder, expressionGroups().keys)
+    }
+    val output = buildOrderedFilter(selectionOrder, expressionGroups())
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (savedFilters.isNotEmpty()) {
@@ -1593,6 +1612,7 @@ private fun PeopleFilterBuilder(
             onClear = {
                 names = ""
                 tokenSelections.clear()
+                selectionOrder = emptyList()
             }
         )
         Text(t(language, "Filtros de pessoas", "People filters", "Filtros de personas"), fontWeight = FontWeight.Bold)
@@ -1602,7 +1622,7 @@ private fun PeopleFilterBuilder(
                 option = option,
                 language = language,
                 selection = tokenSelections[option.token],
-                onCycle = { tokenSelections.cycleSelection(option.token) },
+                onCycle = { tokenSelections.cycleSelection(option.token); syncSelectionOrder() },
                 onJoinerChange = { joiner -> tokenSelections.updateJoiner(option.token, joiner) },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1619,7 +1639,7 @@ private fun PeopleFilterBuilder(
         )
         AppGlassTextField(
             value = names,
-            onValueChange = { names = it },
+            onValueChange = { names = it; syncSelectionOrder() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp),
@@ -2141,13 +2161,14 @@ private fun moveDetailsText(
 @Composable
 private fun PokedexCard(
     entry: PokedexCatalogEntry,
-    language: AppLanguage
+    language: AppLanguage,
+    onOpen: () -> Unit
 ) {
     val context = LocalContext.current
     val raidRepository = remember { com.mewname.app.domain.RaidCounterRepository(context.applicationContext) }
     val primaryName = entry.localizedName(language)
     var formsExpanded by rememberSaveable(entry.number, entry.name) { mutableStateOf(false) }
-    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
+    AppSectionCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
@@ -3130,12 +3151,12 @@ private fun buildPokemonFilter(
     }.joinToString("")
 }
 
-private data class FilterExpression(
+internal data class FilterExpression(
     val value: String,
     val joinerBefore: String = "&"
 )
 
-private fun buildPeopleFilter(
+internal fun buildPeopleFilter(
     names: String,
     selectedTokens: List<FilterExpression>
 ): String {
@@ -3143,9 +3164,11 @@ private fun buildPeopleFilter(
         .map { it.trim() }
         .filter { it.isNotBlank() }
         .toList()
-    return (includeNames + selectedTokens.map { it.value })
-        .distinct()
-        .joinToString(",")
+    val expressions = (includeNames.map { FilterExpression(it, joinerBefore = ",") } + selectedTokens)
+        .distinctBy { it.value }
+    return expressions.mapIndexed { index, expression ->
+        if (index == 0) expression.value else "${expression.joinerBefore}${expression.value}"
+    }.joinToString("")
 }
 
 private fun resolveTypeExpressions(
@@ -3411,6 +3434,11 @@ private fun costumeCollectionDisplayName(value: String): String {
         }
 }
 private fun backgroundCollectionDisplayName(fileName: String): String {
+    when (fileName) {
+        "sb_10thAnniversary_Mewtwo.png" -> return "10º aniversário · Mewtwo"
+        "sb_Community_2026.png" -> return "Dia da Comunidade 2026"
+        "sb_MegaEvolution.png" -> return "Mega Evolução"
+    }
     return fileName
         .removeSuffix(".png")
         .removePrefix("lc_")
@@ -3485,3 +3513,87 @@ private fun formatMultiplier(value: Double): String {
     }
 }
 
+
+@Composable
+internal fun CollectionBackgroundsContent() {
+    val context = LocalContext.current
+    var categoryIndex by rememberSaveable { mutableStateOf(0) }
+    val categories = com.mewname.app.domain.BackgroundCategory.entries
+    var query by rememberSaveable { mutableStateOf("") }
+    var onlyCollected by rememberSaveable { mutableStateOf(false) }
+    var preview by remember { mutableStateOf<CollectionBackgroundEntry?>(null) }
+    val backgrounds by produceState<List<CollectionBackgroundEntry>?>(null, context) {
+        value = withContext(Dispatchers.IO) {
+            com.mewname.app.domain.SpecialBackgroundCatalog.files(context)
+                .filter { it.endsWith(".png", true) }.sorted().map { file ->
+                    CollectionBackgroundEntry(file, file.substringAfterLast('/'), backgroundCollectionDisplayName(file.substringAfterLast('/')))
+                }
+        }
+    }
+    val obtained = remember { mutableStateMapOf<String, Boolean>().apply {
+        loadCollectionObtained(context).forEach { put(it, true) }
+    } }
+    val entries = backgrounds.orEmpty().filter {
+        (categoryIndex == 0 || com.mewname.app.domain.SpecialBackgroundCatalog.category(it.assetPath) == categories[categoryIndex - 1]) &&
+        normalizeSearch(it.displayName).contains(normalizeSearch(query)) &&
+            (!onlyCollected || obtained["background|${it.fileName}"] == true)
+    }
+    AppPillTabRow(selectedTabIndex = categoryIndex, edgePadding = 0.dp, divider = {}) {
+        (listOf("Todos") + categories.map { it.label }).forEachIndexed { index, label ->
+            AppPillTab(selected = categoryIndex == index, onClick = { categoryIndex = index }, text = { Text(label) })
+        }
+    }
+    AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
+        label = { Text("Buscar fundo") }, singleLine = true)
+    AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
+    if (backgrounds == null) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (backgrounds != null && entries.isEmpty()) item { Text("Nenhum fundo encontrado.") }
+        items(entries, key = { it.assetPath }) { entry ->
+            val key = "background|${entry.fileName}"
+            AppSectionCard(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppCollectionCheckbox(checked = obtained[key] == true, onCheckedChange = { checked ->
+                        if (checked) obtained[key] = true else obtained.remove(key)
+                        persistCollectionObtained(context, obtained.keys.toList())
+                    })
+                    BackgroundArtwork(assetPath = entry.assetPath,
+                        contentDescription = entry.displayName, modifier = Modifier.size(72.dp).clickable { preview = entry },
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                    Text(entry.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+    }
+    preview?.let { entry ->
+        Dialog(onDismissRequest = { preview = null }) {
+            AppSectionCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(entry.displayName, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                    BackgroundArtwork(assetPath = entry.assetPath, contentDescription = entry.displayName,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 520.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                    IconButton(onClick = { preview = null }) { Icon(Icons.Default.Close, contentDescription = "Fechar") }
+                }
+            }
+        }
+    }
+}
+/** Updates keep their position; a removed and re-added entry goes to the end. */
+internal fun reconcileFilterOrder(order: List<String>, activeKeys: Set<String>): List<String> =
+    order.filter { it in activeKeys }.distinct() + activeKeys.filter { it !in order }
+
+internal fun buildOrderedFilter(order: List<String>, groups: Map<String, List<FilterExpression>>): String {
+    val keys = reconcileFilterOrder(order, groups.keys)
+    val expressions = keys.flatMapIndexed { index, key ->
+        val group = groups.getValue(key)
+        // Consecutive names remain alternatives; other entries keep their chosen operator.
+        if (key.startsWith("name:") && index > 0 && keys[index - 1].startsWith("name:")) {
+            group.mapIndexed { part, expression -> if (part == 0) expression.copy(joinerBefore = ",") else expression }
+        } else group
+    }
+    return expressions.mapIndexed { index, expression ->
+        if (index == 0) expression.value else expression.joinerBefore + expression.value
+    }.joinToString("")
+}

@@ -11,6 +11,24 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RaidBossResolverTest {
     private val meta get() = RaidCounterRepository(ApplicationProvider.getApplicationContext<Context>()).metadata()
+    @Test fun buzzwoleUsesUltraBeastCategoryEvenWhenOcrCountsFourIcons() {
+        val r = RaidBossResolver.resolve("Buzzwole", "Buzzwole BATALHA", meta,
+            listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST")), 4,
+            listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_4")))
+        assertEquals(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST"), r.selected)
+    }
+    @Test fun savedBossResolvesOfflineAfterLeavingTheCurrentCatalog() {
+        val r = RaidBossResolver.resolve("Buzzwole", "Buzzwole BATALHA", meta,
+            listOf(RaidChoice("LUGIA", "RAID_LEVEL_5")), 4,
+            listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST")))
+        assertEquals(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST"), r.selected)
+    }
+    @Test fun knownNormalRaidTierWinsOverIncorrectIconCount() {
+        val r = RaidBossResolver.resolve("Quaquaval", "BATALHA", meta,
+            listOf(RaidChoice("QUAQUAVAL", "RAID_LEVEL_3")), 2)
+        assertEquals(RaidChoice("QUAQUAVAL", "RAID_LEVEL_3"), r.selected)
+    }
+
     @Test fun bareNameUsesSavedShadowRaidAndCorrectTier() {
         val r=RaidBossResolver.resolve("Bagon","Bagon PC 3000 BATALHA",meta,listOf(RaidChoice("BAGON_SHADOW_FORM","RAID_LEVEL_1_SHADOW")))
         assertEquals(RaidChoice("BAGON_SHADOW_FORM","RAID_LEVEL_1_SHADOW"),r.selected)

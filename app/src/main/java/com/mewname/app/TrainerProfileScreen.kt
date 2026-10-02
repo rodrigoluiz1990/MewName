@@ -48,6 +48,8 @@ internal fun TrainerProfileScreen(
     var level by rememberSaveable { mutableStateOf(prefs.getString("level", "").orEmpty()) }
     var team by rememberSaveable { mutableStateOf(prefs.getString("team", "").orEmpty()) }
     var code by rememberSaveable { mutableStateOf(prefs.getString("code", "").orEmpty()) }
+    var totalExperience by remember { mutableStateOf(if (prefs.contains("total_experience")) prefs.getLong("total_experience", 0) else null) }
+    var experienceTrainer by remember { mutableStateOf(prefs.getString("experience_trainer", "").orEmpty()) }
     var busy by remember { mutableStateOf(false) }
     var message by rememberSaveable { mutableStateOf("") }
     var lastReadLog by remember { mutableStateOf(prefs.getString("last_read_log", "").orEmpty()) }
@@ -70,6 +72,8 @@ internal fun TrainerProfileScreen(
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             when (key) {
                 "name" -> name = prefs.getString("name", "").orEmpty()
+                "total_experience" -> totalExperience = if (prefs.contains("total_experience")) prefs.getLong("total_experience", 0) else null
+                "experience_trainer" -> experienceTrainer = prefs.getString("experience_trainer", "").orEmpty()
                 "level" -> level = prefs.getString("level", "").orEmpty()
                 "team" -> team = prefs.getString("team", "").orEmpty()
                 "code" -> code = prefs.getString("code", "").orEmpty()
@@ -82,6 +86,7 @@ internal fun TrainerProfileScreen(
     val appearance = LocalAppAppearance.current
     var editing by rememberSaveable { mutableStateOf(false) }
     var showQr by rememberSaveable { mutableStateOf(false) }
+    var showCollection by rememberSaveable { mutableStateOf(false) }
     var showPvp by rememberSaveable { mutableStateOf(false) }
     var showLayout by rememberSaveable { mutableStateOf(false) }
     var showBubbleOptions by rememberSaveable { mutableStateOf(false) }
@@ -104,8 +109,9 @@ internal fun TrainerProfileScreen(
             }
         }
     }
-    fun closePage() { showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
+    fun closePage() { showCollection = false; showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
     val page = when {
+        showCollection -> "collection"
         showPvp -> "pvp"
         showLayout -> "layout"
         showBubbleOptions -> "bubble"
@@ -158,6 +164,11 @@ internal fun TrainerProfileScreen(
                         Text(lt(language, "Nível do treinador", "Trainer level", "Nivel del entrenador"),
                             style = MaterialTheme.typography.labelMedium)
                         Text(level.ifBlank { "—" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text(lt(language, "Total de PE", "Total XP", "PE total"), style = MaterialTheme.typography.labelMedium)
+                        val shownExperience = totalExperience.takeIf { name.trim().equals(experienceTrainer, ignoreCase = true) }
+                        Text(shownExperience?.let { java.text.NumberFormat.getIntegerInstance(java.util.Locale.forLanguageTag(
+                            when (language) { com.mewname.app.domain.AppLanguage.EN -> "en-US"; com.mewname.app.domain.AppLanguage.ES -> "es-ES"; else -> "pt-BR" }
+                        )).format(it) } ?: "—", fontWeight = FontWeight.Bold)
                     }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -189,6 +200,7 @@ internal fun TrainerProfileScreen(
                     }
                 }
                 HorizontalDivider()
+                ProfileMenuRow("Coleção pessoal", onClick = { showCollection = true })
                 ProfileMenuRow(lt(language, "Cálculo PvP", "PvP calculation", "Cálculo PvP"), onClick = { showPvp = true })
                 ProfileMenuRow("Layout", onClick = { showLayout = true })
                 ProfileMenuRow(lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición"),
@@ -211,6 +223,7 @@ internal fun TrainerProfileScreen(
         AppUpdateScreen(uiState = uiState, onBack = { closePage() }, onRefresh = onRefreshAppUpdate)
     } else {
         val title = when (destination) {
+            "collection" -> "Coleção pessoal"
             "pvp" -> lt(language, "Cálculo PvP", "PvP calculation", "Cálculo PvP")
             "layout" -> "Layout"
             "bubble" -> lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición")
@@ -221,9 +234,11 @@ internal fun TrainerProfileScreen(
                 IconButton(onClick = { closePage() }) { Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver")) }
             })
         }) { padding ->
-            Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+            Column(Modifier.fillMaxSize().padding(padding)
+                .then(if (destination == "collection") Modifier else Modifier.verticalScroll(rememberScrollState())).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (destination) {
+                    "collection" -> PersonalCollectionPreferences()
                     "pvp" -> PvpCalculationPreferences()
                     "layout" -> AppearancePreferences()
                     "bubble" -> BubbleActionPreferences()

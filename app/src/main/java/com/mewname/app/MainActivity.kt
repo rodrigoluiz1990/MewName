@@ -2440,14 +2440,9 @@ private fun symbolOptionsForField(field: NamingField, config: NamingConfig): Lis
         NamingField.LUCKY -> listOf(option("LUCKY", "Sortudo"))
         NamingField.SHADOW -> listOf(option("SHADOW", "Sombrio"))
         NamingField.PURIFIED -> listOf(option("PURIFIED", "Purificado"))
-        NamingField.SPECIAL_BACKGROUND -> listOf(
-            option("SPECIAL_BACKGROUND", "Fundo especial"),
-            option("SPECIAL_BACKGROUND_GO_FEST", "GO Fest"),
-            option("SPECIAL_BACKGROUND_WILD_AREA", "Wild Area"),
-            option("SPECIAL_BACKGROUND_LOCATION", "Localidade"),
-            option("SPECIAL_BACKGROUND_MEGA_EVOLUTION", "Mega evolução"),
-            option("SPECIAL_BACKGROUND_COMMUNITY_DAY", "Dia da Comunidade")
-        )
+        NamingField.SPECIAL_BACKGROUND -> SpecialBackgroundType.entries.map {
+            option(it.symbolKey, it.localizedLabel(com.mewname.app.domain.AppLanguage.PT_BR))
+        }
         NamingField.ADVENTURE_EFFECT -> listOf(option("ADVENTURE_EFFECT", "Efeito aventura"))
         NamingField.EVOLVE_MARKER -> listOf(option("EVOLVE", "Evoluir"))
         NamingField.PURIFY_MARKER -> listOf(option("PURIFY", "Purificar"))

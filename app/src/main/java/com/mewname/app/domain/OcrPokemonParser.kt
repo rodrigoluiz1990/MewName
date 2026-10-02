@@ -108,7 +108,7 @@ class OcrPokemonParser {
         val trackEnd: Int
     )
 
-    private val cpRegex = Regex("""\b(?:CP|PC|GP|OP|DP)\s*[:.-]?\s*(\d{2,5})\b""", RegexOption.IGNORE_CASE)
+    private val cpRegex = Regex("""\b(?:CP|PC|GP|OP|DP)\s*[:.-]?\s*(\d{1,5})\b""", RegexOption.IGNORE_CASE)
     private val looseCpRegex = Regex("""(?:^|[^A-Z])P\s*[:.-]?\s*(\d{2,5})\b""", RegexOption.IGNORE_CASE)
     private val hpRegex = Regex("""\b(\d{2,3})\s*/\s*(\d{2,3})\s*(?:HP|PS)\b""", RegexOption.IGNORE_CASE)
     private val ivPercentRegex = Regex("""(\d{1,3})\s*[%©]""")
@@ -349,13 +349,25 @@ class OcrPokemonParser {
 
         val ocrLevel = extractOcrLevel(orderedLines, referenceBounds)
         val moves = extractMoves(orderedLines, referenceBounds)
-        var name = inferPokemonName(context, orderedLines, moves, cp, referenceBounds)
+        val detailCandy = if (!hasIvContext) extractCandyFamilyName(context, orderedLines, referenceBounds, null).first else null
+        var name = if (!hasIvContext && referenceBounds != null)
+            inferDetailPokemonName(context, orderedLines, referenceBounds, detailCandy)
+        else inferPokemonName(context, orderedLines, moves, cp, referenceBounds)
         step("Identificando tipos")
         val typeDetection = detectPokemonTypes(orderedLines, normUpper, referenceBounds)
         val ocrDetectedTypes = typeDetection.first
         val detectedTypes = ocrDetectedTypes.ifEmpty { lookupPokemonTypesByName(context, name) }
         val typeFallbackUsed = ocrDetectedTypes.isEmpty() && detectedTypes.isNotEmpty()
         name = resolveRegionalMeowthName(name, detectedTypes)
+        if (ocrDetectedTypes.isNotEmpty()) {
+            val dex = name?.let { findPokemonNameEntry(context, it)?.dex }
+            if (dex != null) {
+                val typeForms = loadPokemonNames(context).filter { it.dex == dex }.filter {
+                    lookupPokemonTypesByName(context, it.name).toSet() == ocrDetectedTypes.toSet()
+                }
+                typeForms.singleOrNull()?.let { name = it.name }
+            }
+        }
         step("Identificando família pelos doces")
         var (candyFamilyName, candyDebugInfo) = extractCandyFamilyName(context, orderedLines, referenceBounds, name)
         val hasUnownTitleSignal = detectUnownTitleSignal(orderedLines, referenceBounds)
@@ -386,7 +398,27 @@ class OcrPokemonParser {
         step("Estimando nível")
 
         val displayedMaxHp = extractDisplayedMaxHp(orderedLines, referenceBounds)
-        val curveLevelCandidates = curveLevelCandidatesFor(context, name, familyMembers)
+        val evidenceName = name
+        val cpIvEvidence = if (evidenceName != null && cp != null && (displayedMaxHp != null || ocrLevel != null) &&
+            listOf(att, def, sta).any { it == null }) {
+            rankCalculator.resolveIvEvidence(context, evidenceName, cp, displayedMaxHp, att, def, sta, ocrLevel)
+        } else null
+        if (cpIvEvidence?.attack != null && cpIvEvidence.defense != null && cpIvEvidence.stamina != null) {
+            att = cpIvEvidence.attack; def = cpIvEvidence.defense; sta = cpIvEvidence.stamina
+            ivPercent = IvCombinationTable.fromValues(att, def, sta)?.ivPercent ?: ((att + def + sta) * 100 / 45)
+        }
+        val cpIvNote = cpIvEvidence?.let {
+            when {
+                it.matches == 0 -> "PC/HP sem combinação exata compatível; IVs não inferidos"
+                it.attack != null -> "IVs confirmados por PC/HP: ${it.matches} combinações de IV/nível compatíveis"
+                else -> "PC/HP ambíguos: ${it.matches} combinações de IV/nível; IVs não preenchidos"
+            }
+        }
+        val curveLevelCandidates = curveLevelCandidatesFor(context, name, familyMembers).let { candidates ->
+            if (ocrDetectedTypes.isEmpty()) candidates else candidates.filter {
+                lookupPokemonTypesByName(context, it).toSet() == ocrDetectedTypes.toSet()
+            }.ifEmpty { candidates }
+        }
         val curveEstimate = if (name != null && cp != null && att != null && def != null && sta != null) {
             rankCalculator.estimateLevelForCandidates(
                 context = context,
@@ -427,6 +459,7 @@ class OcrPokemonParser {
             curveHpMismatch != null &&
             curveHpMismatch >= 8.0
         val supportingLevel = when {
+            cpIvEvidence?.level != null -> cpIvEvidence.level
             preferHpOverCurve -> hpLevel
             curveLevel != null -> curveLevel
             else -> hpLevel
@@ -439,6 +472,7 @@ class OcrPokemonParser {
         }
         val levelDebugInfo = LevelDebugInfo(
             source = when {
+                cpIvEvidence?.level != null -> "pc_hp_exatos"
                 ocrLevel != null && (supportingLevel == null || (levelMismatch != null && levelMismatch <= 2.5)) -> "ocr"
                 preferHpOverCurve -> "hp"
                 curveLevel != null -> "curva_cp"
@@ -456,6 +490,7 @@ class OcrPokemonParser {
             defenseIv = def,
             staminaIv = sta,
             notes = buildList {
+                cpIvNote?.let { add(it) }
                 if (ocrLevel != null && (supportingLevel == null || (levelMismatch != null && levelMismatch <= 2.5))) add("nível encontrado no texto OCR")
                 if (curveLevel != null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pela curva de CP")
                 if (hpLevel != null && curveLevel == null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pelo HP máximo")
@@ -493,7 +528,10 @@ class OcrPokemonParser {
 
         step("Calculando PvP")
         val familySpeciesRanks = if (familyMembers.isNotEmpty() && att != null && def != null && sta != null) {
-            rankCalculator.calculateFamilySpeciesLeagueRanks(context, familyMembers, att, def, sta)
+            rankCalculator.calculateFamilySpeciesLeagueRanks(
+                context, familyMembers, att, def, sta,
+                currentPokemonName = name, currentLevel = level, currentCp = cp
+            )
         } else {
             emptyList()
         }
@@ -573,6 +611,17 @@ class OcrPokemonParser {
             masterIvBestMatch = masterIvBadgeResult.isBestMatch == true
         )
 
+        val recognizedMoves = try {
+            PokemonMoveRecognition.read(context, name,
+                rawLinesInRegion(orderedLines, 0.0f, 1.0f, moveRegionTop, moveRegionBottom, referenceBounds)
+                    .map { it.text })
+        } catch (exception: java.util.concurrent.CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            android.util.Log.w("OcrPokemonParser", "Unable to resolve recognized moves", exception)
+            RecognizedPokemonMoves()
+        }
+
         step("Finalizando dados detectados")
 
         return PokemonScreenData(
@@ -632,12 +681,13 @@ class OcrPokemonParser {
                     defenseBarRect = bitmap?.let { detection.defenseBarRect?.let { rect -> normalizeDebugRect(rect, it) } },
                     staminaBarRect = bitmap?.let { detection.staminaBarRect?.let { rect -> normalizeDebugRect(rect, it) } },
                     notes = buildList {
+                        cpIvNote?.let { add(it) }
                         if (!hasIvContext) add("contexto de appraisal nao encontrado")
                         if (!detection.isReliable) add("leitura das barras considerada pouco confiavel")
                         if (detection.detectedBars < 3) add("nem todas as barras foram encontradas")
                     }.joinToString("; ")
                 )
-            },
+            } ?: cpIvNote?.let { IvDebugInfo(appraisalDetected = hasIvContext, percentFinal = ivPercent, notes = it) },
             level = level,
             gender = genderDetection.first,
             genderDebugInfo = genderDetection.second,
@@ -662,12 +712,15 @@ class OcrPokemonParser {
                 notes = masterIvBadgeResult.notes
             ),
             evolutionFlags = evolutionDetection.first,
+            selectedFastMove = recognizedMoves.fast,
+            selectedChargedMove = recognizedMoves.charged,
             hasLegacyMove = hasLegacyMove,
             isShadow = backgroundDetection.second.shadowTextMatch ||
                 backgroundDetection.second.shadowParticleMatch ||
                 backgroundDetection.second.shadowTextureMatch,
             isPurified = purifiedTextMatch,
             hasSpecialBackground = hasSpecialBackground,
+            specialBackgroundType = backgroundDetection.second.detectedSpecialType,
             hasAdventureEffect = hasAdventureEffect,
             size = size,
             sizeDebugInfo = sizeDetection.second
@@ -795,11 +848,11 @@ class OcrPokemonParser {
         referenceBounds: Rect?,
         pokemonName: String?
     ): Pair<String?, CandyDebugInfo> {
-        val regionLines = rawLinesInRegion(lines, 0.26f, 0.82f, 0.50f, 0.74f, referenceBounds)
+        val regionLines = rawLinesInRegion(lines, 0.20f, 0.98f, 0.43f, 0.86f, referenceBounds)
             .sortedBy { it.boundingBox?.top ?: Int.MAX_VALUE }
         val candyIndex = regionLines.indexOfFirst { line ->
             val normalized = normalizeText(line.text)
-            normalized.contains("CANDY") || normalized.contains("DOCES DE")
+            normalized.contains("CANDY") || normalized.contains("DOCES") || normalized.contains("CARAMELOS")
         }
         val candyEntry = regionLines.getOrNull(candyIndex)
         val candyLine = candyEntry?.text
@@ -843,13 +896,11 @@ class OcrPokemonParser {
             .replace(Regex("\\s+"), " ")
             .trim()
 
-        val rawFamily = Regex("(?i)(?:doces de|candy)\\s+([A-Za-zÀ-ÖØ-öø-ÿ' .-]+)")
-            .find(combinedLine)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.replace(Regex("\\s+"), " ")
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
+        val rawFamily = Regex("(?i)(?:doces(?: gg)?(?: de)?|caramelos(?: xl)?(?: de)?)\\s+([\\p{L}' .-]+)")
+            .find(combinedLine)?.groupValues?.getOrNull(1)?.trim()
+            ?: Regex("(?i)([\\p{L}' .-]+?)\\s+(?:candy)(?:\\s+xl)?(?:$|\\s)")
+                .find(combinedLine)?.groupValues?.getOrNull(1)?.trim()
+            ?: Regex("(?i)candy\\s+([\\p{L}' .-]+)").find(combinedLine)?.groupValues?.getOrNull(1)?.trim()
         if (rawFamily == null) {
             return null to CandyDebugInfo(
                 regionLineCount = regionLines.size,
@@ -881,7 +932,7 @@ class OcrPokemonParser {
             ?.first
             ?.name
         else null
-        val resolved = chooseCandyFamilyResolution(context, directResolved ?: fuzzyResolved, pokemonName)
+        val resolved = directResolved ?: chooseCandyFamilyResolution(context, fuzzyResolved, pokemonName)
         val resolutionNotes = buildList {
             if (resolved == null) add("familia extraida, mas nao encontrada na base local")
             if (resolved != null && fuzzyResolved != null && directResolved == null && !resolved.equals(fuzzyResolved, ignoreCase = true)) {
@@ -2130,10 +2181,11 @@ class OcrPokemonParser {
             normalReferenceCompetitive
         val eventBadgeSpecialMatch = eventBadgeVisualMatch && !normalReferenceBlocksWeakVisual
         val detected = (
-            !luckyMatch &&
-                (textMatch || topRegionMatch || eventBadgeSpecialMatch || referenceSpecialMatch || colorOverrideSpecial)
+            referenceDebug?.specialType != null || (!luckyMatch &&
+                (textMatch || topRegionMatch || eventBadgeSpecialMatch || referenceSpecialMatch || colorOverrideSpecial))
             )
         return detected to BackgroundDebugInfo(
+            detectedSpecialType = referenceDebug?.specialType.takeIf { detected },
             textMatch = textMatch,
             topRegionMatch = topRegionMatch,
             eventBadgeVisualMatch = eventBadgeVisualMatch,
@@ -2492,31 +2544,16 @@ class OcrPokemonParser {
 
         val textDetection = relevantLines
             .firstNotNullOfOrNull { line -> detectSizeFromTextLine(line)?.let { it to line } }
-        val visualBadge = bitmap?.let(::detectXxlSizeBadgeVisual)
-
-        val detected = when {
-            textDetection != null -> textDetection.first
-            visualBadge != null -> com.mewname.app.model.PokemonSize.XXL
-            else -> com.mewname.app.model.PokemonSize.NORMAL
-        }
+        // XXS and XXL share the same golden badge: color alone cannot distinguish them.
+        val detected = textDetection?.first ?: com.mewname.app.model.PokemonSize.NORMAL
         return detected to SizeDebugInfo(
             detectedSize = detected,
             candidateLines = relevantLines.distinct().take(12),
             textMatch = textDetection?.second,
-            visualSize = visualBadge?.size,
-            visualBadgeRect = visualBadge?.rect?.let { rect ->
-                bitmap?.let { normalizeDebugRect(rect, it) }
-            },
-            visualBadgeRatio = visualBadge?.ratio,
-            visualBadgeAspect = visualBadge?.aspect,
-            notes = buildList {
-                if (textDetection != null) add("texto ${textDetection.first.name} encontrado")
-                if (visualBadge != null) add("selo visual XXL encontrado na área de altura")
-                if (detected == com.mewname.app.model.PokemonSize.NORMAL) add("nenhum marcador especial encontrado")
-            }.joinToString("; ")
+            notes = if (textDetection != null) "texto ${textDetection.first.name} encontrado"
+                else "nenhum marcador especial confirmado por texto"
         )
     }
-
     private fun detectSizeFromTextLine(line: String): com.mewname.app.model.PokemonSize? {
         fun hasToken(keyword: String): Boolean {
             return Regex("""(^|[^A-Z])${Regex.escape(keyword)}([^A-Z]|$)""").containsMatchIn(line)
@@ -2528,62 +2565,6 @@ class OcrPokemonParser {
             xsKeywords.any(::hasToken) -> com.mewname.app.model.PokemonSize.XS
             else -> null
         }
-    }
-
-    private data class SizeBadgeVisualMatch(
-        val size: com.mewname.app.model.PokemonSize,
-        val rect: Rect,
-        val ratio: Double,
-        val aspect: Double
-    )
-
-    private fun detectXxlSizeBadgeVisual(bitmap: Bitmap): SizeBadgeVisualMatch? {
-        val searchRect = normalizedBitmapRect(bitmap, 0.74f, 0.90f, 0.46f, 0.57f)
-        val hsv = FloatArray(3)
-        var badgePixels = 0
-        var sampled = 0
-        var minX = Int.MAX_VALUE
-        var minY = Int.MAX_VALUE
-        var maxX = Int.MIN_VALUE
-        var maxY = Int.MIN_VALUE
-
-        var y = searchRect.top
-        while (y < searchRect.bottom) {
-            var x = searchRect.left
-            while (x < searchRect.right) {
-                val color = bitmap.getPixel(x, y)
-                Color.colorToHSV(color, hsv)
-                val hue = hsv[0]
-                val saturation = hsv[1]
-                val value = hsv[2]
-                val isBadgePixel = hue in 45f..82f && saturation >= 0.18f && value >= 0.48f
-                if (isBadgePixel) {
-                    badgePixels++
-                    minX = min(minX, x)
-                    minY = min(minY, y)
-                    maxX = max(maxX, x)
-                    maxY = max(maxY, y)
-                }
-                sampled++
-                x += 2
-            }
-            y += 2
-        }
-
-        if (badgePixels < 28 || sampled == 0 || minX == Int.MAX_VALUE) return null
-        val ratio = badgePixels.toDouble() / sampled.toDouble()
-        val rect = Rect(minX, minY, maxX + 1, maxY + 1)
-        val aspect = rect.width().toDouble() / rect.height().coerceAtLeast(1).toDouble()
-        val screenWidthRatio = rect.width().toDouble() / bitmap.width.coerceAtLeast(1).toDouble()
-        val screenHeightRatio = rect.height().toDouble() / bitmap.height.coerceAtLeast(1).toDouble()
-        if (ratio < 0.035 || screenWidthRatio < 0.025 || screenHeightRatio < 0.012) return null
-
-        return SizeBadgeVisualMatch(
-            size = com.mewname.app.model.PokemonSize.XXL,
-            rect = rect,
-            ratio = ratio,
-            aspect = aspect
-        )
     }
 
     private data class FamilyLegacySuggestion(
@@ -3414,6 +3395,40 @@ class OcrPokemonParser {
             PvpLeague.ULTRA -> 2500
             PvpLeague.MASTER -> 10000
         }
+    }
+
+    private fun inferDetailPokemonName(context: Context, lines: List<OcrTextLine>, bounds: Rect, candyFamily: String?): String? {
+        val names = loadPokemonNames(context)
+        val titleRegion = rawLinesInRegion(lines, 0.10f, 0.90f, 0.22f, 0.57f, bounds)
+        val hp = titleRegion.firstOrNull { Regex("\\d+\\s*/\\s*\\d+.*(?:HP|PS)", RegexOption.IGNORE_CASE).containsMatchIn(it.text) }?.boundingBox
+        val titleLines = titleRegion.filter { line ->
+            val rect = line.boundingBox ?: return@filter false
+            (hp == null || (rect.bottom <= hp.top && hp.top - rect.bottom < bounds.height() * 0.14f)) &&
+                !normalizeText(line.text).let { it.contains("DOCES") || it.contains("CANDY") || it.contains("CARAMELOS") }
+        }
+        val candidates = titleLines.mapNotNull { sanitizeNameCandidate(it.text)?.let(::normalizeText) }
+        for (candidate in candidates) {
+            names.firstOrNull { candidate == it.normalizedName || candidate in it.normalizedAliases }?.let { return it.name }
+        }
+        // Candy constrains a fuzzy nickname; it never identifies the evolution on its own.
+        val family = candyFamily?.let { familySuggester.familyMembersFor(context, it, null).map(::normalizeText).toSet() } ?: return null
+        val decorated = names.filter { it.normalizedName in family }.filter { entry ->
+            titleLines.any { line ->
+                val candidate = sanitizeNameCandidate(line.text)?.let(::normalizeText).orEmpty()
+                line.text.any { !it.isLetter() && !it.isWhitespace() } && entry.normalizedAliases.any { alias ->
+                    candidate.endsWith(" $alias") && candidate.removeSuffix(alias).trim().let { prefix ->
+                        prefix.length in 1..3 && prefix.all { it.isLetter() }
+                    }
+                }
+            }
+        }
+        decorated.singleOrNull()?.let { return it.name }
+        val matched = names.filter { it.normalizedName in family }.filter { entry ->
+            candidates.any { candidate -> candidate.length >= 4 && entry.normalizedAliases.any { alias ->
+                abs(alias.length - candidate.length) <= 1 && fuzzyMatcher.apply(candidate, alias) <= 1
+            } }
+        }
+        return matched.singleOrNull()?.name
     }
 
     private fun inferPokemonName(

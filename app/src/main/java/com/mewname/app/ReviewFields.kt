@@ -1,6 +1,11 @@
 package com.mewname.app
 
 import android.content.Context
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -88,8 +93,12 @@ internal fun CompactSelectableField(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val textColor = MaterialTheme.colorScheme.onSurface
     Surface(
-        modifier = modifier.glassFieldSize().clickable(onClick = onClick),
+        modifier = modifier.glassFieldSize().clickable(onClick = onClick).semantics {
+            if (struckThrough) stateDescription = "Inelegível no nível atual"
+        },
         shape = RoundedCornerShape(if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) 20.dp else if (LocalGlassReviewStyle.current) GlassFieldCorner else 8.dp),
         color = if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) appControlFill(active) else if (LocalGlassReviewStyle.current) glassFieldColor(active) else if (active) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
@@ -111,13 +120,24 @@ internal fun CompactSelectableField(
         ) {
             Text(
                 value,
-                modifier = if (LocalGlassReviewStyle.current) Modifier.fillMaxWidth() else Modifier,
+                modifier = (if (LocalGlassReviewStyle.current) Modifier.fillMaxWidth() else Modifier)
+                    .drawWithContent {
+                        drawContent()
+                        // Draw through the glyph bounds: font strike metrics can be invisible on small numerals.
+                        if (struckThrough) textLayout?.takeIf { it.layoutInput.text.isNotEmpty() }?.let { layout ->
+                            val first = layout.getBoundingBox(0)
+                            val last = layout.getBoundingBox(layout.layoutInput.text.lastIndex)
+                            val y = (first.top + first.bottom) / 2f
+                            drawLine(textColor, Offset(first.left - 2.dp.toPx(), y),
+                                Offset(last.right + 2.dp.toPx(), y), strokeWidth = 1.5.dp.toPx())
+                        }
+                    },
+                onTextLayout = { textLayout = it },
                 textAlign = if (LocalGlassReviewStyle.current) TextAlign.Center else TextAlign.Start,
                 style = TextStyle(
                     fontSize = if (LocalAppButtonStyle.current && !LocalGlassReviewStyle.current) 14.sp else if (LocalGlassReviewStyle.current) 12.sp else 10.sp,
                     fontWeight = if (LocalGlassReviewStyle.current && value.isNotBlank() && value != "-") FontWeight.Bold else FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (struckThrough) TextDecoration.LineThrough else null
+                    color = textColor
                 ),
                 maxLines = 1
             )
@@ -579,7 +599,6 @@ internal fun MoveDropdownField(
     options: List<ReviewPokemonMoveOption>,
     emptyLabel: String,
     onSelected: (String?) -> Unit,
-    ratingLabel: String? = null,
     statusMessage: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -596,9 +615,6 @@ internal fun MoveDropdownField(
     Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 2.dp), modifier = modifier) {
         FieldLabelRow(label = label, trailing = {
             LocalFieldLogMarker.current?.invoke(label)
-            ratingLabel?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            }
         })
         CompactTextInput(
             value = selectedLabel,

@@ -39,13 +39,16 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     var meta by remember { mutableStateOf<RaidMetadata?>(null) }
     var pokemonNames by remember(language) { mutableStateOf<Map<Int,String>>(emptyMap()) }
     var moveNames by remember(language) { mutableStateOf<Map<String,String>>(emptyMap()) }
-    var level by rememberSaveable { mutableIntStateOf(40) }
+    var level by rememberSaveable { mutableIntStateOf(repository.preferredLevel()) }
     var tier by rememberSaveable(bossName) { mutableStateOf(initialTier) }
     var inferredTier by remember(bossName) { mutableStateOf(false) }
     var selectedId by rememberSaveable(bossName) { mutableStateOf<String?>(bossName) }
     var formChoices by remember(bossName) { mutableStateOf<List<RaidChoice>>(emptyList()) }
     var refresh by remember { mutableIntStateOf(0) }
     var report by remember(selectedId,tier,level) { mutableStateOf<RaidReport?>(null) }
+    var trainerReport by remember(selectedId, tier) { mutableStateOf<RaidReport?>(null) }
+    var trainersLoading by remember(selectedId, tier) { mutableStateOf(false) }
+    var trainersFailed by remember(selectedId, tier) { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     var failed by remember { mutableStateOf(false) }
     var weakness by remember { mutableStateOf<List<TypeMatchupEntry>>(emptyList()) }
@@ -54,18 +57,21 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     var copied by remember(report,language) { mutableStateOf(false) }
     // A service overlay has no Activity back dispatcher, even for a disabled handler.
     if (!bubble) BackHandler(onBack = onBack)
-    LaunchedEffect(language) {
+    LaunchedEffect(language, bossName, raidScreenText, detectedRaidLevel) {
         try { withContext(Dispatchers.IO) {
             val loaded = repository.metadata()
-            val identity = if (bubble) RaidBossResolver.resolve(bossName, raidScreenText, loaded,
-                runCatching { repository.catalog().ifEmpty { repository.catalog(refresh = true) } }.getOrDefault(emptyList()), detectedRaidLevel) else null
+            val identity = if (bubble) repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel) else null
+            val startingChoice = if (bubble) identity?.selected else loaded.resolve(bossName)?.let { RaidChoice(it.id, initialTier) }
+            val startingLevel = startingChoice?.let { repository.initialLevel(it.id, it.tier) }
             withContext(Dispatchers.Main) {
+                if (!inferredTier && startingLevel != null) level=startingLevel
                 if (bubble && !inferredTier) {
                     selectedId=identity?.selected?.id
                     tier=identity?.selected?.tier ?: initialTier
                     formChoices=identity?.alternatives.orEmpty()
                     inferredTier=true
                 }
+                inferredTier=true
                 meta=loaded
             }
             val names = GameTextRepository.pokemonTranslations(context.applicationContext,language)
@@ -82,12 +88,30 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         val selected=boss ?: return@LaunchedEffect
         loading=true; failed=false
         try {
-            weakness=withContext(Dispatchers.Default) { GameInfoRepository.matchupAgainst(context.applicationContext,selected.types).filter { it.multiplier > 1 } }
+            // Load saved suggestions first; auxiliary type data must not prevent their display.
             report=withContext(Dispatchers.IO) { repository.cached(selected.id,tier,level) }
+            weakness=withContext(Dispatchers.Default) { runCatching {
+                GameInfoRepository.matchupAgainst(context.applicationContext,selected.types).filter { it.multiplier > 1 }
+            }.getOrDefault(emptyList()) }
             if ((!bubble && report == null) || refresh > 0) report=withContext(Dispatchers.IO) { repository.refresh(selected.id,tier,level) }
         } catch(e: CancellationException) { throw e }
         catch(_: Exception) { failed=true }
         finally { loading=false }
+    }
+    // Group-size estimates have their own level-20 cache, independent of the counter selector.
+    LaunchedEffect(boss?.id, tier, refresh, shielded) {
+        val selected = boss ?: return@LaunchedEffect
+        if (shielded || raidHasShields(tier)) return@LaunchedEffect
+        trainersLoading = true
+        trainersFailed = false
+        try {
+            trainerReport = withContext(Dispatchers.IO) { repository.cached(selected.id, tier, 20) }
+            if (trainerReport == null || refresh > 0) {
+                trainerReport = withContext(Dispatchers.IO) { repository.refresh(selected.id, tier, 20) }
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { trainersFailed = true }
+        finally { trainersLoading = false }
     }
     fun name(id: String): String {
         val base = pokemonNames[meta?.pokemon?.get(id)?.dex] ?: return pokemonDisplayName(raidName(id))
@@ -187,7 +211,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                 } } }
                 item { Row(verticalAlignment=Alignment.CenterVertically) {
                     Text(tr("Pokémon sugeridos","Suggested Pokémon","Pokémon sugeridos"),Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
-                    listOf(40,50).forEach { value -> TextButton(onClick={level=value}) { Text(if(level==value) "• $value" else "$value") } }
+                    listOf(40,50).forEach { value -> TextButton(onClick={level=value; repository.setPreferredLevel(value)}) { Text(if(level==value) "• $value" else "$value") } }
                 }; Text(tr("Sem clima · Megas, sombrosos e lendários incluídos","No weather · Megas, shadows and legendaries included","Sin clima · Megas, oscuros y legendarios incluidos"),style=MaterialTheme.typography.bodySmall) }
                 if(loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 if(failed) item { Text(tr("Falha ao atualizar. Os dados salvos foram preservados.","Update failed. Saved data was preserved.","No se pudo actualizar. Se conservaron los datos guardados.")) }
@@ -199,6 +223,45 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                             enabled=!loading,
                             modifier=Modifier.fillMaxWidth()
                         ) { Text(tr("Atualizar esta raid","Update this raid","Actualizar esta incursión")) }
+                    }
+                }
+                run {
+                    val trainerRange = raidTrainerRange(trainerReport?.counters.orEmpty().map { it.estimator })
+                    item {
+                        AppSectionCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(tr("Pessoas sugeridas", "Suggested trainers", "Personas sugeridas"),
+                                    style = MaterialTheme.typography.titleMedium)
+                                if (shielded || raidHasShields(tier)) {
+                                    Text(tr("Estimativa de grupo indisponível para a fase de escudos.",
+                                        "Group estimate unavailable for the shield phase.",
+                                        "Estimación de grupo no disponible para la fase de escudos."),
+                                        style = MaterialTheme.typography.bodySmall)
+                                } else if (trainerRange != null) {
+                                    val count = if (trainerRange.first == trainerRange.last) trainerRange.first.toString()
+                                        else "${trainerRange.first}–${trainerRange.last}"
+                                    Text(count + if (trainerRange.last == 1) tr(" pessoa", " trainer", " persona")
+                                        else tr(" pessoas", " trainers", " personas"),
+                                        style = MaterialTheme.typography.headlineSmall)
+                                    Text(tr("Estimativa Pokébattler com Pokémon no nível 20, sem bônus de clima. Independente do nível 40/50 da lista. A quantidade depende da equipe e dos golpes do chefe.",
+                                        "Pokébattler estimate with level-20 Pokémon and no weather boost. Independent of the 40/50 list level. Group size depends on teams and boss moves.",
+                                        "Estimación de Pokébattler con Pokémon de nivel 20, sin bono de clima. Independiente del nivel 40/50 de la lista. La cantidad depende del equipo y los ataques del jefe."),
+                                        style = MaterialTheme.typography.bodySmall)
+                                } else {
+                                    Text(if (trainersLoading) tr("Calculando para o nível 20…", "Calculating for level 20…", "Calculando para el nivel 20…")
+                                        else tr("Estimativa de nível 20 indisponível.", "Level-20 estimate unavailable.", "Estimación de nivel 20 no disponible."))
+                                }
+                                if (trainersFailed) {
+                                    Text(tr("Não foi possível atualizar a estimativa de pessoas. Dados salvos, quando disponíveis, foram mantidos.",
+                                        "Could not update the group estimate. Saved data was kept when available.",
+                                        "No se pudo actualizar la estimación de personas. Se conservaron los datos guardados disponibles."),
+                                        style = MaterialTheme.typography.bodySmall)
+                                    TextButton(onClick = { refresh++ }, enabled = !trainersLoading && !loading) {
+                                        Text(tr("Tentar novamente", "Retry", "Reintentar"))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 items(report?.counters.orEmpty(),key={it.id}) { counter -> AppSectionCard(Modifier.fillMaxWidth()) {

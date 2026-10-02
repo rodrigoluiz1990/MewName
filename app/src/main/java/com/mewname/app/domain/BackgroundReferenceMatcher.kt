@@ -17,7 +17,8 @@ class BackgroundReferenceMatcher {
         val bestNormalReferenceName: String? = null,
         val bestNormalDistance: Double? = null,
         val bestSpecialReferenceName: String? = null,
-        val bestSpecialDistance: Double? = null
+        val bestSpecialDistance: Double? = null,
+        val specialType: com.mewname.app.model.SpecialBackgroundType? = null
     )
 
     private data class SignatureSample(
@@ -42,6 +43,7 @@ class BackgroundReferenceMatcher {
 
     @Volatile
     private var cachedNormalReferences: List<ReferenceSignature>? = null
+    @Volatile private var cachedSpecialReferences: List<ReferenceSignature>? = null
     fun isSpecialBackground(context: Context, bitmap: Bitmap): Boolean? {
         return debugSpecialBackground(context, bitmap).isSpecial
     }
@@ -62,7 +64,20 @@ class BackgroundReferenceMatcher {
         val rankedNormal = rankReferences(normalReferences, candidateSignatures)
         val bestNormal = rankedNormal.firstOrNull()
         val bestNormalDistance = bestNormal?.second
+        val specialReferences = cachedSpecialReferences ?: synchronized(this) {
+            cachedSpecialReferences ?: (loadReferenceSet(context, SpecialBackgroundCatalog.PATH) +
+                loadReferenceSet(context, "background_refs/calibration")).also { cachedSpecialReferences = it }
+        }
+        val rankedSpecial = rankReferences(specialReferences, candidateSignatures)
+        val bestSpecial = rankedSpecial.firstOrNull()
+        val specialType = bestSpecial?.let { best ->
+            val type = SpecialBackgroundCatalog.type(best.first.sourceName)
+            val competing = rankedSpecial.firstOrNull { SpecialBackgroundCatalog.type(it.first.sourceName) != type }?.second ?: Double.MAX_VALUE
+            // Conservative gate: a named category needs positive evidence, not only dissimilarity to normal.
+            type.takeIf { best.second <= 1.8 && best.second + 0.8 < (bestNormalDistance ?: 0.0) && best.second + 0.8 < competing }
+        }
         val isSpecial = when {
+            specialType != null -> true
             bestNormalDistance == null -> null
             bestNormalDistance <= NORMAL_CONFIDENCE_THRESHOLD -> false
             bestNormalDistance >= SPECIAL_OUTLIER_THRESHOLD -> true
@@ -77,8 +92,9 @@ class BackgroundReferenceMatcher {
             referenceCount = normalReferences.asSequence().map { it.sourceName }.distinct().count(),
             bestNormalReferenceName = bestNormal?.first?.sourceName,
             bestNormalDistance = bestNormalDistance,
-            bestSpecialReferenceName = null,
-            bestSpecialDistance = null
+            bestSpecialReferenceName = bestSpecial?.first?.sourceName,
+            bestSpecialDistance = bestSpecial?.second,
+            specialType = specialType
         )
     }
 
@@ -106,15 +122,15 @@ class BackgroundReferenceMatcher {
 
     private fun loadReferenceSet(context: Context, path: String): List<ReferenceSignature> {
         return runCatching {
-            context.assets.list(path)
-                ?.filter { fileName ->
+            SpecialBackgroundCatalog.files(context, path)
+                .filter { fileName ->
                     fileName.endsWith(".png", ignoreCase = true) ||
                         fileName.endsWith(".jpg", ignoreCase = true) ||
                         fileName.endsWith(".jpeg", ignoreCase = true) ||
                         fileName.endsWith(".webp", ignoreCase = true)
                 }
-                ?.flatMap { fileName ->
-                    context.assets.open("$path/$fileName").use { input ->
+                .flatMap { fileName ->
+                    context.assets.open(fileName).use { input ->
                         val bitmap = BitmapFactory.decodeStream(input) ?: return@flatMap emptyList()
                         try {
                             REFERENCE_VARIANTS.map { variant ->
@@ -128,7 +144,6 @@ class BackgroundReferenceMatcher {
                         }
                     }
                 }
-                ?: emptyList()
         }.getOrElse { emptyList() }
     }
 

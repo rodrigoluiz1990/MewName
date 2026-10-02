@@ -32,26 +32,53 @@ class OcrEngine {
             sizeBadgeCrop(it, bitmap.width, bitmap.height) != null
         }.take(2)) {
             val rect = sizeBadgeCrop(line, bitmap.width, bitmap.height) ?: continue
-            try {
-                val cropped = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
-                val enlarged = Bitmap.createScaledBitmap(cropped, rect.width() * 4, rect.height() * 4, true)
-                val detail = extractRaw(enlarged)
-                val corrected = confirmedSizeBadge(line.text, detail.blocks.flatMap { it.lines }.map { it.text })
-                    ?: continue
-                val blocks = result.blocks.map { block ->
-                    val lines = block.lines.map { if (it == line) it.copy(text = corrected) else it }
-                    if (lines == block.lines) block else block.copy(text = lines.joinToString("\n") { it.text }, lines = lines)
-                }
+            val detail = readSizeDetail(bitmap, rect) ?: continue
+            val corrected = confirmedSizeBadge(line.text, detail.blocks.flatMap { it.lines }.map { it.text })
+                ?: continue
+            val blocks = result.blocks.map { block ->
+                val lines = block.lines.map { if (it == line) it.copy(text = corrected) else it }
+                if (lines == block.lines) block else block.copy(text = lines.joinToString("\n") { it.text }, lines = lines)
+            }
+            result = result.copy(blocks = blocks, fullText = blocks.joinToString("\n") { it.text })
+        }
+        val missingBadgeRect = missingSizeBadgeCrop(result.blocks.flatMap { it.lines }, bitmap.width, bitmap.height)
+        if (missingBadgeRect != null) {
+            val detail = readSizeDetail(bitmap, missingBadgeRect)
+            val lines = detail?.blocks?.flatMap { it.lines }.orEmpty()
+            val badge = unambiguousSizeBadge(lines.map { it.text })
+            val bounds = lines.firstOrNull { it.text.trim().equals(badge, ignoreCase = true) }?.boundingBox
+            if (badge != null && bounds != null) {
+                val mapped = android.graphics.Rect(
+                    missingBadgeRect.left + bounds.left / 4,
+                    missingBadgeRect.top + bounds.top / 4,
+                    missingBadgeRect.left + (bounds.right + 3) / 4,
+                    missingBadgeRect.top + (bounds.bottom + 3) / 4
+                )
+                val block = OcrTextBlock(badge, mapped, listOf(OcrTextLine(badge, mapped)))
+                val blocks = result.blocks + block
                 result = result.copy(blocks = blocks, fullText = blocks.joinToString("\n") { it.text })
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // A failed detail read must not discard the successful full-screen OCR.
             }
         }
         return result
     }
 
+    private suspend fun readSizeDetail(bitmap: Bitmap, rect: android.graphics.Rect): OcrResult? {
+        var cropped: Bitmap? = null
+        var enlarged: Bitmap? = null
+        return try {
+            cropped = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
+            enlarged = Bitmap.createScaledBitmap(cropped, rect.width() * 4, rect.height() * 4, true)
+            extractRaw(enlarged).copy(bitmap = null)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // A failed detail read must not discard the successful full-screen OCR.
+            null
+        } finally {
+            if (enlarged !== cropped && enlarged !== bitmap) enlarged?.recycle()
+            if (cropped !== bitmap) cropped?.recycle()
+        }
+    }
     private suspend fun extractRaw(bitmap: Bitmap): OcrResult = suspendCancellableCoroutine { cont ->
         val image = InputImage.fromBitmap(bitmap, 0)
         processImage(image, bitmap, cont)

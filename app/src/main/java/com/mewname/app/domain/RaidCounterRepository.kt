@@ -16,6 +16,13 @@ internal data class RaidPokemon(val id: String, val types: List<String>, val att
 internal data class RaidCounter(val id: String, val fast: RaidMove, val charged: RaidMove, val estimator: Double)
 internal data class RaidReport(val bossId: String, val tier: String, val level: Int, val fetchedAt: Long,
     val fast: List<String>, val charged: List<String>, val counters: List<RaidCounter>)
+/** Range for teams comparable to the displayed counters, not a guaranteed group size. */
+internal fun raidTrainerRange(estimators: List<Double>): IntRange? {
+    val counts = estimators.filter { it.isFinite() && it > 0 && it <= Int.MAX_VALUE.toDouble() }
+        .map { kotlin.math.ceil(it).toInt().coerceAtLeast(1) }
+    return if (counts.isEmpty()) null else counts.min()..counts.max()
+}
+
 internal data class RaidChoice(val id: String, val tier: String)
 internal fun raidTier(id: String, catalog: List<RaidChoice>): String = catalog.filter { it.id == id }.map { it.tier }.distinct().singleOrNull()
     ?: when { id.contains("_SHADOW") -> "RAID_LEVEL_5_SHADOW"; id.contains("_MEGA") || id.endsWith("_PRIMAL") -> "RAID_LEVEL_MEGA"; else -> "RAID_LEVEL_5" }
@@ -114,13 +121,40 @@ internal class RaidCounterRepository(private val context: Context) {
             ?: JSONObject(context.assets.open("raids/metadata.json").bufferedReader().use { it.readText() })).also { shared = it }
     }
     private fun file(id: String, tier: String, level: Int): File {
-        require(id.matches(Regex("[A-Z0-9_]+")) && tier.matches(Regex("[A-Z0-9_]+")) && level in listOf(40, 50))
+        require(id.matches(Regex("[A-Z0-9_]+")) && tier.matches(Regex("[A-Z0-9_]+")) && level in listOf(20, 40, 50))
         return File(directory, "${id}_${tier}_${level}.json")
     }
     fun cached(id: String, tier: String, level: Int): RaidReport? = runCatching {
-        AtomicFile(file(id,tier,level)).openRead().bufferedReader().use { RaidJson.decode(JSONObject(it.readText()), metadata()) }
-            .also { require(it.bossId == id && it.tier == tier && it.level == level) }
+        val text = synchronized(writeLock) { AtomicFile(file(id,tier,level)).openRead().bufferedReader().use { it.readText() } }
+        RaidJson.decode(JSONObject(text), metadata()).also { require(it.bossId == id && it.tier == tier && it.level == level) }
     }.getOrNull()
+    /** Discover persisted reports without relying on the live catalog or process memory. */
+    fun cachedChoices(): List<RaidChoice> = directory.listFiles().orEmpty()
+        .filter { it.name.endsWith(".json") && "_RAID_LEVEL_" in it.name }
+        .mapNotNull { file -> runCatching {
+            val json = synchronized(writeLock) { AtomicFile(file).openRead().bufferedReader().use { JSONObject(it.readText()) } }
+            val id = json.getString("bossId"); val tier = json.getString("tier"); val level = json.getInt("level")
+            cached(id, tier, level)?.takeIf { level in listOf(40, 50) && it.counters.isNotEmpty() }?.let { RaidChoice(id, tier) }
+        }.getOrNull() }.distinct()
+
+    fun resolveBoss(name: String, screenText: String, detectedLevel: Int?): RaidBossResolver.Result =
+        RaidBossResolver.resolve(name, screenText, metadata(), runCatching { catalog() }.getOrDefault(emptyList()),
+            detectedLevel, (savedCatalog() + cachedChoices()).distinct())
+
+    fun preferredLevel(): Int = context.getSharedPreferences("raid_counter_preferences", Context.MODE_PRIVATE)
+        .getInt("level", 40).takeIf { it == 40 || it == 50 } ?: 40
+
+    fun initialLevel(id: String, tier: String): Int {
+        val preferred = preferredLevel()
+        return if (cached(id, tier, preferred) != null) preferred
+        else listOf(40, 50).firstOrNull { cached(id, tier, it) != null } ?: preferred
+    }
+
+    fun setPreferredLevel(level: Int) {
+        require(level == 40 || level == 50)
+        context.getSharedPreferences("raid_counter_preferences", Context.MODE_PRIVATE).edit().putInt("level", level).apply()
+    }
+
     fun refresh(id: String, tier: String, level: Int): RaidReport {
         file(id,tier,level) // Validate path segments before network access.
         val report = RaidJson.report(get(counterPath(id,tier,level)), id,tier,level,metadata())

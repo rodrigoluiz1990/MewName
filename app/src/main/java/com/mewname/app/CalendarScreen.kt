@@ -1,5 +1,7 @@
 package com.mewname.app
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,7 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
@@ -39,7 +42,7 @@ import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CalendarScreen(onBack: () -> Unit) {
+internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
     val context = LocalContext.current
     val language = appLanguage()
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
@@ -47,11 +50,22 @@ internal fun CalendarScreen(onBack: () -> Unit) {
     var today by remember { mutableStateOf(LocalDate.now()) }
     LaunchedEffect(Unit) { while (true) { today = LocalDate.now(); delay(60_000) } }
     var dateText by rememberSaveable { mutableStateOf(today.toString()) }
-    val selectedDate = LocalDate.parse(dateText)
+    val selectedDate = if (compactToday) today else LocalDate.parse(dateText)
     val month = YearMonth.from(selectedDate)
-    var weekView by rememberSaveable { mutableStateOf(false) }
+    var weekView by rememberSaveable { mutableStateOf(true) }
     var dayOnly by rememberSaveable { mutableStateOf(true) }
     val weekStart = selectedDate.minusDays((selectedDate.dayOfWeek.value - 1).toLong())
+    // Browsing the strip is independent of the selected date and its event query.
+    val stripOrigin = rememberSaveable { weekStart.toEpochDay() }
+    val stripCenter = Int.MAX_VALUE / 2
+    val stripState = rememberLazyListState(stripCenter)
+    val scope = rememberCoroutineScope()
+    val visibleStart by remember {
+        derivedStateOf { LocalDate.ofEpochDay(stripOrigin + stripState.firstVisibleItemIndex - stripCenter) }
+    }
+    fun revealDate(date: LocalDate) {
+        scope.launch { stripState.animateScrollToItem((stripCenter + date.toEpochDay() - stripOrigin).toInt()) }
+    }
     val periodStart = if (weekView) weekStart else month.atDay(1)
     val periodEnd = if (weekView) weekStart.plusDays(6) else month.atEndOfMonth()
     val years = (periodStart.year..periodEnd.year).toList()
@@ -95,53 +109,94 @@ internal fun CalendarScreen(onBack: () -> Unit) {
             !it.start.toLocalDate().isAfter(periodEnd) && it.end.isAfter(periodStart.atStartOfDay())
         }.sortedWith(compareBy<CalendarEvent> { it.start }.thenBy { it.title })
     }
-    val categories = periodEvents.distinctBy { it.category }.map { it.category to it.categoryLabel }
+    val featuredCategories = setOf("season", "go_pass")
+    val regularEvents = periodEvents.filterNot { it.category in featuredCategories }
+    val categories = regularEvents.distinctBy { it.category }.map { it.category to it.categoryLabel }
     val activeFilter = filter.takeIf { key -> categories.any { it.first == key } }.orEmpty()
-    val filtered = remember(periodEvents, activeFilter) { periodEvents.filter { activeFilter.isBlank() || it.category == activeFilter } }
+    val featuredEvents = periodEvents.filter {
+        it.category in featuredCategories && (!dayOnly || it.occursOn(selectedDate))
+    }.sortedBy { if (it.category == "season") 0 else 1 }
+    val filtered = regularEvents.filter { activeFilter.isBlank() || it.category == activeFilter }
     val displayedEvents = if (dayOnly) filtered.filter { it.occursOn(selectedDate) } else filtered
-    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", locale)
-
+    Box(Modifier.fillMaxSize()) {
     Scaffold(topBar = {
         AppTopBar(title = { Text(tr("Calendário", "Calendar", "Calendario")) },
-            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar", "Back", "Volver")) } },
-            actions = { IconButton(onClick = { retry++ }, enabled = !loading) { Icon(Icons.Default.Refresh, tr("Atualizar eventos", "Refresh events", "Actualizar eventos")) } })
+            navigationIcon = { if (!compactToday) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar", "Back", "Volver")) } },
+            actions = {
+                IconButton(onClick = { retry++ }, enabled = !loading) { Icon(Icons.Default.Refresh, tr("Atualizar eventos", "Refresh events", "Actualizar eventos")) }
+                if (compactToday) AppModalCloseButton(onBack)
+            })
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().background(Brush.verticalGradient(LocalAppAppearance.current.background))
             .padding(padding).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(vertical = 12.dp)) {
-            item {
+            if (!compactToday) item {
                 AppSectionCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             AppChoiceChip(!weekView, { weekView = false }, { Text(tr("Mês", "Month", "Mes")) })
-                            AppChoiceChip(weekView, { weekView = true }, { Text(tr("Semana", "Week", "Semana")) })
+                            AppChoiceChip(weekView, { weekView = true; revealDate(weekStart) }, { Text(tr("Semana", "Week", "Semana")) })
                             Spacer(Modifier.weight(1f))
-                            AppSecondaryButton(onClick = { dateText = today.toString(); filter = ""; dayOnly = true }) {
+                            AppSecondaryButton(onClick = { dateText = today.toString(); revealDate(today.minusDays((today.dayOfWeek.value - 1).toLong())); filter = ""; dayOnly = true }) {
                                 Text(tr("Hoje", "Today", "Hoy"))
                             }
                         }
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = {
-                                dateText = (if (weekView) selectedDate.minusWeeks(1) else selectedDate.minusMonths(1)).toString()
+                                if (weekView) revealDate(visibleStart.minusWeeks(1)) else dateText = selectedDate.minusMonths(1).toString()
                             }, modifier = Modifier.semantics {
                                 contentDescription = if (weekView) tr("Semana anterior", "Previous week", "Semana anterior")
                                     else tr("Mês anterior", "Previous month", "Mes anterior")
                             }) { Text("‹", style = MaterialTheme.typography.headlineSmall) }
                             val periodTitle = if (weekView) {
                                 val dateFormat = DateTimeFormatter.ofPattern("dd MMM", locale)
-                                periodStart.format(dateFormat) + " – " + periodEnd.format(dateFormat) + " · " +
-                                    (if (periodStart.year == periodEnd.year) periodEnd.year.toString()
-                                     else periodStart.year.toString() + "/" + periodEnd.year)
+                                visibleStart.format(dateFormat) + " – " + visibleStart.plusDays(6).format(dateFormat) + " · " +
+                                    (if (visibleStart.year == visibleStart.plusDays(6).year) visibleStart.year.toString()
+                                     else visibleStart.year.toString() + "/" + visibleStart.plusDays(6).year)
                             } else month.month.getDisplayName(TextStyle.FULL, locale).replaceFirstChar { it.titlecase(locale) } + " " + month.year
                             Text(periodTitle, Modifier.weight(1f), textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             IconButton(onClick = {
-                                dateText = (if (weekView) selectedDate.plusWeeks(1) else selectedDate.plusMonths(1)).toString()
+                                if (weekView) revealDate(visibleStart.plusWeeks(1)) else dateText = selectedDate.plusMonths(1).toString()
                             }, modifier = Modifier.semantics {
                                 contentDescription = if (weekView) tr("Próxima semana", "Next week", "Semana siguiente")
                                     else tr("Próximo mês", "Next month", "Mes siguiente")
                             }) { Text("›", style = MaterialTheme.typography.headlineSmall) }
                         }
+                        if (weekView) {
+                            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                                val dayWidth = maxWidth / 7
+                                LazyRow(state = stripState, modifier = Modifier.fillMaxWidth()) {
+                                    items(Int.MAX_VALUE, key = { it }) { index ->
+                                        val date = LocalDate.ofEpochDay(stripOrigin + index - stripCenter)
+                                        val isSelected = date == selectedDate
+                                        Column(Modifier.width(dayWidth).heightIn(min = 64.dp)
+                                            .background(if (isSelected) appControlFill(true) else androidx.compose.ui.graphics.Color.Transparent,
+                                                androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                                            .clickable { dateText = date.toString(); dayOnly = true }
+                                            .semantics { selected = isSelected; contentDescription = date.format(DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.FULL).withLocale(locale)) }
+                                            .padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text(date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale), style = MaterialTheme.typography.labelSmall)
+                                            Text(date.dayOfMonth.toString(), fontWeight = if (date == today || isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (date == today) MaterialTheme.colorScheme.primary else LocalAppAppearance.current.text)
+                                        }
+                                    }
+                                }
+                            }
+                        } else Column(Modifier.fillMaxWidth().pointerInput(weekView, selectedDate) {
+                            var distance = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { distance = 0f },
+                                onDragCancel = { distance = 0f },
+                                onDragEnd = {
+                                    if (kotlin.math.abs(distance) >= 48.dp.toPx()) {
+                                        dateText = shiftCalendarPeriod(selectedDate, weekView, if (distance < 0) 1 else -1).toString()
+                                    }
+                                },
+                                onHorizontalDrag = { change, amount -> change.consume(); distance += amount }
+                            )
+                        }) {
                         Row(Modifier.fillMaxWidth()) {
                             (1..7).forEach { day -> Text(DayOfWeek.of(day).getDisplayName(TextStyle.SHORT, locale), Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall) }
                         }
@@ -154,20 +209,19 @@ internal fun CalendarScreen(onBack: () -> Unit) {
                                     if (!weekView && number !in 1..month.lengthOfMonth()) Spacer(Modifier.weight(1f).height(48.dp))
                                     else {
                                         val date = if (weekView) weekStart.plusDays(weekday.toLong()) else month.atDay(number)
-                                        val count = filtered.count { it.occursOn(date) }
                                         val isSelected = date == selectedDate
                                         Column(Modifier.weight(1f).heightIn(min = 48.dp)
                                             .background(if (isSelected) appControlFill(true) else androidx.compose.ui.graphics.Color.Transparent, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
                                             .clickable { dateText = date.toString(); dayOnly = true }
-                                            .semantics { selected = isSelected; contentDescription = date.format(DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.FULL).withLocale(locale)) + ", $count " + tr("eventos", "events", "eventos") }
+                                            .semantics { selected = isSelected; contentDescription = date.format(DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.FULL).withLocale(locale)) }
                                             .padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                             Text(date.dayOfMonth.toString(), fontWeight = if (date == today || isSelected) FontWeight.Bold else FontWeight.Normal,
                                                 color = if (date == today) MaterialTheme.colorScheme.primary else LocalAppAppearance.current.text)
-                                            Box(Modifier.size(4.dp).background(if (count > 0) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent, CircleShape))
                                         }
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 }
@@ -180,7 +234,10 @@ internal fun CalendarScreen(onBack: () -> Unit) {
                     else tr("Não foi possível carregar este ano. Verifique a conexão ou tente outro ano.", "Could not load this year. Check your connection or try another year.", "No se pudo cargar este año. Revisa la conexión o prueba otro año."), error = true)
                 AppSecondaryButton(onClick = { retry++ }, enabled = !loading) { Text(tr("Tentar novamente", "Retry", "Reintentar")) }
             }
-            if (categories.isNotEmpty()) item {
+            items(featuredEvents, key = { it.id }) { event ->
+                CalendarEventCard(event, compactToday, locale) { selectedEvent = event }
+            }
+            if (!compactToday && categories.isNotEmpty()) item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     item { AppChoiceChip(activeFilter.isBlank(), { filter = "" }, { Text(tr("Todos", "All", "Todos")) }) }
                     items(categories, key = { it.first }) { (key, label) ->
@@ -195,7 +252,7 @@ internal fun CalendarScreen(onBack: () -> Unit) {
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text(displayedEvents.size.toString(), style = MaterialTheme.typography.titleMedium)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!compactToday) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppChoiceChip(dayOnly, { dayOnly = true }, { Text(tr("Dia selecionado", "Selected day", "Día seleccionado")) })
                         AppChoiceChip(!dayOnly, { dayOnly = false }, {
                             Text(if (weekView) tr("Toda a semana", "Whole week", "Toda la semana")
@@ -211,29 +268,10 @@ internal fun CalendarScreen(onBack: () -> Unit) {
                 AppStatusMessage(tr("Nenhum evento publicado para esta seleção.", "No published events for this selection.", "No hay eventos publicados para esta selección."))
             }
             items(displayedEvents, key = { it.id }) { event ->
-                AppSectionCard(Modifier.fillMaxWidth().clickable { selectedEvent = event }) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.size(64.dp)
-                            .background(appControlFill(false), androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
-                            contentAlignment = Alignment.Center) {
-                            if (event.image != null) AsyncImage(event.image, null, Modifier.size(56.dp))
-                            else Text(event.start.dayOfMonth.toString(), style = MaterialTheme.typography.headlineSmall)
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(event.categoryLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            Text(event.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            val shortDate = DateTimeFormatter.ofPattern("dd MMM · HH:mm", locale)
-                            val interval = if (event.start.toLocalDate() == event.end.toLocalDate()) {
-                                event.start.format(shortDate) + " – " + event.end.format(DateTimeFormatter.ofPattern("HH:mm", locale))
-                            } else event.start.format(shortDate) + " → " + event.end.format(shortDate)
-                            Text(interval, style = MaterialTheme.typography.bodySmall)
-                        }
-                        Text("›", style = MaterialTheme.typography.titleLarge)
-                    }
-                }
+                CalendarEventCard(event, compactToday, locale) { selectedEvent = event }
             }
-            item {
+
+            if (!compactToday) item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(tr("Fonte: Laboratório do Sam · horários locais", "Source: Laboratório do Sam · local times", "Fuente: Laboratório do Sam · horas locales"), style = MaterialTheme.typography.bodySmall)
                     catalog?.let { Text(tr("Última atualização: ", "Last updated: ", "Última actualización: ") + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(it.fetchedAt)), style = MaterialTheme.typography.bodySmall) }
@@ -242,18 +280,78 @@ internal fun CalendarScreen(onBack: () -> Unit) {
             }
         }
     }
-    selectedEvent?.let { event ->
+    if (compactToday) selectedEvent?.let { event ->
+        // Keep the calendar composed behind the detail layer, including its scroll position.
+        Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.28f))
+            .clickable(onClick = { selectedEvent = null }))
+        Box(Modifier.matchParentSize().padding(16.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+                .clickable(
+                interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}
+            )) {
+                CalendarEventDetails(event, onClose = { selectedEvent = null })
+            }
+        }
+    }
+    }
+    if (!compactToday) selectedEvent?.let { event ->
         androidx.compose.ui.window.Dialog(onDismissRequest = { selectedEvent = null }) {
+            CalendarEventDetails(event, onClose = { selectedEvent = null })
+        }
+    }
+}
+
+@Composable
+private fun CalendarEventDetails(event: CalendarEvent, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val language = appLanguage()
+    fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
+    val locale = when(language) { AppLanguage.PT_BR -> Locale("pt", "BR"); AppLanguage.ES -> Locale("es"); else -> Locale.ENGLISH }
+    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", locale)
             AppSectionCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(event.categoryLabel, style = MaterialTheme.typography.labelMedium)
-                    Text(event.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(tr("Início: ", "Starts: ", "Inicio: ") + event.start.format(formatter))
-                    Text(tr("Fim: ", "Ends: ", "Fin: ") + event.end.format(formatter))
-                    event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }, modifier = Modifier.fillMaxWidth()) { Text(tr("Ver publicação original", "View original post", "Ver publicación original")) } }
-                    AppSecondaryButton(onClick = { selectedEvent = null }, modifier = Modifier.fillMaxWidth()) { Text(tr("Fechar", "Close", "Cerrar")) }
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppModalHeader(event.title, onClose = onClose)
+                    Text(event.categoryLabel, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(tr("Início: ", "Starts: ", "Inicio: ") + event.start.format(formatter),
+                        Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    Text(tr("Fim: ", "Ends: ", "Fin: ") + event.end.format(formatter),
+                        Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(tr("Mais detalhes", "More details", "Más detalles"))
+                    } }
                 }
             }
+
+}
+
+internal fun shiftCalendarPeriod(date: LocalDate, weekView: Boolean, direction: Int): LocalDate =
+    if (weekView) date.plusWeeks(direction.toLong()) else date.plusMonths(direction.toLong())
+
+@Composable
+private fun CalendarEventCard(event: CalendarEvent, compactToday: Boolean, locale: Locale, onClick: () -> Unit) {
+    AppSectionCard(Modifier.fillMaxWidth().clickable { onClick() }) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (!compactToday) Box(Modifier.size(64.dp)
+                .background(appControlFill(false), androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center) {
+                if (event.image != null) AsyncImage(event.image, null, Modifier.size(56.dp))
+                else Text(event.start.dayOfMonth.toString(), style = MaterialTheme.typography.headlineSmall)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(event.categoryLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(event.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                val shortDate = DateTimeFormatter.ofPattern("dd MMM · HH:mm", locale)
+                val interval = if (event.start.toLocalDate() == event.end.toLocalDate()) {
+                    event.start.format(shortDate) + " – " + event.end.format(DateTimeFormatter.ofPattern("HH:mm", locale))
+                } else event.start.format(shortDate) + " → " + event.end.format(shortDate)
+                Text(interval, style = MaterialTheme.typography.bodySmall)
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge)
         }
     }
 }

@@ -1,0 +1,398 @@
+[
+  {
+    "name": "Mewtwo (Armadura)",
+    "alias": "mewtwo armored",
+    "template": "V0150_POKEMON_MEWTWO_A",
+    "stats": {
+      "attack": 182,
+      "defense": 278,
+      "stamina": 214
+    },
+    "parent": "Mewtwo"
+  },
+  {
+    "name": "Deoxys (Ataque)",
+    "alias": "deoxys attack",
+    "template": "V0386_POKEMON_DEOXYS_ATTACK",
+    "stats": {
+      "attack": 414,
+      "defense": 46,
+      "stamina": 137
+    },
+    "parent": "Deoxys"
+  },
+  {
+    "name": "Deoxys (Defesa)",
+    "alias": "deoxys defense",
+    "template": "V0386_POKEMON_DEOXYS_DEFENSE",
+    "stats": {
+      "attack": 144,
+      "defense": 330,
+      "stamina": 137
+    },
+    "parent": "Deoxys"
+  },
+  {
+    "name": "Deoxys (Velocidade)",
+    "alias": "deoxys speed",
+    "template": "V0386_POKEMON_DEOXYS_SPEED",
+    "stats": {
+      "attack": 230,
+      "defense": 218,
+      "stamina": 137
+    },
+    "parent": "Deoxys"
+  },
+  {
+    "name": "Wormadam (Trash)",
+    "alias": "wormadam trash",
+    "template": "V0413_POKEMON_WORMADAM_TRASH",
+    "stats": {
+      "attack": 127,
+      "defense": 175,
+      "stamina": 155
+    },
+    "parent": "Wormadam"
+  },
+  {
+    "name": "Rotom (Fan)",
+    "alias": "rotom fan",
+    "template": "V0479_POKEMON_ROTOM_FAN",
+    "stats": {
+      "attack": 204,
+      "defense": 219,
+      "stamina": 137
+    },
+    "parent": "Rotom"
+  },
+  {
+    "name": "Rotom (Frost)",
+    "alias": "rotom frost",
+    "template": "V0479_POKEMON_ROTOM_FROST",
+    "stats": {
+      "attack": 204,
+      "defense": 219,
+      "stamina": 137
+    },
+    "parent": "Rotom"
+  },
+  {
+    "name": "Rotom (Heat)",
+    "alias": "rotom heat",
+    "template": "V0479_POKEMON_ROTOM_HEAT",
+    "stats": {
+      "attack": 204,
+      "defense": 219,
+      "stamina": 137
+    },
+    "parent": "Rotom"
+  },
+  {
+    "name": "Rotom (Mow)",
+    "alias": "rotom mow",
+    "template": "V0479_POKEMON_ROTOM_MOW",
+    "stats": {
+      "attack": 204,
+      "defense": 219,
+      "stamina": 137
+    },
+    "parent": "Rotom"
+  },
+  {
+    "name": "Rotom (Wash)",
+    "alias": "rotom wash",
+    "template": "V0479_POKEMON_ROTOM_WASH",
+    "stats": {
+      "attack": 204,
+      "defense": 219,
+      "stamina": 137
+    },
+    "parent": "Rotom"
+  },
+  {
+    "name": "Dialga (Origem)",
+    "alias": "dialga origin",
+    "template": "V0483_POKEMON_DIALGA_ORIGIN",
+    "stats": {
+      "attack": 270,
+      "defense": 225,
+      "stamina": 205
+    },
+    "parent": "Dialga"
+  },
+  {
+    "name": "Palkia (Origem)",
+    "alias": "palkia origin",
+    "template": "V0484_POKEMON_PALKIA_ORIGIN",
+    "stats": {
+      "attack": 286,
+      "defense": 223,
+      "stamina": 189
+    },
+    "parent": "Palkia"
+  },
+  {
+    "name": "Giratina (Origem)",
+    "alias": "giratina origin",
+    "template": "V0487_POKEMON_GIRATINA_ORIGIN",
+    "stats": {
+      "attack": 225,
+      "defense": 187,
+      "stamina": 284
+    },
+    "parent": "Giratina"
+  },
+  {
+    "name": "Shaymin (Céu)",
+    "alias": "shaymin sky",
+    "template": "V0492_POKEMON_SHAYMIN_SKY",
+    "stats": {
+      "attack": 261,
+      "defense": 166,
+      "stamina": 225
+    },
+    "parent": "Shaymin"
+  },
+  {
+    "name": "Darmanitan (Zen)",
+    "alias": "darmanitan zen",
+    "template": "V0555_POKEMON_DARMANITAN_ZEN",
+    "stats": {
+      "attack": 243,
+      "defense": 202,
+      "stamina": 233
+    },
+    "parent": "Darmanitan"
+  },
+  {
+    "name": "Darmanitan (Galar Zen)",
+    "alias": "galarian darmanitan zen",
+    "template": "V0555_POKEMON_DARMANITAN_GALARIAN_ZEN",
+    "stats": {
+      "attack": 323,
+      "defense": 123,
+      "stamina": 233
+    },
+    "parent": "Darmanitan (Galar)"
+  },
+  {
+    "name": "Tornadus (Therian)",
+    "alias": "tornadus therian",
+    "template": "V0641_POKEMON_TORNADUS_THERIAN",
+    "stats": {
+      "attack": 238,
+      "defense": 189,
+      "stamina": 188
+    },
+    "parent": "Tornadus"
+  },
+  {
+    "name": "Thundurus (Therian)",
+    "alias": "thundurus therian",
+    "template": "V0642_POKEMON_THUNDURUS_THERIAN",
+    "stats": {
+      "attack": 295,
+      "defense": 161,
+      "stamina": 188
+    },
+    "parent": "Thundurus"
+  },
+  {
+    "name": "Landorus (Therian)",
+    "alias": "landorus therian",
+    "template": "V0645_POKEMON_LANDORUS_THERIAN",
+    "stats": {
+      "attack": 289,
+      "defense": 179,
+      "stamina": 205
+    },
+    "parent": "Landorus"
+  },
+  {
+    "name": "Meloetta (Pirouette)",
+    "alias": "meloetta pirouette",
+    "template": "V0648_POKEMON_MELOETTA_PIROUETTE",
+    "stats": {
+      "attack": 269,
+      "defense": 188,
+      "stamina": 225
+    },
+    "parent": "Meloetta"
+  },
+  {
+    "name": "Aegislash (Blade)",
+    "alias": "aegislash blade",
+    "template": "V0681_POKEMON_AEGISLASH_BLADE",
+    "stats": {
+      "attack": 272,
+      "defense": 97,
+      "stamina": 155
+    },
+    "parent": "Aegislash"
+  },
+  {
+    "name": "Pumpkaboo (Small)",
+    "alias": "pumpkaboo small",
+    "template": "V0710_POKEMON_PUMPKABOO_SMALL",
+    "stats": {
+      "attack": 122,
+      "defense": 124,
+      "stamina": 127
+    },
+    "parent": "Pumpkaboo"
+  },
+  {
+    "name": "Pumpkaboo (Large)",
+    "alias": "pumpkaboo large",
+    "template": "V0710_POKEMON_PUMPKABOO_LARGE",
+    "stats": {
+      "attack": 120,
+      "defense": 122,
+      "stamina": 144
+    },
+    "parent": "Pumpkaboo"
+  },
+  {
+    "name": "Pumpkaboo (Super)",
+    "alias": "pumpkaboo super",
+    "template": "V0710_POKEMON_PUMPKABOO_SUPER",
+    "stats": {
+      "attack": 118,
+      "defense": 120,
+      "stamina": 153
+    },
+    "parent": "Pumpkaboo"
+  },
+  {
+    "name": "Gourgeist (Small)",
+    "alias": "gourgeist small",
+    "template": "V0711_POKEMON_GOURGEIST_SMALL",
+    "stats": {
+      "attack": 171,
+      "defense": 219,
+      "stamina": 146
+    },
+    "parent": "Gourgeist"
+  },
+  {
+    "name": "Gourgeist (Large)",
+    "alias": "gourgeist large",
+    "template": "V0711_POKEMON_GOURGEIST_LARGE",
+    "stats": {
+      "attack": 179,
+      "defense": 206,
+      "stamina": 181
+    },
+    "parent": "Gourgeist"
+  },
+  {
+    "name": "Gourgeist (Super)",
+    "alias": "gourgeist super",
+    "template": "V0711_POKEMON_GOURGEIST_SUPER",
+    "stats": {
+      "attack": 182,
+      "defense": 200,
+      "stamina": 198
+    },
+    "parent": "Gourgeist"
+  },
+  {
+    "name": "Zygarde (10%)",
+    "alias": "zygarde 10%",
+    "template": "V0718_POKEMON_ZYGARDE_TEN_PERCENT",
+    "stats": {
+      "attack": 205,
+      "defense": 173,
+      "stamina": 144
+    },
+    "parent": "Zygarde"
+  },
+  {
+    "name": "Zygarde (Completo)",
+    "alias": "zygarde complete",
+    "template": "V0718_POKEMON_ZYGARDE_COMPLETE",
+    "stats": {
+      "attack": 184,
+      "defense": 207,
+      "stamina": 389
+    },
+    "parent": "Zygarde"
+  },
+  {
+    "name": "Hoopa (Unbound)",
+    "alias": "hoopa unbound",
+    "template": "V0720_POKEMON_HOOPA_UNBOUND",
+    "stats": {
+      "attack": 311,
+      "defense": 191,
+      "stamina": 173
+    },
+    "parent": "Hoopa"
+  },
+  {
+    "name": "Wishiwashi (School)",
+    "alias": "wishiwashi school",
+    "template": "V0746_POKEMON_WISHIWASHI_SCHOOL",
+    "stats": {
+      "attack": 255,
+      "defense": 242,
+      "stamina": 128
+    },
+    "parent": "Wishiwashi"
+  },
+  {
+    "name": "Eiscue (Noice)",
+    "alias": "eiscue noice",
+    "template": "V0875_POKEMON_EISCUE_NOICE",
+    "stats": {
+      "attack": 173,
+      "defense": 139,
+      "stamina": 181
+    },
+    "parent": "Eiscue"
+  },
+  {
+    "name": "Indeedee (Fêmea)",
+    "alias": "indeedee female",
+    "template": "V0876_POKEMON_INDEEDEE_FEMALE",
+    "stats": {
+      "attack": 184,
+      "defense": 184,
+      "stamina": 172
+    },
+    "parent": "Indeedee"
+  },
+  {
+    "name": "Eternatus (Eternamax)",
+    "alias": "eternatus eternamax",
+    "template": "V0890_POKEMON_ETERNATUS_ETERNAMAX",
+    "stats": {
+      "attack": 251,
+      "defense": 505,
+      "stamina": 452
+    },
+    "parent": "Eternatus"
+  },
+  {
+    "name": "Calyrex (Ice Rider)",
+    "alias": "calyrex ice rider",
+    "template": "V0898_POKEMON_CALYREX_ICE_RIDER",
+    "stats": {
+      "attack": 268,
+      "defense": 246,
+      "stamina": 205
+    },
+    "parent": "Calyrex"
+  },
+  {
+    "name": "Calyrex (Shadow Rider)",
+    "alias": "calyrex shadow rider",
+    "template": "V0898_POKEMON_CALYREX_SHADOW_RIDER",
+    "stats": {
+      "attack": 324,
+      "defense": 194,
+      "stamina": 205
+    },
+    "parent": "Calyrex"
+  }
+]

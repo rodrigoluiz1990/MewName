@@ -6,7 +6,8 @@ internal data class TrainerProfileDraft(
     val name: String? = null,
     val level: String? = null,
     val team: String? = null,
-    val friendCode: String? = null
+    val friendCode: String? = null,
+    val totalExperience: Long? = null
 )
 
 internal data class TrainerProfileLine(val text: String, val left: Float, val top: Float)
@@ -65,7 +66,7 @@ internal object TrainerProfileParser {
         val headerName = if (trainerTab) {
             val regional = regions.filter { it.left < .5f && it.top in .10f.. .25f }
                 .map { it.text.trim() }.filter(::validName).distinct().singleOrNull()
-            regional ?: lines.take(14).firstOrNull(::validName)
+            regional ?: if (regions.isEmpty()) lines.take(14).firstOrNull(::validName) else null
         } else null
         val bottomLevel = if (trainerTab) {
             Regex("""(?im)^\s*(\d{1,3})\s*(?:NIVEL|LEVEL)\s*$""")
@@ -75,7 +76,35 @@ internal object TrainerProfileParser {
             it.left < .25f && it.top in .35f.. .70f && it.text.trim().matches(Regex("""\d{1,3}"""))
         }.map { it.text.trim() }.filter { it.toInt() in 1..100 }.distinct().singleOrNull() else null
         val team = labeled("equipe|team|equipo", "mystic|valor|instinct|sabedoria|valor|instinto")
-        return TrainerProfileDraft(explicitName ?: friendshipName ?: headerName ?: identity?.first,
-            explicitLevel ?: bottomLevel ?: regionLevel ?: identity?.second, team, code)
+        return TrainerProfileDraft(explicitName ?: friendshipName ?: headerName ?: identity?.first?.takeIf { regions.isEmpty() },
+            explicitLevel ?: bottomLevel ?: regionLevel ?: identity?.second, team, code,
+            totalExperience = parseTotalExperience(text, regions))
     }
-}
+    private fun parseTotalExperience(text: String, regions: List<TrainerProfileLine>): Long? {
+        fun normalize(value: String) = Normalizer.normalize(value, Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "").trim().uppercase(java.util.Locale.ROOT)
+        val normalized = normalize(text)
+        if (!isTrainerScreen(text) && !Regex("NOME(?: DO TREINADOR)?|TRAINER NAME|NOMBRE(?: DEL ENTRENADOR)?").containsMatchIn(normalized)) return null
+        val label = Regex("""(?:(?:(?:PE|XP|EXP)\s+)?TOTAL\s+(?:DE\s+)?(?:EXPERIENCIA|EXPERIENCE|EXP|XP|PE)|(?:EXPERIENCIA|EXPERIENCE|EXP|XP|PE)\s+TOTAL)""")
+        fun number(raw: String): Long? {
+            val value = raw.trim().removePrefix(":").trim()
+            if (!Regex("""(?:\d+|\d{1,3}(?:[.,\s]\d{3})+)""").matches(value)) return null
+            return value.filter(Char::isDigit).toLongOrNull()?.takeIf { it >= 0 }
+        }
+        val candidates = mutableSetOf<Long>()
+        val lines = normalized.lines().map(String::trim).filter(String::isNotEmpty)
+        lines.forEachIndexed { index, line ->
+            val match = label.find(line) ?: return@forEachIndexed
+            val remainder = line.substring(match.range.last + 1).trim().removePrefix(":").trim()
+            if (remainder.isNotEmpty()) number(remainder)?.let(candidates::add)
+            else {
+                lines.getOrNull(index + 1)?.let(::number)?.let(candidates::add)
+                regions.filter { label.containsMatchIn(normalize(it.text)) }.forEach { anchor ->
+                    regions.filter { it.left > anchor.left + .15f && kotlin.math.abs(it.top - anchor.top) <= .018f }
+                        .mapNotNull { number(it.text) }.forEach(candidates::add)
+                }
+            }
+        }
+        // Ambiguous numbers or a level-progress fraction are not total experience.
+        return candidates.singleOrNull()
+    }}

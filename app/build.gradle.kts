@@ -22,7 +22,7 @@ val releaseTag = System.getenv("MEWNAME_RELEASE_TAG")?.takeIf { it.isNotBlank() 
 val releaseVersionName = releaseTag
     .takeIf { it != "dev" }
     ?.removePrefix("v")
-    ?: "1.0.27"
+    ?: "1.0.28"
 val hasReleaseSigning = releaseStoreFilePath != null &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
@@ -124,17 +124,7 @@ val validateCatalogSemantics by tasks.registering {
         }
         // New family options can be selected before their stat catalogs are available.
         // Keep this explicit: unknown spellings must still fail validation.
-        val pendingFamilyStats = setOf(
-            "Arcanine (Hisui)", "Avalugg (Hisui)", "Basculegion", "Braviary (Hisui)",
-            "Dialga (Origem)", "Electrode (Hisui)", "Giratina (Origem)", "Goodra (Hisui)",
-            "Growlithe (Hisui)", "Hoopa (Unbound)", "Keldeo (Resolute)", "Landorus (Therian)",
-            "Lilligant (Hisui)", "Meloetta (Aria)", "Meloetta (Pirouette)",
-            "Necrozma (Asas da Alvorada)", "Necrozma (Juba do Crepúsculo)", "Necrozma (Ultra)",
-            "Palkia (Origem)", "Qwilfish (Hisui)", "Shaymin (Céu)",
-            "Sliggoo (Hisui)", "Sneasel (Hisui)", "Thundurus (Therian)", "Tornadus (Therian)",
-            "Typhlosion (Hisui)", "Voltorb (Hisui)", "Zamazenta (Coroado)",
-            "Zoroark (Hisui)", "Zorua (Hisui)"
-        ).map(::normalizeCatalogName).toSet()
+        val pendingFamilyStats = setOf("Keldeo (Resolute)").map(::normalizeCatalogName).toSet()
         val families = readJson("pokemon/families.json") as? Map<*, *>
             ?: error("pokemon/families.json must be an object")
         families.forEach { (rawKey, rawMembers) ->
