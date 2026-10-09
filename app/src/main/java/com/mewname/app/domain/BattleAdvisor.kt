@@ -37,7 +37,8 @@ object BattleAdvisor {
         context: Context,
         rawText: String,
         positionedLines: List<BattleOcrLine> = emptyList(),
-        detectedRaidLevel: Int? = null
+        detectedRaidLevel: Int? = null,
+        identityOnly: Boolean = false
     ): BattleAdvice? {
         if (!looksLikeBattleScreen(rawText)) return null
         return buildAdvice(
@@ -45,7 +46,8 @@ object BattleAdvisor {
             rawText = rawText,
             data = null,
             positionedLines = positionedLines,
-            detectedRaidLevel = detectedRaidLevel
+            detectedRaidLevel = detectedRaidLevel,
+            identityOnly = identityOnly
         )
     }
 
@@ -67,10 +69,17 @@ object BattleAdvisor {
         rawText: String,
         data: PokemonScreenData?,
         positionedLines: List<BattleOcrLine> = emptyList(),
-        detectedRaidLevel: Int? = null
+        detectedRaidLevel: Int? = null,
+        identityOnly: Boolean = false
     ): BattleAdvice {
         val mode = battleMode(rawText, data)
         val bossName = resolveBossName(context, data, rawText, positionedLines)
+        // The raid modal loads authoritative cached counters itself. Do not build
+        // generic counters or Max support teams just to open that modal.
+        if (identityOnly && mode == BattleMode.RAID) return BattleAdvice(
+            mode = mode, bossName = bossName, bossTypes = emptyList(),
+            weaknessTypes = emptyList(), suggestions = emptyList(), copyText = "",
+            raidScreenText = rawText, raidLevel = detectedRaidLevel)
         val bossTypes = listOfNotNull(data?.type1, data?.type2)
             .ifEmpty { bossName?.let { findPokemonTypes(context, it) }.orEmpty() }
             .distinct()
@@ -98,9 +107,9 @@ object BattleAdvisor {
                 )
                 .ifEmpty { source.take(10) }
         }
-        val support = maxSupportSuggestions(source, bossTypes,
+        val support = if (mode == BattleMode.MAX) maxSupportSuggestions(source, bossTypes,
             GameInfoRepository.loadTypeEffectiveness(context),
-            RaidCounterRepository(context.applicationContext).metadata())
+            RaidCounterRepository(context.applicationContext).metadata()) else emptyList<BattleSuggestionEntry>() to emptyList()
         val copyText = buildFastCopyText(context, mode, suggestions)
 
         return BattleAdvice(
@@ -356,9 +365,14 @@ object BattleAdvisor {
         val normalizedRaw = normalizeName(text).replace('0', 'O')
         val compactRaw = normalizedRaw.replace(" ", "")
         val rawTokens = normalizedRaw.split(" ").filter { it.length >= 5 }
-        return GameInfoRepository.loadBattlePokemonIndex(context)
-            .asSequence()
-            .flatMap { entry -> entry.normalizedNames.asSequence().map { alias -> entry.name to alias } }
+        val aliases = GameInfoRepository.loadBattlePokemonIndex(context)
+            .flatMap { entry -> entry.normalizedNames.map { alias -> entry.name to alias } }
+        // Exact matches always won the previous ranking. Resolve them first so
+        // a clear boss name never pays for fuzzy matching against every species.
+        aliases.asSequence().filter { (_, alias) -> alias.length >= 4 &&
+            (alias in normalizedRaw || alias.replace(" ", "") in compactRaw) }
+            .maxByOrNull { (_, alias) -> alias.length }?.let { return it.first }
+        return aliases.asSequence()
             .mapNotNull { (name, alias) ->
                 bossNameMatchRank(alias, normalizedRaw, compactRaw, rawTokens)?.let { rank ->
                     Triple(name, alias, rank)

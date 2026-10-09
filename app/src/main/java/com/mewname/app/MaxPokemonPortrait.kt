@@ -26,10 +26,10 @@ internal fun maxPortraitId(value: String?): String {
 }
 
 @Composable
-internal fun MaxPokemonPortrait(pokemon: String?, modifier: Modifier = Modifier, offline: Boolean = true) {
+internal fun MaxPokemonPortrait(pokemon: String?, modifier: Modifier = Modifier, offline: Boolean = true, refreshToken: Int = 0) {
     val context = LocalContext.current
     val id = remember(pokemon) { maxPortraitId(pokemon) }
-    val source by produceState<String?>(null, id, context) {
+    val source by produceState<String?>(null, id, context, refreshToken) {
         value = withContext(Dispatchers.IO) {
             val asset = "raids/max/$id.png"
             val bundled = runCatching { context.assets.open(asset).use { } }.isSuccess
@@ -37,11 +37,21 @@ internal fun MaxPokemonPortrait(pokemon: String?, modifier: Modifier = Modifier,
             else RaidCounterRepository(context.applicationContext).image(id)
         }
     }
-    AsyncImage(
-        model = ImageRequest.Builder(context).data(source)
-            .networkCachePolicy(if (offline) CachePolicy.DISABLED else CachePolicy.ENABLED).build(),
-        contentDescription = pokemon,
-        contentScale = ContentScale.Fit,
-        modifier = modifier
-    )
+    val request = remember(context, source, offline, refreshToken) {
+        ImageRequest.Builder(context).data(source)
+            .networkCachePolicy(if (offline && refreshToken == 0) CachePolicy.DISABLED else CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .build()
+    }
+    // An explicit refresh retries failed/missing sprites, including the offline boss.
+    // Bundled sprites and successfully cached images remain available without downloading again.
+    key(id, refreshToken) {
+        AsyncImage(
+            model = request,
+            contentDescription = pokemon,
+            contentScale = ContentScale.Fit,
+            modifier = modifier
+        )
+    }
 }

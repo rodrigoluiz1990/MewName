@@ -64,14 +64,17 @@ class PvpRankCalculator {
         knownAttack: Int? = null, knownDefense: Int? = null, knownStamina: Int? = null,
         knownLevel: Double? = null): CpIvEvidence {
         val empty = CpIvEvidence(0, null, null, null, null)
-        if (cp < 10 || (maxHp == null && knownLevel == null) || (maxHp != null && maxHp < 10)) return empty
+        val knownIvCount = listOf(knownAttack, knownDefense, knownStamina).count { it != null }
+        if (cp < 10 || (maxHp == null && knownLevel == null && knownIvCount < 2) || (maxHp != null && maxHp < 10)) return empty
         if (listOf(knownAttack, knownDefense, knownStamina).any { it != null && it !in 0..15 }) return empty
         if (knownLevel != null && (knownLevel !in 1.0..51.0 || knownLevel * 2 != kotlin.math.floor(knownLevel * 2))) return empty
         val base = loadBaseStats(context, pokemonName) ?: return empty
         val a = base.getInt("attack"); val d = base.getInt("defense"); val h = base.getInt("stamina")
         var matches = 0
         var first: Triple<Int, Int, Int>? = null
-        var sameIv = true
+        var sameAttack = true
+        var sameDefense = true
+        var sameStamina = true
         var firstLevel: Double? = null
         var sameLevel = true
         for (i in cpmTable.indices) {
@@ -79,19 +82,45 @@ class PvpRankCalculator {
             val level = 1.0 + i * 0.5
             if (knownLevel != null && level != knownLevel) continue
             val cpm = cpmTable[i]
+            if (cp !in calculateCp(a, d, h, cpm)..calculateCp(a + 15, d + 15, h + 15, cpm)) continue
             for (sta in (knownStamina?.let { it..it } ?: 0..15)) {
                 if (maxHp != null && floor((h + sta) * cpm).toInt().coerceAtLeast(10) != maxHp) continue
                 for (atk in (knownAttack?.let { it..it } ?: 0..15)) for (def in (knownDefense?.let { it..it } ?: 0..15)) {
                     if (calculateCp(a + atk, d + def, h + sta, cpm) != cp) continue
                     val iv = Triple(atk, def, sta)
                     if (matches == 0) { first = iv; firstLevel = level }
-                    else { if (first != iv) sameIv = false; if (firstLevel != level) sameLevel = false }
+                    else {
+                        if (first?.first != atk) sameAttack = false
+                        if (first?.second != def) sameDefense = false
+                        if (first?.third != sta) sameStamina = false
+                        if (firstLevel != level) sameLevel = false
+                    }
                     matches++
                 }
             }
         }
-        return CpIvEvidence(matches, first?.first?.takeIf { sameIv }, first?.second?.takeIf { sameIv },
-            first?.third?.takeIf { sameIv }, firstLevel?.takeIf { sameLevel })
+        return CpIvEvidence(matches, first?.first?.takeIf { sameAttack }, first?.second?.takeIf { sameDefense },
+            first?.third?.takeIf { sameStamina }, firstLevel?.takeIf { sameLevel })
+    }
+
+    /** All exact CP matches, not a probability or a confirmed appraisal. */
+    fun encounterPossibilities(context: Context, name: String, cp: Int, level: Double? = null): List<StatProduct> {
+        if (cp < 10 || (level != null && (level !in 1.0..51.0 || level * 2 != floor(level * 2)))) return emptyList()
+        val base = loadBaseStats(context, name) ?: return emptyList()
+        val a = base.getInt("attack"); val d = base.getInt("defense"); val h = base.getInt("stamina")
+        val results = mutableListOf<StatProduct>()
+        for (i in cpmTable.indices) {
+            if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException()
+            val lv = 1.0 + i * 0.5
+            if (level != null && lv != level) continue
+            val cpm = cpmTable[i]
+            if (cp !in calculateCp(a, d, h, cpm)..calculateCp(a + 15, d + 15, h + 15, cpm)) continue
+            for (atk in 0..15) for (def in 0..15) for (sta in 0..15) {
+                if (calculateCp(a + atk, d + def, h + sta, cpm) == cp)
+                    results += StatProduct(atk, def, sta, 0.0, cp, lv)
+            }
+        }
+        return results.sortedWith(compareByDescending<StatProduct> { it.atk + it.def + it.sta }.thenBy { it.level })
     }
 
     fun estimateLevel(
@@ -428,26 +457,28 @@ class PvpRankCalculator {
         val bDef = base.getInt("defense")
         val bSta = base.getInt("stamina")
 
-        var bestProduct: StatProduct? = null
-
-        for (i in cpmTable.indices) {
-            val cpm = cpmTable[i]
-            val level = 1.0 + (i * 0.5)
-            if (level > maxLevel) break
-            val cp = calculateCp(bAtk + ivAtk, bDef + ivDef, bSta + ivSta, cpm)
-            
+        // CP and stat product are monotonic for positive stats. Find the last legal
+        // half-level instead of evaluating every level for all 4,096 IV spreads.
+        var low = 0
+        var high = minOf(cpmTable.lastIndex, floor((maxLevel - 1.0) * 2.0).toInt())
+        var bestIndex = -1
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val cp = calculateCp(bAtk + ivAtk, bDef + ivDef, bSta + ivSta, cpmTable[mid])
             if (cp <= cap) {
-                val effectiveHp = floor((bSta + ivSta) * cpm).toInt().coerceAtLeast(10)
-                // Multiply the integer factors first so equivalent IV products at the same level
-                // remain exactly tied; separate CPM multiplications introduce rounding noise.
-                val statFactors = (bAtk + ivAtk).toDouble() * (bDef + ivDef) * effectiveHp
-                val product = statFactors * cpm.pow(2.0)
-                if (bestProduct == null || product > bestProduct.product) {
-                    bestProduct = StatProduct(ivAtk, ivDef, ivSta, product, cp, level)
-                }
+                bestIndex = mid
+                low = mid + 1
+            } else {
+                high = mid - 1
             }
         }
-        return bestProduct
+        if (bestIndex < 0) return null
+        val cpm = cpmTable[bestIndex]
+        val effectiveHp = floor((bSta + ivSta) * cpm).toInt().coerceAtLeast(10)
+        // Preserve the original multiplication order and exact ties.
+        val statFactors = (bAtk + ivAtk).toDouble() * (bDef + ivDef) * effectiveHp
+        return StatProduct(ivAtk, ivDef, ivSta, statFactors * cpm.pow(2.0),
+            calculateCp(bAtk + ivAtk, bDef + ivDef, bSta + ivSta, cpm), 1.0 + bestIndex * 0.5)
     }
 
     private fun getRankTable(baseStats: JSONObject, pokemonName: String, league: PvpLeague, options: PvpCalculationOptions): RankTable {

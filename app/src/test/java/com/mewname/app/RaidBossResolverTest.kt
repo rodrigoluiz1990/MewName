@@ -11,22 +11,45 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RaidBossResolverTest {
     private val meta get() = RaidCounterRepository(ApplicationProvider.getApplicationContext<Context>()).metadata()
-    @Test fun buzzwoleUsesUltraBeastCategoryEvenWhenOcrCountsFourIcons() {
+    @Test fun ultraBeastDoesNotLeakIntoFourSymbolChoices() {
         val r = RaidBossResolver.resolve("Buzzwole", "Buzzwole BATALHA", meta,
             listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST")), 4,
             listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_4")))
-        assertEquals(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST"), r.selected)
+        assertNull(r.selected)
+        assertTrue(r.alternatives.isEmpty())
     }
-    @Test fun savedBossResolvesOfflineAfterLeavingTheCurrentCatalog() {
+    @Test fun savedBossDoesNotLeakIntoCurrentChoices() {
         val r = RaidBossResolver.resolve("Buzzwole", "Buzzwole BATALHA", meta,
             listOf(RaidChoice("LUGIA", "RAID_LEVEL_5")), 4,
             listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST")))
-        assertEquals(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST"), r.selected)
+        assertNull(r.selected)
+        assertTrue(r.alternatives.isEmpty())
     }
-    @Test fun knownNormalRaidTierWinsOverIncorrectIconCount() {
+    @Test fun recognizedNameCannotOverrideTheDetectedLevel() {
         val r = RaidBossResolver.resolve("Quaquaval", "BATALHA", meta,
             listOf(RaidChoice("QUAQUAVAL", "RAID_LEVEL_3")), 2)
-        assertEquals(RaidChoice("QUAQUAVAL", "RAID_LEVEL_3"), r.selected)
+        assertNull(r.selected)
+        assertTrue(r.alternatives.isEmpty())
+    }
+
+    @Test fun detectedLevelListsAllCurrentBossesNormalBeforeShadowWithoutInventedForms() {
+        val normal = RaidChoice("PIKACHU", "RAID_LEVEL_1")
+        val shadow = RaidChoice("BAGON_SHADOW_FORM", "RAID_LEVEL_1_SHADOW")
+        val catalog = listOf(shadow, RaidChoice("MEWTWO", "RAID_LEVEL_5"), normal, normal)
+        val result = RaidBossResolver.resolve("Pikachu", "", meta, catalog, 1)
+        assertEquals(normal, result.selected)
+        assertEquals(listOf(normal, shadow), result.alternatives)
+        val unknown = RaidBossResolver.resolve("", "", meta, catalog, 1)
+        assertNull(unknown.selected)
+        assertEquals(listOf(normal, shadow), unknown.alternatives)
+    }
+
+    @Test fun singleFiveSymbolBossLoadsEvenWithoutAReadableName() {
+        val boss = RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST")
+        val result = RaidBossResolver.resolve("", "", meta,
+            listOf(boss, RaidChoice("PIKACHU", "RAID_LEVEL_1")), 5)
+        assertEquals(boss, result.selected)
+        assertEquals(listOf(boss), result.alternatives)
     }
 
     @Test fun bareNameUsesSavedShadowRaidAndCorrectTier() {
@@ -102,8 +125,8 @@ class RaidBossResolverTest {
             RaidChoice("PIKACHU", "RAID_LEVEL_1")
         )
         val result = RaidBossResolver.resolve("", "PC 18504 BATALHA", meta, catalog, detectedLevel = 3)
-        assertNull(result.selected)
-        assertEquals(listOf(RaidChoice("SKELEDIRGE", "RAID_LEVEL_3")), result.alternatives)
+        assertEquals(RaidChoice("SKELEDIRGE", "RAID_LEVEL_3"), result.selected)
+        assertEquals(listOf(result.selected), result.alternatives)
     }
 
     @Test fun partialBossNameAndDetectedLevelResolveTheCurrentRaid() {

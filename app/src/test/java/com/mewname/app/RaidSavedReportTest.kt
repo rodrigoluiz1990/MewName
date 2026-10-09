@@ -25,12 +25,17 @@ class RaidSavedReportTest {
         for (brokenCatalog in listOf(false,true)) {
             if (brokenCatalog) File(dir,"catalog.json").writeText("broken")
             val repository = RaidCounterRepository(context)
-            val choice = repository.resolveBoss("Buzzwole","BATALHA",4).selected
+            // Without a detected tier, saved reports remain available after restart.
+            val choice = repository.resolveBoss("Buzzwole","BATALHA",null).selected
             assertEquals(RaidChoice("BUZZWOLE","RAID_LEVEL_ULTRA_BEAST"),choice)
             assertEquals(50,repository.initialLevel(choice!!.id,choice.tier))
             assertEquals(report,RaidCounterRepository(context).cached(choice.id,choice.tier,50))
             assertNull(repository.cached("BUZZWOLE","RAID_LEVEL_4",50))
             assertNull(repository.cached("BUZZWOLE","RAID_LEVEL_ULTRA_BEAST",40))
+            // A detected symbol count only lists current raids of that tier.
+            // An old Ultra Beast report must not be injected into a tier-4 list.
+            assertNull(repository.resolveBoss("Buzzwole", "BATALHA", 4).selected)
+            assertTrue(repository.resolveBoss("Buzzwole", "BATALHA", 4).alternatives.isEmpty())
         }
     }
     @Test fun level20EstimateHasSeparateCacheAndDoesNotBecomeCounterPreference() {

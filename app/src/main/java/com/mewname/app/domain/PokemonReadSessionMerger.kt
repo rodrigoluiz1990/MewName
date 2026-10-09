@@ -56,7 +56,7 @@ class PokemonReadSessionMerger {
             isPurified = current.isPurified || previous.isPurified,
             hasSpecialBackground = if (current.backgroundDebugInfo != null) current.hasSpecialBackground else current.hasSpecialBackground || previous.hasSpecialBackground,
             hasAdventureEffect = if (current.adventureEffectDebugInfo != null) current.hasAdventureEffect else current.hasAdventureEffect || previous.hasAdventureEffect,
-            size = if (current.size != PokemonSize.NORMAL) current.size else previous.size,
+            size = if (current.sizeDebugInfo != null || current.size != PokemonSize.NORMAL) current.size else previous.size,
             sizeDebugInfo = current.sizeDebugInfo ?: previous.sizeDebugInfo,
             pvpLeague = current.pvpLeague ?: previous.pvpLeague,
             pvpRank = current.pvpRank ?: previous.pvpRank,
@@ -135,6 +135,14 @@ class PokemonReadSessionMerger {
     }
 
     private fun isSamePokemon(current: PokemonScreenData, previous: PokemonScreenData): Boolean {
+        // Same species/IVs are not an individual identifier. Explicit conflicts
+        // must not carry size, shiny, background or other flags to another capture.
+        if (current.cp != null && previous.cp != null && current.cp != previous.cp) return false
+        if (hasTrustedIvRead(current) && hasTrustedIvRead(previous) && listOf(
+                current.attIv to previous.attIv,
+                current.defIv to previous.defIv,
+                current.staIv to previous.staIv
+            ).any { (now, before) -> now != null && before != null && now != before }) return false
         // Matching candy, CP and IVs do not make two regional forms the same Pokemon.
         if (!current.pokemonName.isNullOrBlank() && !previous.pokemonName.isNullOrBlank() &&
             masterForms.regionalBranch(current.pokemonName) != masterForms.regionalBranch(previous.pokemonName)) {

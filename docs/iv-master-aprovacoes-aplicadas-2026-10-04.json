@@ -1,0 +1,2664 @@
+{
+  "workbook_sha256": "78a20db8d607f5349402c8192b314a746b85a9eabe87a4a01d9b9858192a1faf",
+  "before_sha256": "49634c062c63e8d13b0586f0d6bfea01cd2ab8003ebd300ef0483bc0c18231cf",
+  "decisions": [
+    {
+      "id": "D-001",
+      "key": "AMBIPOM",
+      "percent": "91",
+      "before": [
+        13,
+        14,
+        14
+      ],
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-002",
+      "key": "ARCEUS",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-003",
+      "key": "ARCEUS",
+      "percent": "93",
+      "before": [
+        14,
+        15,
+        13
+      ],
+      "after": [
+        13,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-004",
+      "key": "ARCEUS",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        13,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-005",
+      "key": "CALYREX",
+      "percent": "96",
+      "before": [
+        14,
+        15,
+        14
+      ],
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-006",
+      "key": "CALYREX",
+      "percent": "93",
+      "before": [
+        13,
+        15,
+        14
+      ],
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-007",
+      "key": "CALYREX",
+      "percent": "91",
+      "before": [
+        12,
+        15,
+        14
+      ],
+      "after": [
+        15,
+        15,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-008",
+      "key": "CETITAN",
+      "percent": "93",
+      "before": [
+        15,
+        14,
+        13
+      ],
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-009",
+      "key": "CETITAN",
+      "percent": "91",
+      "before": [
+        15,
+        13,
+        13
+      ],
+      "after": [
+        15,
+        15,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-010",
+      "key": "CRUSTLE",
+      "percent": "93",
+      "before": [
+        14,
+        15,
+        13
+      ],
+      "after": [
+        15,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-011",
+      "key": "GOLURK",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-012",
+      "key": "JIRACHI",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-013",
+      "key": "KINGDRA",
+      "percent": "93",
+      "before": [
+        13,
+        15,
+        14
+      ],
+      "after": [
+        14,
+        14,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-014",
+      "key": "LIEPARD",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-015",
+      "key": "MEW",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-016",
+      "key": "MIENSHAO",
+      "percent": "91",
+      "before": [
+        11,
+        15,
+        15
+      ],
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-017",
+      "key": "MUK",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-018",
+      "key": "ORICORIO",
+      "percent": "96",
+      "before": [
+        15,
+        14,
+        14
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-019",
+      "key": "RAMPARDOS",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-020",
+      "key": "ROTOM",
+      "percent": "98",
+      "before": [
+        15,
+        14,
+        15
+      ],
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-021",
+      "key": "ROTOM",
+      "percent": "96",
+      "before": [
+        15,
+        13,
+        15
+      ],
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-022",
+      "key": "ROTOM",
+      "percent": "93",
+      "before": [
+        15,
+        12,
+        15
+      ],
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-023",
+      "key": "ROTOM",
+      "percent": "91",
+      "before": [
+        15,
+        11,
+        15
+      ],
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-024",
+      "key": "SHAYMIN",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-025",
+      "key": "SHAYMINCEU",
+      "percent": "91",
+      "before": [
+        14,
+        14,
+        13
+      ],
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-026",
+      "key": "SPECTRIER",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-027",
+      "key": "SPIDOPS",
+      "percent": "93",
+      "before": [
+        14,
+        13,
+        15
+      ],
+      "after": [
+        15,
+        12,
+        15
+      ],
+      "note": "Excel armazenou 15/12/15 como data serial 15/12/2015; coincide com a proposta aprovada."
+    },
+    {
+      "id": "D-028",
+      "key": "VICTINI",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-029",
+      "key": "ZEBSTRIKA",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        14,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        13,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        12,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        14,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        13,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        12,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        13,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        14,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "91",
+      "before": null,
+      "after": [
+        14,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "93",
+      "before": null,
+      "after": [
+        14,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "91",
+      "before": null,
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "91",
+      "before": null,
+      "after": [
+        14,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        13,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "96",
+      "before": null,
+      "after": [
+        14,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "93",
+      "before": null,
+      "after": [
+        14,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "91",
+      "before": null,
+      "after": [
+        13,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        14,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        12,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        11,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        13,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        13,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    }
+  ],
+  "changes": [
+    {
+      "id": "D-001",
+      "key": "AMBIPOM",
+      "percent": "91",
+      "before": [
+        13,
+        14,
+        14
+      ],
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-002",
+      "key": "ARCEUS",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-003",
+      "key": "ARCEUS",
+      "percent": "93",
+      "before": [
+        14,
+        15,
+        13
+      ],
+      "after": [
+        13,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-004",
+      "key": "ARCEUS",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        13,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-005",
+      "key": "CALYREX",
+      "percent": "96",
+      "before": [
+        14,
+        15,
+        14
+      ],
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-006",
+      "key": "CALYREX",
+      "percent": "93",
+      "before": [
+        13,
+        15,
+        14
+      ],
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-007",
+      "key": "CALYREX",
+      "percent": "91",
+      "before": [
+        12,
+        15,
+        14
+      ],
+      "after": [
+        15,
+        15,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-008",
+      "key": "CETITAN",
+      "percent": "93",
+      "before": [
+        15,
+        14,
+        13
+      ],
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-009",
+      "key": "CETITAN",
+      "percent": "91",
+      "before": [
+        15,
+        13,
+        13
+      ],
+      "after": [
+        15,
+        15,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-010",
+      "key": "CRUSTLE",
+      "percent": "93",
+      "before": [
+        14,
+        15,
+        13
+      ],
+      "after": [
+        15,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-011",
+      "key": "GOLURK",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-012",
+      "key": "JIRACHI",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-013",
+      "key": "KINGDRA",
+      "percent": "93",
+      "before": [
+        13,
+        15,
+        14
+      ],
+      "after": [
+        14,
+        14,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-014",
+      "key": "LIEPARD",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-015",
+      "key": "MEW",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-016",
+      "key": "MIENSHAO",
+      "percent": "91",
+      "before": [
+        11,
+        15,
+        15
+      ],
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-017",
+      "key": "MUK",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-018",
+      "key": "ORICORIO",
+      "percent": "96",
+      "before": [
+        15,
+        14,
+        14
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-019",
+      "key": "RAMPARDOS",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-020",
+      "key": "ROTOM",
+      "percent": "98",
+      "before": [
+        15,
+        14,
+        15
+      ],
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-021",
+      "key": "ROTOM",
+      "percent": "96",
+      "before": [
+        15,
+        13,
+        15
+      ],
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-022",
+      "key": "ROTOM",
+      "percent": "93",
+      "before": [
+        15,
+        12,
+        15
+      ],
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-023",
+      "key": "ROTOM",
+      "percent": "91",
+      "before": [
+        15,
+        11,
+        15
+      ],
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-024",
+      "key": "SHAYMIN",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-025",
+      "key": "SHAYMINCEU",
+      "percent": "91",
+      "before": [
+        14,
+        14,
+        13
+      ],
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-026",
+      "key": "SPECTRIER",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-027",
+      "key": "SPIDOPS",
+      "percent": "93",
+      "before": [
+        14,
+        13,
+        15
+      ],
+      "after": [
+        15,
+        12,
+        15
+      ],
+      "note": "Excel armazenou 15/12/15 como data serial 15/12/2015; coincide com a proposta aprovada."
+    },
+    {
+      "id": "D-028",
+      "key": "VICTINI",
+      "percent": "91",
+      "before": [
+        13,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "D-029",
+      "key": "ZEBSTRIKA",
+      "percent": "96",
+      "before": [
+        15,
+        15,
+        13
+      ],
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        14,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        13,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        12,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-001",
+      "key": "RATICATEALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-002",
+      "key": "RAICHUALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        14,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        13,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        12,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-003",
+      "key": "SANDSLASHALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        13,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-004",
+      "key": "NINETALESALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-005",
+      "key": "DUGTRIOALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        14,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-006",
+      "key": "PERSIANALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "91",
+      "before": null,
+      "after": [
+        14,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-007",
+      "key": "ARCANINEHISUI",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        12,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        11,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-008",
+      "key": "GOLEMALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "93",
+      "before": null,
+      "after": [
+        14,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "91",
+      "before": null,
+      "after": [
+        13,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-009",
+      "key": "RAPIDASHGALAR",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "91",
+      "before": null,
+      "after": [
+        14,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-010",
+      "key": "SLOWKINGGALAR",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        13,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-011",
+      "key": "MUKALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "96",
+      "before": null,
+      "after": [
+        14,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "93",
+      "before": null,
+      "after": [
+        14,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "91",
+      "before": null,
+      "after": [
+        13,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-012",
+      "key": "ELECTRODEHISUI",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        14,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        13,
+        15,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        14,
+        15,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-013",
+      "key": "EXEGGUTORALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        13,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        12,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        11,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-014",
+      "key": "MAROWAKALOLA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        14,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "96",
+      "before": null,
+      "after": [
+        15,
+        15,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "93",
+      "before": null,
+      "after": [
+        15,
+        14,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "91",
+      "before": null,
+      "after": [
+        15,
+        13,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-015",
+      "key": "WEEZINGGALAR",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "98",
+      "before": null,
+      "after": [
+        15,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "96",
+      "before": null,
+      "after": [
+        14,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "93",
+      "before": null,
+      "after": [
+        13,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "91",
+      "before": null,
+      "after": [
+        12,
+        15,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "id": "F-016",
+      "key": "TAUROSPALDEA",
+      "percent": "67",
+      "before": null,
+      "after": [
+        10,
+        10,
+        10
+      ],
+      "note": "Convenção 67% confirmada pelo usuário."
+    }
+  ]
+}

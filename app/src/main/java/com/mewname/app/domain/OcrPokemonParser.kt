@@ -399,19 +399,24 @@ class OcrPokemonParser {
 
         val displayedMaxHp = extractDisplayedMaxHp(orderedLines, referenceBounds)
         val evidenceName = name
-        val cpIvEvidence = if (evidenceName != null && cp != null && (displayedMaxHp != null || ocrLevel != null) &&
+        val cpIvEvidence = if (evidenceName != null && cp != null && (displayedMaxHp != null || ocrLevel != null || listOf(att, def, sta).count { it != null } >= 2) &&
             listOf(att, def, sta).any { it == null }) {
             rankCalculator.resolveIvEvidence(context, evidenceName, cp, displayedMaxHp, att, def, sta, ocrLevel)
         } else null
-        if (cpIvEvidence?.attack != null && cpIvEvidence.defense != null && cpIvEvidence.stamina != null) {
-            att = cpIvEvidence.attack; def = cpIvEvidence.defense; sta = cpIvEvidence.stamina
-            ivPercent = IvCombinationTable.fromValues(att, def, sta)?.ivPercent ?: ((att + def + sta) * 100 / 45)
+        if (cpIvEvidence != null && cpIvEvidence.matches > 0) {
+            // Only unanimous attributes are supplied. Keep any confirmed bar values.
+            att = att ?: cpIvEvidence.attack
+            def = def ?: cpIvEvidence.defense
+            sta = sta ?: cpIvEvidence.stamina
+            if (att != null && def != null && sta != null) {
+                ivPercent = IvCombinationTable.fromValues(att, def, sta)?.ivPercent ?: ((att + def + sta) * 100 / 45)
+            }
         }
         val cpIvNote = cpIvEvidence?.let {
             when {
                 it.matches == 0 -> "PC/HP sem combinação exata compatível; IVs não inferidos"
-                it.attack != null -> "IVs confirmados por PC/HP: ${it.matches} combinações de IV/nível compatíveis"
-                else -> "PC/HP ambíguos: ${it.matches} combinações de IV/nível; IVs não preenchidos"
+                it.attack != null && it.defense != null && it.stamina != null -> "IVs confirmados por PC/HP: ${it.matches} combinações de IV/nível compatíveis"
+                else -> "PC/HP ambíguos: ${it.matches} combinações de IV/nível; somente atributos unânimes preenchidos"
             }
         }
         val curveLevelCandidates = curveLevelCandidatesFor(context, name, familyMembers).let { candidates ->
@@ -891,16 +896,31 @@ class OcrPokemonParser {
             null
         }
 
-        val combinedLine = listOfNotNull(candyLine, familyLine)
-            .joinToString(" ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-
-        val rawFamily = Regex("(?i)(?:doces(?: gg)?(?: de)?|caramelos(?: xl)?(?: de)?)\\s+([\\p{L}' .-]+)")
-            .find(combinedLine)?.groupValues?.getOrNull(1)?.trim()
+        // A complete candy label must not absorb an unrelated line below it.
+        fun extractFamily(text: String): String? = (Regex("(?i)(?:doces(?: gg)?(?: de)?|caramelos(?: xl)?(?: de)?)\\s+([\\p{L}' .-]+)")
+            .find(text)?.groupValues?.getOrNull(1)?.trim()
             ?: Regex("(?i)([\\p{L}' .-]+?)\\s+(?:candy)(?:\\s+xl)?(?:$|\\s)")
-                .find(combinedLine)?.groupValues?.getOrNull(1)?.trim()
-            ?: Regex("(?i)candy\\s+([\\p{L}' .-]+)").find(combinedLine)?.groupValues?.getOrNull(1)?.trim()
+                .find(text)?.groupValues?.getOrNull(1)?.trim()
+            ?: Regex("(?i)candy\\s+([\\p{L}' .-]+)").find(text)?.groupValues?.getOrNull(1)?.trim())?.takeIf {
+                it.length >= 3 && normalizeText(it) !in setOf("DE", "GG", "XL", "CANDY", "DOCES", "CARAMELOS")
+            }
+
+        val precedingFamily = if (normalizeText(candyLine) in setOf("CANDY", "CANDY XL") && candyRect != null) {
+            regionLines.take(candyIndex).lastOrNull { candidate ->
+                val rect = candidate.boundingBox ?: return@lastOrNull false
+                val gap = candyRect.top - rect.bottom
+                gap in 0..(candyRect.height() * 4) &&
+                    abs(rect.exactCenterX() - candyRect.exactCenterX()) <= max(rect.width(), candyRect.width()) * 0.8f &&
+                    loadPokemonNames(context).any { normalizeText(candidate.text) in it.normalizedAliases }
+            }?.text
+        } else null
+        val directFamily = extractFamily(candyLine)
+        val combinedLine = when {
+            directFamily != null -> candyLine
+            precedingFamily != null -> "$precedingFamily $candyLine"
+            else -> listOfNotNull(candyLine, familyLine).joinToString(" ")
+        }.replace(Regex("\\s+"), " ").trim()
+        val rawFamily = directFamily ?: extractFamily(combinedLine)
         if (rawFamily == null) {
             return null to CandyDebugInfo(
                 regionLineCount = regionLines.size,
@@ -986,7 +1006,35 @@ class OcrPokemonParser {
         return normalized == "SCATTERBUG" || normalized == "SPEWPA" || normalized == "VIVILLON"
     }
 
-    private fun detectIvBars(bitmap: Bitmap, lines: List<OcrTextLine>): IvBarDetection {
+    /** One bulk pixel read for the appraisal area, shared by all IV detectors. */
+    private class IvPixels(val source: Bitmap) {
+        val width = source.width
+        val height = source.height
+        private val top = (height * 0.60f).toInt()
+        private val pixels = IntArray(width * (height - top)).also {
+            source.getPixels(it, 0, width, 0, top, width, height - top)
+        }
+        fun getPixel(x: Int, y: Int): Int = if (y >= top && y < height && x in 0 until width)
+            pixels[(y - top) * width + x] else source.getPixel(x, y)
+
+        fun copyRegion(rect: Rect): IntArray = IntArray(rect.width() * rect.height()).also { result ->
+            for (y in rect.top until rect.bottom) {
+                val offset = (y - rect.top) * rect.width()
+                if (y >= top && y < height && rect.left >= 0 && rect.right <= width) {
+                    pixels.copyInto(result, offset, (y - top) * width + rect.left, (y - top) * width + rect.right)
+                } else {
+                    source.getPixels(result, offset, rect.width(), rect.left, y, rect.width(), 1)
+                }
+            }
+        }
+    }
+
+    private data class IvGeometryKey(val width: Int, val height: Int, val region: Rect)
+    private data class IvRowGeometry(val pixels: IntArray, val occupied: BooleanArray)
+    private val ivRowGeometry = LinkedHashMap<IvGeometryKey, IvRowGeometry>(16, 0.75f, true)
+
+    private fun detectIvBars(source: Bitmap, lines: List<OcrTextLine>): IvBarDetection {
+        val bitmap = IvPixels(source)
         val width = bitmap.width
         val height = bitmap.height
 
@@ -1003,11 +1051,6 @@ class OcrPokemonParser {
         val labelRects = detectIvLabelRects(lines, appraisalPanel)
 
         val expectedBarRects = buildExpectedIvBarRects(appraisalPanel, labelRects)
-        val layoutBands = detectIvBarsFromExpectedLayout(
-            bitmap = bitmap,
-            appraisalPanel = appraisalPanel,
-            expectedBarRects = expectedBarRects
-        )
         val labelAnchoredBands = detectIvBarsFromLabels(
             bitmap = bitmap,
             appraisalPanel = appraisalPanel,
@@ -1021,7 +1064,17 @@ class OcrPokemonParser {
             (appraisalPanel.top + panelHeight * 0.96f).roundToInt().coerceAtMost(height)
         )
 
-        val scanBands = detectIvBarBands(bitmap, fallbackScanRect)
+        // Preserve merge precedence: labels, layout, then broad scan. A later
+        // source cannot replace an already compatible measurement in every slot.
+        fun hasAllCompatibleBands(bands: List<DetectedBarBand>): Boolean =
+            bands.size == 3 && bands.indices.all { index ->
+                bands[index].ratio != null && isBandGeometryCompatible(bands[index], expectedBarRects[index])
+            }
+        val layoutBands = if (hasAllCompatibleBands(labelAnchoredBands)) emptyList() else
+            detectIvBarsFromExpectedLayout(bitmap, appraisalPanel, expectedBarRects)
+        val preferredBands = mergeDetectedBands(expectedBarRects, labelAnchoredBands, layoutBands)
+        val scanBands = if (hasAllCompatibleBands(preferredBands)) emptyList() else
+            detectIvBarBands(bitmap, fallbackScanRect)
         val bands = mergeDetectedBands(expectedBarRects, labelAnchoredBands, layoutBands, scanBands)
         val attackBand = bands.getOrNull(0)
         val defenseBand = bands.getOrNull(1)
@@ -1062,7 +1115,7 @@ class OcrPokemonParser {
     }
 
     private fun detectIvBarsFromLabels(
-        bitmap: Bitmap,
+        bitmap: IvPixels,
         appraisalPanel: Rect,
         labelRects: Map<String, Rect>,
         expectedBarRects: List<Rect>
@@ -1185,7 +1238,7 @@ class OcrPokemonParser {
     }
 
     private fun detectIvBarsFromExpectedLayout(
-        bitmap: Bitmap,
+        bitmap: IvPixels,
         appraisalPanel: Rect,
         expectedBarRects: List<Rect>
     ): List<DetectedBarBand> {
@@ -1238,7 +1291,7 @@ class OcrPokemonParser {
     }
 
     private fun detectExpectedLayoutBand(
-        bitmap: Bitmap,
+        bitmap: IvPixels,
         appraisalPanel: Rect,
         expectedRect: Rect,
         labelKey: String
@@ -1288,7 +1341,7 @@ class OcrPokemonParser {
     }
 
     private fun findBestMeasurementNearExpectedRect(
-        bitmap: Bitmap,
+        bitmap: IvPixels,
         appraisalPanel: Rect,
         expectedRect: Rect
     ): LayoutBandCandidate? {
@@ -1346,15 +1399,36 @@ class OcrPokemonParser {
             candidateRect.height() >= minHeight
     }
 
-    private fun detectIvBarBands(bitmap: Bitmap, scanRect: Rect): List<DetectedBarBand> {
-        val candidateRows = mutableListOf<Int>()
-        for (y in scanRect.top until scanRect.bottom) {
-            val ratio = detectBarFillRatioForRow(bitmap, scanRect, y)
-            if (ratio != null) {
-                candidateRows += y
+    private fun detectIvBarBands(bitmap: IvPixels, scanRect: Rect): List<DetectedBarBand> {
+        if (scanRect.width() <= 0 || scanRect.height() <= 0) return emptyList()
+        // Cache only row geometry, never fill ratios/IVs. An unchanged row is
+        // verified pixel-for-pixel; changed rows use the original detector.
+        val key = IvGeometryKey(bitmap.width, bitmap.height, Rect(scanRect))
+        val previous = synchronized(ivRowGeometry) { ivRowGeometry[key] }
+        val pixels = bitmap.copyRegion(scanRect)
+        val occupied = BooleanArray(scanRect.height())
+        var reusedRows = 0
+        for (row in occupied.indices) {
+            val start = row * scanRect.width()
+            val unchanged = previous != null && (start until start + scanRect.width()).all {
+                pixels[it] == previous.pixels[it]
+            }
+            occupied[row] = if (unchanged) {
+                reusedRows++
+                previous!!.occupied[row]
+            } else {
+                detectBarFillRatioForRow(bitmap, scanRect, scanRect.top + row) != null
             }
         }
-
+        synchronized(ivRowGeometry) {
+            ivRowGeometry[key] = IvRowGeometry(pixels, occupied)
+            // Bounded per parser/device session, including when resolution changes.
+            while (ivRowGeometry.size > 12 || ivRowGeometry.values.sumOf { it.pixels.size } > 1_000_000) {
+                ivRowGeometry.remove(ivRowGeometry.keys.first())
+            }
+        }
+        android.util.Log.d("MewNameReadTiming", "IV geometry rows=$reusedRows/${occupied.size}")
+        val candidateRows = occupied.indices.filter { occupied[it] }.map { scanRect.top + it }
         if (candidateRows.isEmpty()) return emptyList()
 
         val groups = mutableListOf<MutableList<Int>>()
@@ -1389,9 +1463,9 @@ class OcrPokemonParser {
             .take(3)
     }
 
-    private fun detectIvAppraisalPanel(bitmap: Bitmap): Rect? {
+    private fun detectIvAppraisalPanel(bitmap: IvPixels): Rect? {
         val searchRect = normalizedBitmapRect(
-            bitmap,
+            bitmap.source,
             minX = 0.03f,
             maxX = 0.58f,
             minY = 0.62f,
@@ -1428,11 +1502,11 @@ class OcrPokemonParser {
         return if (rect.width() >= bitmap.width * 0.18f && rect.height() >= bitmap.height * 0.10f) rect else null
     }
 
-    private fun detectBarFillRatio(bitmap: Bitmap, rect: Rect): Float? {
+    private fun detectBarFillRatio(bitmap: IvPixels, rect: Rect): Float? {
         return detectBarMeasurement(bitmap, rect)?.ratio
     }
 
-    private fun detectBarMeasurement(bitmap: Bitmap, rect: Rect): BarMeasurement? {
+    private fun detectBarMeasurement(bitmap: IvPixels, rect: Rect): BarMeasurement? {
         if (rect.width() <= 1 || rect.height() <= 1) return null
         val safeTop = rect.top.coerceIn(0, bitmap.height - 1)
         val safeBottom = rect.bottom.coerceIn(safeTop + 1, bitmap.height)
@@ -1499,7 +1573,7 @@ class OcrPokemonParser {
         )
     }
 
-    private fun detectDiscreteIvMeasurement(bitmap: Bitmap, rect: Rect): BarMeasurement? {
+    private fun detectDiscreteIvMeasurement(bitmap: IvPixels, rect: Rect): BarMeasurement? {
         if (rect.width() < 30 || rect.height() < 6) return null
 
         val bandTop = (rect.top + rect.height() * 0.24f).roundToInt().coerceIn(rect.top, rect.bottom - 2)
@@ -1647,7 +1721,7 @@ class OcrPokemonParser {
         )
     }
 
-    private fun detectBarColumnMetricsByColumns(bitmap: Bitmap, rect: Rect): BarColumnMetrics? {
+    private fun detectBarColumnMetricsByColumns(bitmap: IvPixels, rect: Rect): BarColumnMetrics? {
         if (rect.width() <= 1 || rect.height() <= 1) return null
 
         val minFilledPixels = max(1, rect.height() / 6)
@@ -1720,7 +1794,7 @@ class OcrPokemonParser {
         }
     }
 
-    private fun detectBarFillRatioForRow(bitmap: Bitmap, rect: Rect, y: Int): Float? {
+    private fun detectBarFillRatioForRow(bitmap: IvPixels, rect: Rect, y: Int): Float? {
         val isFilledColumn = BooleanArray(rect.width())
         val isSeparatorColumn = BooleanArray(rect.width())
         val isTrackColumn = BooleanArray(rect.width())
@@ -1831,7 +1905,7 @@ class OcrPokemonParser {
         return Rect(left, baseRect.top, right, baseRect.bottom)
     }
 
-    private fun tightenBarTrackRect(bitmap: Bitmap, rect: Rect): Rect {
+    private fun tightenBarTrackRect(bitmap: IvPixels, rect: Rect): Rect {
         if (rect.width() <= 1 || rect.height() <= 1) return rect
 
         val minTrackPixels = max(4, rect.width() / 7)
@@ -1918,7 +1992,7 @@ class OcrPokemonParser {
         return hsv[1] <= 0.18f && hsv[2] in 0.45f..0.88f
     }
 
-    private fun isDarkFullBar(bitmap: Bitmap, rect: Rect, ratio: Float): Boolean {
+    private fun isDarkFullBar(bitmap: IvPixels, rect: Rect, ratio: Float): Boolean {
         if (ratio < 0.82f || rect.width() < 8 || rect.height() < 2) return false
         val startX = (rect.left + rect.width() * 0.72f).roundToInt().coerceIn(rect.left, rect.right - 1)
         val endX = (rect.left + rect.width() * 0.96f).roundToInt().coerceIn(startX + 1, rect.right)
@@ -3411,7 +3485,17 @@ class OcrPokemonParser {
             names.firstOrNull { candidate == it.normalizedName || candidate in it.normalizedAliases }?.let { return it.name }
         }
         // Candy constrains a fuzzy nickname; it never identifies the evolution on its own.
-        val family = candyFamily?.let { familySuggester.familyMembersFor(context, it, null).map(::normalizeText).toSet() } ?: return null
+        val family = candyFamily?.let { familySuggester.familyMembersFor(context, it, null).map(::normalizeText).toSet() }
+        if (family == null) {
+            // Without candy evidence only accept a unique, one-character OCR repair
+            // of a sufficiently long title. Never select an arbitrary close name.
+            val matches = names.filter { entry -> candidates.any { candidate ->
+                candidate.length >= 6 && entry.normalizedAliases.any { alias ->
+                    abs(alias.length - candidate.length) <= 1 && fuzzyMatcher.apply(candidate, alias) <= 1
+                }
+            } }
+            return matches.singleOrNull()?.name
+        }
         val decorated = names.filter { it.normalizedName in family }.filter { entry ->
             titleLines.any { line ->
                 val candidate = sanitizeNameCandidate(line.text)?.let(::normalizeText).orEmpty()

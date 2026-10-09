@@ -87,10 +87,6 @@ internal fun MaxBossDetails(name: String?) {
             }
         }
     }
-    Text(tr("Golpes do catálogo da espécie; a combinação usada nesta Batalha Max pode variar.",
-        "Species catalog moves; this Max Battle's moveset may vary.",
-        "Ataques del catálogo de la especie; la combinación de este Combate Max puede variar."),
-        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text(tr("Fraquezas", "Weaknesses", "Debilidades"), style = MaterialTheme.typography.titleSmall)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         info.weaknesses.forEach { TypeBadge(it.attackType, language, showAssetIcon = true, inlinePrefix = String.format(java.util.Locale.US, "%.2f×", it.multiplier)) }
@@ -101,8 +97,6 @@ internal fun MaxBossDetails(name: String?) {
         RaidCpRow("", "67%", "100%")
         RaidCpRow(tr("Normal · Nv. 20", "Normal · Lv. 20", "Normal · Nv. 20"),
             raidCp(capture, 10, false).toString(), raidCp(capture, 15, false).toString())
-        Text(tr("Referência: IVs 10/10/10 e 15/15/15, nível 20.",
-            "Reference: 10/10/10 and 15/15/15 IVs, level 20.",
-            "Referencia: IV 10/10/10 y 15/15/15, nivel 20."), style = MaterialTheme.typography.bodySmall)
+
     } else Text(tr("Faixa de captura indisponível.", "Catch range unavailable.", "Intervalo de captura no disponible."))
 }

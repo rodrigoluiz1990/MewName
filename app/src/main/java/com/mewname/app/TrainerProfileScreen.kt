@@ -235,7 +235,7 @@ internal fun TrainerProfileScreen(
             })
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)
-                .then(if (destination == "collection") Modifier else Modifier.verticalScroll(rememberScrollState())).padding(20.dp),
+                .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.verticalScroll(rememberScrollState())).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (destination) {
                     "collection" -> PersonalCollectionPreferences()

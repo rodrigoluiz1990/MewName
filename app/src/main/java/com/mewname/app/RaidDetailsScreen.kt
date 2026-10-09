@@ -59,10 +59,12 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     if (!bubble) BackHandler(onBack = onBack)
     LaunchedEffect(language, bossName, raidScreenText, detectedRaidLevel) {
         try { withContext(Dispatchers.IO) {
+            val identityStarted = android.os.SystemClock.elapsedRealtime()
             val loaded = repository.metadata()
             val identity = if (bubble) repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel) else null
             val startingChoice = if (bubble) identity?.selected else loaded.resolve(bossName)?.let { RaidChoice(it.id, initialTier) }
             val startingLevel = startingChoice?.let { repository.initialLevel(it.id, it.tier) }
+            android.util.Log.d("RaidReadTiming", "identity boss=$bossName selected=$startingChoice: ${android.os.SystemClock.elapsedRealtime() - identityStarted}ms")
             withContext(Dispatchers.Main) {
                 if (!inferredTier && startingLevel != null) level=startingLevel
                 if (bubble && !inferredTier) {
@@ -89,7 +91,12 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         loading=true; failed=false
         try {
             // Load saved suggestions first; auxiliary type data must not prevent their display.
-            report=withContext(Dispatchers.IO) { repository.cached(selected.id,tier,level) }
+            report=withContext(Dispatchers.IO) {
+                val started = android.os.SystemClock.elapsedRealtime()
+                repository.cached(selected.id,tier,level).also {
+                    android.util.Log.d("RaidReadTiming", "cache boss=${selected.id} tier=$tier level=$level hit=${it != null}: ${android.os.SystemClock.elapsedRealtime() - started}ms")
+                }
+            }
             weakness=withContext(Dispatchers.Default) { runCatching {
                 GameInfoRepository.matchupAgainst(context.applicationContext,selected.types).filter { it.multiplier > 1 }
             }.getOrDefault(emptyList()) }
@@ -133,6 +140,8 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         val variant=if(choice.id.endsWith("_MEGA_X") || choice.id.endsWith("_MEGA_Y")) " ${choice.id.last()}" else ""
         return "$category$variant"
     }
+    val variantOptions = raidVariantOptions(formChoices, ::raidLabel, ::name)
+    fun variantLabel(choice: RaidChoice) = variantOptions.firstOrNull { it.choice == choice }?.label ?: raidLabel(choice)
     fun moveLabel(id: String) = moveNames[raidKey(id)] ?: raidName(id.removeSuffix("_FAST"))
     val capture = boss?.let { b -> raidCaptureId(b.id)?.let { meta?.pokemon?.get(it) } }
     val background=LocalAppAppearance.current.background
@@ -155,14 +164,14 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             boss?.let { b ->
                 item { AppSectionCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment=Alignment.CenterVertically) {
-                        RaidPortrait(b.id,bubble,Modifier.size(72.dp))
+                        RaidPortrait(b.id,bubble,Modifier.size(72.dp), refreshToken = refresh)
                         Column { Text(name(b.id),style=MaterialTheme.typography.titleLarge)
                             FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) { b.types.forEach { TypeBadge(it,language,showAssetIcon=true) } }
                         }
                     }
-                    if(bubble && formChoices.size > 1) {
-                        RaidVariantSelector(raidLabel(RaidChoice(b.id,tier)),formChoices,
-                            label={raidLabel(it)},onSelect={selectedId=it.id; tier=it.tier})
+                    if(bubble && variantOptions.size > 1) {
+                        RaidVariantSelector(variantLabel(RaidChoice(b.id,tier)),variantOptions.map { it.choice },
+                            label={variantLabel(it)},onSelect={selectedId=it.id; tier=it.tier})
                     } else Text(raidLabel(RaidChoice(b.id,tier)),style=MaterialTheme.typography.labelMedium)
                     if (shielded || raidHasShields(tier)) Text(
                         tr("Com escudos: leve um Pokémon megaevoluído. Cada treinador quebra um escudo; Groudon e Kyogre Primais não quebram escudos.",
@@ -266,7 +275,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                 }
                 items(report?.counters.orEmpty(),key={it.id}) { counter -> AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                        RaidPortrait(counter.id,bubble,Modifier.size(56.dp))
+                        RaidPortrait(counter.id,bubble,Modifier.size(56.dp), refreshToken = refresh)
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                             Text(name(counter.id),style=MaterialTheme.typography.titleSmall)
                             RaidMoveRow(counter.fast,tr("Rápido: ","Fast: ","Rápido: ")+moveLabel(counter.fast.id))
@@ -300,13 +309,27 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         Text(label + if(move.special) " ★" else "",style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))
     }
 }
-@Composable internal fun RaidPortrait(id: String, offline: Boolean, modifier: Modifier) {
-    val context=LocalContext.current
-    val url by produceState<String?>(null,id) { value=withContext(Dispatchers.IO) { RaidCounterRepository(context.applicationContext).image(id) } }
-    val request=ImageRequest.Builder(context).data(url)
-        .networkCachePolicy(if(offline) CachePolicy.DISABLED else CachePolicy.ENABLED).build()
-    AsyncImage(request,null,modifier)
+@Composable internal fun RaidPortrait(id: String, offline: Boolean, modifier: Modifier, refreshToken: Int = 0) {
+    val context = LocalContext.current
+    val url by produceState<String?>(null, id, refreshToken) {
+        value = withContext(Dispatchers.IO) { RaidCounterRepository(context.applicationContext).image(id) }
+    }
+    val request = remember(context, url, offline, refreshToken) {
+        ImageRequest.Builder(context).data(url)
+            // Opening the overlay remains cache-only; an explicit raid refresh
+            // also authorizes downloading missing portraits and saving them.
+            .networkCachePolicy(if (offline && refreshToken == 0) CachePolicy.DISABLED else CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .build()
+    }
+    // Recreate the painter even when the URL is unchanged, so a previous failed
+    // request is retried on every press. Successful cached images are reused.
+    key(id, refreshToken) {
+        AsyncImage(request, null, modifier)
+    }
 }
+
 @Composable
 private fun RaidVariantSelector(
     selectedLabel: String,
@@ -321,7 +344,7 @@ private fun RaidVariantSelector(
             Icon(Icons.Default.ArrowDropDown,contentDescription=null,modifier=Modifier.size(20.dp))
         }
         DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
-            choices.forEach { choice ->
+            choices.distinct().forEach { choice ->
                 DropdownMenuItem(text={Text(label(choice))},onClick={expanded=false;onSelect(choice)})
             }
         }

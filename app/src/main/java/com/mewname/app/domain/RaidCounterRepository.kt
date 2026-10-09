@@ -27,10 +27,15 @@ internal data class RaidChoice(val id: String, val tier: String)
 internal fun raidTier(id: String, catalog: List<RaidChoice>): String = catalog.filter { it.id == id }.map { it.tier }.distinct().singleOrNull()
     ?: when { id.contains("_SHADOW") -> "RAID_LEVEL_5_SHADOW"; id.contains("_MEGA") || id.endsWith("_PRIMAL") -> "RAID_LEVEL_MEGA"; else -> "RAID_LEVEL_5" }
 internal data class RaidMetadata(val pokemon: Map<String, RaidPokemon>, val moves: Map<String, String>) {
+    // Index once per immutable metadata snapshot; do not normalize the complete
+    // Pokemon catalog for every form/name lookup.
+    private val normalizedIndex by lazy {
+        pokemon.values.groupBy { raidKey(it.id).split(' ').sorted().joinToString(" ") }
+    }
     fun resolve(name: String): RaidPokemon? {
         pokemon[name]?.let { return it }
         val key = raidKey(name)
-        val matches = pokemon.values.filter { raidKey(it.id) == key || raidKey(it.id).split(' ').sorted() == key.split(' ').sorted() }
+        val matches = normalizedIndex[key.split(' ').sorted().joinToString(" ")].orEmpty()
         return matches.singleOrNull() ?: when (key) {
             "zacian coroado" -> pokemon["ZACIAN_CROWNED_SWORD_FORM"]
             "zamazenta coroado" -> pokemon["ZAMAZENTA_CROWNED_SHIELD_FORM"]
@@ -129,17 +134,27 @@ internal class RaidCounterRepository(private val context: Context) {
         RaidJson.decode(JSONObject(text), metadata()).also { require(it.bossId == id && it.tier == tier && it.level == level) }
     }.getOrNull()
     /** Discover persisted reports without relying on the live catalog or process memory. */
-    fun cachedChoices(): List<RaidChoice> = directory.listFiles().orEmpty()
-        .filter { it.name.endsWith(".json") && "_RAID_LEVEL_" in it.name }
-        .mapNotNull { file -> runCatching {
-            val json = synchronized(writeLock) { AtomicFile(file).openRead().bufferedReader().use { JSONObject(it.readText()) } }
+    fun cachedChoices(): List<RaidChoice> = synchronized(writeLock) {
+        val files = directory.listFiles().orEmpty()
+            .filter { it.name.endsWith(".json") && "_RAID_LEVEL_" in it.name }
+            .sortedBy { it.name }
+        val signature = files.map { Triple(it.name, it.lastModified(), it.length()) }
+        val key = directory.absolutePath
+        choiceIndexes[key]?.takeIf { it.first == signature }?.let { return@synchronized it.second }
+        val choices = files.mapNotNull { file -> runCatching {
+            val json = AtomicFile(file).openRead().bufferedReader().use { JSONObject(it.readText()) }
             val id = json.getString("bossId"); val tier = json.getString("tier"); val level = json.getInt("level")
-            cached(id, tier, level)?.takeIf { level in listOf(40, 50) && it.counters.isNotEmpty() }?.let { RaidChoice(id, tier) }
+            require(file.name == this.file(id, tier, level).name)
+            if (level !in listOf(40, 50)) return@runCatching null
+            RaidJson.decode(json, metadata()).takeIf { it.counters.isNotEmpty() }?.let { RaidChoice(id, tier) }
         }.getOrNull() }.distinct()
+        choiceIndexes[key] = signature to choices
+        choices
+    }
 
     fun resolveBoss(name: String, screenText: String, detectedLevel: Int?): RaidBossResolver.Result =
         RaidBossResolver.resolve(name, screenText, metadata(), runCatching { catalog() }.getOrDefault(emptyList()),
-            detectedLevel, (savedCatalog() + cachedChoices()).distinct())
+            detectedLevel, if (detectedLevel == null) (savedCatalog() + cachedChoices()).distinct() else emptyList())
 
     fun preferredLevel(): Int = context.getSharedPreferences("raid_counter_preferences", Context.MODE_PRIVATE)
         .getInt("level", 40).takeIf { it == 40 || it == 50 } ?: 40
@@ -157,8 +172,13 @@ internal class RaidCounterRepository(private val context: Context) {
 
     fun refresh(id: String, tier: String, level: Int): RaidReport {
         file(id,tier,level) // Validate path segments before network access.
-        val report = RaidJson.report(get(counterPath(id,tier,level)), id,tier,level,metadata())
-        write(file(id,tier,level), RaidJson.encode(report)); return report
+        val started = android.os.SystemClock.elapsedRealtime()
+        try {
+            val report = RaidJson.report(get(counterPath(id,tier,level)), id,tier,level,metadata())
+            write(file(id,tier,level), RaidJson.encode(report)); return report
+        } finally {
+            android.util.Log.d("RaidReadTiming", "refresh boss=$id tier=$tier level=$level: ${android.os.SystemClock.elapsedRealtime() - started}ms")
+        }
     }
     fun catalog(refresh: Boolean = false): List<RaidChoice> {
         val target = File(directory, "catalog.json")
@@ -195,6 +215,7 @@ internal class RaidCounterRepository(private val context: Context) {
         map.optString(id).takeIf { it.isNotBlank() }?.let { "https://static.pokebattler.com/assets/pokemon/256/$it" }
     }
     private fun write(file: File, data: JSONObject) = synchronized(writeLock) {
+        choiceIndexes.remove(directory.absolutePath)
         directory.mkdirs(); val atomic = AtomicFile(file); val stream = atomic.startWrite()
         try { stream.write(data.toString().toByteArray(Charsets.UTF_8)); atomic.finishWrite(stream) }
         catch(e: Exception) { atomic.failWrite(stream); throw e }
@@ -211,6 +232,9 @@ internal class RaidCounterRepository(private val context: Context) {
     }
     companion object {
         private val lock = Any(); private val writeLock = Any(); private var shared: RaidMetadata? = null; private var images: JSONObject? = null
+        private val choiceIndexes = object : LinkedHashMap<String, Pair<List<Triple<String, Long, Long>>, List<RaidChoice>>>(4, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<List<Triple<String, Long, Long>>, List<RaidChoice>>>?) = size > 4
+        }
         fun counterPath(id: String, tier: String, level: Int) = "raids/defenders/$id/levels/$tier/attackers/levels/$level/strategies/CINEMATIC_ATTACK_WHEN_POSSIBLE/DEFENSE_RANDOM_MC?sort=ESTIMATOR&weatherCondition=NO_WEATHER&dodgeStrategy=DODGE_REACTION_TIME&aggregation=AVERAGE&includeLegendary=true&includeMegas=true&includeShadow=true"
     }
 }

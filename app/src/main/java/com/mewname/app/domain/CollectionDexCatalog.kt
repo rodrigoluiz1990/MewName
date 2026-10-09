@@ -72,3 +72,16 @@ internal object CollectionDexCatalog {
         return groups.map { (dex, targets) -> CollectionSpecies(dex, labels.getValue(dex), targets.distinctBy { it.key }, costumeKeys.intersect(targets.map { it.key }.toSet())) }.sortedBy { it.dex }
     }
 }
+
+/** Quick marking always retains the exact species/form key; costumes stay in the detail view. */
+internal fun collectionQuickTargets(species: List<CollectionSpecies>, group: PersonalCollectionGroup,
+    query: String, obtained: Set<String>? = null): List<Pair<CollectionSpecies, PersonalCollectionTarget>> {
+    val search = query.trim()
+    return species.flatMap { entry ->
+        entry.targets.filter { target ->
+            target.key !in entry.costumeKeys && PersonalCollection.supports(target, group) &&
+                (obtained == null || target.key in obtained) &&
+                (search.isEmpty() || entry.dex.toString().contains(search) || target.label.contains(search, true))
+        }.map { entry to it }
+    }.distinctBy { it.second.key }
+}

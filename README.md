@@ -37,3 +37,7 @@ Se esses secrets não forem configurados, a release ainda será criada, mas com 
 
 ## Observacao importante
 Automacao direta de entrada no Pokemon GO pode conflitar com regras do jogo. Este MVP so gera sugestao de nome; a troca no jogo fica manual.
+
+## Histórico de alterações
+
+Consulte o [histórico por versão](CHANGELOG.md) e as [notas da próxima release](RELEASE_NOTES.md).

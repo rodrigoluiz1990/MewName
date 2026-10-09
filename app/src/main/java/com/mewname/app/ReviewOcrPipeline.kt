@@ -16,7 +16,8 @@ data class ReviewOcrResult(
     val data: PokemonScreenData
 )
 
-interface ReviewOcrPipeline {
+interface ReviewOcrPipeline : AutoCloseable {
+    override fun close() {}
     suspend fun process(
         context: Context,
         uri: Uri,
@@ -28,6 +29,7 @@ internal class AndroidReviewOcrPipeline(
     private val ocrEngine: OcrEngine = OcrEngine(),
     private val parser: OcrPokemonParser = OcrPokemonParser()
 ) : ReviewOcrPipeline {
+    override fun close() = ocrEngine.close()
     override suspend fun process(
         context: Context,
         uri: Uri,

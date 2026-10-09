@@ -56,6 +56,7 @@ internal fun CompactField(
     struckThrough: Boolean = false,
     onClick: (() -> Unit)? = null,
     headerTrailing: (@Composable (() -> Unit))? = null,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
     modifier: Modifier = Modifier
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 3.dp), modifier = modifier) {
@@ -74,6 +75,7 @@ internal fun CompactField(
             CompactTextInput(
                 value = value,
                 onValueChange = onValueChange,
+                keyboardOptions = keyboardOptions,
                 readOnly = readOnly,
                 active = active,
                 textDecoration = if (struckThrough) TextDecoration.LineThrough else null,
@@ -336,6 +338,7 @@ internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonN
 internal fun CompactTextInput(
     value: String,
     onValueChange: (String) -> Unit,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
     active: Boolean = false,
@@ -372,6 +375,7 @@ internal fun CompactTextInput(
                 onValueChange = onValueChange,
                 readOnly = readOnly,
                 singleLine = true,
+                keyboardOptions = keyboardOptions,
                 textStyle = TextStyle(
                     fontSize = if (LocalGlassReviewStyle.current) 12.sp else 10.sp,
                     fontWeight = if (LocalGlassReviewStyle.current && value.isNotBlank() && value != "-") FontWeight.Bold else FontWeight.Normal,

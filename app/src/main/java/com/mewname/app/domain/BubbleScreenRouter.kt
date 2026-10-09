@@ -7,12 +7,13 @@ import com.mewname.app.ocr.OcrResult
 internal object BubbleScreenRouter {
     sealed interface Target {
         data object Trainer : Target
+        data class Encounter(val reading: EncounterReading) : Target
         data object Pokemon : Target
         data class Catalog(val capture: CatalogCapture) : Target
         data class Battle(val advice: BattleAdvice) : Target
         data class Filters(val screen: FilterScreen) : Target
     }
-    fun route(context: Context, result: OcrResult): Target {
+    fun route(context: Context, result: OcrResult, onTiming: (String, Long) -> Unit = { _, _ -> }): Target {
         val bitmap = result.bitmap
         val positionedLines = if (bitmap == null || bitmap.width <= 0 || bitmap.height <= 0) {
             emptyList()
@@ -29,20 +30,43 @@ internal object BubbleScreenRouter {
                 }
             }
         }
-        return route(context, result.fullText, positionedLines, RaidLevelIconDetector.detect(result))
+        return route(context, result.fullText, positionedLines, { RaidLevelIconDetector.detect(result) }, onTiming)
     }
 
-    fun route(context: Context, text: String): Target = route(context, text, emptyList(), null)
+    fun route(context: Context, text: String): Target = route(context, text, emptyList(), { null })
 
-    private fun route(context: Context, text: String, positionedLines: List<BattleOcrLine>, raidLevel: Int?): Target {
-        if (TrainerProfileParser.isTrainerScreen(text)) return Target.Trainer
-        // An appraisal is unambiguous: no Rocket translations or remote catalog are needed.
-        if (AppraisalFooterReader.isAppraisal(text)) return Target.Pokemon
-        CatalogScreenMatcher.detect(text)?.let { return Target.Catalog(it) }
-        FilterScreenDetector.detect(text)?.let { return Target.Filters(it) }
-        val quotes = AppLanguage.entries.flatMap { GameTextRepository.rocketQuotes(context, it) }
-        CatalogScreenMatcher.detect(text, quotes)?.let { return Target.Catalog(it) }
-        BattleAdvisor.adviceForRaw(context, text, positionedLines, raidLevel)?.let { return Target.Battle(it) }
-        return Target.Pokemon
+    private fun route(context: Context, text: String, positionedLines: List<BattleOcrLine>,
+        raidLevel: () -> Int?, onTiming: (String, Long) -> Unit = { _, _ -> }): Target {
+        fun <T> measured(label: String, action: () -> T): T {
+            val start = android.os.SystemClock.elapsedRealtime()
+            try { return action() } finally { onTiming(label, android.os.SystemClock.elapsedRealtime() - start) }
+        }
+        if (measured("perfil") { TrainerProfileParser.isTrainerScreen(text) }) return Target.Trainer
+        if (measured("avaliacao") { AppraisalFooterReader.isAppraisal(text) }) return Target.Pokemon
+        measured("catalogo") { CatalogScreenMatcher.detect(text) }?.let { return Target.Catalog(it) }
+        measured("filtros") { FilterScreenDetector.detect(text) }?.let { return Target.Filters(it) }
+        measured("captura") { EncounterScreenReader.detect(positionedLines, text) }?.let { return Target.Encounter(it) }
+        // Defer pixel analysis until the text actually describes a battle.
+        val advice = measured("identificacao batalha") {
+            BattleAdvisor.adviceForRaw(context, text, positionedLines, identityOnly = true)
+        }
+        if (advice == null) {
+            val quotes = measured("falas Rocket") { AppLanguage.entries.flatMap { GameTextRepository.rocketQuotes(context, it) } }
+            measured("catalogo Rocket") { CatalogScreenMatcher.detect(text, quotes) }?.let { return Target.Catalog(it) }
+            return Target.Pokemon
+        }
+        if (com.mewname.app.BuildConfig.DEBUG && advice.mode == BattleMode.RAID) {
+            val band = positionedLines.filter { (it.top + it.bottom) / 2f in .16f.. .39f }
+            android.util.Log.d("RaidReadTiming", "nameBand=" + band.joinToString(" | ") { it.text })
+        }
+        return Target.Battle(if (advice.mode == BattleMode.RAID) {
+            val level = measured("simbolos nivel") { raidLevel() }
+            val recovered = if (advice.bossName == null) measured("nome parcial catalogo") {
+                val repository = RaidCounterRepository(context.applicationContext)
+                RaidBossResolver.resolveOccludedName(positionedLines, repository.metadata(),
+                    runCatching { repository.catalog() }.getOrDefault(emptyList()), level)
+            } else null
+            advice.copy(bossName = advice.bossName ?: recovered?.id, raidLevel = level)
+        } else advice)
     }
 }

@@ -8,6 +8,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.items as pokedexGridItems
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
@@ -457,7 +467,10 @@ fun PokedexScreen(onBack: () -> Unit) {
     var detailsEntry by remember { mutableStateOf<PokedexCatalogEntry?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
-    var visibleCount by rememberSaveable(query, selectedType) { mutableStateOf(60) }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    val images by produceState<com.mewname.app.domain.PersonalCollectionImages?>(null, context) {
+        value = withContext(Dispatchers.IO) { com.mewname.app.domain.PersonalCollectionImages(context.applicationContext) }
+    }
     val types = remember(pokedex) { pokedex.flatMap { listOfNotNull(it.type1, it.type2) }.distinct().sorted() }
     val normalizedQuery = remember(query) { normalizeSearch(query) }
     val filtered = remember(pokedex, selectedType, normalizedQuery) {
@@ -473,79 +486,59 @@ fun PokedexScreen(onBack: () -> Unit) {
                     )
         }
     }
-    val visibleEntries = remember(filtered, visibleCount) { filtered.take(visibleCount) }
 
     Scaffold(
         topBar = {
             AppTopBar(
-                title = { Text(t(language, "Pokédex", "Pokédex", "Pokédex")) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t(language, "Voltar", "Back", "Volver"))
+                title = { Text("Pokédex") },
+                navigationIcon = { IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t(language, "Voltar", "Back", "Volver"))
+                } },
+                actions = { IconToggleButton(checked = showFilters, onCheckedChange = { showFilters = it }) {
+                    BadgedBox(badge = { if (query.isNotBlank() || selectedType != null) Badge() }) {
+                        Icon(Icons.Default.Search, contentDescription = t(language, "Filtros", "Filters", "Filtros"))
                     }
-                }
+                } }
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            item {
-                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        AppGlassTextField(
-                            search = true,
-                            value = query,
-                            onValueChange = { query = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(t(language, "Nome ou número da Pokédex", "Name or Pokédex number", "Nombre o número de Pokédex")) },
-                            singleLine = true
-                        )
-                        if (types.isNotEmpty()) {
-                            TypeSelectorSingle(
-                                types = types,
-                                selectedType = selectedType,
-                                onSelect = { selectedType = it },
-                                language = language,
-                                showAllOption = false
-                            )
+        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (showFilters) {
+                AppSectionCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AppGlassTextField(search = true, value = query, onValueChange = { query = it },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true,
+                            label = { Text(t(language, "Nome ou número", "Name or number", "Nombre o número")) })
+                        if (types.isNotEmpty()) TypeSelectorSingle(types = types, selectedType = selectedType,
+                            onSelect = { selectedType = it }, language = language, showAllOption = false)
+                        TextButton(onClick = { query = ""; selectedType = null }, enabled = query.isNotBlank() || selectedType != null) {
+                            Text(t(language, "Limpar filtros", "Clear filters", "Borrar filtros"))
                         }
-                        Text(
-                            t(
-                                language,
-                                "${visibleEntries.size} de ${filtered.size} Pokémon",
-                                "${visibleEntries.size} of ${filtered.size} Pokémon",
-                                "${visibleEntries.size} de ${filtered.size} Pokémon"
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             }
-            if (!loadState.complete) {
-                item {
-                    InlineLoadingRow(
-                        t(
-                            language,
-                            "Carregando tipos e atributos da Pokédex...",
-                            "Loading Pokédex types and stats...",
-                            "Cargando tipos y estadísticas de la Pokédex..."
-                        )
-                    )
+            Text("${filtered.size} Pokémon", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!loadState.complete) LinearProgressIndicator(Modifier.fillMaxWidth())
+            LazyVerticalGrid(columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)) {
+                if (loadState.complete && filtered.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(t(language, "Nenhum Pokémon encontrado.", "No Pokémon found.", "No se encontraron Pokémon."))
                 }
-            }
-            items(visibleEntries, key = { "${it.number}-${it.name}" }) { entry ->
-                PokedexCard(entry = entry, language = language, onOpen = { detailsEntry = entry })
-            }
-            if (visibleCount < filtered.size) {
-                item {
-                    AppActionButton(onClick = { visibleCount += 60 }, modifier = Modifier.fillMaxWidth()) {
-                        Text(t(language, "Carregar mais", "Load more", "Cargar más"))
+                pokedexGridItems(filtered, key = { "${it.number}-${it.name}" }) { entry ->
+                    AppSectionCard(Modifier.fillMaxWidth().clickable { detailsEntry = entry }) {
+                        Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            PersonalCollectionPortrait(
+                                com.mewname.app.domain.PersonalCollectionTarget(
+                                    org.json.JSONArray(listOf(entry.name.uppercase(java.util.Locale.ROOT), "")).toString(),
+                                    entry.localizedName(language)), images, com.mewname.app.domain.PersonalCollectionGroup.NORMAL)
+                            Text(entry.number.toString().padStart(4, '0'), style = MaterialTheme.typography.labelSmall)
+                            Text(entry.localizedName(language), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                style = MaterialTheme.typography.labelMedium, modifier = Modifier.fillMaxWidth(),
+                                minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
             }
@@ -3515,7 +3508,7 @@ private fun formatMultiplier(value: Double): String {
 
 
 @Composable
-internal fun CollectionBackgroundsContent() {
+internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false) {
     val context = LocalContext.current
     var categoryIndex by rememberSaveable { mutableStateOf(0) }
     val categories = com.mewname.app.domain.BackgroundCategory.entries
@@ -3563,11 +3556,17 @@ internal fun CollectionBackgroundsContent() {
                         contentScale = androidx.compose.ui.layout.ContentScale.Fit)
                     Text(entry.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 }
+                if (inlinePreview && preview?.assetPath == entry.assetPath) {
+                    AppModalHeader(entry.displayName, onClose = { preview = null })
+                    BackgroundArtwork(assetPath = entry.assetPath, contentDescription = entry.displayName,
+                        modifier = Modifier.fillMaxWidth().height(280.dp),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                }
             }
         }
         item { Spacer(Modifier.height(24.dp)) }
     }
-    preview?.let { entry ->
+    if (!inlinePreview) preview?.let { entry ->
         Dialog(onDismissRequest = { preview = null }) {
             AppSectionCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

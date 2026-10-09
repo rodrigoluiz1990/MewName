@@ -4,10 +4,55 @@ package com.mewname.app.domain
 internal object RaidBossResolver {
     data class Result(val selected: RaidChoice?, val alternatives: List<RaidChoice>, val fromCatalog: Boolean)
 
+    /** A model can cover the start/end of the boss label (Xerneas -> "erne").
+     * Only use a substantial fragment from the calibrated name band, a detected
+     * numeric tier and a unique current-catalog match. Never infer from gym text.
+     */
+    fun resolveOccludedName(lines: List<BattleOcrLine>, meta: RaidMetadata,
+        catalog: List<RaidChoice>, detectedLevel: Int?): RaidChoice? {
+        if (detectedLevel == null) return null
+        val fragments = lines.filter {
+            (it.top + it.bottom) / 2f in .16f.. .39f &&
+                it.left < .65f && it.right > .35f
+        }.map { raidKey(it.text) }.filter { it.matches(Regex("[a-z]{4,}")) }.distinct()
+        if (fragments.isEmpty()) return null
+        val candidates = catalog.filter {
+            !it.tier.contains("MAX") && !it.tier.contains("MEGA") &&
+                Regex("RAID_LEVEL_(\\d+)").find(it.tier)?.groupValues?.get(1)?.toIntOrNull() == detectedLevel
+        }.distinct()
+        val matches = candidates.filter { choice ->
+            val pokemon = meta.pokemon[choice.id] ?: return@filter false
+            val species = raidKey(baseId(pokemon.id)).replace(" ", "")
+            fragments.any { part -> part.length >= 4 && part.length * 2 >= species.length && part in species }
+        }
+        return matches.singleOrNull()
+    }
+
     private fun baseId(id: String) = id.replace(Regex("_SHADOW(?=_FORM|$)"), "")
         .replace(Regex("_MEGA(?:_[XY])?$|_PRIMAL$"), "").removeSuffix("_FORM")
 
+    // Preserve API category IDs while comparing their actual symbol count.
+    private fun symbolCount(tier: String): Int? = when (tier) {
+        "RAID_LEVEL_ULTRA_BEAST" -> 5
+        "RAID_LEVEL_MEGA" -> 4
+        else -> Regex("RAID_LEVEL_(?:MEGA_)?([1-6])(?:_|$)").find(tier)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
     fun resolve(name: String, screenText: String, meta: RaidMetadata, catalog: List<RaidChoice>, detectedLevel: Int? = null, fallbackCatalog: List<RaidChoice> = emptyList()): Result {
+        if (detectedLevel != null) {
+            val current = catalog.filter {
+                !it.tier.contains("MAX", ignoreCase = true) && symbolCount(it.tier) == detectedLevel
+            }.distinct().sortedWith(
+                compareBy<RaidChoice> { it.tier.contains("SHADOW") || form(it.id) == "shadow" }
+                    .thenBy { meta.pokemon[it.id]?.dex?.takeIf { dex -> dex > 0 } ?: Int.MAX_VALUE }
+                    .thenBy { it.id }.thenBy { it.tier }
+            )
+            // OCR can help choose within this list, but cannot add old raids or invent forms.
+            val named = if (name.isNotBlank() && current.isNotEmpty())
+                resolve(name, screenText, meta, current).selected?.takeIf { it in current }
+            else null
+            return Result(named ?: current.singleOrNull(), current, current.isNotEmpty())
+        }
         val levelCatalog = catalog.filter { choice ->
             !choice.tier.contains("MAX", ignoreCase = true) &&
                 (detectedLevel == null || Regex("RAID_LEVEL_(\\d+)").find(choice.tier)?.groupValues?.get(1)?.toIntOrNull() == detectedLevel)

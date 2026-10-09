@@ -38,6 +38,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -335,16 +336,30 @@ internal fun PersonalCollectionPreferences() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-internal fun PersonalCollectionScreen(onBack: () -> Unit) {
+internal fun PersonalCollectionScreen(
+    onBack: () -> Unit,
+    overlay: Boolean = false,
+    panel: Boolean = false,
+    registerBackAction: ((() -> Unit) -> Unit)? = null
+) {
     val context = LocalContext.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
     val snapshot = rememberPersonalCollection()
     var query by rememberSaveable { mutableStateOf("") }
     var onlyCollected by rememberSaveable { mutableStateOf(false) }
     var section by rememberSaveable { mutableStateOf(0) }
+    var quickGroupName by rememberSaveable { mutableStateOf<String?>(PersonalCollectionGroup.NORMAL.name) }
+    val quickGroup = if (panel) PersonalCollectionGroup.entries.firstOrNull { it.name == quickGroupName } else null
     var selectedDex by rememberSaveable { mutableStateOf<Int?>(null) }
-    val savedTargets = remember(snapshot.entries) { snapshot.entries.values.map { it.target } }
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    SideEffect { registerBackAction?.invoke { if (selectedDex != null) selectedDex = null else onBack() } }
+    // Quick marks only change flags on targets already present in this catalog.
+    // Keep its seed stable during the panel session instead of reparsing all assets per tap.
+    val initialTargets = remember { snapshot.entries.values.map { it.target } }
+    val savedTargets = if (panel) initialTargets else remember(snapshot.entries) { snapshot.entries.values.map { it.target } }
     val species by produceState<List<com.mewname.app.domain.CollectionSpecies>?>(null, savedTargets) {
         value = withContext(Dispatchers.IO) { com.mewname.app.domain.CollectionDexCatalog.load(context, savedTargets) }
     }
@@ -357,9 +372,17 @@ internal fun PersonalCollectionScreen(onBack: () -> Unit) {
                 (!onlyCollected || entry.targets.any { snapshot.entries[it.key]?.groups?.isNotEmpty() == true })
         }
     }
-    Scaffold(topBar = {
-        AppTopBar(title = { Text("Coleções") }, navigationIcon = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
+    val obtainedForGroup = remember(snapshot.entries, quickGroup, onlyCollected) {
+        if (onlyCollected) snapshot.entries.filterValues { quickGroup in it.groups }.keys else null
+    }
+    val quickTargets = remember(species, quickGroup, query, obtainedForGroup) {
+        quickGroup?.let { com.mewname.app.domain.collectionQuickTargets(species.orEmpty(), it, query, obtainedForGroup) }.orEmpty()
+    }
+    if (!overlay || selectedDex == null) Scaffold(topBar = {
+        if (!panel) AppTopBar(title = { Text("Coleções") }, navigationIcon = {
+            if (!overlay) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
+        }, actions = {
+            if (overlay) IconButton(onClick = onBack) { Icon(Icons.Default.Close, "Fechar coleção") }
         })
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -368,17 +391,54 @@ internal fun PersonalCollectionScreen(onBack: () -> Unit) {
                     AppPillTab(selected = section == index, onClick = { section = index }, text = { Text(title) })
                 }
             }
-            if (section == 1) CollectionBackgroundsContent() else {
-                AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Buscar Pokémon, forma ou número") }, singleLine = true)
-                AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
+            if (section == 1) CollectionBackgroundsContent(inlinePreview = overlay) else {
+                if (panel) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.weight(1f),
+                            label = { Text("Buscar Pokémon ou forma") }, singleLine = true)
+                        FilterChip(selected = onlyCollected, onClick = { onlyCollected = !onlyCollected }, label = { Text("Pegos") })
+                    }
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = quickGroup == null, onClick = { quickGroupName = null }, label = { Text("Formas") })
+                        (listOf(PersonalCollectionGroup.NORMAL) + snapshot.order.filter { it in snapshot.enabled }).distinct().forEach { group ->
+                            FilterChip(selected = quickGroup == group, onClick = { quickGroupName = group.name }, label = { Text(group.label) })
+                        }
+                    }
+                } else {
+                    AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Buscar Pokémon, forma ou número") }, singleLine = true)
+                    AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
+                }
                 if (species == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-                LazyVerticalGrid(columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
+                LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)) {
-                    if (species != null && entries.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum Pokémon encontrado.") }
-                    gridItems(entries, key = { it.dex }) { entry ->
-                        AppSectionCard(Modifier.fillMaxWidth().clickable { selectedDex = entry.dex }) {
+                    if (quickGroup == null && species != null && entries.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum Pokémon encontrado.") }
+                    if (quickGroup != null) {
+                        if (species != null && quickTargets.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum Pokémon encontrado.") }
+                        gridItems(quickTargets, key = { it.second.key }) { (entry, target) ->
+                            val obtained = quickGroup in snapshot.entries[target.key]?.groups.orEmpty()
+                            AppSectionCard(Modifier.fillMaxWidth().combinedClickable(
+                                onClick = {
+                                    keyboard?.hide(); focus.clearFocus()
+                                    PersonalCollection.mark(context, target, quickGroup, !obtained)
+                                }, onLongClick = { keyboard?.hide(); focus.clearFocus(); selectedDex = entry.dex }
+                            ).semantics {
+                                contentDescription = "${target.label}, ${quickGroup.label}: ${if (obtained) "coletado" else "não coletado"}"
+                                toggleableState = if (obtained) ToggleableState.On else ToggleableState.Off
+                            }) {
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    PersonalCollectionPortrait(target, images, quickGroup, compact = true)
+                                    if (obtained) Icon(Icons.Default.Check, "Coletado", Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp),
+                                        tint = MaterialTheme.colorScheme.primary)
+                                }
+                                Text(target.label, Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, minLines = 2)
+                            }
+                        }
+                    } else gridItems(entries, key = { it.dex }) { entry ->
+                        AppSectionCard(Modifier.fillMaxWidth().clickable { keyboard?.hide(); focus.clearFocus(); selectedDex = entry.dex }) {
                             Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 PersonalCollectionPortrait(
                                     PersonalCollectionTarget(JSONArray(listOf(entry.name.uppercase(java.util.Locale.ROOT), "")).toString(), entry.name),
@@ -394,12 +454,22 @@ internal fun PersonalCollectionScreen(onBack: () -> Unit) {
         }
     }
     species?.firstOrNull { it.dex == selectedDex }?.let { entry ->
-        androidx.compose.ui.window.Dialog(onDismissRequest = { selectedDex = null },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-            AppSectionCard(Modifier.fillMaxWidth().fillMaxHeight(0.88f).padding(horizontal = 12.dp)
+        val content: @Composable () -> Unit = {
+            AppSectionCard(Modifier.fillMaxWidth().fillMaxHeight(if (overlay) 1f else 0.88f).padding(horizontal = if (overlay) 0.dp else 12.dp)
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))) {
                 Column(Modifier.padding(12.dp)) {
-                    AppModalHeader(entry.name, onClose = { selectedDex = null })
+                    if (overlay) {
+                        Box(Modifier.fillMaxWidth()) {
+                            IconButton(onClick = { selectedDex = null }, modifier = Modifier.align(Alignment.CenterStart)) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar à lista")
+                            }
+                            Text(entry.name, Modifier.align(Alignment.Center).padding(horizontal = 48.dp),
+                                textAlign = TextAlign.Center, style = MaterialTheme.typography.titleLarge)
+                            if (!panel) IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterEnd)) {
+                                Icon(Icons.Default.Close, "Fechar coleção")
+                            }
+                        }
+                    } else AppModalHeader(entry.name, onClose = { selectedDex = null })
                     LazyVerticalGrid(columns = GridCells.Adaptive(100.dp), modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         entry.targets.filter { it.key !in entry.costumeKeys }.forEach { target ->
@@ -455,10 +525,14 @@ internal fun PersonalCollectionScreen(onBack: () -> Unit) {
                 }
             }
         }
+        if (overlay) content() else androidx.compose.ui.window.Dialog(
+            onDismissRequest = { selectedDex = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) { content() }
     }
 }
 @Composable
-private fun PersonalCollectionPortrait(target: PersonalCollectionTarget, images: com.mewname.app.domain.PersonalCollectionImages?, group: PersonalCollectionGroup, silhouette: Boolean = false) {
+internal fun PersonalCollectionPortrait(target: PersonalCollectionTarget, images: com.mewname.app.domain.PersonalCollectionImages?, group: PersonalCollectionGroup, silhouette: Boolean = false, compact: Boolean = false) {
     val context = LocalContext.current
     // A tab change gets fresh state immediately; never flash the previous category's image.
     key(target.key, group, images) {
@@ -472,16 +546,16 @@ private fun PersonalCollectionPortrait(target: PersonalCollectionTarget, images:
                     coil.request.ImageRequest.Builder(context).data(url.takeIf { it.isNotBlank() })
                         .transformations(CollectionSpriteTrim).crossfade(true).build()
                 }
-                Box(Modifier.size(80.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(if (compact) 64.dp else 80.dp), contentAlignment = Alignment.Center) {
                 if (group == PersonalCollectionGroup.SHADOW && !silhouette && url.isNotBlank()) CollectionShadowAura()
                 coil.compose.AsyncImage(
                     model = request,
                     contentDescription = target.label,
                     colorFilter = if (silhouette) androidx.compose.ui.graphics.ColorFilter.tint(LocalAppAppearance.current.text.copy(alpha = 0.35f)) else null,
                     modifier = Modifier.size(when (group) {
-                        PersonalCollectionGroup.XXS -> 48.dp
-                        PersonalCollectionGroup.XXL -> 76.dp
-                        else -> 64.dp
+                        PersonalCollectionGroup.XXS -> if (compact) 36.dp else 48.dp
+                        PersonalCollectionGroup.XXL -> if (compact) 60.dp else 76.dp
+                        else -> if (compact) 52.dp else 64.dp
                     }),
                     contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                     placeholder = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery),

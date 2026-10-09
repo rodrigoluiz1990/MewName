@@ -24,14 +24,18 @@ internal object RaidLevelIconDetector {
         val top = max((bitmap.height * 0.10f).toInt(), cpTop - (bitmap.height * 0.075f).toInt())
         val bottom = (cpTop - bitmap.height * 0.004f).toInt().coerceAtMost((bitmap.height * 0.23f).toInt())
         if (bottom - top < 12 || right - left < 80) return null
-        connectedIconCount(bitmap, left, top, right, bottom)?.let { return it }
+        // One native read for the region instead of hundreds of thousands of getPixel calls.
+        val pixels = IntArray((right - left) * (bottom - top))
+        bitmap.getPixels(pixels, 0, right - left, left, top, right - left, bottom - top)
+        fun pixel(x: Int, y: Int) = pixels[(y - top) * (right - left) + x - left]
+        connectedIconCount(bitmap, left, top, right, bottom, pixels)?.let { return it }
 
         val scores = IntArray(right - left)
         for (x in left + 1 until right - 1) {
             var score = 0
             for (y in top + 1 until bottom - 1 step 2) {
-                val horizontal = abs(luma(bitmap.getPixel(x + 1, y)) - luma(bitmap.getPixel(x - 1, y)))
-                val vertical = abs(luma(bitmap.getPixel(x, y + 1)) - luma(bitmap.getPixel(x, y - 1)))
+                val horizontal = abs(luma(pixel(x + 1, y)) - luma(pixel(x - 1, y)))
+                val vertical = abs(luma(pixel(x, y + 1)) - luma(pixel(x, y - 1)))
                 if (horizontal + vertical >= 86) score++
             }
             scores[x - left] = score
@@ -83,16 +87,17 @@ internal object RaidLevelIconDetector {
         return count
     }
 
-    private fun connectedIconCount(bitmap: Bitmap, left: Int, top: Int, right: Int, bottom: Int): Int? {
+    private fun connectedIconCount(bitmap: Bitmap, left: Int, top: Int, right: Int, bottom: Int, pixels: IntArray): Int? {
         val width = right - left
         val height = bottom - top
+        fun pixel(x: Int, y: Int) = pixels[(y - top) * width + x - left]
         val mask = BooleanArray(width * height)
         for (y in 1 until height - 1) {
             for (x in 1 until width - 1) {
                 val absoluteX = left + x
                 val absoluteY = top + y
-                val horizontal = abs(luma(bitmap.getPixel(absoluteX + 1, absoluteY)) - luma(bitmap.getPixel(absoluteX - 1, absoluteY)))
-                val vertical = abs(luma(bitmap.getPixel(absoluteX, absoluteY + 1)) - luma(bitmap.getPixel(absoluteX, absoluteY - 1)))
+                val horizontal = abs(luma(pixel(absoluteX + 1, absoluteY)) - luma(pixel(absoluteX - 1, absoluteY)))
+                val vertical = abs(luma(pixel(absoluteX, absoluteY + 1)) - luma(pixel(absoluteX, absoluteY - 1)))
                 mask[y * width + x] = horizontal + vertical >= 68
             }
         }
@@ -110,14 +115,14 @@ internal object RaidLevelIconDetector {
             var maxX = 0
             var minY = height
             var maxY = 0
-            var pixels = 0
+            var componentPixels = 0
             while (head < tail) {
                 val position = queue[head++]
                 val x = position % width
                 val y = position / width
                 minX = minOf(minX, x); maxX = maxOf(maxX, x)
                 minY = minOf(minY, y); maxY = maxOf(maxY, y)
-                pixels++
+                componentPixels++
                 for (dy in -1..1) for (dx in -1..1) {
                     if (dx == 0 && dy == 0) continue
                     val nextX = x + dx
@@ -130,7 +135,7 @@ internal object RaidLevelIconDetector {
                     }
                 }
             }
-            components += Component(minX, minY, maxX, maxY, pixels)
+            components += Component(minX, minY, maxX, maxY, componentPixels)
         }
         val candidates = components.filter { component ->
             val componentWidth = component.right - component.left + 1

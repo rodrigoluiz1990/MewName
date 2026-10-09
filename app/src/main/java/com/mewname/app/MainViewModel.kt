@@ -70,6 +70,13 @@ class MainViewModel(
     private val parser = OcrPokemonParser()
     private val generator = NameGenerator()
     private val ocrEngine = OcrEngine()
+
+    override fun onCleared() {
+        ocrEngine.close()
+        reviewOcrPipeline.close()
+        super.onCleared()
+    }
+
     private val sessionMerger = PokemonReadSessionMerger()
     private val appUpdateRepository = AppUpdateRepository()
     private var lastCapturedData: PokemonScreenData? = null

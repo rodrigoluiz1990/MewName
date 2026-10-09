@@ -63,4 +63,40 @@ class CpIvEvidenceTest {
             assertEquals(label, "Bulbasaur", result.first)
         }
     }
+
+    @Test fun unanimousStaminaIsRetainedWhenAttackAndDefenseAreAmbiguous() {
+        val cp = calculator.estimateCpAtLevel(context, "Psyduck", 0, 8, 15, 50.0)!!
+        val hp = calculator.estimateHpAtLevel(context, "Psyduck", 15, 50.0)!!
+        val result = calculator.resolveIvEvidence(context, "Psyduck", cp, hp, knownLevel = 50.0)
+        assertTrue(result.matches > 1)
+        assertNull(result.attack)
+        assertNull(result.defense)
+        assertEquals(15, result.stamina)
+        assertEquals(50.0, result.level)
+    }
+    @Test fun twoKnownIvsCanConstrainCpWithoutHpButCpAloneIsNotConfirmation() {
+        val cp = calculator.estimateCpAtLevel(context, "Psyduck", 12, 15, 15, 20.0)!!
+        val result = calculator.resolveIvEvidence(context, "Psyduck", cp, null, 12, 15)
+        assertTrue(result.matches > 0)
+        assertEquals(12, result.attack)
+        assertEquals(15, result.defense)
+        assertEquals(0, calculator.resolveIvEvidence(context, "Psyduck", cp, null).matches)
+    }
+    @Test fun uniqueTitleTypoCanBeResolvedWithoutCandyButNicknameCannot() {
+        assertEquals("Venusaur", name("Venusavr", null))
+        assertNull(name("Meu favorito", null))
+    }
+    @Test fun splitCandyLabelsRespectTheirColumnAndDoNotAbsorbOtherFields() {
+        val parser = OcrPokemonParser()
+        val method = parser.javaClass.getDeclaredMethod("extractCandyFamilyName", Context::class.java,
+            List::class.java, Rect::class.java, String::class.java).apply { isAccessible = true }
+        fun family(lines: List<OcrTextLine>): String? = (method.invoke(parser, context, lines,
+            Rect(0,0,1080,2400), null) as Pair<*,*>).first as String?
+        fun line(text: String, y: Int) = OcrTextLine(text, Rect(600,y,920,y+35))
+        assertNull(family(listOf(line("DOCES DE",1500))))
+        assertEquals("Bulbasaur", family(listOf(line("DOCES DE",1500), line("BULBASAUR",1540))))
+        assertEquals("Bulbasaur", family(listOf(line("BULBASAUR",1500), line("CANDY",1540))))
+        assertEquals("Bulbasaur", family(listOf(line("DOCES DE BULBASAUR",1500), line("MEGAENERGIA",1540))))
+        assertNull(family(listOf(OcrTextLine("BULBASAUR",Rect(50,1500,200,1535)),line("CANDY",1540))))
+    }
 }
