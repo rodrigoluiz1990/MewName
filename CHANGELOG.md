@@ -1,5 +1,51 @@
 # Histórico de alterações
 
+## 1.0.30 - 2026-10-11
+
+Alterações desde a release 1.0.29.
+
+### OCR, revisão e cancelamento
+
+- Extraídos leitores de barras de IV, nomes, números, atributos visuais e geometria; `OcrPokemonParser` permanece como coordenador.
+- Redução da memória usada na importação por decodificação com amostragem e orientação EXIF; processamento de CPU interrompível fora da thread da interface e tratamento específico de timeout.
+- Reaproveitada a medição da estrela de favorito; corrigida a classificação de barras JPEG incompletas como IV 15.
+- Reconhecimento de “sC”/“5C” como ruído do prefixo PC limitado à linha completa na região superior.
+- Importação abre a tela de progresso/revisão; referências do validador são reconhecidas e seu parser executa em segundo plano.
+- Proteção da importação contra conclusões de solicitações antigas. `CurrentReadTask` centraliza o cancelamento da sobreposição e do validador, invalida a leitura antes de cancelar e impede que callbacks antigos alterem resultados, progresso, erros ou estado de uma nova leitura.
+
+### Sobreposição
+
+- Captura, gerenciamento das janelas e apresentação de resultados separados em `OverlayCaptureSession`, `OverlayWindowHost` e `OverlayResultsPresenter`.
+- Liberação dos recursos de captura e das composições ao encerrar; correção do descarte indevido do bitmap quando o recorte devolve a imagem original.
+- Removida a janela de progresso que cobria e escurecia a tela inteira. Aviso compacto centralizado com gradiente claro translúcido, borda suave, progresso e Cancelar; interação com o jogo preservada fora do cartão.
+
+### Desempenho e coleção
+
+- Cache LRU PvP ampliado de 16 para 36 tabelas por calculadora, provisoriamente; busca binária da posição preserva o primeiro lugar entre produtos empatados.
+- Catálogos de ataques indexados por fonte, com traduções reutilizadas por idioma e carregamento de arquivos fora do bloqueio global.
+- Ataques legados e efeitos de aventura carregados em segundo plano, com estados de carregamento e falha.
+- Coleção pessoal armazena entradas individualmente e migra o antigo array na primeira edição; reutiliza registros já interpretados e serializa apenas os alterados. Observação pela interface e marcações em segundo plano. SharedPreferences ainda pode regravar o XML completo.
+
+### Dados do jogo
+
+- Revisão dos Dias Comunitários de 2026 até Zorua (10/10): Rillaboom/Planta Mortal, Ninetales/Bola de Energia, Ninetales de Alola/Água Gelada, Tinkaton/Martelo Gigatônico, Oinkologne/Tapa de Lama, Baxcalibur/Fúria de Glaive, Inteleon/Hidro Canhão, Thievul/Vento Congelante e Zoroark/Soco Enganador. Cinderace/Queimadura Explosiva já constava no catálogo.
+- Listas de golpes de Ninetales e Zoroark separadas por forma regional, com ajuste dos golpes de Zoroark de Hisui; catálogos de ataques atuais e legados sincronizados.
+- Adicionados dados PvE/PvP e traduções PT-BR/EN/ES de Martelo Gigatônico e Fúria de Glaive; rótulos de Água Gelada atualizados. A revisão não certifica todos os legados históricos de outros eventos.
+
+### Build, testes e documentação
+
+- Comparação de versões extraída para `ReleaseVersion`; versionCode calculado por segundos decorridos desde uma referência UTC, acima da faixa dos códigos anteriores. Versão padrão atualizada para 1.0.30.
+- Workflows passam a executar testes unitários e Lint; release exige validação dos catálogos, testes e Lint release antes da assinatura e publicação, sem upload de relatórios de testes.
+- Novos testes de cancelamento concorrente, cache PvP, apresentação da sobreposição, propriedade de bitmap, versões e ataques comunitários; ampliadas regressões de importação, EXIF, barras de IV, coleção e repositório de ataques.
+- Adicionado instrumento de diagnóstico no aparelho e amostra JPEG com EXIF para regressão. README atualizado; documentação dos componentes OCR/overlay, cache e roteiro de validação física incluída.
+- Ajuste de formatação no código dos detalhes de eventos do calendário.
+
+### Validação física e pendências
+
+- Em builds debug 1.0.29 anteriores à publicação: 14/14 amostras, leitura de Ponyta, importação ampliada e EXIF, persistência da coleção, cancelamento seguido de nova leitura e interação com o jogo durante OCR verificados no aparelho.
+- O comportamento não modal foi verificado antes do ajuste visual final para o centro; a conferência visual desse ajuste permanece pendente.
+- Nova política de cache, uso prolongado de memória, formas regionais, fundos especiais e timeout forçado no aparelho continuam pendentes. Leitura visual do arco de nível permanece desativada.
+
 ## 1.0.29 - 2026-10-09
 
 - Pokédex em grade com blocos individuais, sprites usados pela coleção e filtros recolhidos em um botão.

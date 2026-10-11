@@ -553,7 +553,7 @@ internal fun buildDerivedReviewData(
             currentPokemonName = data.pokemonName ?: data.candyFamilyName,
             currentLevel = data.level, currentCp = data.cp, options = pvpOptions
         )
-    }.getOrElse { emptyList() }
+    }.getOrElse { error -> if (error is java.util.concurrent.CancellationException) throw error else emptyList() }
     val leagueRanks = bestLeagueRanksFromSpecies(familyRanks, data.pokemonName)
     val selectedLeague = data.pvpLeague
         ?.takeIf { league -> familyRanks.any { it.league == league && it.rank != null } }
@@ -713,7 +713,7 @@ internal fun buildMasterIvReviewData(context: Context, data: PokemonScreenData, 
             stamina = stamina,
             selectedPokemonName = data.pokemonName
         )
-    }.getOrNull()
+    }.getOrElse { error -> if (error is java.util.concurrent.CancellationException) throw error else null }
     return data.copy(
         masterIvBadgeMatch = masterResult?.isBestMatch,
         masterIvBadgeDebugInfo = masterResult?.let { result ->

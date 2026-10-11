@@ -122,6 +122,42 @@ class PokemonMoveRepositoryTest {
             }
         }
     }
+    @Test fun indexesOnceAcrossSpeciesAndInvalidatesOnlyRequestedTranslations() {
+        var reads = 0
+        var legacyReads = 0
+        val translations = mutableMapOf<AppLanguage, Int>()
+        val source = object : PokemonMoveDataSource {
+            override fun loadMoveCatalog(): List<MoveCatalogEntry> = emptyList()
+            override fun readCurrentMoves(): String {
+                reads++
+                return """[{"name":"Pikachu","fastMoves":[{"name":"Quick Attack"}]},{"name":"Eevee","fastMoves":[{"name":"Quick Attack"}]}]"""
+            }
+            override fun loadLegacyMoves(): List<LegacyMoveCatalogEntry> {
+                legacyReads++
+                return emptyList()
+            }
+            override fun loadMoveTranslations(language: AppLanguage): Map<String, String> {
+                translations[language] = translations.getOrDefault(language, 0) + 1
+                return mapOf("Quick Attack" to language.name)
+            }
+        }
+        for (language in listOf(AppLanguage.EN, AppLanguage.PT_BR)) {
+            for (name in listOf("Pikachu", "Eevee")) {
+                assertEquals(language.name, PokemonMoveRepository.load(name, language, source).fastMoves.single().localizedName)
+            }
+        }
+        assertEquals(1, reads)
+        assertEquals(1, legacyReads)
+        assertEquals(mapOf(AppLanguage.EN to 1, AppLanguage.PT_BR to 1), translations)
+        PokemonMoveRepository.clearCache(AppLanguage.PT_BR)
+        PokemonMoveRepository.load("Eevee", AppLanguage.EN, source)
+        PokemonMoveRepository.load("Eevee", AppLanguage.PT_BR, source)
+        assertEquals(1, reads)
+        assertEquals(mapOf(AppLanguage.EN to 1, AppLanguage.PT_BR to 2), translations)
+        PokemonMoveRepository.clearCache()
+        PokemonMoveRepository.load("Eevee", AppLanguage.EN, source)
+        assertEquals(2, reads)
+    }
     private class FakeMoveDataSource(
         private val currentMoves: String,
         private val catalog: List<MoveCatalogEntry> = emptyList()

@@ -261,7 +261,7 @@ fun ReviewEditorCard(
     }
     LaunchedEffect(draft.pokemonName, ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv, pvpFamilyCandidates) {
         val input = draft.withReviewIvValues(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv, initialData.isPurified)
-        masterData = withContext(Dispatchers.Default) {
+        masterData = kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
             buildMasterIvReviewData(context.applicationContext, input, pvpFamilyCandidates, masterIvBadgeCatalog)
         }
     }
@@ -302,7 +302,7 @@ fun ReviewEditorCard(
         if (baseAttackIv != null && baseDefenseIv != null && baseStaminaIv != null && pvpFamilyCandidates.isNotEmpty()) {
             derivedLoading = true
             try {
-                val rankingResult = withContext(Dispatchers.Default) {
+                val rankingResult = kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
                     buildDerivedReviewData(
                         context = context.applicationContext,
                         data = rankingInput,

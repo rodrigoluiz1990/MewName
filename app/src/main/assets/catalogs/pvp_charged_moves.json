@@ -2221,5 +2221,23 @@
         "power": 70,
         "turn_duration": 1,
         "type": "Fighting"
+    },
+    {
+        "energy_delta": -60,
+        "move_id": 494,
+        "name": "Gigaton Hammer",
+        "power": 130.0,
+        "type": "Steel"
+    },
+    {
+        "energy_delta": -40,
+        "move_id": 590,
+        "name": "Glaive Rush",
+        "power": 90.0,
+        "type": "Dragon",
+        "buffs": {
+                      "activation_chance": 1.0,
+                      "attacker_defense_stat_stage_change": -1
+                  }
     }
 ]

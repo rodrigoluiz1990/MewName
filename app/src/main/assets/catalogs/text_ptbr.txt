@@ -111743,3 +111743,12 @@ TEXT: Algo misterioso apareceu! Abra o Pokémon GO para investigar.
 
 RESOURCE ID: zygarde_tappable_push_notification_description
 TEXT: Abra o Pokémon GO para investigar.
+
+RESOURCE ID: move_name_494
+TEXT: Martelo Gigatônico
+
+RESOURCE ID: move_name_590
+TEXT: Fúria de Glaive
+
+RESOURCE ID: move_name_488
+TEXT: Água Gelada

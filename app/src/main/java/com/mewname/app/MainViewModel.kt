@@ -12,6 +12,7 @@ import com.mewname.app.domain.CatalogLoadArea
 import com.mewname.app.domain.CatalogLoadFeedback
 import com.mewname.app.domain.AppUpdateInfo
 import com.mewname.app.domain.AppUpdateRepository
+import com.mewname.app.domain.isNewerRelease
 import com.mewname.app.domain.GameTextRepository
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
@@ -29,6 +30,7 @@ import com.mewname.app.model.defaultNamingConfigs
 import com.mewname.app.model.ensureBuiltInNamingConfigs
 import com.mewname.app.ocr.OcrEngine
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +74,7 @@ class MainViewModel(
     private val ocrEngine = OcrEngine()
 
     override fun onCleared() {
+        ivValidationTask.cancel()
         ocrEngine.close()
         reviewOcrPipeline.close()
         super.onCleared()
@@ -81,7 +84,8 @@ class MainViewModel(
     private val appUpdateRepository = AppUpdateRepository()
     private var lastCapturedData: PokemonScreenData? = null
     private var imageProcessingJob: Job? = null
-    private var ivValidationJob: Job? = null
+    private var imageRequestId = 0L
+    private val ivValidationTask = CurrentReadTask()
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -154,8 +158,9 @@ class MainViewModel(
                     appUpdateRepository.fetchLatestRelease(BuildConfig.GITHUB_REPOSITORY)
                 }
             }.onSuccess { latest ->
-                val currentTag = BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" }
-                val hasUpdate = currentTag == null || !sameReleaseTag(currentTag, latest.tagName)
+                val currentVersion = BuildConfig.RELEASE_TAG.takeUnless { it.isBlank() || it == "dev" }
+                    ?: BuildConfig.VERSION_NAME
+                val hasUpdate = isNewerRelease(currentVersion, latest.tagName)
                 _uiState.update {
                     it.copy(
                         isCheckingForUpdate = false,
@@ -187,6 +192,7 @@ class MainViewModel(
 
     fun processImage(context: Context, uri: Uri) {
         if (imageProcessingJob?.isActive == true) return
+        val requestId = ++imageRequestId
         imageProcessingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -197,12 +203,13 @@ class MainViewModel(
             }
             try {
                 val ocrResult = reviewOcrPipeline.process(context, uri) { step ->
-                    _uiState.update { state -> state.copy(processingStatusMessage = step) }
+                    if (requestId == imageRequestId) _uiState.update { state -> state.copy(processingStatusMessage = step) }
                 }
+                if (requestId != imageRequestId) return@launch
                 _uiState.update { state -> state.copy(processingStatusMessage = "Montando nomes sugeridos") }
                 val configs = _uiState.value.configs
                 val processed = withTimeout(12_000L) {
-                    withContext(Dispatchers.Default) {
+                    kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
                         val merged = sessionMerger.mergeIfSamePokemon(ocrResult.data, lastCapturedData)
                         val reviewFields = ReviewPolicy.reviewableFields(configs)
                         val generatedResults = generateAll(merged, configs)
@@ -226,16 +233,26 @@ class MainViewModel(
                         processingStatusMessage = null
                     )
                 }
-            } catch (_: CancellationException) {
-                _uiState.update {
+            } catch (error: TimeoutCancellationException) {
+                CatalogLoadFeedback.reportFailure(CatalogLoadArea.OCR, error)
+                if (requestId == imageRequestId) _uiState.update {
+                    it.copy(
+                        error = CatalogLoadFeedback.ocrTimeoutMessage(it.appLanguage),
+                        isProcessing = false,
+                        processingStatusMessage = null
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                if (requestId == imageRequestId) _uiState.update {
                     it.copy(
                         isProcessing = false,
                         processingStatusMessage = null
                     )
                 }
+                throw cancelled
             } catch (throwable: Throwable) {
                 CatalogLoadFeedback.reportFailure(CatalogLoadArea.OCR, throwable)
-                _uiState.update {
+                if (requestId == imageRequestId) _uiState.update {
                     it.copy(
                         error = CatalogLoadFeedback.message(CatalogLoadArea.OCR, it.appLanguage),
                         isProcessing = false,
@@ -243,12 +260,13 @@ class MainViewModel(
                     )
                 }
             } finally {
-                imageProcessingJob = null
+                if (requestId == imageRequestId) imageProcessingJob = null
             }
         }
     }
 
     fun cancelImageProcessing() {
+        imageRequestId++
         imageProcessingJob?.cancel()
         imageProcessingJob = null
         _uiState.update {
@@ -261,101 +279,20 @@ class MainViewModel(
     }
 
     fun runDebugIvSampleValidation(context: Context) {
-        if (ivValidationJob?.isActive == true) return
-        ivValidationJob = viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    debugIvValidationRunning = true,
-                    debugIvValidationError = null,
-                    debugIvValidationResults = emptyList()
-                )
-            }
-
-            try {
-                val results = context.assets.list("iv_samples")
-                    ?.filter { it.endsWith(".png", true) || it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) }
-                    ?.sorted()
-                    .orEmpty()
-                    .map { fileName ->
-                        val expected = parseExpectedIvFromFileName(fileName)
-                        val bitmap = ocrEngine.loadBitmapFromAsset(context, "iv_samples/$fileName")
-                        val ocrResult = bitmap?.let { ocrEngine.extract(it) }
-                        val parsed = ocrResult?.let { parser.parse(context, it) }
-                        DebugIvSampleResult(
-                            fileName = fileName,
-                            expectedAttack = expected?.first,
-                            expectedDefense = expected?.second,
-                            expectedStamina = expected?.third,
-                            detectedAttack = parsed?.attIv,
-                            detectedDefense = parsed?.defIv,
-                            detectedStamina = parsed?.staIv,
-                            detectedPercent = parsed?.ivPercent,
-                            attackDebug = parsed?.ivDebugInfo?.attackMeasurementDebug.orEmpty(),
-                            defenseDebug = parsed?.ivDebugInfo?.defenseMeasurementDebug.orEmpty(),
-                            staminaDebug = parsed?.ivDebugInfo?.staminaMeasurementDebug.orEmpty(),
-                            matched = expected != null && parsed != null &&
-                                expected.first == parsed.attIv &&
-                                expected.second == parsed.defIv &&
-                                expected.third == parsed.staIv,
-                            notes = buildString {
-                                if (bitmap == null) append("bitmap nao carregado")
-                                else if (ocrResult == null) append("ocr sem resultado")
-                                else if (parsed == null) append("parser sem resultado")
-                                else if (parsed.ivDebugInfo?.detectedBars == 0) append("barras detectadas: 0")
-                                if (isBlank()) append("ok")
-                            }
-                        )
-                    }
-                _uiState.update {
-                    it.copy(
-                        debugIvValidationRunning = false,
-                        debugIvValidationResults = results,
-                        debugIvValidationError = null
-                    )
-                }
-            } catch (_: CancellationException) {
-                _uiState.update {
-                    it.copy(
-                        debugIvValidationRunning = false,
-                        debugIvValidationError = "Validacao cancelada.",
-                        debugIvValidationResults = emptyList()
-                    )
-                }
-            } catch (error: Throwable) {
-                _uiState.update {
-                    it.copy(
-                        debugIvValidationRunning = false,
-                        debugIvValidationError = error.message ?: "Falha ao validar amostras",
-                        debugIvValidationResults = emptyList()
-                    )
-                }
-            } finally {
-                ivValidationJob = null
-            }
-        }
-    }
-
-    fun runDebugIvUriValidation(context: Context, uris: List<Uri>) {
-        if (ivValidationJob?.isActive == true) return
-        ivValidationJob = viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    debugIvValidationRunning = true,
-                    debugIvValidationError = null,
-                    debugIvValidationResults = emptyList()
-                )
-            }
-
-            try {
-                val results = uris.map { uri ->
-                    val fileName = resolveDisplayName(context, uri)
+        startIvValidation("Falha ao validar amostras") {
+            context.assets.list("iv_samples")
+                ?.filter { it.endsWith(".png", true) || it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) }
+                ?.sorted()
+                .orEmpty()
+                .map { fileName ->
                     val expected = parseExpectedIvFromFileName(fileName)
-                    val ocrResult = withTimeout(20_000L) {
-                        ocrEngine.extract(context, uri)
-                    }
-                    val parsed = withTimeout(25_000L) {
-                        withContext(Dispatchers.Default) {
-                            parser.parse(context, ocrResult)
+                    val bitmap = ocrEngine.loadBitmapFromAsset(context, "iv_samples/$fileName")
+                    val ocrResult = bitmap?.let { ocrEngine.extract(it) }
+                    val parsed = ocrResult?.let { result ->
+                        withTimeout(25_000L) {
+                            kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
+                                parser.parse(context, result)
+                            }
                         }
                     }
                     DebugIvSampleResult(
@@ -363,66 +300,114 @@ class MainViewModel(
                         expectedAttack = expected?.first,
                         expectedDefense = expected?.second,
                         expectedStamina = expected?.third,
-                        detectedAttack = parsed.attIv,
-                        detectedDefense = parsed.defIv,
-                        detectedStamina = parsed.staIv,
-                        detectedPercent = parsed.ivPercent,
-                        attackDebug = parsed.ivDebugInfo?.attackMeasurementDebug.orEmpty(),
-                        defenseDebug = parsed.ivDebugInfo?.defenseMeasurementDebug.orEmpty(),
-                        staminaDebug = parsed.ivDebugInfo?.staminaMeasurementDebug.orEmpty(),
-                        matched = expected != null &&
+                        comparable = expected != null,
+                        detectedAttack = parsed?.attIv,
+                        detectedDefense = parsed?.defIv,
+                        detectedStamina = parsed?.staIv,
+                        detectedPercent = parsed?.ivPercent,
+                        attackDebug = parsed?.ivDebugInfo?.attackMeasurementDebug.orEmpty(),
+                        defenseDebug = parsed?.ivDebugInfo?.defenseMeasurementDebug.orEmpty(),
+                        staminaDebug = parsed?.ivDebugInfo?.staminaMeasurementDebug.orEmpty(),
+                        matched = expected != null && parsed != null &&
                             expected.first == parsed.attIv &&
                             expected.second == parsed.defIv &&
                             expected.third == parsed.staIv,
-                        comparable = expected != null,
                         notes = buildString {
-                            if (expected == null) append("sem IV esperado no nome do arquivo")
-                            if (parsed.ivDebugInfo?.detectedBars == 0) {
-                                if (isNotBlank()) append(" | ")
-                                append("barras detectadas: 0")
-                            }
+                            if (bitmap == null) append("bitmap nao carregado")
+                            else if (ocrResult == null) append("ocr sem resultado")
+                            else if (parsed == null) append("parser sem resultado")
+                            else if (parsed.ivDebugInfo?.detectedBars == 0) append("barras detectadas: 0")
                             if (isBlank()) append("ok")
                         }
                     )
                 }
-                _uiState.update {
-                    it.copy(
-                        debugIvValidationRunning = false,
-                        debugIvValidationResults = results,
-                        debugIvValidationError = null
-                    )
+        }
+    }
+
+    fun runDebugIvUriValidation(context: Context, uris: List<Uri>) {
+        startIvValidation("Falha ao analisar prints") {
+            uris.map { uri ->
+                val fileName = resolveDisplayName(context, uri)
+                val expected = parseExpectedIvFromFileName(fileName)
+                val ocrResult = withTimeout(20_000L) {
+                    ocrEngine.extract(context, uri)
                 }
-            } catch (_: CancellationException) {
-                _uiState.update {
-                    it.copy(
-                        debugIvValidationRunning = false,
-                        debugIvValidationError = "Validacao cancelada.",
-                        debugIvValidationResults = emptyList()
-                    )
+                val parsed = withTimeout(25_000L) {
+                    kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
+                        parser.parse(context, ocrResult)
+                    }
                 }
+                DebugIvSampleResult(
+                    fileName = fileName,
+                    expectedAttack = expected?.first,
+                    expectedDefense = expected?.second,
+                    expectedStamina = expected?.third,
+                    detectedAttack = parsed.attIv,
+                    detectedDefense = parsed.defIv,
+                    detectedStamina = parsed.staIv,
+                    detectedPercent = parsed.ivPercent,
+                    attackDebug = parsed.ivDebugInfo?.attackMeasurementDebug.orEmpty(),
+                    defenseDebug = parsed.ivDebugInfo?.defenseMeasurementDebug.orEmpty(),
+                    staminaDebug = parsed.ivDebugInfo?.staminaMeasurementDebug.orEmpty(),
+                    matched = expected != null &&
+                        expected.first == parsed.attIv &&
+                        expected.second == parsed.defIv &&
+                        expected.third == parsed.staIv,
+                    comparable = expected != null,
+                    notes = buildString {
+                        if (expected == null) append("sem IV esperado no nome do arquivo")
+                        if (parsed.ivDebugInfo?.detectedBars == 0) {
+                            if (isNotBlank()) append(" | ")
+                            append("barras detectadas: 0")
+                        }
+                        if (isBlank()) append("ok")
+                    }
+                )
+            }
+        }
+    }
+
+    internal fun startIvValidation(
+        failureMessage: String,
+        read: suspend () -> List<DebugIvSampleResult>
+    ) {
+        ivValidationTask.launch(viewModelScope) { request ->
+            _uiState.update {
+                it.copy(debugIvValidationRunning = true, debugIvValidationError = null,
+                    debugIvValidationResults = emptyList())
+            }
+            try {
+                val results = read()
+                if (request.isCurrent) _uiState.update {
+                    it.copy(debugIvValidationRunning = false, debugIvValidationResults = results,
+                        debugIvValidationError = null)
+                }
+            } catch (_: TimeoutCancellationException) {
+                if (request.isCurrent) _uiState.update {
+                    it.copy(debugIvValidationRunning = false,
+                        debugIvValidationError = CatalogLoadFeedback.ocrTimeoutMessage(it.appLanguage),
+                        debugIvValidationResults = emptyList())
+                }
+            } catch (cancelled: CancellationException) {
+                if (request.isCurrent) _uiState.update {
+                    it.copy(debugIvValidationRunning = false, debugIvValidationError = "Validacao cancelada.",
+                        debugIvValidationResults = emptyList())
+                }
+                throw cancelled
             } catch (error: Throwable) {
-                _uiState.update {
-                    it.copy(
-                        debugIvValidationRunning = false,
-                        debugIvValidationError = error.message ?: "Falha ao analisar prints",
-                        debugIvValidationResults = emptyList()
-                    )
+                if (request.isCurrent) _uiState.update {
+                    it.copy(debugIvValidationRunning = false, debugIvValidationError = error.message ?: failureMessage,
+                        debugIvValidationResults = emptyList())
                 }
-            } finally {
-                ivValidationJob = null
             }
         }
     }
 
     fun cancelIvValidation() {
-        ivValidationJob?.cancel()
-        ivValidationJob = null
+        ivValidationTask.cancel()
         _uiState.update {
-            it.copy(
-                debugIvValidationRunning = false,
-                debugIvValidationError = "Validacao cancelada.",
-                debugIvValidationResults = emptyList()
-            )
+            it.copy(debugIvValidationRunning = false, debugIvValidationError = "Validacao cancelada.",
+                debugIvValidationResults = emptyList())
         }
     }
 
@@ -614,12 +599,6 @@ private fun parseExpectedIvFromFileName(fileName: String): Triple<Int, Int, Int>
     )
 }
 
-private fun sameReleaseTag(currentTag: String, latestTag: String): Boolean {
-    fun normalize(tag: String): String {
-        return tag.trim().removePrefix("refs/tags/").removePrefix("v").uppercase()
-    }
-    return normalize(currentTag) == normalize(latestTag)
-}
 
 fun jsonToNamingConfig(obj: JSONObject): NamingConfig {
     val blocks = mutableListOf<NamingBlock>()

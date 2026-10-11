@@ -66,87 +66,90 @@ data class PokemonMoveRating(
 
 /** Loads and caches a Pokemon's current moves independently from the review UI. */
 object PokemonMoveRepository {
-    private val cachedMoves = mutableMapOf<PokemonMoveDataSource, MutableMap<AppLanguage, MutableMap<String, PokemonMoveSet>>>()
+    private data class MoveIndex(
+        val exact: Map<String, PokemonMoveSet>,
+        val canonical: List<Pair<String, PokemonMoveSet>>
+    ) {
+        fun find(keys: List<String>): PokemonMoveSet {
+            keys.forEach { key -> exact[key]?.let { return it } }
+            return canonical.firstOrNull { (key, _) -> keys.any { it.startsWith("$key ") } }?.second
+                ?: PokemonMoveSet(emptyList(), emptyList())
+        }
+    }
+
+    private class LanguageCache(source: PokemonMoveDataSource, language: AppLanguage) {
+        val translations by lazy { source.loadMoveTranslations(language).mapKeys { normalizeMoveKey(it.key) } }
+        val moves = java.util.concurrent.ConcurrentHashMap<String, PokemonMoveSet>()
+    }
+
+    private class SourceCache(val source: PokemonMoveDataSource) {
+        val index by lazy { loadIndex(source) }
+        val stats by lazy { source.loadMoveCatalog().associateBy { normalizeMoveKey(it.name) } }
+        val languages = java.util.concurrent.ConcurrentHashMap<AppLanguage, LanguageCache>()
+        fun language(language: AppLanguage): LanguageCache = languages.computeIfAbsent(language) { LanguageCache(source, it) }
+    }
+
+    private val sources = mutableMapOf<PokemonMoveDataSource, SourceCache>()
+    private fun sourceCache(source: PokemonMoveDataSource): SourceCache = synchronized(sources) {
+        sources.getOrPut(source) { SourceCache(source) }
+    }
 
     fun clearCache(language: AppLanguage? = null) {
-        synchronized(this) {
-            if (language == null) {
-                cachedMoves.clear()
-            } else {
-                cachedMoves.values.forEach { it.remove(language) }
-                cachedMoves.entries.removeIf { it.value.isEmpty() }
-            }
+        synchronized(sources) {
+            if (language == null) sources.clear()
+            else sources.values.forEach { it.languages.remove(language) }
         }
     }
 
-    fun load(context: Context, pokemonName: String, language: AppLanguage): PokemonMoveSet {
-        return load(pokemonName, language, AssetPokemonMoveDataSource(context))
-    }
-
-    fun load(
-        pokemonName: String,
-        language: AppLanguage,
-        dataSource: PokemonMoveDataSource
-    ): PokemonMoveSet {
-        val lookupKeys = lookupKeysFor(pokemonName)
-        if (lookupKeys.isEmpty()) return PokemonMoveSet(emptyList(), emptyList())
-        synchronized(this) {
-            val languageCache = cachedMoves
-                .getOrPut(dataSource) { mutableMapOf() }
-                .getOrPut(language) { mutableMapOf() }
-            languageCache[lookupKeys.first()]?.let { return it }
-
-            // Only parse and rank the requested Pokemon instead of building every move set in the 1.2 MB asset.
-            val item = findMoveSetItem(dataSource.readCurrentMoves(), lookupKeys)
-                ?: return PokemonMoveSet(emptyList(), emptyList())
-            val speciesKey = normalizeMoveKey(item.getString("name"))
-            val legacyMoves = dataSource.loadLegacyMoves()
-                .filter { normalizeMoveKey(it.pokemon) == speciesKey }
-                .flatMap { it.searchTerms }
-                .map(::normalizeMoveKey)
-                .toSet()
-            val loaded = PokemonMoveSet(
-                fastMoves = parseRawMoves(item.optJSONArray("fastMoves"), legacyMoves),
-                chargedMoves = parseRawMoves(item.optJSONArray("chargedMoves"), legacyMoves)
-            )
-            // Opening the selector must never depend on loading/ranking the full stat catalog.
-            val translations = dataSource.loadMoveTranslations(language).mapKeys { normalizeMoveKey(it.key) }
-            fun translated(moves: List<PokemonMove>) = moves.map { move ->
-                move.copy(localizedName = translations[normalizeMoveKey(move.name)] ?: move.name)
-            }
-            val localized = PokemonMoveSet(translated(loaded.fastMoves), translated(loaded.chargedMoves))
-            languageCache[lookupKeys.first()] = localized
-            return localized
+    private fun loadIndex(source: PokemonMoveDataSource): MoveIndex {
+        val array = JSONArray(source.readCurrentMoves())
+        val legacy = source.loadLegacyMoves().groupBy { normalizeMoveKey(it.pokemon) }
+            .mapValues { (_, entries) -> entries.flatMap { it.searchTerms }.map(::normalizeMoveKey).toSet() }
+        val exact = linkedMapOf<String, PokemonMoveSet>()
+        val canonical = mutableListOf<Pair<String, PokemonMoveSet>>()
+        for (i in 0 until array.length()) {
+            if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException()
+            val item = array.getJSONObject(i)
+            val name = normalizeMoveKey(item.getString("name"))
+            val legacyMoves = legacy[name].orEmpty()
+            val moves = PokemonMoveSet(parseRawMoves(item.optJSONArray("fastMoves"), legacyMoves),
+                parseRawMoves(item.optJSONArray("chargedMoves"), legacyMoves))
+            exact.putIfAbsent(name, moves)
+            val aliases = item.optJSONArray("aliases")
+            for (j in 0 until (aliases?.length() ?: 0)) exact.putIfAbsent(normalizeMoveKey(aliases!!.getString(j)), moves)
+            canonical += name to moves
         }
+        return MoveIndex(exact, canonical.sortedByDescending { it.first.length })
     }
 
-    private fun findMoveSetItem(rawMoves: String, lookupKeys: List<String>): org.json.JSONObject? {
-        val jsonArray = JSONArray(rawMoves)
-        val entries = List(jsonArray.length()) { jsonArray.getJSONObject(it) }
-        // Resolve every exact form/alias before falling back to a base species.
-        for (lookupKey in lookupKeys) {
-            entries.firstOrNull { item ->
-                val aliases = item.optJSONArray("aliases")
-                normalizeMoveKey(item.optString("name")) == lookupKey ||
-                    (0 until (aliases?.length() ?: 0)).any { normalizeMoveKey(aliases!!.getString(it)) == lookupKey }
-            }?.let { return it }
+    fun load(context: Context, pokemonName: String, language: AppLanguage): PokemonMoveSet =
+        load(pokemonName, language, AssetPokemonMoveDataSource(context))
+
+    fun load(pokemonName: String, language: AppLanguage, dataSource: PokemonMoveDataSource): PokemonMoveSet {
+        val keys = lookupKeysFor(pokemonName)
+        if (keys.isEmpty()) return PokemonMoveSet(emptyList(), emptyList())
+        val source = sourceCache(dataSource)
+        val localized = source.language(language)
+        localized.moves[keys.first()]?.let { return it }
+        val raw = source.index.find(keys)
+        val translations = localized.translations
+        fun translate(moves: List<PokemonMove>) = moves.map {
+            it.copy(localizedName = translations[normalizeMoveKey(it.name)] ?: it.name)
         }
-        return entries.filter { item ->
-            val key = normalizeMoveKey(item.optString("name"))
-            lookupKeys.any { it.startsWith("$key ") }
-        }.maxByOrNull { normalizeMoveKey(it.optString("name")).length }
+        val result = PokemonMoveSet(translate(raw.fastMoves), translate(raw.chargedMoves))
+        return localized.moves.putIfAbsent(keys.first(), result) ?: result
     }
+
     /** Enriches visible moves after raw options are shown. */
     fun enrich(context: Context, moves: PokemonMoveSet, language: AppLanguage): PokemonMoveSet {
         return enrich(moves, language, AssetPokemonMoveDataSource(context))
     }
 
     internal fun enrich(moves: PokemonMoveSet, language: AppLanguage, dataSource: PokemonMoveDataSource): PokemonMoveSet {
-        val entries = dataSource.loadMoveCatalog()
-        val names = dataSource.loadMoveTranslations(language)
-            .mapKeys { normalizeMoveKey(it.key) } +
-            entries.associate { normalizeMoveKey(it.name) to it.localizedName(language) }
-        val stats = entries.associateBy { normalizeMoveKey(it.name) }
+        val source = sourceCache(dataSource)
+        val stats = source.stats
+        val names = source.language(language).translations +
+            stats.values.associate { normalizeMoveKey(it.name) to it.localizedName(language) }
         return PokemonMoveSet(
             fastMoves = enrichMoves(moves.fastMoves, MoveCategory.FAST, names, stats),
             chargedMoves = enrichMoves(moves.chargedMoves, MoveCategory.CHARGED, names, stats)
@@ -165,31 +168,15 @@ object PokemonMoveRepository {
     }
 
     private fun enrichMoves(moves: List<PokemonMove>, category: MoveCategory, names: Map<String, String>, stats: Map<String, MoveCatalogEntry>): List<PokemonMove> {
-        val array = JSONArray()
-        moves.forEach { move -> array.put(org.json.JSONObject().put("name", move.name).put("legacy", move.legacy)) }
-        return parseMoves(array, category, names, stats)
-    }
-    private fun parseMoves(
-        array: JSONArray?,
-        category: MoveCategory,
-        localizedNames: Map<String, String>,
-        moveStats: Map<String, MoveCatalogEntry>
-    ): List<PokemonMove> {
-        array ?: return emptyList()
-        val moves = buildList {
-            for (index in 0 until array.length()) {
-                val item = array.optJSONObject(index) ?: continue
-                val name = item.optString("name").trim()
-                if (name.isBlank()) continue
-                add(PokemonMove(name, localizedNames[normalizeMoveKey(name)] ?: name, item.optBoolean("legacy", false)))
-            }
+        val localized = moves.map { move ->
+            move.copy(localizedName = names[normalizeMoveKey(move.name)] ?: move.name)
         }
-        val ranked = moves.map { move -> move to score(moveStats[normalizeMoveKey(move.name)], category) }
+        val ranked = localized.map { move -> move to score(stats[normalizeMoveKey(move.name)], category) }
             .sortedByDescending { it.second }
         val ratings = ranked.withIndex().associate { (index, entry) ->
             entry.first.name to PokemonMoveRating(index + 1, ranked.size.coerceAtLeast(1))
         }
-        return moves.map { move -> move.copy(rating = ratings[move.name]) }
+        return localized.map { move -> move.copy(rating = ratings[move.name]) }
     }
 
     private fun lookupKeysFor(pokemonName: String): List<String> {

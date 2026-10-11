@@ -54,18 +54,7 @@ object PersonalCollection {
         val enabled = prefs.getStringSet("groups", null)?.mapNotNull { raw ->
             PersonalCollectionGroup.entries.firstOrNull { it.name == raw }
         }?.toSet() ?: PersonalCollectionGroup.entries.toSet()
-        val entries = linkedMapOf<String, PersonalCollectionEntry>()
-        val json = runCatching { JSONArray(prefs.getString("entries", "[]")) }.getOrElse { JSONArray() }
-        for (i in 0 until json.length()) {
-            val item = json.optJSONObject(i) ?: continue
-            val key = item.optString("key").takeIf { it.isNotBlank() } ?: continue
-            val groupArray = item.optJSONArray("groups") ?: continue
-            val groups = (0 until groupArray.length()).mapNotNull { index ->
-                PersonalCollectionGroup.entries.firstOrNull { it.name == groupArray.optString(index) }
-            }.toSet()
-            if (groups.isEmpty()) continue
-            entries[key] = PersonalCollectionEntry(PersonalCollectionTarget(key,item.optString("label")), groups)
-        }
+        val entries = readEntries(prefs)
         val savedOrder = runCatching { JSONArray(prefs.getString("group_order", "[]")) }.getOrElse { JSONArray() }
         val order = normalizeOrder((0 until savedOrder.length()).mapNotNull { index ->
             PersonalCollectionGroup.entries.firstOrNull { it.name == savedOrder.optString(index) }
@@ -73,6 +62,47 @@ object PersonalCollection {
         return PersonalCollectionSnapshot(enabled, entries, prefs.getBoolean("show_in_suggested_names", false), order)
     }
 
+    private data class CachedEntries(val raw: Map<String, String>, val entries: Map<String, PersonalCollectionEntry>)
+    private val entryCache = java.util.WeakHashMap<android.content.SharedPreferences, CachedEntries>()
+
+    @Synchronized
+    private fun readEntries(prefs: android.content.SharedPreferences): Map<String, PersonalCollectionEntry> {
+        val keys = prefs.getStringSet("entry_keys", null)
+        val raw = if (keys == null) mapOf("legacy" to prefs.getString("entries", "[]").orEmpty())
+            else keys.associateWith { prefs.getString("entry:" + it, "").orEmpty() }
+        val cached = entryCache[prefs]
+        if (cached?.raw == raw) return cached.entries
+        val entries = linkedMapOf<String, PersonalCollectionEntry>()
+        if (keys == null) {
+            val array = runCatching { JSONArray(raw.getValue("legacy")) }.getOrElse { JSONArray() }
+            for (i in 0 until array.length()) {
+                decodeEntry(array.optJSONObject(i))?.let { entries[it.target.key] = it }
+            }
+        } else {
+            raw.forEach { (key, value) ->
+                val entry = if (cached?.raw?.get(key) == value) cached.entries[key]
+                    else decodeEntry(runCatching { JSONObject(value) }.getOrNull())
+                if (entry != null) entries[key] = entry
+            }
+        }
+        entryCache[prefs] = CachedEntries(raw, entries)
+        return entries
+    }
+
+    private fun decodeEntry(item: JSONObject?): PersonalCollectionEntry? {
+        item ?: return null
+        val key = item.optString("key").takeIf { it.isNotBlank() } ?: return null
+        val array = item.optJSONArray("groups") ?: return null
+        val groups = (0 until array.length()).mapNotNull { index ->
+            PersonalCollectionGroup.entries.firstOrNull { it.name == array.optString(index) }
+        }.toSet()
+        if (groups.isEmpty()) return null
+        return PersonalCollectionEntry(PersonalCollectionTarget(key, item.optString("label")), groups)
+    }
+
+    private fun encodeEntry(entry: PersonalCollectionEntry): String =
+        JSONObject().put("key", entry.target.key).put("label", entry.target.label)
+            .put("groups", JSONArray(entry.groups.map { it.name })).toString()
     private fun normalizeOrder(order: List<PersonalCollectionGroup>): List<PersonalCollectionGroup> =
         (order + PersonalCollectionGroup.entries).distinct()
 
@@ -92,21 +122,32 @@ object PersonalCollection {
     }
 
     @Synchronized fun setEnabled(context: Context, group: PersonalCollectionGroup, enabled: Boolean) {
-        val current = read(context).enabled
+        val current = preferences(context).getStringSet("groups", null)?.mapNotNull { raw -> PersonalCollectionGroup.entries.firstOrNull { it.name == raw } }?.toSet() ?: PersonalCollectionGroup.entries.toSet()
         preferences(context).edit().putStringSet("groups", (if (enabled) current + group else current - group).map { it.name }.toSet()).apply()
     }
 
     @Synchronized fun mark(context: Context, target: PersonalCollectionTarget, group: PersonalCollectionGroup, obtained: Boolean) {
         if (obtained && !supports(target, group)) return
-        val entries = read(context).entries.toMutableMap()
+        val prefs = preferences(context)
+        val entries = readEntries(prefs)
         val old = entries[target.key]?.groups.orEmpty()
         val groups = if (obtained) old + group else old - group
-        if (groups.isEmpty()) entries.remove(target.key) else entries[target.key] = PersonalCollectionEntry(target,groups)
-        val json = JSONArray()
-        entries.values.forEach { entry ->
-            json.put(JSONObject().put("key",entry.target.key).put("label",entry.target.label)
-                .put("groups",JSONArray(entry.groups.map { it.name })))
+        val existingKeys = prefs.getStringSet("entry_keys", null)
+        val keys = (existingKeys ?: entries.keys).toMutableSet()
+        val editor = prefs.edit()
+        // Migrate the legacy array atomically on the first edit.
+        if (existingKeys == null) {
+            entries.values.forEach { editor.putString("entry:" + it.target.key, encodeEntry(it)) }
+            editor.remove("entries")
         }
-        preferences(context).edit().putString("entries",json.toString()).apply()
+        if (groups.isEmpty()) {
+            keys.remove(target.key)
+            editor.remove("entry:" + target.key)
+        } else {
+            keys.add(target.key)
+            editor.putString("entry:" + target.key, encodeEntry(PersonalCollectionEntry(target, groups)))
+        }
+        if (existingKeys == null || keys != existingKeys) editor.putStringSet("entry_keys", keys)
+        editor.apply()
     }
 }

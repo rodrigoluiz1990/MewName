@@ -131,7 +131,10 @@ class MainActivity : ComponentActivity() {
 
     private val pickImage =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let { viewModel.processImage(this, it) }
+            uri?.let {
+                viewModel.navigateTo(AppScreen.HOME)
+                viewModel.processImage(this, it)
+            }
         }
 
     private val pickValidationImages =
@@ -668,8 +671,9 @@ internal fun AppUpdateScreen(
 private fun LegacyMovesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
-    val entries = remember(context) { GameCatalogRepository.loadLegacyMoveCatalog(context) }
-    val moveIndex = remember(context) { moveCatalogIndex(GameInfoRepository.loadMoveCatalog(context)) }
+    val catalog by rememberMoveScreenCatalog(context, "LegacyMove") { GameCatalogRepository.loadLegacyMoveCatalog(context) }
+    val entries = catalog.entries
+    val moveIndex = catalog.moveIndex
     var query by rememberSaveable { mutableStateOf("") }
     val normalizedQuery = remember(query) { normalizeMoveLookup(query) }
     val filteredEntries = remember(entries, normalizedQuery) {
@@ -694,6 +698,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            if (catalog.loading || catalog.failed) item { MoveScreenLoadFeedback(catalog.loading, catalog.failed, language) }
             item {
                 AppGlassTextField(
                     search = true,
@@ -704,6 +709,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                     singleLine = true
                 )
             }
+
             item {
                 Text(
                     lt(language, "${filteredEntries.size} Pokémon", "${filteredEntries.size} Pokémon", "${filteredEntries.size} Pokémon"),
@@ -722,8 +728,9 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
 private fun AdventureEffectsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
-    val entries = remember(context) { GameCatalogRepository.loadAdventureEffectCatalog(context) }
-    val moveIndex = remember(context) { moveCatalogIndex(GameInfoRepository.loadMoveCatalog(context)) }
+    val catalog by rememberMoveScreenCatalog(context, "AdventureEffect") { GameCatalogRepository.loadAdventureEffectCatalog(context) }
+    val entries = catalog.entries
+    val moveIndex = catalog.moveIndex
     var query by rememberSaveable { mutableStateOf("") }
     val normalizedQuery = remember(query) { normalizeMoveLookup(query) }
     val filteredEntries = remember(entries, normalizedQuery) {
@@ -749,6 +756,7 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            if (catalog.loading || catalog.failed) item { MoveScreenLoadFeedback(catalog.loading, catalog.failed, language) }
             item {
                 AppGlassTextField(
                     search = true,
@@ -2616,4 +2624,41 @@ private fun FixedTextDialog(
             }
         }
     )
+}
+
+private data class MoveScreenCatalog<T>(
+    val entries: List<T> = emptyList(),
+    val moveIndex: Map<String, MoveCatalogEntry> = emptyMap(),
+    val loading: Boolean = true,
+    val failed: Boolean = false
+)
+
+@Composable
+private fun <T> rememberMoveScreenCatalog(
+    context: android.content.Context,
+    key: String,
+    load: () -> List<T>
+): androidx.compose.runtime.State<MoveScreenCatalog<T>> =
+    androidx.compose.runtime.produceState(MoveScreenCatalog<T>(), context, key) {
+        value = try {
+            kotlinx.coroutines.runInterruptible(kotlinx.coroutines.Dispatchers.IO) {
+                val entries = load()
+                val index = moveCatalogIndex(GameInfoRepository.loadMoveCatalog(context))
+                check(entries.isNotEmpty() && index.isNotEmpty()) { "Catalog unavailable" }
+                MoveScreenCatalog(entries, index, loading = false)
+            }
+        } catch (error: java.util.concurrent.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            MoveScreenCatalog(loading = false, failed = true)
+        }
+    }
+
+@Composable
+private fun MoveScreenLoadFeedback(loading: Boolean, failed: Boolean, language: AppLanguage) {
+    if (loading) {
+        androidx.compose.material3.CircularProgressIndicator()
+    } else if (failed) {
+        Text(lt(language, "Falha ao carregar catálogo.", "Failed to load catalog.", "Error al cargar catálogo."))
+    }
 }

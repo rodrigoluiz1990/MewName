@@ -1,19 +1,18 @@
 import java.text.Normalizer
 import groovy.json.JsonSlurper
-import java.time.ZoneId
-import java.time.ZonedDateTime
+import java.time.Instant
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
-val buildMoment = ZonedDateTime.now(ZoneId.of("America/Sao_Paulo"))
-val autoVersionCode = ((buildMoment.year - 2000) * 10_000_000) +
-    (buildMoment.dayOfYear * 100_000) +
-    (buildMoment.hour * 3_600) +
-    (buildMoment.minute * 60) +
-    buildMoment.second
+// Reserve a range above the legacy 2026 codes (at most 296_586_399).
+// Elapsed UTC seconds keep increasing across year and timezone boundaries.
+val versionEpoch = Instant.parse("2026-01-01T00:00:00Z")
+val generatedVersionCode = 400_000_000L + Instant.now().epochSecond - versionEpoch.epochSecond
+check(generatedVersionCode in 400_000_000L..2_100_000_000L) { "Build date outside supported versionCode range" }
+val autoVersionCode = generatedVersionCode.toInt()
 val releaseStoreFilePath = System.getenv("MEWNAME_UPLOAD_STORE_FILE")?.takeIf { it.isNotBlank() }
 val releaseStorePassword = System.getenv("MEWNAME_UPLOAD_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
 val releaseKeyAlias = System.getenv("MEWNAME_UPLOAD_KEY_ALIAS")?.takeIf { it.isNotBlank() }
@@ -22,7 +21,7 @@ val releaseTag = System.getenv("MEWNAME_RELEASE_TAG")?.takeIf { it.isNotBlank() 
 val releaseVersionName = releaseTag
     .takeIf { it != "dev" }
     ?.removePrefix("v")
-    ?: "1.0.29"
+    ?: "1.0.30"
 val hasReleaseSigning = releaseStoreFilePath != null &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&

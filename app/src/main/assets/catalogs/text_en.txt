@@ -111382,3 +111382,12 @@ TEXT: Something mysterious appeared! Open Pokémon GO to investigate.
 
 RESOURCE ID: zygarde_tappable_push_notification_description
 TEXT: Open Pokémon GO to investigate.
+
+RESOURCE ID: move_name_494
+TEXT: Gigaton Hammer
+
+RESOURCE ID: move_name_590
+TEXT: Glaive Rush
+
+RESOURCE ID: move_name_488
+TEXT: Chilling Water

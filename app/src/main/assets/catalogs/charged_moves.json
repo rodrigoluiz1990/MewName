@@ -2281,5 +2281,23 @@
         "power": 120,
         "stamina_loss_scaler": 0.01,
         "type": "Fighting"
+    },
+    {
+        "duration": 3000,
+        "energy_delta": -100,
+        "move_id": 494,
+        "name": "Gigaton Hammer",
+        "power": 300.0,
+        "stamina_loss_scaler": 0.01,
+        "type": "Steel"
+    },
+    {
+        "duration": 2000,
+        "energy_delta": -50,
+        "move_id": 590,
+        "name": "Glaive Rush",
+        "power": 105.0,
+        "stamina_loss_scaler": 0.01,
+        "type": "Dragon"
     }
 ]

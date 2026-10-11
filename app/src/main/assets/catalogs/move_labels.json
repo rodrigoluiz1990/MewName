@@ -1949,14 +1949,12 @@
                                 "PT_BR":  "Roda de Aura",
                                 "ES":  "Rueda Aural"
                             },
-    "Chilling Water":  {
-                           "EN":  "Chilling Water",
-                           "PT_BR":  "Chilling Water",
-                           "ES":  "Chilling Water"
-                       },
+    "Chilling Water": {"EN":"Chilling Water","PT_BR":"Água Gelada","ES":"Agua Fría"},
     "Secret Sword":  {
                          "EN":  "Secret Sword",
                          "PT_BR":  "Secret Sword",
                          "ES":  "Secret Sword"
-                     }
+                     },
+    "Gigaton Hammer": {"EN":"Gigaton Hammer","PT_BR":"Martelo Gigatônico","ES":"Martillo Colosal"},
+    "Glaive Rush": {"EN":"Glaive Rush","PT_BR":"Fúria de Glaive","ES":"Asalto Espadón"}
 }

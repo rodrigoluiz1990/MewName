@@ -203,8 +203,22 @@ class OcrEngine internal constructor(
     }
 
     private fun loadBitmap(context: Context, imageUri: Uri): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        val boundsStream = context.contentResolver.openInputStream(imageUri) ?: return null
+        boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        // Keep typical phone screenshots intact, but bound very long and square images.
+        // Rotation may temporarily require a second bitmap of the same size.
+        var sample = 1
+        while (true) {
+            val width = (bounds.outWidth.toLong() + sample - 1) / sample
+            val height = (bounds.outHeight.toLong() + sample - 1) / sample
+            if (maxOf(width, height) <= 4096 && width * height <= 8_000_000L) break
+            sample *= 2
+        }
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
         val decoded = context.contentResolver.openInputStream(imageUri)?.use {
-            BitmapFactory.decodeStream(it)
+            BitmapFactory.decodeStream(it, null, options)
         } ?: return null
         val orientation = runCatching {
             context.contentResolver.openInputStream(imageUri)?.use {

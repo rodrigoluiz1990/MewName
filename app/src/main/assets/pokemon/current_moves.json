@@ -1766,6 +1766,10 @@
                              {
                                  "name":  "Outrage",
                                  "legacy":  false
+                             },
+                             {
+                                 "name":  "Glaive Rush",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -13340,6 +13344,10 @@
                              {
                                  "name":  "Water Pulse",
                                  "legacy":  false
+                             },
+                             {
+                                 "name":  "Hydro Cannon",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -19423,10 +19431,6 @@
         "name":  "Ninetales",
         "fastMoves":  [
                           {
-                              "name":  "Charm",
-                              "legacy":  false
-                          },
-                          {
                               "name":  "Ember",
                               "legacy":  true
                           },
@@ -19437,21 +19441,9 @@
                           {
                               "name":  "Fire Spin",
                               "legacy":  false
-                          },
-                          {
-                              "name":  "Powder Snow",
-                              "legacy":  false
                           }
                       ],
         "chargedMoves":  [
-                             {
-                                 "name":  "Blizzard",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Dazzling Gleam",
-                                 "legacy":  false
-                             },
                              {
                                  "name":  "Fire Blast",
                                  "legacy":  true
@@ -19462,10 +19454,6 @@
                              },
                              {
                                  "name":  "Heat Wave",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Ice Beam",
                                  "legacy":  false
                              },
                              {
@@ -19489,8 +19477,8 @@
                                  "legacy":  false
                              },
                              {
-                                 "name":  "Weather Ball Ice",
-                                 "legacy":  false
+                                 "name":  "Energy Ball",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -19864,6 +19852,10 @@
                           {
                               "name":  "Take Down",
                               "legacy":  false
+                          },
+                          {
+                              "name":  "Mud Slap",
+                              "legacy":  true
                           }
                       ],
         "chargedMoves":  [
@@ -23496,6 +23488,10 @@
                              {
                                  "name":  "Grass Knot",
                                  "legacy":  false
+                             },
+                             {
+                                 "name":  "Frenzy Plant",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -28683,6 +28679,10 @@
                              {
                                  "name":  "Play Rough",
                                  "legacy":  false
+                             },
+                             {
+                                 "name":  "Icy Wind",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -28900,6 +28900,10 @@
                              {
                                  "name":  "Play Rough",
                                  "legacy":  false
+                             },
+                             {
+                                 "name":  "Gigaton Hammer",
+                                 "legacy":  true
                              }
                          ]
     },
@@ -32682,6 +32686,10 @@
                           {
                               "name":  "Snarl",
                               "legacy":  false
+                          },
+                          {
+                              "name":  "Sucker Punch",
+                              "legacy":  true
                           }
                       ],
         "chargedMoves":  [
@@ -32695,10 +32703,6 @@
                              },
                              {
                                  "name":  "Night Shade",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Shadow Ball",
                                  "legacy":  false
                              },
                              {
@@ -33074,6 +33078,88 @@
                              {
                                  "name":  "Moongeist Beam",
                                  "legacy":  true
+                             }
+                         ]
+    },
+    {
+        "name":  "Ninetales (Alola)",
+        "aliases":  [
+                        "Alolan Ninetales",
+                        "Ninetales Alola"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Charm",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Feint Attack",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Powder Snow",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Blizzard",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Dazzling Gleam",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Ice Beam",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Psyshock",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Weather Ball Ice",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Chilling Water",
+                                 "legacy":  true
+                             }
+                         ]
+    },
+    {
+        "name":  "Zoroark (Hisui)",
+        "aliases":  [
+                        "Hisuian Zoroark",
+                        "Zoroark Hisui"
+                    ],
+        "fastMoves":  [
+                          {
+                              "name":  "Shadow Claw",
+                              "legacy":  false
+                          },
+                          {
+                              "name":  "Snarl",
+                              "legacy":  false
+                          }
+                      ],
+        "chargedMoves":  [
+                             {
+                                 "name":  "Flamethrower",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Foul Play",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Shadow Ball",
+                                 "legacy":  false
+                             },
+                             {
+                                 "name":  "Sludge Bomb",
+                                 "legacy":  false
                              }
                          ]
     }

@@ -49,6 +49,30 @@ class PersonalCollectionTest {
         val helmet = costumes.single { it.key.contains("GAME_FORM:PIKACHU_GLASS_HELMET_2026") }
         assertTrue(images.url(helmet)!!.endsWith("/pm25.fGLASS_HELMET_2026.icon.png"))
     }
+    @Test fun legacyEntriesMigrateAndUnchangedEntriesAreReused() {
+        val a = target("Pikachu")
+        val b = target("Eevee")
+        val prefs = PersonalCollection.preferences(context)
+        val legacy = org.json.JSONArray().put(org.json.JSONObject()
+            .put("key", a.key).put("label", a.label)
+            .put("groups", org.json.JSONArray(listOf("SHINY"))))
+        prefs.edit().putString("entries", legacy.toString()).commit()
+        assertEquals(setOf(Group.SHINY), PersonalCollection.read(context).entries.getValue(a.key).groups)
+        PersonalCollection.mark(context, b, Group.NORMAL, true)
+        assertFalse(prefs.contains("entries"))
+        assertEquals(setOf(a.key, b.key), prefs.getStringSet("entry_keys", null))
+        val before = PersonalCollection.read(context).entries
+        val savedA = prefs.getString("entry:" + a.key, null)
+        PersonalCollection.mark(context, b, Group.SHINY, true)
+        val after = PersonalCollection.read(context).entries
+        assertEquals(savedA, prefs.getString("entry:" + a.key, null))
+        assertSame(before[a.key], after[a.key])
+        assertEquals(setOf(Group.NORMAL, Group.SHINY), after.getValue(b.key).groups)
+        PersonalCollection.setEnabled(context, Group.NORMAL, false)
+        assertSame(after, PersonalCollection.read(context).entries)
+        prefs.edit().clear().commit()
+        assertTrue(PersonalCollection.read(context).entries.isEmpty())
+    }
     @Before fun reset() { PersonalCollection.preferences(context).edit().clear().commit() }
     private fun target(name: String) = PersonalCollection.target(context,PokemonScreenData(pokemonName = name))!!
 

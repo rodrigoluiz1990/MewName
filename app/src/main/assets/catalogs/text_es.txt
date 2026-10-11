@@ -112060,3 +112060,12 @@ TEXT: ¡Apareció algo misterioso! ¡Abre Pokémon GO para investigar!
 
 RESOURCE ID: zygarde_tappable_push_notification_description
 TEXT: Abre Pokémon GO para investigar.
+
+RESOURCE ID: move_name_494
+TEXT: Martillo Colosal
+
+RESOURCE ID: move_name_590
+TEXT: Asalto Espadón
+
+RESOURCE ID: move_name_488
+TEXT: Agua Fría

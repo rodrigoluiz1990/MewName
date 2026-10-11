@@ -60,6 +60,12 @@ jobs:
         shell: bash
         run: chmod +x ./gradlew
 
+      - name: Verify catalogs, unit tests and release lint
+        env:
+          MEWNAME_RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: ./gradlew :app:validateCatalogSemantics :app:testDebugUnitTest :app:lintRelease --no-daemon --stacktrace
+
       - name: Prepare release keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

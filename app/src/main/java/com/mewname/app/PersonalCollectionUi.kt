@@ -53,20 +53,46 @@ import com.mewname.app.domain.PersonalCollectionGroup
 import com.mewname.app.domain.PersonalCollectionSnapshot
 import com.mewname.app.domain.PersonalCollectionTarget
 import com.mewname.app.model.PokemonScreenData
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
 @Composable
+private fun rememberCollectionWriter(): (PersonalCollectionTarget, PersonalCollectionGroup, Boolean) -> Unit {
+    val context = LocalContext.current.applicationContext
+    val scope = rememberCoroutineScope()
+    return remember(context, scope) {
+        { target, group, obtained ->
+            scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                // Finish an accepted edit even if navigation disposes this screen.
+                withContext(kotlinx.coroutines.NonCancellable + Dispatchers.IO) {
+                    PersonalCollection.mark(context, target, group, obtained)
+                }
+            }
+            Unit
+        }
+    }
+}
+@Composable
 private fun rememberPersonalCollection(): PersonalCollectionSnapshot {
     val context = LocalContext.current
-    var snapshot by remember(context) { mutableStateOf(PersonalCollection.read(context)) }
-    DisposableEffect(context) {
+    val snapshot by produceState(
+        PersonalCollectionSnapshot(PersonalCollectionGroup.entries.toSet(), emptyMap()), context
+    ) {
         val prefs = PersonalCollection.preferences(context)
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> snapshot = PersonalCollection.read(context) }
+        val changes = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> changes.trySend(Unit) }
         prefs.registerOnSharedPreferenceChangeListener(listener)
-        snapshot = PersonalCollection.read(context)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+        changes.trySend(Unit)
+        try {
+            for (ignored in changes) {
+                value = withContext(Dispatchers.IO) { PersonalCollection.read(context) }
+            }
+        } finally {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+            changes.close()
+        }
     }
     return snapshot
 }
@@ -74,7 +100,7 @@ private fun rememberPersonalCollection(): PersonalCollectionSnapshot {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PersonalCollectionGroups(target: PersonalCollectionTarget, snapshot: PersonalCollectionSnapshot, includeHidden: Boolean = false, groups: Set<PersonalCollectionGroup>? = null) {
-    val context = LocalContext.current
+    val mark = rememberCollectionWriter()
     val obtained = snapshot.entries[target.key]?.groups.orEmpty()
     val visible = groups ?: if (includeHidden) snapshot.enabled + obtained else snapshot.enabled
     FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -82,7 +108,7 @@ private fun PersonalCollectionGroups(target: PersonalCollectionTarget, snapshot:
             val checked = group in obtained
             FilterChip(
                 selected = checked,
-                onClick = { PersonalCollection.mark(context,target,group,!checked) },
+                onClick = { mark(target,group,!checked) },
                 label = { Text(group.shortLabel,fontSize = 11.sp) },
                 leadingIcon = if (checked) { { Icon(Icons.Default.Check,contentDescription = null,modifier = Modifier.size(14.dp)) } } else null,
                 modifier = Modifier.semantics { contentDescription = "${group.label}: ${if (checked) "já coletado" else "não coletado"}. ${target.label}" }
@@ -93,6 +119,7 @@ private fun PersonalCollectionGroups(target: PersonalCollectionTarget, snapshot:
 
 @Composable
 internal fun PersonalCollectionReview(data: PokemonScreenData) {
+    val mark = rememberCollectionWriter()
     val context = LocalContext.current
     val snapshot = rememberPersonalCollection()
     val target = remember(data.pokemonName,data.uniqueForm,data.unownLetter,data.vivillonPattern) { PersonalCollection.target(context,data) }
@@ -109,7 +136,7 @@ internal fun PersonalCollectionReview(data: PokemonScreenData) {
             visibleGroups.forEach { group ->
                 PersonalCollectionIcon(group,group in obtained,target != null,
                     target?.label ?: "Selecione o Pokémon e sua forma") {
-                    target?.let { PersonalCollection.mark(context,it,group,group !in obtained) }
+                    target?.let { mark(it,group,group !in obtained) }
                 }
             }
         }
@@ -344,6 +371,7 @@ internal fun PersonalCollectionScreen(
     panel: Boolean = false,
     registerBackAction: ((() -> Unit) -> Unit)? = null
 ) {
+    val mark = rememberCollectionWriter()
     val context = LocalContext.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
@@ -422,7 +450,7 @@ internal fun PersonalCollectionScreen(
                             AppSectionCard(Modifier.fillMaxWidth().combinedClickable(
                                 onClick = {
                                     keyboard?.hide(); focus.clearFocus()
-                                    PersonalCollection.mark(context, target, quickGroup, !obtained)
+                                    mark( target, quickGroup, !obtained)
                                 }, onLongClick = { keyboard?.hide(); focus.clearFocus(); selectedDex = entry.dex }
                             ).semantics {
                                 contentDescription = "${target.label}, ${quickGroup.label}: ${if (obtained) "coletado" else "não coletado"}"
@@ -482,14 +510,14 @@ internal fun PersonalCollectionScreen(
                             gridItems(groups, key = { target.key + it.name }) { group ->
                                 val obtained = group in snapshot.entries[target.key]?.groups.orEmpty()
                                 AppSectionCard(Modifier.fillMaxWidth().clickable {
-                                    PersonalCollection.mark(context, target, group, !obtained)
+                                    mark( target, group, !obtained)
                                 }.semantics {
                                     contentDescription = "${target.label}, ${group.label}: ${if (obtained) "coletado" else "não coletado"}"
                                     toggleableState = if (obtained) ToggleableState.On else ToggleableState.Off
                                 }) {
                                     Column(Modifier.fillMaxWidth().padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                         PersonalCollectionIcon(group, obtained, true, target.label) {
-                                            PersonalCollection.mark(context, target, group, !obtained)
+                                            mark( target, group, !obtained)
                                         }
                                         PersonalCollectionPortrait(target, images, group, silhouette = !obtained)
                                         Text(group.label, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall,
@@ -507,8 +535,8 @@ internal fun PersonalCollectionScreen(
                             gridItems(costumes, key = { "costume:" + it.key }) { target ->
                                 val obtained = snapshot.entries[target.key]?.groups.orEmpty()
                                 AppSectionCard(Modifier.fillMaxWidth().clickable {
-                                    if (obtained.isEmpty()) PersonalCollection.mark(context, target, PersonalCollectionGroup.NORMAL, true)
-                                    else obtained.forEach { PersonalCollection.mark(context, target, it, false) }
+                                    if (obtained.isEmpty()) mark( target, PersonalCollectionGroup.NORMAL, true)
+                                    else obtained.forEach { mark( target, it, false) }
                                 }.semantics {
                                     contentDescription = "${target.label}: ${if (obtained.isEmpty()) "não coletado" else "coletado"}"
                                     toggleableState = if (obtained.isEmpty()) ToggleableState.Off else ToggleableState.On

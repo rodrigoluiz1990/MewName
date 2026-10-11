@@ -7,7 +7,6 @@ import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.model.PokemonScreenData
 import com.mewname.app.ocr.OcrEngine
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 data class ReviewOcrResult(
@@ -39,7 +38,7 @@ internal class AndroidReviewOcrPipeline(
             ocrEngine.extract(context, uri)
         }
         val parsed = withTimeout(25_000L) {
-            withContext(Dispatchers.Default) {
+            kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
                 parser.parse(context, ocrResult, onStatusChange)
             }
         }

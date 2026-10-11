@@ -3,7 +3,7 @@ package com.mewname.app
 import android.content.Context
 import android.graphics.Rect
 import androidx.test.core.app.ApplicationProvider
-import com.mewname.app.domain.OcrPokemonParser
+import com.mewname.app.domain.OcrPokemonNameReader
 import com.mewname.app.domain.PvpRankCalculator
 import com.mewname.app.ocr.OcrTextLine
 import org.junit.Assert.*
@@ -41,12 +41,11 @@ class CpIvEvidenceTest {
         assertEquals(0, calculator.resolveIvEvidence(context, "Arcanine", cp, hp, 1, 15, 12, 20.0).matches)
     }
     private fun name(title: String, family: String?): String? {
-        val parser = OcrPokemonParser()
-        val method = parser.javaClass.getDeclaredMethod("inferDetailPokemonName", Context::class.java, List::class.java, Rect::class.java, String::class.java).apply { isAccessible = true }
+        val parser = OcrPokemonNameReader()
         val lines = listOf(OcrTextLine(title, Rect(300, 1000, 800, 1070)),
             OcrTextLine("100 / 100 PS", Rect(420, 1120, 650, 1160)),
             OcrTextLine("DOCES DE BULBASAUR", Rect(600, 1480, 970, 1540)))
-        return method.invoke(parser, context, lines, Rect(0,0,1080,2400), family) as String?
+        return parser.inferDetailPokemonName(context, lines, Rect(0,0,1080,2400), family)
     }
     @Test fun speciesTitleBeatsCandyFamilyAndNicknameDoesNotBecomeEvolution() {
         assertEquals("Venusaur", name("Venusaur", "Bulbasaur"))
@@ -55,11 +54,10 @@ class CpIvEvidenceTest {
         assertEquals("Venusaur", name("★FE⁹⁸Venusaur", "Bulbasaur"))
     }
     @Test fun candyReadsPortugueseEnglishAndSplitLabelsOutsideOldCrop() {
-        val parser = OcrPokemonParser()
-        val method = parser.javaClass.getDeclaredMethod("extractCandyFamilyName", Context::class.java, List::class.java, Rect::class.java, String::class.java).apply { isAccessible = true }
+        val parser = OcrPokemonNameReader()
         for (label in listOf("DOCES DE BULBASAUR", "BULBASAUR CANDY", "CARAMELOS BULBASAUR", "DOCES GG DE BULBASAUR")) {
             val lines = listOf(OcrTextLine(label, Rect(650, 1840, 1000, 1880)))
-            val result = method.invoke(parser, context, lines, Rect(0,0,1080,2400), null) as Pair<*,*>
+            val result = parser.extractCandyFamilyName(context, lines, Rect(0,0,1080,2400), null)
             assertEquals(label, "Bulbasaur", result.first)
         }
     }
@@ -87,11 +85,9 @@ class CpIvEvidenceTest {
         assertNull(name("Meu favorito", null))
     }
     @Test fun splitCandyLabelsRespectTheirColumnAndDoNotAbsorbOtherFields() {
-        val parser = OcrPokemonParser()
-        val method = parser.javaClass.getDeclaredMethod("extractCandyFamilyName", Context::class.java,
-            List::class.java, Rect::class.java, String::class.java).apply { isAccessible = true }
-        fun family(lines: List<OcrTextLine>): String? = (method.invoke(parser, context, lines,
-            Rect(0,0,1080,2400), null) as Pair<*,*>).first as String?
+        val parser = OcrPokemonNameReader()
+        fun family(lines: List<OcrTextLine>): String? = parser.extractCandyFamilyName(context, lines,
+            Rect(0,0,1080,2400), null).first
         fun line(text: String, y: Int) = OcrTextLine(text, Rect(600,y,920,y+35))
         assertNull(family(listOf(line("DOCES DE",1500))))
         assertEquals("Bulbasaur", family(listOf(line("DOCES DE",1500), line("BULBASAUR",1540))))

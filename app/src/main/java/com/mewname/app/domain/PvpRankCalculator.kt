@@ -55,7 +55,11 @@ class PvpRankCalculator {
     private var baseStatsRoot: JSONObject? = null
     @Volatile
     private var canonicalNameByAlias: Map<String, String>? = null
-    private val rankTableCache = mutableMapOf<String, RankTable>()
+    // Nine species across all four leagues (temporary capacity for the Eevee family). Each table contains at most 4,096 IVs.
+    // Access order requires locking reads as well as writes (see getRankTable).
+    private val rankTableCache = object : LinkedHashMap<String, RankTable>(36, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, RankTable>?): Boolean = size > 36
+    }
 
     data class CpIvEvidence(val matches: Int, val attack: Int?, val defense: Int?, val stamina: Int?, val level: Double?)
 
@@ -319,7 +323,7 @@ class PvpRankCalculator {
             )
         }
 
-        val rank = rankTable.productsDescending.indexOf(currentBest.product) + 1
+        val rank = rankInDescendingProducts(rankTable.productsDescending, currentBest.product)
         return PvpLeagueRankInfo(
             league = league,
             pokemonName = pokemonName,
@@ -507,6 +511,8 @@ class PvpRankCalculator {
 
         val table = RankTable(byIv = byIv, productsDescending = products)
         synchronized(rankTableCache) {
+            // Another worker may have filled this key while we calculated outside the lock.
+            rankTableCache[cacheKey]?.let { return it }
             rankTableCache[cacheKey] = table
         }
         return table
@@ -524,6 +530,8 @@ class PvpRankCalculator {
             val canonicalName = resolveCanonicalPokemonName(context, name)
             jsonObject.optJSONObject(normalizeKey(canonicalName))
                 ?: jsonObject.optJSONObject(normalizeKey(name))
+        } catch (e: java.util.concurrent.CancellationException) {
+            throw e
         } catch (e: Exception) {
             CatalogLoadFeedback.reportFailure(CatalogLoadArea.PVP, e)
             null
@@ -649,4 +657,15 @@ class PvpRankCalculator {
             level.toString().replace(".", ",")
         }
     }
+}
+
+/** First equal product preserves competition ranking for ties. */
+internal fun rankInDescendingProducts(products: List<Double>, product: Double): Int {
+    var low = 0
+    var high = products.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (products[mid] > product) low = mid + 1 else high = mid
+    }
+    return if (low < products.size && products[low] == product) low + 1 else 0
 }

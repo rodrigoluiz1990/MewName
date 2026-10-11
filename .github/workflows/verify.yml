@@ -14,9 +14,13 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
       - name: Validate catalogs
         run: ./gradlew :app:validateCatalogSemantics --no-daemon
       - name: Compile debug app
         run: ./gradlew :app:compileDebugKotlin --no-daemon
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest --no-daemon
+      - name: Run Android Lint
+        run: ./gradlew :app:lintDebug --no-daemon

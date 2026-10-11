@@ -309,22 +309,22 @@ private fun CalendarEventDetails(event: CalendarEvent, onClose: () -> Unit) {
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
     val locale = when(language) { AppLanguage.PT_BR -> Locale("pt", "BR"); AppLanguage.ES -> Locale("es"); else -> Locale.ENGLISH }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", locale)
-            AppSectionCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AppModalHeader(event.title, onClose = onClose)
-                    Text(event.categoryLabel, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelMedium)
-                    Text(tr("Início: ", "Starts: ", "Inicio: ") + event.start.format(formatter),
-                        Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-                    Text(tr("Fim: ", "Ends: ", "Fin: ") + event.end.format(formatter),
-                        Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-                    event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(tr("Mais detalhes", "More details", "Más detalles"))
-                    } }
-                }
-            }
+    AppSectionCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppModalHeader(event.title, onClose = onClose)
+            Text(event.categoryLabel, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelMedium)
+            Text(tr("Início: ", "Starts: ", "Inicio: ") + event.start.format(formatter),
+                Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            Text(tr("Fim: ", "Ends: ", "Fin: ") + event.end.format(formatter),
+                Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }, modifier = Modifier.fillMaxWidth()) {
+                Text(tr("Mais detalhes", "More details", "Más detalles"))
+            } }
+        }
+    }
 
 }
 

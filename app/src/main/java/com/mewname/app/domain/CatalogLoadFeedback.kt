@@ -22,6 +22,12 @@ object CatalogLoadFeedback {
         }
     }
 
+    fun ocrTimeoutMessage(language: AppLanguage): String = when (language) {
+        AppLanguage.PT_BR -> "A leitura da imagem demorou demais. Tente novamente com uma captura menor."
+        AppLanguage.EN -> "Reading the image took too long. Try again with a smaller screenshot."
+        AppLanguage.ES -> "La lectura de la imagen tardo demasiado. Intenta de nuevo con una captura mas pequena."
+    }
+
     fun reportFailure(area: CatalogLoadArea, exception: Throwable) {
         Log.e("MewName${area.name}", "Failed to load ${area.name.lowercase()} data", exception)
     }

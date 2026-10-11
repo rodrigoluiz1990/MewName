@@ -3,6 +3,10 @@ package com.mewname.app
 import android.content.Context
 import android.net.Uri
 import android.os.Looper
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withTimeout
+import com.mewname.app.domain.AppLanguage
+import com.mewname.app.domain.CatalogLoadFeedback
 import androidx.test.core.app.ApplicationProvider
 import com.mewname.app.model.NamingBlock
 import com.mewname.app.model.NamingBlockType
@@ -77,6 +81,83 @@ class MainViewModelReviewFlowTest {
         assertEquals("Zamazenta2800", generatedName(appliedState))
     }
 
+    @Test
+    fun `timeout explains the failure and allows a subsequent successful read`() {
+        var attempts = 0
+        val viewModel = MainViewModel(object : ReviewOcrPipeline {
+            override suspend fun process(context: Context, uri: Uri, onStatusChange: (String) -> Unit): ReviewOcrResult {
+                if (attempts++ == 0) withTimeout(0L) { awaitCancellation() }
+                return ReviewOcrResult("Pikachu", null, PokemonScreenData(pokemonName = "Pikachu"))
+            }
+        })
+        viewModel.setAppLanguage(context, AppLanguage.PT_BR)
+        viewModel.processImage(context, Uri.parse("content://mewname/timeout"))
+        val failed = awaitProcessed(viewModel)
+        assertEquals(CatalogLoadFeedback.ocrTimeoutMessage(AppLanguage.PT_BR), failed.error)
+        assertNull(failed.processingStatusMessage)
+        assertNull(failed.pendingReview)
+
+        viewModel.processImage(context, Uri.parse("content://mewname/retry"))
+        val success = awaitProcessed(viewModel)
+        assertEquals("Pikachu", success.parsedData?.pokemonName)
+        assertNull(success.error)
+    }
+
+    @Test
+    fun `voluntary cancellation does not show a timeout error`() {
+        var started = false
+        val viewModel = MainViewModel(object : ReviewOcrPipeline {
+            override suspend fun process(context: Context, uri: Uri, onStatusChange: (String) -> Unit): ReviewOcrResult {
+                started = true
+                awaitCancellation()
+            }
+        })
+        viewModel.processImage(context, Uri.parse("content://mewname/cancel"))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(started)
+        assertTrue(viewModel.uiState.value.isProcessing)
+        viewModel.cancelImageProcessing()
+        shadowOf(Looper.getMainLooper()).idle()
+        val state = viewModel.uiState.value
+        assertEquals(false, state.isProcessing)
+        assertEquals("Processo cancelado.", state.error)
+        assertNull(state.processingStatusMessage)
+        assertNull(state.pendingReview)
+    }
+
+    @Test
+    fun cancelledReadFinishingDoesNotClearTheNewRead() {
+        val releaseCleanup = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var attempts = 0
+        val viewModel = MainViewModel(object : ReviewOcrPipeline {
+            override suspend fun process(context: Context, uri: Uri, onStatusChange: (String) -> Unit): ReviewOcrResult {
+                val attempt = ++attempts
+                try {
+                    awaitCancellation()
+                } finally {
+                    if (attempt == 1) kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                        releaseCleanup.await()
+                        onStatusChange("Old read")
+                    }
+                }
+            }
+        })
+        viewModel.processImage(context, Uri.parse("content://mewname/first"))
+        shadowOf(Looper.getMainLooper()).idle()
+        viewModel.cancelImageProcessing()
+        viewModel.processImage(context, Uri.parse("content://mewname/second"))
+        shadowOf(Looper.getMainLooper()).idle()
+        releaseCleanup.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(viewModel.uiState.value.isProcessing)
+        org.junit.Assert.assertNotEquals("Old read", viewModel.uiState.value.processingStatusMessage)
+        viewModel.processImage(context, Uri.parse("content://mewname/third"))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(2, attempts)
+        viewModel.cancelImageProcessing()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(false, viewModel.uiState.value.isProcessing)
+    }
     private fun configuredViewModel(data: PokemonScreenData): MainViewModel {
         val pipeline = FakeReviewOcrPipeline(data)
         val viewModel = MainViewModel(reviewOcrPipeline = pipeline)

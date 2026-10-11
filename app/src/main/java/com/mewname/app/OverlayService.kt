@@ -5,11 +5,6 @@ import android.content.*
 import android.content.pm.ServiceInfo
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
-import android.media.ImageReader
-import android.media.projection.MediaProjection
-import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -130,11 +125,6 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private var bubbleMenuView: View? = null
     private var profileFeedbackView: View? = null
     private var resultsView: View? = null
-    private var mediaProjection: MediaProjection? = null
-    private var projectionData: Intent? = null
-    private var activeImageReader: ImageReader? = null
-    private var activeVirtualDisplay: VirtualDisplay? = null
-    private var projectionCallbackRegistered = false
     private var isCaptureInProgress = false
     private var closingForPermissionLoss = false
     private var loadingView: View? = null
@@ -145,7 +135,17 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private val serviceJob = kotlinx.coroutines.SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
     private val attachedOverlays = mutableSetOf<View>()
-    private var captureProcessingJob: kotlinx.coroutines.Job? = null
+    private val overlayWindows by lazy {
+        OverlayWindowHost(this, { windowManager }, attachedOverlays, { closingForPermissionLoss }) { reason ->
+            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = reason)
+        }
+    }
+    private val captureSession by lazy {
+        OverlayCaptureSession(this) { reason ->
+            closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = reason)
+        }
+    }
+    private val captureProcessingTask = CurrentReadTask()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val overlayPermissionWatchdog = object : Runnable {
         override fun run() {
@@ -215,8 +215,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             intent?.getParcelableExtra("PROJECTION_DATA")
         }
         if (newProjectionData != null) {
-            projectionData = newProjectionData
-            initializeProjectionSession()
+            captureSession.initialize(newProjectionData)
             launchPokemonGo()
         }
         
@@ -248,46 +247,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
     }
 
-    private fun addOverlayView(view: View, params: WindowManager.LayoutParams): Boolean {
-        if (closingForPermissionLoss) {
-            (view as? ComposeView)?.disposeComposition()
-            return false
-        }
-        if (!Settings.canDrawOverlays(this)) {
-            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Permissao de sobreposicao revogada")
-            return false
-        }
-        return try {
-            windowManager.addView(view, params)
-            attachedOverlays.add(view)
-            true
-        } catch (error: WindowManager.BadTokenException) {
-            Log.w(TAG, "Android recusou uma janela de sobreposicao", error)
-            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
-            false
-        } catch (error: SecurityException) {
-            Log.w(TAG, "Android recusou uma janela de sobreposicao", error)
-            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
-            false
-        }
-    }
+    private fun addOverlayView(view: View, params: WindowManager.LayoutParams): Boolean =
+        overlayWindows.addOverlayView(view, params)
 
-    private fun updateOverlayViewLayout(view: View?, params: WindowManager.LayoutParams): Boolean {
-        view ?: return false
-        if (closingForPermissionLoss) return false
-        return try {
-            windowManager.updateViewLayout(view, params)
-            true
-        } catch (error: WindowManager.BadTokenException) {
-            Log.w(TAG, "Android recusou a atualizacao da sobreposicao", error)
-            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
-            false
-        } catch (error: SecurityException) {
-            Log.w(TAG, "Android recusou a atualizacao da sobreposicao", error)
-            closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = "Android recusou a sobreposicao")
-            false
-        }
-    }
+    private fun updateOverlayViewLayout(view: View?, params: WindowManager.LayoutParams): Boolean =
+        overlayWindows.updateOverlayViewLayout(view, params)
 
     private fun closeBubbleForPermissionLoss(overlayPermissionLost: Boolean, reason: String) {
         if (closingForPermissionLoss) return
@@ -697,17 +661,6 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         bubble.isEnabled = !hidden
     }
 
-    private fun drainPendingCaptureFrames(reader: ImageReader) {
-        while (true) {
-            val staleImage = try {
-                reader.acquireLatestImage()
-            } catch (_: Exception) {
-                null
-            } ?: break
-            staleImage.close()
-        }
-    }
-
     private fun launchPokemonGo() {
         val directIntent = packageManager.getLaunchIntentForPackage("com.nianticlabs.pokemongo")
         if (directIntent != null) {
@@ -754,7 +707,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             return
         }
 
-        val reader = activeImageReader ?: run {
+        val reader = captureSession.imageReader ?: run {
             closeBubbleForPermissionLoss(
                 overlayPermissionLost = false,
                 reason = "Sessao de captura indisponivel"
@@ -765,7 +718,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val captureStarted = android.os.SystemClock.elapsedRealtime()
         isCaptureInProgress = true
         removeResultsOverlay()
-        drainPendingCaptureFrames(reader)
+        captureSession.drainPendingFrames(reader)
         setBubbleHiddenForCapture(true)
         mainHandler.postDelayed({
             val image = try {
@@ -783,18 +736,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
 
             try {
-                val width = image.width
-                val height = image.height
-                val planes = image.planes
-                val buffer = planes[0].buffer
-                val pixelStride = planes[0].pixelStride
-                val rowStride = planes[0].rowStride
-                val rowPadding = rowStride - pixelStride * width
-
-                val rawBitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888)
-                rawBitmap.copyPixelsFromBuffer(buffer)
-                val bitmap = Bitmap.createBitmap(rawBitmap, 0, 0, width, height)
-                rawBitmap.recycle()
+                val bitmap = captureSession.copyBitmap(image)
 
                 processCapturedBitmap(bitmap, captureStarted)
             } catch (e: Exception) {
@@ -806,51 +748,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
         }, CAPTURE_AFTER_HIDE_DELAY_MS)
     }
-    private fun initializeProjectionSession() {
-        val data = projectionData ?: return
-        if (mediaProjection != null && activeVirtualDisplay != null && activeImageReader != null) return
-
-        cleanupCaptureResources(stopProjection = true)
-        val mpManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        try {
-            val projection = mpManager.getMediaProjection(Activity.RESULT_OK, data)
-            mediaProjection = projection
-
-            if (projection != null && !projectionCallbackRegistered) {
-                projection.registerCallback(object : MediaProjection.Callback() {
-                    override fun onStop() {
-                        closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = "Autorizacao de captura encerrada pelo Android")
-                    }
-                }, Handler(Looper.getMainLooper()))
-                projectionCallbackRegistered = true
-            }
-
-            val metrics = resources.displayMetrics
-            val width = metrics.widthPixels
-            val height = metrics.heightPixels
-            val density = metrics.densityDpi
-            val imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
-            activeImageReader = imageReader
-            activeVirtualDisplay = projection?.createVirtualDisplay(
-                "CaptureSession",
-                width,
-                height,
-                density,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                imageReader.surface,
-                null,
-                null
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Falha ao iniciar sessao de MediaProjection", e)
-            closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = "Falha ao iniciar a captura")
-        }
-    }
-
     private fun processCapturedBitmap(bitmap: Bitmap, captureStarted: Long) {
-        showLoadingOverlay()
-        updateLoadingStatus(detail = "Extraindo texto da imagem")
-        captureProcessingJob = serviceScope.launch {
+        captureProcessingTask.launch(serviceScope) { request ->
+            showLoadingOverlay()
+            updateLoadingStatus(request, detail = "Extraindo texto da imagem")
             val started = android.os.SystemClock.elapsedRealtime()
             val readId = java.util.UUID.randomUUID().toString().take(8)
             val timings = mutableListOf<String>()
@@ -868,14 +769,16 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             runCatching {
                 var ocrResult = withTimeoutOrNull(14000L) { ocrEngine.extractText(bitmap) }
                     ?: throw IllegalStateException("Tempo limite ao extrair texto da imagem")
+                request.ensureCurrent()
                 Log.d(TAG, "OCR text: ${android.os.SystemClock.elapsedRealtime() - started}ms; lines=${ocrResult.blocks.sumOf { it.lines.size }}")
                 checkpoint("OCR principal")
-                updateLoadingStatus(detail = "Identificando tela e batalha")
+                updateLoadingStatus(request, detail = "Identificando tela e batalha")
                 val readTarget = kotlinx.coroutines.withContext(Dispatchers.IO) {
                     com.mewname.app.domain.BubbleScreenRouter.route(this@OverlayService, ocrResult) { stage, millis ->
                         Log.d(TAG, "Read[$readId] Route/$stage: ${millis}ms")
                     }
                 }
+                request.ensureCurrent()
                 checkpoint("Roteamento")
                 Log.d(TAG, "Read[$readId] target=${readTarget.javaClass.simpleName}")
                 if (readTarget == com.mewname.app.domain.BubbleScreenRouter.Target.Trainer) {
@@ -922,19 +825,22 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 ocrResult = withTimeoutOrNull(14_000L) {
                     ocrEngine.refineSizeBadges(ocrResult) { sizeRetries++ }
                 } ?: throw IllegalStateException("Tempo limite ao confirmar tamanho")
+                request.ensureCurrent()
                 checkpoint("Tamanho ($sizeRetries recortes)")
                 var stageName = "Preparando leitura"
                 val parsed = withTimeoutOrNull(25_000L) {
                     kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
                         parser.parse(this@OverlayService, ocrResult) { step ->
+                            request.ensureCurrent()
                             checkpoint(stageName)
                             stageName = step
-                            updateLoadingStatus(detail = step)
+                            updateLoadingStatus(request, detail = step)
                         }
                     }
                 } ?: throw IllegalStateException("Tempo limite ao analisar os dados da imagem")
+                request.ensureCurrent()
                 checkpoint(stageName)
-                updateLoadingStatus(detail = "Montando nomes sugeridos")
+                updateLoadingStatus(request, detail = "Montando nomes sugeridos")
                 val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
                 lastCapturedData = merged
                 val savedConfigs = loadSavedConfigs()
@@ -989,17 +895,18 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 removeLoadingOverlay()
             }.onFailure { error ->
                 outcome = if (error is CancellationException) "cancelled" else "error"
-                if (error !is CancellationException) {
+                if (request.isCurrent && error !is CancellationException) {
                     Log.e(TAG, "Falha no OCR da sobreposição", error)
                     Toast.makeText(this@OverlayService, "Nao foi possivel ler a imagem.", Toast.LENGTH_SHORT).show()
                 }
             }.also {
                 checkpoint("Finalizacao ($outcome)")
                 Log.d(TAG, "Read[$readId] total=${android.os.SystemClock.elapsedRealtime() - captureStarted}ms; outcome=$outcome")
-                // Always release the overlay after errors and cancellations.
-                captureProcessingJob = null
-                isCaptureInProgress = false
-                removeLoadingOverlay()
+                // An older read must never remove the next read's loading window.
+                if (request.isCurrent) {
+                    isCaptureInProgress = false
+                    removeLoadingOverlay()
+                }
             }
         }
     }
@@ -1040,55 +947,66 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     }
     private fun showLoadingOverlay() {
         removeLoadingOverlay()
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).roundToInt()
+        // A compact, non-modal window keeps the rest of the screen interactive.
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
+            minOf(dp(280), (resources.displayMetrics.widthPixels - dp(32)).coerceAtLeast(1)),
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
-        )
-
+        ).apply { gravity = Gravity.CENTER }
+        val ink = Color.rgb(39, 53, 73)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.argb(110, 0, 0, 0))
+            setPadding(dp(20), dp(20), dp(20), dp(8))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.argb(210, 255, 255, 255), Color.argb(160, 228, 238, 255))
+            ).apply {
+                cornerRadius = dp(24).toFloat()
+                setStroke(dp(1).coerceAtLeast(1), Color.argb(220, 255, 255, 255))
+            }
             addView(ProgressBar(this@OverlayService).apply {
                 isIndeterminate = true
-            })
+                indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(80, 105, 158))
+            }, LinearLayout.LayoutParams(dp(28), dp(28)))
             addView(TextView(this@OverlayService).apply {
                 text = "Analisando imagem"
-                setTextColor(Color.WHITE)
-                textSize = 18f
+                setTextColor(ink)
+                textSize = 17f
                 setTypeface(typeface, Typeface.BOLD)
-                setPadding(0, 24, 0, 8)
+                setPadding(0, dp(12), 0, dp(4))
                 gravity = Gravity.CENTER
                 loadingTitleView = this
             })
             addView(TextView(this@OverlayService).apply {
                 text = "Preparando análise"
-                setTextColor(Color.WHITE)
-                textSize = 14f
+                setTextColor(ink)
+                textSize = 13f
                 gravity = Gravity.CENTER
+                maxLines = 2
+                ellipsize = android.text.TextUtils.TruncateAt.END
                 loadingDetailView = this
             })
+            addView(TextView(this@OverlayService).apply {
+                text = "Cancelar"
+                setTextColor(ink)
+                textSize = 13f
+                gravity = Gravity.CENTER
+                minHeight = dp(48)
+                minWidth = dp(96)
+                setPadding(dp(12), dp(4), dp(12), 0)
+                isClickable = true
+                setOnClickListener { cancelCaptureProcessing() }
+            })
         }
-
-        layout.addView(TextView(this).apply {
-            text = "Cancelar"
-            setTextColor(Color.LTGRAY)
-            textSize = 13f
-            gravity = Gravity.CENTER
-            setPadding(0, 16, 0, 0)
-            isClickable = true
-            setOnClickListener { cancelCaptureProcessing() }
-        })
-        addOverlayView(layout, params)
-        loadingView = layout
+        if (addOverlayView(layout, params)) loadingView = layout
     }
-
     private fun cancelCaptureProcessing() {
-        captureProcessingJob?.cancel()
-        captureProcessingJob = null
+        captureProcessingTask.cancel()
         isCaptureInProgress = false
         removeLoadingOverlay()
         Toast.makeText(this, "Processo cancelado.", Toast.LENGTH_SHORT).show()
@@ -1103,34 +1021,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         loadingDetailView = null
     }
 
-    private fun updateLoadingStatus(title: String? = null, detail: String) {
+    private fun updateLoadingStatus(request: CurrentReadTask.Request, title: String? = null, detail: String) {
         mainHandler.post {
+            if (!request.isCurrent) return@post
             title?.let { loadingTitleView?.text = it }
             loadingDetailView?.text = detail
-        }
-    }
-
-    private fun cleanupCaptureResources(stopProjection: Boolean = true) {
-        try {
-            activeVirtualDisplay?.release()
-        } catch (_: Exception) {
-        }
-        activeVirtualDisplay = null
-
-        try {
-            activeImageReader?.setOnImageAvailableListener(null, null)
-            activeImageReader?.close()
-        } catch (_: Exception) {
-        }
-        activeImageReader = null
-
-        if (stopProjection) {
-            try {
-                mediaProjection?.stop()
-            } catch (_: Exception) {
-            }
-            mediaProjection = null
-            projectionCallbackRegistered = false
         }
     }
 
@@ -1147,131 +1042,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         onOpenReview: (() -> Unit)? = null
     ) {
         removeResultsOverlay()
-
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_DIM_BEHIND,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.CENTER
-            dimAmount = 0.6f
-        }
-
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 34f
-                setColor(Color.argb(208, 255, 255, 255))
-            }
-            setPadding(60, 60, 60, 60)
-            elevation = 40f
-        }
-
-        val titleRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, 24)
-        }
-        val title = TextView(this).apply {
-            text = "Nomes sugeridos"
-            gravity = Gravity.CENTER
-            textSize = 18f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.BLACK)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        titleRow.addView(title)
-        layout.addView(titleRow)
-
-        results.forEach { (configName, generatedName) ->
-            val btnLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(0, 20, 0, 20)
-                isClickable = true
-                setBackgroundResource(android.R.drawable.list_selector_background)
-                setOnClickListener {
-                    copyToClipboard(generatedName)
-                    Toast.makeText(this@OverlayService, "Copiado!", Toast.LENGTH_SHORT).show()
-                    detachOverlay(layout)
-                    resultsView = null
-                }
-            }
-            
-            val label = TextView(this).apply {
-                text = configName
-                textSize = 12f
-                setTextColor(Color.GRAY)
-            }
-            val value = TextView(this).apply {
-                text = generatedName
-                textSize = 20f
-                setTypeface(null, Typeface.BOLD)
-                setTextColor(Color.BLACK)
-            }
-            
-            btnLayout.addView(label)
-            btnLayout.addView(value)
-            layout.addView(btnLayout)
-            
-            val divider = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2)
-                setBackgroundColor(Color.LTGRAY)
-            }
-            layout.addView(divider)
-        }
-
-        val actionsRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 24, 0, 0)
-        }
-
-        fun actionButton(label: String, isLast: Boolean = false, onClick: () -> Unit): TextView {
-            return TextView(this).apply {
-                text = label
-                gravity = Gravity.CENTER
-                textSize = 12f
-                setTypeface(typeface, Typeface.BOLD)
-                setTextColor(Color.rgb(48, 63, 84))
-                minHeight = 0
-                minimumHeight = 0
-                minimumWidth = 0
-                setPadding(14, 22, 14, 22)
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    cornerRadius = 28f
-                    setColor(Color.argb(245, 248, 250, 255))
-                    setStroke(2, Color.rgb(205, 214, 226))
-                }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    marginEnd = if (isLast) 0 else 8
-                }
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { onClick() }
-            }
-        }
-
-        if (onOpenReview != null) {
-            actionsRow.addView(
-                actionButton("Revisar dados") { onOpenReview() }
-            )
-        }
-
-        actionsRow.addView(
-            actionButton("Fechar", isLast = true) {
-                detachOverlay(layout)
-                resultsView = null
-            }
-        )
-
-        layout.addView(actionsRow)
-
-        addOverlayView(layout, params)
-        resultsView = layout
+        val presenter = OverlayResultsPresenter(this)
+        val layout = presenter.createView(results, ::copyToClipboard, ::removeResultsOverlay, onOpenReview)
+        if (addOverlayView(layout, presenter.layoutParams())) resultsView = layout
     }
 
     private fun showSavedFiltersOverlay(screen: com.mewname.app.domain.FilterScreen) {
@@ -2270,31 +2043,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = "Permissao de captura indisponivel")
     }
 
-    private fun detachOverlay(view: View) {
-        try {
-            (view as? ComposeView)?.disposeComposition()
-        } catch (error: Exception) {
-            Log.w(TAG, "Falha ao descartar composicao da sobreposicao", error)
-        }
-        try {
-            windowManager.removeViewImmediate(view)
-            attachedOverlays.remove(view)
-        } catch (error: IllegalArgumentException) {
-            // Android may already have detached the window after permission revocation.
-            attachedOverlays.remove(view)
-            Log.d(TAG, "Janela de sobreposicao ja removida", error)
-        } catch (error: Exception) {
-            Log.e(TAG, "Falha ao remover janela de sobreposicao", error)
-        }
-    }
+    private fun detachOverlay(view: View) = overlayWindows.detachOverlay(view)
 
     private fun shutdownOverlays() {
         closingForPermissionLoss = true
         bubbleActive.value = false
         mainHandler.removeCallbacksAndMessages(null)
+        captureProcessingTask.cancel()
         serviceJob.cancel()
-        captureProcessingJob?.cancel()
-        captureProcessingJob = null
         isCaptureInProgress = false
         // Dispose Compose first so its popup windows are dismissed with their owner.
         (attachedOverlays.toList() + listOfNotNull(resultsView, loadingView, dismissTargetView, floatingButton))
@@ -2307,7 +2063,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         profileFeedbackView = null
         loadingTitleView = null
         loadingDetailView = null
-        cleanupCaptureResources()
+        captureSession.close()
     }
 
     private fun stopOverlayService() {

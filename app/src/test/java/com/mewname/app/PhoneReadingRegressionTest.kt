@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import com.mewname.app.domain.OcrPokemonParser
+import com.mewname.app.domain.OcrIvBarReader
 import com.mewname.app.ocr.OcrTextLine
 import com.mewname.app.ocr.confirmedSizeBadge
 import com.mewname.app.ocr.sizeBadgeCrop
@@ -17,6 +18,45 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class PhoneReadingRegressionTest {
+    @Test fun compressedExifAppraisalPreservesIvsAndRecognizesNoisyCpPrefix() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val file = java.io.File(context.cacheDir, "ponyta-exif.jpg")
+        try {
+            javaClass.getResourceAsStream("/ocr/ponyta-exif.jpg")!!.use { input ->
+                file.outputStream().use { input.copyTo(it) }
+            }
+            val bitmap = org.robolectric.util.ReflectionHelpers.callInstanceMethod<Bitmap>(
+                com.mewname.app.ocr.OcrEngine(), "loadBitmap",
+                org.robolectric.util.ReflectionHelpers.ClassParameter.from(android.content.Context::class.java, context),
+                org.robolectric.util.ReflectionHelpers.ClassParameter.from(android.net.Uri::class.java, android.net.Uri.fromFile(file)))
+            try {
+                assertEquals(1220, bitmap.width)
+                assertEquals(2712, bitmap.height)
+                val json = JSONArray(javaClass.getResourceAsStream("/ocr/ponyta-exif.json")!!.bufferedReader().use { it.readText() })
+                val lines = List(json.length()) { index ->
+                    val item = json.getJSONObject(index)
+                    val rect = item.getJSONArray("rect")
+                    OcrTextLine(item.getString("text"), Rect(rect.getInt(0), rect.getInt(1), rect.getInt(2), rect.getInt(3)))
+                }
+                val text = lines.joinToString("\n") { it.text }
+                val data = OcrPokemonParser().parse(context, com.mewname.app.ocr.OcrResult(text, bitmap,
+                    listOf(com.mewname.app.ocr.OcrTextBlock(text, null, lines))))
+                assertEquals("Ponyta", data.pokemonName)
+                assertEquals(1521, data.cp)
+                assertEquals(listOf(12, 14, 15), listOf(data.attIv, data.defIv, data.staIv))
+                assertTrue(data.isFavorite)
+                assertTrue(data.isLucky)
+            } finally { bitmap.recycle() }
+        } finally { file.delete() }
+    }
+
+    @Test fun noisyCpPrefixIsRejectedOutsideTheTopRegionAndInsideProse() {
+        val bounds = Rect(0, 0, 1220, 2712)
+        val bottom = listOf(OcrTextLine("sC1521", Rect(400, 1800, 700, 1880)))
+        assertNull(com.mewname.app.domain.OcrNumericReader.extractCp("SC1521", bottom, bounds))
+        val prose = listOf(OcrTextLine("Pokemon sC1521", Rect(400, 100, 700, 180)))
+        assertNull(com.mewname.app.domain.OcrNumericReader.extractCp("POKEMON SC1521", prose, bounds))
+    }
     private fun verifyBars(sample: String, expected: List<Int>, width: Int, height: Int) {
         val original = javaClass.getResourceAsStream("/ocr/$sample.png")!!.use { BitmapFactory.decodeStream(it) }!!
         val bitmap = Bitmap.createScaledBitmap(original, width, height, true)
@@ -32,12 +72,8 @@ class PhoneReadingRegressionTest {
                 (rect.getInt(0) * sx).toInt(), (rect.getInt(1) * sy).toInt(),
                 (rect.getInt(2) * sx).toInt(), (rect.getInt(3) * sy).toInt()))
         }
-        val method = OcrPokemonParser::class.java.getDeclaredMethod("detectIvBars", Bitmap::class.java, List::class.java)
-        method.isAccessible = true
-        val actual = method.invoke(OcrPokemonParser(), bitmap, lines)
-        val values = listOf("attack", "defense", "stamina").map {
-            actual.javaClass.getDeclaredField(it).apply { isAccessible = true }.get(actual)
-        }
+        val actual = OcrIvBarReader().detectIvBars(bitmap, lines)
+        val values = listOf(actual.attack, actual.defense, actual.stamina)
         assertEquals(sample + " " + width + "x" + height, expected, values)
         if (bitmap !== original) bitmap.recycle()
         original.recycle()

@@ -4,7 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Rect
-import com.mewname.app.domain.OcrPokemonParser
+import com.mewname.app.domain.OcrIvBarReader
 import com.mewname.app.ocr.OcrTextLine
 import org.json.JSONArray
 import org.junit.Assert.*
@@ -37,47 +37,45 @@ class IvReadOptimizationTest {
         return bitmap to lines
     }
 
-    private fun read(parser: OcrPokemonParser, bitmap: Bitmap, lines: List<OcrTextLine>): List<Any?> {
-        val method = OcrPokemonParser::class.java.getDeclaredMethod("detectIvBars", Bitmap::class.java, List::class.java)
-            .apply { isAccessible = true }
-        val result = method.invoke(parser, bitmap, lines)
-        return listOf("attack", "defense", "stamina", "attackRatio", "defenseRatio", "staminaRatio",
-            "isReliable", "appraisalPanelRect", "attackBarRect", "defenseBarRect", "staminaBarRect").map {
-            result.javaClass.getDeclaredField(it).apply { isAccessible = true }.get(result)
-        }
+    private fun read(parser: OcrIvBarReader, bitmap: Bitmap, lines: List<OcrTextLine>): List<Any?> {
+        val result = parser.detectIvBars(bitmap, lines)
+        return listOf(result.attack, result.defense, result.stamina,
+            result.attackRatio, result.defenseRatio, result.staminaRatio,
+            result.isReliable, result.appraisalPanelRect, result.attackBarRect,
+            result.defenseBarRect, result.staminaBarRect)
     }
 
     @Test fun cachedGeometryRechecksNewPokemonAndResolution() {
-        val parser = OcrPokemonParser()
+        val parser = OcrIvBarReader()
         for ((width, height) in listOf(1080 to 2400, 1220 to 2712, 1080 to 2400)) {
             for ((name, ivs) in listOf("psyduck-redmi" to listOf(12,15,15),
                 "scatterbug-redmi" to listOf(10,10,10))) {
                 val (bitmap, lines) = sample(name, width, height)
                 try {
-                    val cold = read(OcrPokemonParser(), bitmap, lines)
+                    val cold = read(OcrIvBarReader(), bitmap, lines)
                     assertEquals(ivs, cold.take(3))
                     repeat(2) { assertEquals(cold, read(parser, bitmap, lines)) }
                     // Changing only pixels must invalidate geometry even with identical OCR.
                     for (y in height * 70 / 100 until height * 90 / 100) {
                         for (x in width * 8 / 100 until width * 40 / 100) bitmap.setPixel(x, y, Color.BLACK)
                     }
-                    val changed = read(OcrPokemonParser(), bitmap, lines)
+                    val changed = read(OcrIvBarReader(), bitmap, lines)
                     assertEquals(changed, read(parser, bitmap, lines))
                     assertNotEquals(cold, changed)
-                    assertEquals(read(OcrPokemonParser(), bitmap, emptyList()), read(parser, bitmap, emptyList()))
+                    assertEquals(read(OcrIvBarReader(), bitmap, emptyList()), read(parser, bitmap, emptyList()))
                 } finally { bitmap.recycle() }
             }
         }
     }
 
     @Test fun panelDisappearingCannotReusePreviousIvs() {
-        val parser = OcrPokemonParser()
+        val parser = OcrIvBarReader()
         val (bitmap, lines) = sample("psyduck-redmi", 1080, 2400)
         try {
             assertEquals(listOf(12,15,15), read(parser, bitmap, lines).take(3))
             bitmap.eraseColor(Color.BLACK)
             val result = read(parser, bitmap, emptyList())
-            assertEquals(read(OcrPokemonParser(), bitmap, emptyList()), result)
+            assertEquals(read(OcrIvBarReader(), bitmap, emptyList()), result)
             assertEquals(false, result[6])
         } finally { bitmap.recycle() }
     }

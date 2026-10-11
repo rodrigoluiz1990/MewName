@@ -1,19 +1,19 @@
-Versão 1.0.29
+Versão 1.0.30
 
-- Pokédex em grade com blocos individuais, sprites usados pela coleção e filtros recolhidos em um botão.
-- Coleções disponíveis em sobreposição, com painel ajustável pela barra superior, título centralizado e interação com o jogo fora do painel.
-- Atalhos da sobreposição reorganizáveis por arrastar no perfil do treinador; menu em arcos respeitando a ordem escolhida.
-- Leitura durante a captura para consultar combinações possíveis de IV pelo PC, com filtro de nível e campos compactos.
-- Leitura das barras de IV otimizada: pixels em lote, menos buscas redundantes e reaproveitamento de geometria validado em cada captura.
-- OCR reutilizado entre leituras, cálculo de ranking PvP otimizado e diagnósticos de tempo por etapa.
-- Melhor identificação de nome e família sem avaliação aberta, usando o título e os doces, inclusive rótulos separados em linhas.
-- PC, PS e nível conhecido ajudam a preencher IVs ausentes apenas quando as combinações compatíveis concordam em cada atributo.
-- Corrigida a persistência de XXL ao trocar de Pokémon; leituras com PC ou IVs conflitantes não são mescladas.
-- Raids: identificação e consulta ao cache mais rápidas, seleção pelo número de símbolos, opções sem duplicatas e tratamento de nomes parcialmente encobertos.
-- Atualizar raid ou batalha Max também tenta carregar imagens ausentes do chefe e das sugestões. Detalhes Max com ícone de atualizar e menos textos explicativos.
-- IV Master: 29 combinações corrigidas em 21 registros e 16 regras regionais adicionadas conforme a revisão aprovada; convenção 67% preservada.
+- Leitura na sobreposição com aviso centralizado, translúcido, no estilo glassmorphism, progresso e botão Cancelar; removidos o fundo cinza e o bloqueio de interação com o jogo fora do cartão.
+- Cancelamento protegido contra resultados, erros, progresso e finalização de leituras antigas, permitindo iniciar uma nova análise com segurança.
+- OCR e sobreposição divididos em componentes menores para facilitar manutenção e liberação de recursos.
+- Melhorias na importação de imagens grandes e com rotação EXIF, processamento em segundo plano e tratamento de tempo limite.
+- Correções na leitura de barras de IV em JPEG, reconhecimento do prefixo PC e navegação para a revisão após importar imagens.
+- Cache PvP ampliado temporariamente para 36 tabelas por calculadora e busca de posição no ranking por pesquisa binária.
+- Catálogo de ataques com índices reutilizados; consultas de ataques legados e efeitos de aventura carregadas em segundo plano.
+- Coleção pessoal com reaproveitamento dos registros interpretados, migração automática do armazenamento anterior e serialização apenas das entradas alteradas.
+- Ataques legados dos Dias Comunitários de 2026 atualizados até Zorua, em 10/10/2026, incluindo Soco Enganador para Zoroark e separação das listas por forma regional.
+- Estatísticas PvE/PvP e traduções de Martelo Gigatônico e Fúria de Glaive adicionadas; tradução de Água Gelada atualizada.
+- Correções na comparação de versões e geração do versionCode; publicação passa a exigir testes unitários, validação dos catálogos e Lint release.
 
 Observações
 
-- Combinações de captura são possibilidades, não IVs confirmados. Valores ambíguos não são preenchidos automaticamente.
-- A leitura visual do arco de nível ainda depende de calibração e não foi ativada nesta versão.
+- O limite de 36 tabelas é temporário; uma nova política de cache continua pendente.
+- A validação física realizada é parcial. Formas regionais, fundos especiais, timeout forçado, uso prolongado de memória e conferência visual do cartão centralizado continuam pendentes.
+- A leitura visual do arco de nível permanece desativada.
