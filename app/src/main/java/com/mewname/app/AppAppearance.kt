@@ -19,7 +19,9 @@ internal data class AppAppearance(
     val compact: Boolean = false,
     val homeLayout: HomeLayout = if (compact) HomeLayout.COMPACT else HomeLayout.GRID,
     // Set only within the atmospheric Home and its dock, never persisted.
-    val atmosphericSurface: Boolean = false
+    val atmosphericSurface: Boolean = false,
+    val eventAutoRotate: Boolean = true,
+    val eventIntervalSeconds: Int = 10
 ) {
     val dark get() = atmosphericSurface || style == AppearanceStyle.DARK
     val glass get() = atmosphericSurface || style == AppearanceStyle.GLASS
@@ -45,7 +47,9 @@ internal data class AppAppearance(
             runCatching { AppearanceStyle.valueOf(prefs.getString("style", "GLASS").orEmpty()) }.getOrDefault(AppearanceStyle.GLASS),
             prefs.getBoolean("compact", false),
             runCatching { HomeLayout.valueOf(prefs.getString("layout", null).orEmpty()) }
-                .getOrDefault(if (prefs.getBoolean("compact", false)) HomeLayout.COMPACT else HomeLayout.GRID)
+                .getOrDefault(if (prefs.getBoolean("compact", false)) HomeLayout.COMPACT else HomeLayout.GRID),
+            eventAutoRotate = prefs.getBoolean("event_auto_rotate", true),
+            eventIntervalSeconds = prefs.getInt("event_interval", 10).takeIf { it in listOf(5, 10, 15, 30) } ?: 10
         )
     }
 }
@@ -144,6 +148,20 @@ internal fun AppearancePreferences() {
             "Cielo según la hora, con accesos de cristal. Las otras pantallas conservan su estilo."),
             style = MaterialTheme.typography.bodySmall)
     }
+    Text(lt(language, "Imagens dos eventos", "Event images", "Imágenes de eventos"), style = MaterialTheme.typography.titleMedium)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Text(lt(language, "Troca automática", "Automatic rotation", "Cambio automático"), Modifier.weight(1f))
+        Switch(checked = appearance.eventAutoRotate, onCheckedChange = { prefs.edit().putBoolean("event_auto_rotate", it).apply() })
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(5, 10, 15, 30).forEach { seconds ->
+            AppChoiceChip(selected = appearance.eventIntervalSeconds == seconds,
+                onClick = { prefs.edit().putInt("event_interval", seconds).apply() }, label = { Text("${seconds}s") })
+        }
+    }
+    Text(lt(language, "Deslize sobre a imagem para trocar. A troca automática pausa por 30 segundos após o gesto.",
+        "Swipe the image to change it. Automatic rotation pauses for 30 seconds after a swipe.",
+        "Desliza sobre la imagen. El cambio automático se pausa 30 segundos después del gesto."), style = MaterialTheme.typography.bodySmall)
     Text(lt(language, "Alterações salvas automaticamente.", "Changes saved automatically.", "Cambios guardados automáticamente."),
         style = MaterialTheme.typography.bodySmall)
     HorizontalDivider()

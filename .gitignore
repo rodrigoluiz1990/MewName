@@ -22,3 +22,19 @@ KeyTool.txt
 /.compile-*.log
 /.gradle-*.log
 /crash-log.txt
+
+# Local research downloads and extracted reference material
+/reference-assets/GBL_littlecup.png
+/reference-assets/background-effects-2026/
+/reference-assets/community-background-2026/
+/reference-assets/game-master-phone-2026-09-27/
+/reference-assets/iv-checkers-2026-09-30/
+/reference-assets/iv-master-review-2026-10-04/
+/reference-assets/pokedex-validation-2026-09-30/
+/reference-assets/pokemon-go-0.429.1.zip
+/reference-assets/pokemon-go-0.429.1/
+
+# Generated Python bytecode
+__pycache__/
+*.pyc
+*.pyo

@@ -146,7 +146,7 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
             Icon(Icons.Default.Refresh, contentDescription = tr("Atualizar", "Refresh", "Actualizar"))
         } })
     }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (capture == null) item {
                 AppGlassTextField(search, { search = it }, Modifier.fillMaxWidth(), search = true, singleLine = true,
                     label = { Text(tr("Pesquisar", "Search", "Buscar")) })

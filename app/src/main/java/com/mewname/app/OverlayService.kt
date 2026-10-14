@@ -1050,69 +1050,36 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private fun showSavedFiltersOverlay(screen: com.mewname.app.domain.FilterScreen) {
         if (closingForPermissionLoss) return
         removeResultsOverlay()
-        val language = savedAppLanguage(this)
         val friends = screen == com.mewname.app.domain.FilterScreen.FRIENDS
         val filters = loadSavedFilters(this, if (friends) SAVED_PEOPLE_FILTERS_KEY else SAVED_POKEMON_FILTERS_KEY)
-        fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(16))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(20).toFloat()
-                setColor(Color.rgb(250, 248, 255))
+        val metrics = resources.displayMetrics
+        val params = WindowManager.LayoutParams(
+            minOf(metrics.widthPixels - (32 * metrics.density).toInt(), (560 * metrics.density).toInt()),
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.CENTER; dimAmount = 0.5f }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            setOnKeyListener { _, key, event ->
+                if (key == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    removeResultsOverlay(); true
+                } else false
+            }
+            setContent {
+                val currentLanguage = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides currentLanguage) {
+                    AppAppearanceTheme {
+                        SavedFiltersOverlay(friends, filters, (metrics.heightPixels / metrics.density * 0.7f).dp,
+                            onCopy = { value -> copyToClipboard(value); removeResultsOverlay() },
+                            onClose = { removeResultsOverlay() })
+                    }
+                }
             }
         }
-        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(TextView(this).apply {
-            text = if (friends) lt(language, "Filtros de amigos", "Friend filters", "Filtros de amigos")
-                else lt(language, "Filtros de Pokémon", "Pokémon filters", "Filtros de Pokémon")
-            textSize = 18f
-            setTextColor(Color.BLACK)
-            setTypeface(null, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        header.addView(Button(this).apply {
-            text = lt(language, "Fechar", "Close", "Cerrar")
-            setOnClickListener { removeResultsOverlay() }
-        })
-        layout.addView(header)
-        layout.addView(TextView(this).apply {
-            text = if (filters.isEmpty()) lt(language,
-                "Nenhum filtro salvo nesta categoria. Salve filtros na tela inicial do MewName.",
-                "No saved filters in this category. Save filters from the MewName home screen.",
-                "No hay filtros guardados en esta categoría. Guarda filtros desde el inicio de MewName.")
-                else lt(language, "Toque para copiar e cole na busca do jogo.",
-                    "Tap to copy, then paste into the game search.", "Toca para copiar y pega en la búsqueda del juego.")
-            setTextColor(Color.DKGRAY)
-            setPadding(0, dp(8), 0, dp(8))
-        })
-        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        filters.forEach { filter ->
-            list.addView(Button(this).apply {
-                text = filter.value
-                isAllCaps = false
-                setOnClickListener {
-                    copyToClipboard(filter.value)
-                    removeResultsOverlay()
-                }
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        }
-        val scroll = ScrollView(this).apply { addView(list) }
-        layout.addView(scroll)
-        // Keep long saved lists scrollable within the available display height.
-        layout.measure(View.MeasureSpec.makeMeasureSpec(resources.displayMetrics.widthPixels - dp(32), View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.7f).toInt()
-        if (layout.measuredHeight > maxHeight) {
-            scroll.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-                (maxHeight - (layout.measuredHeight - scroll.measuredHeight)).coerceAtLeast(dp(48)))
-        }
-        val params = WindowManager.LayoutParams(resources.displayMetrics.widthPixels - dp(32),
-            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_DIM_BEHIND, PixelFormat.TRANSLUCENT).apply {
-            gravity = Gravity.CENTER
-            dimAmount = 0.6f
-        }
-        if (addOverlayView(layout, params)) resultsView = layout
+        if (addOverlayView(view, params)) resultsView = view
     }
 
     private fun showUnsupportedBubbleScreenOverlay() {

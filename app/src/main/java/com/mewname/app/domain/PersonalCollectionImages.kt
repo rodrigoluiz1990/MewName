@@ -10,7 +10,7 @@ import java.util.Locale
 internal class PersonalCollectionImages(context: Context) {
     private val spriteIndex = JSONObject(context.assets.open("pokemon/go_sprite_index.json").bufferedReader().use { it.readText() })
     private val spriteFiles = spriteIndex.getJSONObject("files")
-    private fun gameSprite(file: String, shiny: Boolean = false): String? {
+    internal fun gameSprite(file: String, shiny: Boolean = false): String? {
         val candidate = if (shiny) shinyFile(file) else file
         val path = spriteFiles.optString(candidate).takeIf { it.isNotBlank() } ?: return null
         return "https://raw.githubusercontent.com/PokeMiners/pogo_assets/${spriteIndex.getString("revision")}/" + path.replace(" ", "%20")
@@ -25,6 +25,10 @@ internal class PersonalCollectionImages(context: Context) {
         names.getJSONObject(i).let { key(it.getString("name")) to it }
     }
     private val imageIds = images.keys().asSequence().associateBy { key(it.removeSuffix("_FORM")) }
+
+    /** Exact form ID lookup; never replaces an unknown form with the ordinary species. */
+    fun formUrl(id: String): String? = gameImages[id.uppercase(Locale.ROOT)]
+        ?.substringAfterLast('/')?.let { gameSprite(it) }
 
     fun urls(target: PersonalCollectionTarget, group: PersonalCollectionGroup): List<String> {
         if (group != PersonalCollectionGroup.MEGA && group != PersonalCollectionGroup.GIGANTAMAX)
@@ -56,6 +60,12 @@ internal class PersonalCollectionImages(context: Context) {
         // Ordinary species must not inherit costume files accidentally assigned by raid feeds.
         if (!name.contains('(') && (variant.isBlank() || name in setOf("SCATTERBUG", "SPEWPA")))
             return gameSprite("pm$dex.icon.png", shiny) ?: gameSprite("pokemon_icon_${dex.toString().padStart(3, '0')}_00.png", shiny)
+                ?: when (dex) {
+                    647 -> gameSprite("pm647.fORDINARY.icon.png", shiny)
+                    671 -> gameSprite("pm671.fRED.icon.png", shiny)
+                    778 -> gameSprite("pm778.fDISGUISED.icon.png", shiny)
+                    else -> null
+                }
         val candidates = mutableListOf<String>()
         if (variant.isNotBlank() && name !in setOf("SCATTERBUG", "SPEWPA")) {
             val code = UniquePokemonCatalog.optionsFor(name).firstOrNull { key(it.label) == key(variant) }?.code

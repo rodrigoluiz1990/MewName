@@ -40,15 +40,24 @@ internal object RaidBossResolver {
 
     fun resolve(name: String, screenText: String, meta: RaidMetadata, catalog: List<RaidChoice>, detectedLevel: Int? = null, fallbackCatalog: List<RaidChoice> = emptyList()): Result {
         if (detectedLevel != null) {
+            val active = catalog.filterNot { it.tier.contains("MAX", ignoreCase = true) }.distinct()
+            // Icon counting is noisy when the boss covers the emblems. Only an
+            // unambiguous current-catalog identity may override that visual hint.
+            // Do not use saved reports or inferred forms/tiers as proof.
+            val identity = if (name.isNotBlank()) resolve(name, screenText, meta, active) else null
+            val namedCurrent = identity?.selected?.takeIf { selected ->
+                identity.alternatives.filter { it in active }.singleOrNull() == selected
+            }
+            val effectiveLevel = namedCurrent?.let { symbolCount(it.tier) } ?: detectedLevel
             val current = catalog.filter {
-                !it.tier.contains("MAX", ignoreCase = true) && symbolCount(it.tier) == detectedLevel
+                !it.tier.contains("MAX", ignoreCase = true) && symbolCount(it.tier) == effectiveLevel
             }.distinct().sortedWith(
                 compareBy<RaidChoice> { it.tier.contains("SHADOW") || form(it.id) == "shadow" }
                     .thenBy { meta.pokemon[it.id]?.dex?.takeIf { dex -> dex > 0 } ?: Int.MAX_VALUE }
                     .thenBy { it.id }.thenBy { it.tier }
             )
             // OCR can help choose within this list, but cannot add old raids or invent forms.
-            val named = if (name.isNotBlank() && current.isNotEmpty())
+            val named = namedCurrent ?: if (name.isNotBlank() && current.isNotEmpty())
                 resolve(name, screenText, meta, current).selected?.takeIf { it in current }
             else null
             return Result(named ?: current.singleOrNull(), current, current.isNotEmpty())

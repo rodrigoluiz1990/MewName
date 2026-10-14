@@ -1,0 +1,8 @@
+Assets: https://github.com/PokeMiners/pogo_assets/tree/8353f3c4451f4b9154684222ce55128b8a33c7e4
+candy_rgb.png: Images/Items/candy_rgb.png
+candy_colors.json: Candy Color Data/PokemonCandyColorData.json
+mega_energy.png: Images/Items/pokemon_details_mega_candy.png (RGB material masks; static shaded approximation in app)
+weather_*.png: Images/Weather/weatherIcon_small_*.png
+Original assets belong to their respective copyright holders; PokeMiners distributes the extracted assets.
+
+mega_colors.json: Candy Color Data/PokemonMegaCandyAkaMegaEnergy.json

@@ -186,9 +186,14 @@ fun TypeBadge(
 fun TypeIcon(
     type: String,
     language: AppLanguage,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    framed: Boolean = true
 ) {
     val spec = typeSpec(type) ?: return
+    if (!framed) {
+        AssetImageIcon(typeIconAssetPath(type), localizedTypeLabel(type, language), modifier.size(30.dp), fallbackSize = 30.dp)
+        return
+    }
     Box(
         modifier = modifier
             .size(30.dp)

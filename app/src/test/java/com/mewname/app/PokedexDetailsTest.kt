@@ -53,4 +53,30 @@ class PokedexDetailsTest {
         assertEquals(timestamp,cached.fetchedAt); assertFalse(cached.stale)
         assertThrows(IllegalArgumentException::class.java) { PokedexDetailsRepository(wrapped).online("../other.json") }
     }
+    @Test fun opponentSpritesPreserveRegionalFormsAndShadowLabels() {
+        val entries = GameInfoRepository.loadPokedexCatalog(context)
+        val ids = listOf("quagsire", "quagsire_shadow", "arcanine_hisuian", "arcanine", "florges", "mimikyu", "keldeo", "keldeo_resolute", "keldeo_unknown", "unknown_form")
+        val result = PokedexDetailsRepository(context).opponents(ids, entries, AppLanguage.PT_BR)
+        assertNotNull(result["quagsire"]?.sprite)
+        assertEquals(result["quagsire"]?.sprite, result["quagsire_shadow"]?.sprite)
+        assertTrue(result.getValue("quagsire_shadow").shadow)
+        assertFalse(result.getValue("quagsire").shadow)
+        assertNotNull(result["arcanine_hisuian"]?.sprite)
+        assertNotEquals(result["arcanine"]?.sprite, result["arcanine_hisuian"]?.sprite)
+        assertTrue(result.getValue("florges").sprite.orEmpty().endsWith("pm671.fRED.icon.png"))
+        assertTrue(result.getValue("mimikyu").sprite.orEmpty().endsWith("pm778.fDISGUISED.icon.png"))
+        assertTrue(result.getValue("keldeo").sprite.orEmpty().endsWith("pm647.fORDINARY.icon.png"))
+        assertTrue(result.getValue("keldeo_resolute").sprite.orEmpty().endsWith("pm647.fRESOLUTE.icon.png"))
+        assertNull(result["keldeo_unknown"]?.sprite)
+        assertNull(result["unknown_form"]?.sprite)
+    }
+    @Test fun palkiaOriginUsesItsOwnSpriteIncludingShadowVariant() {
+        val entries = GameInfoRepository.loadPokedexCatalog(context)
+        val result = PokedexDetailsRepository(context).opponents(
+            listOf("palkia", "palkia_origin", "palkia_origin_shadow"), entries, AppLanguage.PT_BR)
+        assertTrue(result.getValue("palkia").sprite.orEmpty().endsWith("pm484.icon.png"))
+        assertTrue(result.getValue("palkia_origin").sprite.orEmpty().endsWith("pm484.fORIGIN.icon.png"))
+        assertEquals(result.getValue("palkia_origin").sprite, result.getValue("palkia_origin_shadow").sprite)
+        assertTrue(result.getValue("palkia_origin_shadow").shadow)
+    }
 }

@@ -9,7 +9,8 @@ import java.util.Locale
 data class LegacyMoveCatalogEntry(
     val pokemon: String,
     val moves: List<String>,
-    val searchTerms: List<String>
+    val searchTerms: List<String>,
+    val canonicalMoves: Map<String, String> = emptyMap()
 )
 
 data class AdventureEffectCatalogEntry(
@@ -86,7 +87,11 @@ object GameCatalogRepository {
                             LegacyMoveCatalogEntry(
                                 pokemon = repairMojibake(pokemon),
                                 moves = displayMoves,
-                                searchTerms = searchTerms
+                                searchTerms = searchTerms,
+                                canonicalMoves = groupedMoves.mapNotNull { chunk ->
+                                    val canonical = chunk.firstOrNull() ?: return@mapNotNull null
+                                    (chunk.getOrNull(1)?.takeIf { it.isNotBlank() } ?: canonical) to canonical
+                                }.toMap()
                             )
                         )
                     }
@@ -182,10 +187,10 @@ private fun formatAdventurePokemonDisplayName(pokemon: String): String {
             pokemon.removePrefix("Crowned Shield ").trim() + " (Coroado)"
         }
         pokemon.startsWith("Dusk Mane ", ignoreCase = true) -> {
-            pokemon.removePrefix("Dusk Mane ").trim() + " (Dusk Mane)"
+            pokemon.removePrefix("Dusk Mane ").trim() + " (Juba Crepúsculo)"
         }
         pokemon.startsWith("Dawn Wings ", ignoreCase = true) -> {
-            pokemon.removePrefix("Dawn Wings ").trim() + " (Dawn Wings)"
+            pokemon.removePrefix("Dawn Wings ").trim() + " (Asas Alvorada)"
         }
         else -> pokemon
     }

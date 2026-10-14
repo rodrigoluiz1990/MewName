@@ -327,6 +327,10 @@ fun MovesScreen(onBack: () -> Unit) {
     }
     val catalog = catalogState.value
     val isLoading = catalog.isEmpty()
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    LaunchedEffect(showFilters) { if (showFilters) listState.scrollToItem(0) }
     var query by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf<MoveCategory?>(null) }
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
@@ -367,42 +371,34 @@ fun MovesScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
+                },
+                actions = {
+                    IconToggleButton(checked = showFilters, onCheckedChange = {
+                        showFilters = it
+                        if (!it) focusManager.clearFocus()
+                    }) {
+                        BadgedBox(badge = { if (query.isNotBlank() || selectedCategory != null || selectedType != null) Badge() }) {
+                            Icon(Icons.Default.Search, contentDescription = if (showFilters)
+                                t(language, "Ocultar filtros", "Hide filters", "Ocultar filtros") else
+                                t(language, "Mostrar filtros", "Show filters", "Mostrar filtros"))
+                        }
+                    }
                 }
             )
         }
     ) { padding ->
         LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            item {
-                AppGlassTextField(
-                    search = true,
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(t(language, "Buscar ataque", "Search move", "Buscar ataque")) },
-                    singleLine = true
-                )
-            }
-            item {
-                MoveCategoryFilter(
-                    selectedCategory = selectedCategory,
-                    onSelect = { selectedCategory = if (selectedCategory == it) null else it },
-                    language = language
-                )
-            }
-            item {
-                TypeSelectorSingle(
-                    types = types,
-                    selectedType = selectedType,
-                    onSelect = { selectedType = it },
-                    language = language,
-                    showAllOption = false
-                )
+            if (showFilters) item(key = "moveFilters") {
+                MoveSearchPanel(query, { query = it }, t(language, "Buscar ataque", "Search move", "Buscar ataque"),
+                    selectedCategory, { selectedCategory = it }, selectedType, { selectedType = it }, types, language)
             }
             item {
                 Text(
@@ -464,7 +460,8 @@ fun PokedexScreen(onBack: () -> Unit) {
         value = PokedexLoadState(entries = finalEntries, complete = true)
     }
     val pokedex = loadState.entries
-    var detailsEntry by remember { mutableStateOf<PokedexCatalogEntry?>(null) }
+    var detailsName by rememberSaveable { mutableStateOf<String?>(null) }
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
     var query by rememberSaveable { mutableStateOf("") }
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
@@ -485,6 +482,11 @@ fun PokedexScreen(onBack: () -> Unit) {
                         entry.aliases.any { normalizeSearch(it).contains(normalizedQuery) }
                     )
         }
+    }
+
+    pokedex.firstOrNull { it.name == detailsName }?.let { selected ->
+        PokedexDetailsScreen(selected, pokedex) { detailsName = null }
+        return
     }
 
     Scaffold(
@@ -521,14 +523,14 @@ fun PokedexScreen(onBack: () -> Unit) {
             Text("${filtered.size} Pokémon", style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!loadState.complete) LinearProgressIndicator(Modifier.fillMaxWidth())
-            LazyVerticalGrid(columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
+            LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)) {
+                contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationContentPadding.current)) {
                 if (loadState.complete && filtered.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(t(language, "Nenhum Pokémon encontrado.", "No Pokémon found.", "No se encontraron Pokémon."))
                 }
                 pokedexGridItems(filtered, key = { "${it.number}-${it.name}" }) { entry ->
-                    AppSectionCard(Modifier.fillMaxWidth().clickable { detailsEntry = entry }) {
+                    AppSectionCard(Modifier.fillMaxWidth().clickable { detailsName = entry.name }) {
                         Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             PersonalCollectionPortrait(
                                 com.mewname.app.domain.PersonalCollectionTarget(
@@ -544,7 +546,7 @@ fun PokedexScreen(onBack: () -> Unit) {
             }
         }
     }
-    detailsEntry?.let { PokedexDetailsWindow(it, pokedex) { detailsEntry = null } }
+
 }
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -558,6 +560,7 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
     )
 
     androidx.compose.material3.Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
                 title = { Text(t(language, "Filtros", "Filters", "Filtros")) },
@@ -574,8 +577,9 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(bottom = LocalNavigationContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AppPillTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
@@ -1060,7 +1064,7 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
             if (tabLoading) {
                 InlineLoadingRow(t(language, "Carregando coleção...", "Loading collection...", "Cargando colección..."))
             } else if (tabIndex == 0) {
-                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current), modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(items = visibleEntries, key = { entry -> collectionEntryKey(0, entry) }) { entry ->
                         val key = collectionEntryKey(0, entry)
                         AppSectionCard(modifier = Modifier.fillMaxWidth()) {
@@ -1104,7 +1108,7 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
                     }
                 }
             } else if (tabIndex == 1) {
-                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current), modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(items = visibleCostumes, key = { it.id }) { entry ->
                         val normalKey = "costume|${entry.id}|normal"
                         val shinyKey = "costume|${entry.id}|shiny"
@@ -1154,7 +1158,7 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
                     }
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current), modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(items = filteredBackgrounds, key = { entry -> entry.assetPath }) { entry ->
                         val key = "background|${entry.fileName}"
                         AppSectionCard(modifier = Modifier.fillMaxWidth()) {
@@ -1245,7 +1249,6 @@ private fun PokemonFilterBuilder(
             addAll(loadSavedFilters(context, SAVED_POKEMON_FILTERS_KEY))
         }
     }
-    var showSavedFilters by rememberSaveable { mutableStateOf(false) }
     val sections = remember {
         linkedMapOf(
             "Status" to listOf(
@@ -1361,11 +1364,6 @@ private fun PokemonFilterBuilder(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (savedFilters.isNotEmpty()) {
-            AppActionButton(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(t(language, "Abrir filtros salvos", "Open saved filters", "Abrir filtros guardados"))
-            }
-        }
         SavedFiltersSection(
             title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
             filters = savedFilters,
@@ -1519,18 +1517,6 @@ private fun PokemonFilterBuilder(
             }
         }
     }
-    if (showSavedFilters && savedFilters.isNotEmpty()) {
-        SavedFiltersDialog(
-            title = t(language, "Filtros salvos de Pokémon", "Saved Pokemon filters", "Filtros guardados de Pokemon"),
-            filters = savedFilters,
-            onDismiss = { showSavedFilters = false },
-            onCopy = { entry -> copyPlainText(context, entry.value, language) },
-            onRemove = { entry ->
-                savedFilters.remove(entry)
-                persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, savedFilters)
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -1546,7 +1532,6 @@ private fun PeopleFilterBuilder(
             addAll(loadSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY))
         }
     }
-    var showSavedFilters by rememberSaveable { mutableStateOf(false) }
     val options = remember {
         listOf(
             FilterTokenOption("Pode receber presente", "Can receive gift", "Puede recibir regalo", "canreceivegift", tokenPt = "presenteável", tokenEs = "puede recibir regalo"),
@@ -1575,11 +1560,6 @@ private fun PeopleFilterBuilder(
     val output = buildOrderedFilter(selectionOrder, expressionGroups())
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (savedFilters.isNotEmpty()) {
-            AppActionButton(onClick = { showSavedFilters = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(t(language, "Abrir filtros salvos", "Open saved filters", "Abrir filtros guardados"))
-            }
-        }
         SavedFiltersSection(
             title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
             filters = savedFilters,
@@ -1638,18 +1618,6 @@ private fun PeopleFilterBuilder(
                 .height(160.dp),
             label = { Text(t(language, "Apelido", "Nickname", "Apodo")) },
             supportingText = { Text(t(language, "Um por linha. Ex.: [nome_da_pessoa]", "One per line. Example: [person_name]", "Uno por linea. Ej.: [nombre_de_la_persona]")) }
-        )
-    }
-    if (showSavedFilters && savedFilters.isNotEmpty()) {
-        SavedFiltersDialog(
-            title = t(language, "Filtros salvos de amigos", "Saved friend filters", "Filtros guardados de amigos"),
-            filters = savedFilters,
-            onDismiss = { showSavedFilters = false },
-            onCopy = { entry -> copyPlainText(context, entry.value, language) },
-            onRemove = { entry ->
-                savedFilters.remove(entry)
-                persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, savedFilters)
-            }
         )
     }
 }
@@ -1755,7 +1723,7 @@ private fun TypeSelector(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TypeSelectorSingle(
+internal fun TypeSelectorSingle(
     types: List<String>,
     selectedType: String?,
     onSelect: (String?) -> Unit,
@@ -1907,7 +1875,7 @@ private fun JoinerSelector(
 }
 
 @Composable
-private fun MoveCategoryFilter(
+internal fun MoveCategoryFilter(
     selectedCategory: MoveCategory?,
     onSelect: (MoveCategory) -> Unit,
     language: AppLanguage
@@ -2418,7 +2386,7 @@ private fun RaidHistorySection(
         }
         // A separate, bounded viewport avoids both eager composition and oversized clipped layers.
         androidx.compose.runtime.key(safeTabIndex, normalizedQuery) {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (visibleItems.isEmpty() && !loading) {
                     item {
                         AppStatusMessage(t(language, "Nenhum Pokémon encontrado", "No Pokémon found", "Ningún Pokémon encontrado"))
@@ -2644,45 +2612,6 @@ private fun SavedFiltersSection(
     }
 }
 
-@Composable
-private fun SavedFiltersDialog(
-    title: String,
-    filters: List<SavedFilterEntry>,
-    onDismiss: () -> Unit,
-    onCopy: (SavedFilterEntry) -> Unit,
-    onRemove: (SavedFilterEntry) -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        AppSectionCard(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SavedFiltersSection(
-                        title = "",
-                        filters = filters,
-                        onCopy = onCopy,
-                        onRemove = onRemove
-                    )
-                }
-                AppSecondaryButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                    Text(t(appLanguage(), "Fechar", "Close", "Cerrar"))
-                }
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SimpleToolScreen(
@@ -2709,8 +2638,9 @@ private fun SimpleToolScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                .then(if (scrollable) Modifier.padding(bottom = LocalNavigationContentPadding.current) else Modifier),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content
         )
@@ -3540,7 +3470,7 @@ internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false) {
         label = { Text("Buscar fundo") }, singleLine = true)
     AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
     if (backgrounds == null) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
-    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (backgrounds != null && entries.isEmpty()) item { Text("Nenhum fundo encontrado.") }
         items(entries, key = { it.assetPath }) { entry ->
             val key = "background|${entry.fileName}"

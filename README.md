@@ -2,9 +2,9 @@
 
 App Android em Kotlin e Jetpack Compose para gerar apelidos de Pokémon no Pokémon GO a partir de capturas de tela e OCR com ML Kit. Permite revisar os dados reconhecidos, consultar rankings e escolher o nome; a alteração no jogo permanece manual.
 
-## Estado atual — 11/10/2026
+## Estado atual — 14/10/2026
 
-Versão preparada para release: **1.0.30**. Consulte o [histórico desde a 1.0.29](CHANGELOG.md) e as [notas da release](RELEASE_NOTES.md). Os testes físicos abaixo foram executados em builds debug 1.0.29; não equivalem à validação do APK release 1.0.30. O versionCode é gerado a cada build. A publicação pode ser conferida na [página da release](https://github.com/rodrigoluiz1990/MewName/releases/tag/v1.0.30).
+Versão preparada para release: **1.0.31**. Consulte o [histórico desde a 1.0.30](CHANGELOG.md) e as [notas da release](RELEASE_NOTES.md). As verificações físicas registradas correspondem a builds debug e não equivalem à validação do APK release. O versionCode é gerado a cada build. A publicação pode ser conferida na [página da release](https://github.com/rodrigoluiz1990/MewName/releases/tag/v1.0.31).
 
 Funcionalidades disponíveis:
 
@@ -17,6 +17,15 @@ Funcionalidades disponíveis:
 Combinações compatíveis com o PC são possibilidades, não IVs confirmados. A leitura visual do arco de nível continua desativada; não deve ser considerada uma funcionalidade validada.
 
 ## Melhorias recentes
+
+### Pokédex, eventos e interface — 1.0.31
+
+- `PokedexDetailsScreen` substitui a janela modal. Atributos em arcos sem bordas, PC com referência de origem por nível, clima favorável junto ao PC e atualização no topo. Abas Geral, Golpes e PvP; fontes em Treinador → Ajuda → Fontes de dados.
+- `PokedexEvolution` e `PokedexDetailCards` montam famílias completas com custos acima das setas, ramificações para megaevoluções e formas Gigamax. Sprites de Pokémon GO também aparecem nos confrontos PvP, com aura e identificação de sombrosos e distinção de Palkia Origem.
+- `HomeEventArtRepository`, `HomeEventBackground` e `HomeEventCarousel` consultam notícias e temporadas oficiais, selecionam imagens por período/prioridade e oferecem gesto horizontal e rotação configurável. A cobertura depende dos períodos reconhecidos nas fontes; não é um calendário completo de todos os eventos.
+- `MoveSearchPanel` e `MainMoveCard` compartilham busca recolhível, filtros e cartões entre ataques, legados, efeitos de aventura e detalhes da Pokédex. Os vínculos canônicos dos legados foram revisados; isso não certifica todo o histórico de exclusividade.
+- `SavedFiltersOverlay` aplica o padrão visual das telas de raids/Max aos filtros de Pokémon e amigos. `LocalNavigationContentPadding` permite conteúdo atrás do recorte do menu inferior sem esconder o fim da rolagem.
+- Detalhes de raids permitem atualizar o catálogo quando o chefe não é identificado. Uma identidade inequívoca no catálogo ativo pode corrigir a contagem visual de símbolos; relatórios antigos não comprovam uma raid atual.
 
 ### OCR e processamento
 
@@ -96,7 +105,7 @@ A atualização exige assinatura compatível com a instalação existente. Não 
 
 Resultados registrados em **11/10/2026**, no modelo **2412DPC0AG**, Android 16, resolução 1220 × 2712:
 
-- **385 testes JVM/Robolectric aprovados** na preparação da 1.0.30; validação dos catálogos, `lintDebug`, `lintRelease` e `assembleRelease` concluídos com sucesso. Os resultados físicos a seguir correspondem às builds debug indicadas, anteriores à release.
+- **418 testes JVM/Robolectric aprovados** na preparação da 1.0.31 em 14/10/2026; validação dos catálogos, `lintRelease`, `assembleRelease` e compilação dos testes instrumentados concluídos. Lint release sem erros, com 40 avisos. Os resultados físicos a seguir correspondem às builds debug e datas indicadas, não ao APK release 1.0.31.
 - **14/14 imagens de referência aprovadas no aparelho**, incluindo IVs 0/0/0 e 15/15/15; cancelamento e nova execução do validador exercitados.
 - Captura real de Ponyta no overlay e importação pela galeria. O teste instrumentado do JPEG com EXIF confirmou nome, PC 1521, IVs 12/14/15, favorito e sortudo.
 - Imagem ampliada para 2440 × 5424, navegação após importação, buscas nos catálogos e seleção de ataques verificados.
@@ -119,8 +128,8 @@ Relatórios de teste e lint não são enviados como artefatos ao GitHub; os logs
 Fluxo de publicação:
 
 1. Revisar, fazer commit e enviar as mudanças.
-2. Criar a tag da versão, por exemplo `git tag v1.0.30`.
-3. Enviar a tag com `git push origin v1.0.30`.
+2. Criar a tag da versão, por exemplo `git tag v1.0.31`.
+3. Enviar a tag com `git push origin v1.0.31`.
 4. O GitHub Actions compila o APK e cria a release com o arquivo anexado.
 
 Secrets opcionais de assinatura:

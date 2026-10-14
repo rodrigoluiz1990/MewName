@@ -2025,7 +2025,7 @@
         "duration": 2500,
         "energy_delta": -100,
         "move_id": 397,
-        "name": "Wildbold Storm",
+        "name": "Wildbolt Storm",
         "power": 150,
         "stamina_loss_scaler": 0.01,
         "type": "Electric"

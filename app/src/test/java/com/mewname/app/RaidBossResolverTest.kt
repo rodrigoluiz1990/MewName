@@ -11,12 +11,12 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RaidBossResolverTest {
     private val meta get() = RaidCounterRepository(ApplicationProvider.getApplicationContext<Context>()).metadata()
-    @Test fun ultraBeastDoesNotLeakIntoFourSymbolChoices() {
+    @Test fun identifiedCurrentUltraBeastKeepsItsCategoryDespiteFourSymbols() {
         val r = RaidBossResolver.resolve("Buzzwole", "Buzzwole BATALHA", meta,
             listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST")), 4,
             listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_4")))
-        assertNull(r.selected)
-        assertTrue(r.alternatives.isEmpty())
+        assertEquals(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST"), r.selected)
+        assertEquals(listOf(r.selected), r.alternatives)
     }
     @Test fun savedBossDoesNotLeakIntoCurrentChoices() {
         val r = RaidBossResolver.resolve("Buzzwole", "Buzzwole BATALHA", meta,
@@ -25,11 +25,39 @@ class RaidBossResolverTest {
         assertNull(r.selected)
         assertTrue(r.alternatives.isEmpty())
     }
-    @Test fun recognizedNameCannotOverrideTheDetectedLevel() {
-        val r = RaidBossResolver.resolve("Quaquaval", "BATALHA", meta,
-            listOf(RaidChoice("QUAQUAVAL", "RAID_LEVEL_3")), 2)
-        assertNull(r.selected)
-        assertTrue(r.alternatives.isEmpty())
+    @Test fun currentYveltalWinsOverAllObservedIncorrectSymbolCounts() {
+        val yveltal = RaidChoice("YVELTAL", "RAID_LEVEL_5")
+        val catalog = listOf(yveltal, yveltal, RaidChoice("PIKACHU", "RAID_LEVEL_1"),
+            RaidChoice("QUAQUAVAL", "RAID_LEVEL_3"))
+        listOf(1, 3, 4, 5).forEach { level ->
+            val result = RaidBossResolver.resolve("Yveltal", "PC45899 Yveltal BATALHA", meta, catalog, level)
+            assertEquals(yveltal, result.selected)
+            assertEquals(listOf(yveltal), result.alternatives)
+            assertTrue(result.fromCatalog)
+        }
+    }
+
+    @Test fun ambiguousCurrentTiersStillUseDetectedLevel() {
+        val three = RaidChoice("QUAQUAVAL", "RAID_LEVEL_3")
+        val result = RaidBossResolver.resolve("Quaquaval", "BATALHA", meta,
+            listOf(RaidChoice("QUAQUAVAL", "RAID_LEVEL_2"), three), 3)
+        assertEquals(three, result.selected)
+        assertEquals(listOf(three), result.alternatives)
+    }
+
+    @Test fun ambiguousMegaFormsDoNotOverrideSymbolCount() {
+        val result = RaidBossResolver.resolve("Charizard", "Mega Charizard BATALHA", meta,
+            listOf(RaidChoice("CHARIZARD_MEGA_X", "RAID_LEVEL_MEGA"),
+                RaidChoice("CHARIZARD_MEGA_Y", "RAID_LEVEL_MEGA")), 3)
+        assertNull(result.selected)
+        assertTrue(result.alternatives.isEmpty())
+    }
+
+    @Test fun maxOnlyMatchCannotOverrideRaidSymbols() {
+        val result = RaidBossResolver.resolve("Yveltal", "BATALHA", meta,
+            listOf(RaidChoice("YVELTAL", "RAID_LEVEL_5_MAX")), 1)
+        assertNull(result.selected)
+        assertTrue(result.alternatives.isEmpty())
     }
 
     @Test fun detectedLevelListsAllCurrentBossesNormalBeforeShadowWithoutInventedForms() {

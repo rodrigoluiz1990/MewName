@@ -38,6 +38,8 @@ import com.mewname.app.domain.AppLanguage
 
 internal val LocalLanguageChange = staticCompositionLocalOf<(AppLanguage) -> Unit> { {} }
 internal val LocalProfilePanel = staticCompositionLocalOf { false }
+// Applied inside scrolling content, so the viewport can extend behind the dock.
+internal val LocalNavigationContentPadding = staticCompositionLocalOf { 0.dp }
 
 @Composable
 internal fun AppNavigationShell(
@@ -70,6 +72,7 @@ internal fun AppNavigationShell(
         if (profileRequested) { showProfile = true; onProfileRequestConsumed() }
     }
     BackHandler(showProfile) { showProfile = false }
+    val eventCarousel = remember { HomeEventCarouselState() }
     val atmosphericHome = isHome && appearance.homeLayout == HomeLayout.ATMOSPHERIC
     val view = androidx.compose.ui.platform.LocalView.current
     SideEffect {
@@ -93,13 +96,19 @@ internal fun AppNavigationShell(
 
     CompositionLocalProvider(LocalLanguageChange provides onLanguageChange) {
         val navigationSpace = HomeNavigationContentHeight + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        Box(Modifier.fillMaxSize().background(appearance.background.first())) {
+        Box(Modifier.fillMaxSize().homeEventSwipe(eventCarousel, isHome && !showProfile).background(Brush.verticalGradient(appearance.background))) {
             if (atmosphericHome) AtmosphericSky(Modifier.matchParentSize())
-            // Allow every screen to draw beside the raised bubble button.
-            // Reserve only the dock below it, keeping the final content reachable.
-            Box(Modifier.fillMaxSize().padding(bottom = navigationSpace - 32.dp)
+            if (isHome) HomeEventBackground(eventCarousel, Modifier.matchParentSize())
+            // Secondary screens reserve dock space within their scrolling content.
+            val drawsBehindNavigation = !isHome && uiState.currentScreen != AppScreen.TRAINER_PROFILE
+            Box(Modifier.fillMaxSize()
+                .padding(bottom = if (drawsBehindNavigation) 0.dp else navigationSpace - 32.dp)
                 .consumeWindowInsets(WindowInsets.navigationBars)) {
-                AtmosphericHomeTheme(atmosphericHome) { content() }
+                CompositionLocalProvider(
+                    LocalNavigationContentPadding provides if (drawsBehindNavigation) navigationSpace else 0.dp
+                ) {
+                    AtmosphericHomeTheme(atmosphericHome) { content() }
+                }
             }
             androidx.compose.animation.AnimatedVisibility(
                 visible = showProfile, modifier = Modifier.matchParentSize(),
@@ -120,7 +129,7 @@ internal fun AppNavigationShell(
                     Surface(Modifier.offset { IntOffset(0, panelOffset.roundToInt()) }.fillMaxWidth().heightIn(max = panelMaxHeight).padding(horizontal = 8.dp)
                         .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
                         color = appearance.background.first(), shadowElevation = 0.dp) {
-                        Column(Modifier.padding(bottom = navigationSpace - 32.dp)) {
+                        Column {
                             Box(
                                 Modifier.fillMaxWidth().height(40.dp)
                                     .draggable(
@@ -142,7 +151,7 @@ internal fun AppNavigationShell(
                                 Box(Modifier.size(36.dp, 4.dp)
                                     .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)))
                             }
-                            CompositionLocalProvider(LocalProfilePanel provides true) {
+                            CompositionLocalProvider(LocalProfilePanel provides true, LocalNavigationContentPadding provides navigationSpace) {
                                 TrainerProfileScreen(
                                     uiState = uiState,
                                     onBack = { showProfile = false },

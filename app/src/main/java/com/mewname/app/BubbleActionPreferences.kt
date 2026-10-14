@@ -87,7 +87,7 @@ internal fun BubbleActionPreferences() {
             reorderAtPointer()
         }
     }
-    LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp),
+    LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize().pointerInput(listState) {
             detectDragGesturesAfterLongPress(
                 onDragStart = { point ->

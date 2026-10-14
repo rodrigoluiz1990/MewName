@@ -1,4 +1,11 @@
 package com.mewname.app
+import androidx.compose.runtime.produceState
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.compose.material.icons.filled.Search
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
@@ -538,8 +545,9 @@ internal fun AppUpdateScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(20.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(bottom = LocalNavigationContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AppSectionCard(modifier = Modifier.fillMaxWidth()) {
@@ -672,14 +680,28 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     val catalog by rememberMoveScreenCatalog(context, "LegacyMove") { GameCatalogRepository.loadLegacyMoveCatalog(context) }
+    val effects by produceState<Map<Int, Map<String, Double>>>(emptyMap(), context) {
+        value = withContext(Dispatchers.IO) { loadMoveEffects(context.applicationContext) }
+    }
     val entries = catalog.entries
     val moveIndex = catalog.moveIndex
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    LaunchedEffect(showFilters) { if (showFilters) listState.scrollToItem(0) }
+    var selectedCategory by rememberSaveable { mutableStateOf<MoveCategory?>(null) }
+    var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     val normalizedQuery = remember(query) { normalizeMoveLookup(query) }
-    val filteredEntries = remember(entries, normalizedQuery) {
-        if (normalizedQuery.isBlank()) entries else entries.filter { entry ->
-            entry.searchTerms.any { it.contains(normalizedQuery) }
-        }
+    val types = remember(entries, moveIndex) { entries.flatMap { entry -> entry.moves.mapNotNull {
+        legacyMoveDetails(entry, it, moveIndex)?.type
+    } }.distinct().sorted() }
+    val filteredEntries = remember(entries, normalizedQuery, selectedCategory, selectedType, moveIndex) {
+        entries.filter { entry -> normalizedQuery.isBlank() || entry.searchTerms.any { it.contains(normalizedQuery) } }
+            .mapNotNull { entry ->
+                val moves = entry.moves.filter { matchesMoveFilters(legacyMoveDetails(entry, it, moveIndex), selectedCategory, selectedType) }
+                if (moves.isEmpty()) null else entry.copy(moves = moves)
+            }
     }
 
     Scaffold(
@@ -690,26 +712,33 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
+                },
+                actions = {
+                    IconToggleButton(checked = showFilters, onCheckedChange = {
+                        showFilters = it
+                        if (!it) focusManager.clearFocus()
+                    }) {
+                        BadgedBox(badge = { if (query.isNotBlank() || selectedCategory != null || selectedType != null) Badge() }) {
+                            Icon(Icons.Default.Search, contentDescription = if (showFilters)
+                                lt(language, "Ocultar filtros", "Hide filters", "Ocultar filtros") else
+                                lt(language, "Mostrar filtros", "Show filters", "Mostrar filtros"))
+                        }
+                    }
                 }
             )
         }
     ) { padding ->
         LazyColumn(
+            state = listState,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (catalog.loading || catalog.failed) item { MoveScreenLoadFeedback(catalog.loading, catalog.failed, language) }
-            item {
-                AppGlassTextField(
-                    search = true,
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(lt(language, "Buscar Pokémon ou ataque", "Search Pokémon or move", "Buscar Pokémon o ataque")) },
-                    singleLine = true
-                )
+            if (showFilters) item(key = "legacyFilters") {
+                MoveSearchPanel(query, { query = it }, lt(language, "Buscar Pokémon ou ataque", "Search Pokémon or move", "Buscar Pokémon o ataque"),
+                    selectedCategory, { selectedCategory = it }, selectedType, { selectedType = it }, types, language)
             }
-
             item {
                 Text(
                     lt(language, "${filteredEntries.size} Pokémon", "${filteredEntries.size} Pokémon", "${filteredEntries.size} Pokémon"),
@@ -718,7 +747,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                 )
             }
             items(filteredEntries, key = { it.pokemon }) { entry ->
-                LegacyMoveCard(entry = entry, language = language, moveIndex = moveIndex)
+                LegacyMoveCard(entry = entry, language = language, moveIndex = moveIndex, effects = effects)
             }
         }
     }
@@ -729,14 +758,25 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     val catalog by rememberMoveScreenCatalog(context, "AdventureEffect") { GameCatalogRepository.loadAdventureEffectCatalog(context) }
+    val effects by produceState<Map<Int, Map<String, Double>>>(emptyMap(), context) {
+        value = withContext(Dispatchers.IO) { loadMoveEffects(context.applicationContext) }
+    }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    LaunchedEffect(showFilters) { if (showFilters) listState.scrollToItem(0) }
     val entries = catalog.entries
     val moveIndex = catalog.moveIndex
+
+    var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     val normalizedQuery = remember(query) { normalizeMoveLookup(query) }
-    val filteredEntries = remember(entries, normalizedQuery) {
-        if (normalizedQuery.isBlank()) entries else entries.filter { entry ->
+    val types = remember(entries, moveIndex) { entries.mapNotNull { adventureMoveDetails(it, moveIndex)?.type }.distinct().sorted() }
+    val filteredEntries = remember(entries, normalizedQuery, selectedType, moveIndex) {
+        entries.filter { entry -> (normalizedQuery.isBlank() ||
             listOf(entry.pokemon, entry.displayPokemonPt, entry.move, entry.movePt, entry.effectName, entry.effectNamePt)
-                .any { normalizeMoveLookup(it).contains(normalizedQuery) }
+                .any { normalizeMoveLookup(it).contains(normalizedQuery) }) &&
+                matchesMoveFilters(adventureMoveDetails(entry, moveIndex), null, selectedType)
         }
     }
 
@@ -748,31 +788,39 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
+                },
+                actions = {
+                    IconToggleButton(checked = showFilters, onCheckedChange = {
+                        showFilters = it
+                        if (!it) focusManager.clearFocus()
+                    }) {
+                        BadgedBox(badge = { if (query.isNotBlank() || selectedType != null) Badge() }) {
+                            Icon(Icons.Default.Search, contentDescription = if (showFilters)
+                                lt(language, "Ocultar filtros", "Hide filters", "Ocultar filtros") else
+                                lt(language, "Mostrar filtros", "Show filters", "Mostrar filtros"))
+                        }
+                    }
                 }
             )
         }
     ) { padding ->
         LazyColumn(
+            state = listState,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (catalog.loading || catalog.failed) item { MoveScreenLoadFeedback(catalog.loading, catalog.failed, language) }
-            item {
-                AppGlassTextField(
-                    search = true,
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(lt(language, "Buscar Pokémon, ataque ou efeito", "Search Pokémon, move or effect", "Buscar Pokémon, ataque o efecto")) },
-                    singleLine = true
-                )
+            if (showFilters) item(key = "adventureFilters") {
+                MoveSearchPanel(query, { query = it }, lt(language, "Buscar Pokémon, ataque ou efeito", "Search Pokémon, move or effect", "Buscar Pokémon, ataque o efecto"),
+                    null, {}, selectedType, { selectedType = it }, types, language, showCategory = false)
             }
             items(filteredEntries, key = { "${it.pokemon}|${it.move}" }) { entry ->
                 AdventureEffectCard(
                     entry = entry,
                     language = language,
-                    moveDetails = moveIndex[normalizeMoveLookup(entry.move)]
-                        ?: moveIndex[normalizeMoveLookup(entry.movePt)]
+                    moveDetails = adventureMoveDetails(entry, moveIndex),
+                    effects = effects
                 )
             }
         }
@@ -798,7 +846,9 @@ private fun DonationScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = LocalNavigationContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AppSectionCard(modifier = Modifier.fillMaxWidth()) {
@@ -847,7 +897,9 @@ private fun TestMenuScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = LocalNavigationContentPadding.current),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -893,6 +945,11 @@ internal fun HelpMenuScreen(
         mutableStateOf(FeatureIntroductionPreferences.isAutoShowEnabled(context))
     }
     val language = appLanguage()
+    var showSources by rememberSaveable { mutableStateOf(false) }
+    if (showSources) {
+        AppSourcesScreen(onBack = { showSources = false })
+        return
+    }
     Scaffold(
         topBar = {
             AppTopBar(
@@ -906,6 +963,7 @@ internal fun HelpMenuScreen(
         }
     ) { padding ->
         LazyColumn(
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -940,6 +998,7 @@ internal fun HelpMenuScreen(
                         HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. Toque em um campo para configurar os simbolos e adiciona-lo ao nome. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. Tap a field to configure its symbols and add it to the name. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. Toca un campo para configurar sus simbolos y agregarlo al nombre. La superposición solo usa formatos guardados."))
                         HelpLine(lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"), lt(language, "Na janela de nomes sugeridos, toque em uma opcao para copiar o nome. Confira os dados da leitura antes de usar o apelido. Se nenhum nome aparecer, revise a captura e os formatos salvos.", "In the suggested names window, tap an option to copy the name. Check the scanned data before using the nickname. If no name appears, review the capture and saved presets.", "En la ventana de nombres sugeridos, toca una opcion para copiar el nombre. Revisa los datos leidos antes de usar el apodo. Si no aparece ningun nombre, revisa la captura y los formatos guardados."))
                         HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e mais uma vez para limpar. Escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and once more to clear it. Choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y una vez mas para limpiarla. Elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
+                        HelpLine(lt(language, "Filtros na sobreposição", "Overlay filters", "Filtros en la superposición"), lt(language, "Na tela Filtros do app principal, crie e salve filtros de Pokémon ou amigos. Para usá-los no jogo, mantenha a bolha pressionada e escolha Filtros Pokémon ou Filtros amigos. Toque em um filtro salvo para copiar o texto; o painel fecha automaticamente. Depois, cole o texto no campo de busca correspondente do Pokémon GO. Role a lista para ver outros filtros ou toque no X para fechar sem copiar. Se a lista estiver vazia, salve um filtro dessa categoria no app principal.", "On the main app’s Filters screen, create and save Pokémon or friend filters. To use them in the game, hold the bubble and choose Pokémon filters or Friend filters. Tap a saved filter to copy its text; the panel closes automatically. Then paste it into the corresponding Pokémon GO search field. Scroll to see more filters or tap X to close without copying. If the list is empty, save a filter for that category in the main app.", "En la pantalla Filtros de la app principal, crea y guarda filtros de Pokémon o amigos. Para usarlos en el juego, mantén pulsada la burbuja y elige Filtros Pokémon o Filtros amigos. Toca un filtro guardado para copiar el texto; el panel se cierra automáticamente. Después, pega el texto en el campo de búsqueda correspondiente de Pokémon GO. Desplázate para ver más filtros o toca la X para cerrar sin copiar. Si la lista está vacía, guarda un filtro de esa categoría en la app principal."))
                         HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
                         HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a sobreposição usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; overlay mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la superposición usa datos guardados. Revisa formas y ataques al usar el filtro."))
                         HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
@@ -960,6 +1019,11 @@ internal fun HelpMenuScreen(
             item {
                 AppActionButton(onClick = onGoToPrivacy, modifier = Modifier.fillMaxWidth()) {
                     Text(lt(language, "Politica de privacidade", "Privacy policy", "Politica de privacidad"))
+                }
+            }
+            item {
+                AppSecondaryButton(onClick = { showSources = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(lt(language, "Fontes de dados", "Data sources", "Fuentes de datos"))
                 }
             }
         }
@@ -991,10 +1055,13 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
         }
     ) { padding ->
         LazyColumn(
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = LocalNavigationContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -1114,63 +1181,69 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
 private fun LegacyMoveCard(
     entry: LegacyMoveCatalogEntry,
     language: AppLanguage,
-    moveIndex: Map<String, MoveCatalogEntry>
+    moveIndex: Map<String, MoveCatalogEntry>,
+    effects: Map<Int, Map<String, Double>>
 ) {
-    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(entry.pokemon, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            if (entry.moves.isEmpty()) {
-                Text(
-                    lt(language, "Sem golpes cadastrados", "No registered moves", "Sin ataques registrados"),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            } else {
-                entry.moves.forEachIndexed { index, moveName ->
-                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
-                    CatalogMoveRow(
-                        displayName = moveIndex[normalizeMoveLookup(moveName)]?.localizedName(language) ?: moveName,
-                        details = moveIndex[normalizeMoveLookup(moveName)],
-                        language = language
-                    )
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(entry.pokemon, modifier = Modifier.padding(horizontal = 4.dp),
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        if (entry.moves.isEmpty()) {
+            Text(lt(language, "Sem golpes cadastrados", "No registered moves", "Sin ataques registrados"),
+                style = MaterialTheme.typography.bodySmall)
+        } else {
+            entry.moves.forEach { moveName ->
+                val details = legacyMoveDetails(entry, moveName, moveIndex)
+                if (details != null) {
+                    MainMoveCard(entry = details, language = language, effects = effects[details.moveId].orEmpty())
+                } else {
+                    AppSectionCard(Modifier.fillMaxWidth()) {
+                        Text(moveName, modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
     }
 }
+internal fun legacyMoveDetails(entry: LegacyMoveCatalogEntry, moveName: String, index: Map<String, MoveCatalogEntry>): MoveCatalogEntry? =
+    entry.canonicalMoves[moveName]?.let { index[normalizeMoveLookup(it)] } ?: index[normalizeMoveLookup(moveName)]
+
+private fun adventureMoveDetails(entry: AdventureEffectCatalogEntry, index: Map<String, MoveCatalogEntry>): MoveCatalogEntry? =
+    (listOf(entry.move, entry.movePt) + entry.moveAliases).firstNotNullOfOrNull { index[normalizeMoveLookup(it)] }
 
 @Composable
 private fun AdventureEffectCard(
     entry: AdventureEffectCatalogEntry,
     language: AppLanguage,
-    moveDetails: MoveCatalogEntry?
+    moveDetails: MoveCatalogEntry?,
+    effects: Map<Int, Map<String, Double>>
 ) {
     val pokemonName = if (language == AppLanguage.PT_BR) entry.displayPokemonPt else entry.pokemon
     val moveName = if (language == AppLanguage.PT_BR) entry.movePt else entry.move
-    val effectName = if (language == AppLanguage.PT_BR) entry.effectNamePt else entry.effectName
-    AppSectionCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(pokemonName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            CatalogMoveRow(displayName = moveName, details = moveDetails, language = language)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    lt(language, "Efeito", "Effect", "Efecto"),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(effectName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Text(adventureEffectDescription(entry, language), style = MaterialTheme.typography.bodySmall)
+
+    val description: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(lt(language, "Efeito de aventura", "Adventure effect", "Efecto aventura"),
+                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+
+            Text(adventureEffectDescription(entry, language), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(pokemonName, modifier = Modifier.padding(horizontal = 4.dp),
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        if (moveDetails != null) {
+            MainMoveCard(moveDetails, language, effects[moveDetails.moveId].orEmpty(), extraContent = description)
+        } else {
+            AppSectionCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(moveName, fontWeight = FontWeight.SemiBold)
+                    description()
+                }
             }
         }
     }
 }
-
 @Composable
 private fun CatalogMoveRow(
     displayName: String,
@@ -1553,6 +1626,7 @@ private fun IvValidationScreen(
         }
     ) { padding ->
         LazyColumn(
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -1774,7 +1848,10 @@ fun PresetListScreen(
         }
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 16.dp, top = 16.dp, end = 16.dp,
+                bottom = 16.dp + LocalNavigationContentPadding.current
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             itemsIndexed(configs) { _, config ->
                 val previewName = generator.generate(exampleData, config)
@@ -1922,27 +1999,14 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                     }
                 }
             )
-        },
-        bottomBar = {
-            AppActionButton(
-                onClick = {
-                    onUpdate(draftConfig)
-                    onBack()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(16.dp)
-            ) {
-                Text(lt(language, "Salvar", "Save", "Guardar"))
-            }
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(bottom = LocalNavigationContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             AppGlassTextField(
@@ -2079,6 +2143,17 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 onValueChange = { draftConfig = draftConfig.copy(maxLength = it.toInt()) },
                 valueRange = 6f..30f
             )
+            AppActionButton(
+                onClick = {
+                    onUpdate(draftConfig)
+                    onBack()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(lt(language, "Salvar", "Save", "Guardar"))
+            }
         }
     }
 

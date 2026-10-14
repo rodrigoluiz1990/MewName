@@ -1,5 +1,59 @@
 # Histórico de alterações
 
+## 1.0.31 - 2026-10-14
+
+Alterações acumuladas desde a release 1.0.30.
+
+### Pokédex e família
+
+- Detalhes passam de janela modal para tela própria, com abas Geral, Golpes e PvP centralizadas e atualização dos dados online pelo ícone superior direito.
+- Atributos ATK, DEF e HP apresentados em arcos, sem moldura ou divisórias; tipos centralizados.
+- PC por nível em ordem decrescente, com indicação de pesquisas, raids/ovos, raids com clima favorável, fortalecimento, PC máximo e Melhor Companheiro. Removida a explicação do bloco; clima favorável transferido para esse bloco.
+- Fraquezas e resistências em cartões compactos de tamanho uniforme, porcentagem e um único ícone colorido de tipo.
+- Família completa com sprites de Pokémon GO, requisitos de evolução, doces e megaenergia; caminhos compartilham os ancestrais e ramificações usam setas diagonais. Custos acima das setas e rolagem horizontal.
+- Megaevoluções incluídas nas famílias e Gigamax apresentada como forma alternativa, com ligação distinta de evolução. Adicionado catálogo local de evoluções.
+- Ícones de doces com cores da espécie, megaenergia com textura e cores da forma e novos ícones de clima.
+- Golpes e recomendações PvP usam os cartões compartilhados de ataques; indicação de legado mantida no cartão e legendas introdutórias removidas.
+- Confrontos favoráveis e principais ameaças mostram sprites e nomes em listas horizontais. Sombrosos recebem aura roxa transparente atrás do sprite e indicação entre parênteses; Palkia Origem recebe identificação abaixo do nome.
+- Corrigidos vínculos dos sprites de Florges, Mimikyu, Keldeo comum e Keldeo Resolute. Consulta por identificador exato no catálogo de formas, sem substituir forma desconhecida pela comum.
+- Título de informações adicionais simplificado; removidas as explicações finais desse bloco e de IV Master · família.
+- Aba Fontes retirada da Pokédex. Nova tela com fontes e links de consulta em Treinador → Ajuda → Fontes de dados; botão no final da Ajuda.
+
+### Tela principal e eventos
+
+- Imagens oficiais de eventos e temporadas no topo da tela principal, com continuação em gradiente de cores abaixo da imagem.
+- Seleção dos eventos do período por prioridade, dando destaque a eventos como Dia Comunitário e Gigamax sobre eventos gerais e temporada.
+- Carrossel com gesto horizontal, indicadores discretos em barras e troca automática configurável em 5, 10, 15 ou 30 segundos.
+- Pausa automática de 30 segundos após navegação manual e retorno ao evento prioritário ao retomar a tela.
+- Consulta às notícias e temporadas oficiais com cache e reaproveitamento dos últimos dados quando uma fonte falha; proteção do cancelamento e tratamento separado das fontes.
+
+### Ataques e dados do jogo
+
+- Busca de ataques, legados e efeitos de aventura recolhível pelo ícone no topo, com painel compartilhado de filtros e Limpar à direita.
+- Cartões padronizados com cor do tipo, métricas PvE/PvP, efeitos, ícones de clima e ícone de tipo à esquerda do nome.
+- Efeitos de aventura preservam suas descrições sem repetir o nome do ataque; filtro dessa tela não oferece rápido/carregado.
+- Vínculo dos ataques legados passa a usar o nome canônico, corrigindo cartões incompletos como Feixe Meteórico.
+- Corrigidos agrupamentos de traduções de Golem e Florges, nomes canônicos de Lock On, Wild Charge, Super Power e Natures Madness, variantes de Weather Ball/Techno Blast e chave de Pawmot.
+- Removidas duplicatas e associações incorretas de ataques legados, incluindo Evolução Dracônica de Exeggutor de Alola e entradas inválidas de Moltres, Raikou, Meloetta e Hippowdon. Corrigida a grafia de Wildbolt Storm.
+- Formas de Necrozma nos efeitos de aventura identificadas em português como Juba Crepúsculo e Asas Alvorada.
+- Teste de integridade assegura que os ataques legados mantidos encontram dados de combate. Essa verificação não certifica todo o histórico de exclusividade dos golpes.
+
+### Navegação, filtros e raids
+
+- Corrigida a faixa opaca sob o botão central e o menu inferior nas telas secundárias. Conteúdo pode passar pelo recorte, com espaço de rolagem para alcançar o final das listas.
+- Filtros salvos de Pokémon e amigos na sobreposição extraídos para componente compartilhado, com identidade visual de raids/Max, cartões, estado vazio, rolagem e cópia que fecha o painel.
+- Removidos texto de ajuda redundante no painel e botões de filtros salvos nas telas que já exibem a lista; instruções de uso disponíveis na Ajuda.
+- Atualização do catálogo de raids pelo ícone superior quando o chefe não é identificado, incluindo a sobreposição, com estados de progresso e falha.
+- Identidade inequívoca do chefe no catálogo atual prevalece sobre contagem visual incorreta de símbolos da raid, corrigindo casos como Yveltal; não usa raids antigas como comprovação.
+
+### Manutenção e validação
+
+- Preparação da release: 418 testes JVM/Robolectric aprovados; catálogos validados, testes instrumentados compilados e APK release gerado. Lint release sem erros, com 40 avisos.
+
+- Novos testes de eventos, carrossel, evoluções, vínculos de ataques, sprites e identificação de raids; instrumentos de teste no aparelho para atualização de raids e estilos dos filtros.
+- Atualizado o registro existente de verificações físicas; downloads de referência, arquivos temporários e bytecode Python excluídos da lista de arquivos para commit.
+- Mantidas as pendências de validação completa do OCR no aparelho, de memória em uso prolongado e de política definitiva para o cache PvP. As conferências visuais desta versão não substituem os cenários físicos de OCR ainda pendentes.
+
 ## 1.0.30 - 2026-10-11
 
 Alterações desde a release 1.0.29.

@@ -15,14 +15,34 @@ internal data class PokedexLocalDetails(
     val moves: PokemonMoveSet, val moveStats: Map<String, MoveCatalogEntry>,
     val matchups: List<TypeMatchupEntry>, val cp: Map<Int, Pair<Int?, Int?>>,
     val master: Map<Int, Triple<Int, Int, Int>>, val masterFamily: String,
-    val sprite: String?, val shiny: String?
+    val sprite: String?, val shiny: String?,
+    val familySprites: Map<String, String?> = emptyMap(),
+    val evolutionPaths: List<PokedexEvolutionPath> = emptyList(),
+    val candyColors: Map<String, Pair<Int, Int>> = emptyMap(),
+    val megaColors: Map<String, Pair<Int, Int>> = emptyMap()
 )
+internal data class PokedexOpponent(val name: String, val sprite: String?, val shadow: Boolean)
 internal data class PokedexOnlineSnapshot(val json: String, val fetchedAt: Long, val stale: Boolean)
 internal data class PokedexLeagueDetails(val cap: Int, val rank: Int?, val score: Double?,
     val moves: List<String>, val wins: List<String>, val counters: List<String>,
     val snapshot: PokedexOnlineSnapshot)
 
 internal class PokedexDetailsRepository(private val context: Context) {
+    private val opponentImages by lazy { PersonalCollectionImages(context) }
+
+    fun opponents(ids: List<String>, entries: List<PokedexCatalogEntry>, language: AppLanguage): Map<String, PokedexOpponent> {
+        if (ids.isEmpty()) return emptyMap()
+        val index = entries.flatMap { entry -> (entry.aliases + entry.name).map { pokedexIdentity(it) to entry } }
+            .groupBy({ it.first }, { it.second })
+        return ids.associateWith { id ->
+            val entry = index[pokedexIdentity(id.removeSuffix("_shadow"))]?.distinctBy { it.name }?.singleOrNull()
+            val url = entry?.let {
+                opponentImages.url(PersonalCollectionTarget(JSONArray(listOf(it.name.uppercase(Locale.ROOT), "")).toString(), it.name))
+            } ?: opponentImages.formUrl(id.removeSuffix("_shadow"))
+            PokedexOpponent(entry?.localizedName(language) ?: raidName(id.removeSuffix("_shadow")), url, id.endsWith("_shadow"))
+        }
+    }
+
     fun local(entry: PokedexCatalogEntry, language: AppLanguage): PokedexLocalDetails {
         val raw = JSONObject(context.assets.open(AssetPaths.POKEMON_STATS).bufferedReader().use { it.readText() })
         val key = raw.keys().asSequence().firstOrNull { pokedexIdentity(it) == pokedexIdentity(entry.name) }
@@ -42,10 +62,17 @@ internal class PokedexDetailsRepository(private val context: Context) {
         val master = MasterIvBadgeCatalog()
         val target = PersonalCollectionTarget(JSONArray(listOf(entry.name.uppercase(Locale.ROOT), "")).toString(), entry.name)
         val images = PersonalCollectionImages(context)
+        val evolutions = parsePokedexEvolutions(context.assets.open("pokemon/evolutions.json").bufferedReader().use { it.readText() })
+        val familyConnections = evolutions + pokedexGigantamaxForms(context, images)
+        val paths = pokedexEvolutionPaths(family, familyConnections)
+        val temporarySprites = familyConnections.filter { it.spriteFile != null }.associate { it.to to it.spriteFile!! }
         return PokedexLocalDetails(types, listOf("attack","defense","stamina").map { stats?.optInt(it) }, family,
             moves, catalog, GameInfoRepository.matchupAgainst(context, types), cp,
             master.bestCombinations(context, family, entry.name), master.combinationFamilyName(family, entry.name),
-            images.url(target), images.url(target, true))
+            images.url(target), images.url(target, true),
+            paths.flatMap { it.members }.distinct().associateWith { member ->
+                temporarySprites[member]?.let { images.gameSprite(it) } ?: images.url(PersonalCollectionTarget(
+                    JSONArray(listOf(member.uppercase(Locale.ROOT), "")).toString(), member)) }, paths, pokedexCandyColors(context, paths), pokedexMegaColors(context, familyConnections))
     }
 
     /** Fresh data for 24h; a failed refresh never replaces a good file. Call on Dispatchers.IO. */

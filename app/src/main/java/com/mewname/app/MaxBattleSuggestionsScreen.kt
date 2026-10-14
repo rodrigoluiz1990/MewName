@@ -35,6 +35,7 @@ internal fun MaxBattleSuggestionsScreen(
     bossTier: String? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val navigationContentPadding = LocalNavigationContentPadding.current
     val language = appLanguage()
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
     var selectedTab by rememberSaveable(advice.bossName) { mutableStateOf(0) }
@@ -105,6 +106,7 @@ internal fun MaxBattleSuggestionsScreen(
             )
         },
         bottomBar = {
+            if (navigationContentPadding == 0.dp) {
             Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppActionButton(
@@ -114,12 +116,13 @@ internal fun MaxBattleSuggestionsScreen(
                 ) { Text(if (copied) tr("Copiado!", "Copied!", "¡Copiado!") else tr("Copiar filtro", "Copy filter", "Copiar filtro")) }
                 if (showLogAction) AppActionButton(onClick = onExportLog, secondary = true) { Text("Log") }
             }
+            }
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize()
                 .background(Brush.verticalGradient(LocalAppAppearance.current.background)).padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + navigationContentPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -186,6 +189,17 @@ internal fun MaxBattleSuggestionsScreen(
                         else maxBossUrl(id) + (tier?.let { "/" + it } ?: "") + "?sort=" + role.sort
                     openExternalUrl(context, url)
                 }) { Text(tr("Abrir Pokébattler ↗", "Open Pokébattler ↗", "Abrir Pokébattler ↗")) }
+            }
+            if (navigationContentPadding > 0.dp) item {
+            Row(Modifier.fillMaxWidth().padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppActionButton(
+                    onClick = { onCopy(localizedFilter); copied = true },
+                    enabled = localizedFilter.isNotBlank(),
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (copied) tr("Copiado!", "Copied!", "¡Copiado!") else tr("Copiar filtro", "Copy filter", "Copiar filtro")) }
+                if (showLogAction) AppActionButton(onClick = onExportLog, secondary = true) { Text("Log") }
+            }
             }
         }
     }

@@ -138,7 +138,7 @@ internal fun TrainerProfileScreen(
         label = "profileNavigation"
     ) { destination ->
     if (destination == "profile") {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp),
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp).padding(bottom = LocalNavigationContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(
                 Modifier.fillMaxWidth()
@@ -235,7 +235,8 @@ internal fun TrainerProfileScreen(
             })
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)
-                .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.verticalScroll(rememberScrollState())).padding(20.dp),
+                .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.verticalScroll(rememberScrollState())).padding(20.dp)
+                .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.padding(bottom = LocalNavigationContentPadding.current)),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (destination) {
                     "collection" -> PersonalCollectionPreferences()

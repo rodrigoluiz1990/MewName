@@ -1,19 +1,15 @@
-Versão 1.0.30
+Versão 1.0.31
 
-- Leitura na sobreposição com aviso centralizado, translúcido, no estilo glassmorphism, progresso e botão Cancelar; removidos o fundo cinza e o bloqueio de interação com o jogo fora do cartão.
-- Cancelamento protegido contra resultados, erros, progresso e finalização de leituras antigas, permitindo iniciar uma nova análise com segurança.
-- OCR e sobreposição divididos em componentes menores para facilitar manutenção e liberação de recursos.
-- Melhorias na importação de imagens grandes e com rotação EXIF, processamento em segundo plano e tratamento de tempo limite.
-- Correções na leitura de barras de IV em JPEG, reconhecimento do prefixo PC e navegação para a revisão após importar imagens.
-- Cache PvP ampliado temporariamente para 36 tabelas por calculadora e busca de posição no ranking por pesquisa binária.
-- Catálogo de ataques com índices reutilizados; consultas de ataques legados e efeitos de aventura carregadas em segundo plano.
-- Coleção pessoal com reaproveitamento dos registros interpretados, migração automática do armazenamento anterior e serialização apenas das entradas alteradas.
-- Ataques legados dos Dias Comunitários de 2026 atualizados até Zorua, em 10/10/2026, incluindo Soco Enganador para Zoroark e separação das listas por forma regional.
-- Estatísticas PvE/PvP e traduções de Martelo Gigatônico e Fúria de Glaive adicionadas; tradução de Água Gelada atualizada.
-- Correções na comparação de versões e geração do versionCode; publicação passa a exigir testes unitários, validação dos catálogos e Lint release.
+- Pokédex em tela própria, atributos sem bordas, abas centralizadas, PC por nível com origem do encontro e clima favorável no mesmo bloco.
+- Família completa com sprites de Pokémon GO, doces e megaenergia sobre as setas, ramificações para megaevoluções e indicação de formas Gigamax.
+- Fraquezas e resistências mais compactas; novos ícones de clima, doces e megaenergia.
+- Golpes e PvP com cartões padronizados. Confrontos e ameaças agora mostram sprites, aura dos sombrosos e identificação de Palkia Origem.
+- Corrigidos sprites de Florges, Mimikyu e das formas de Keldeo.
+- Tela principal com imagens oficiais de eventos e temporada, ordenadas por prioridade, carrossel por gesto e troca automática configurável.
+- Busca recolhível e filtros compartilhados nas telas de ataques, legados e efeitos de aventura; tipo à esquerda do nome e Limpar à direita.
+- Corrigidos vínculos e traduções de ataques, cartões incompletos e nomes em português das formas de Necrozma. Removidas associações inválidas da lista de legados.
+- Filtros da sobreposição com visual alinhado às telas de raids e Max. Corrigido o fundo opaco atrás do recorte do menu inferior nas telas secundárias.
+- Atualização de raids pelo topo quando o chefe não é identificado e correção de reconhecimento quando a contagem de símbolos diverge do catálogo atual, como no caso de Yveltal.
+- Fontes reunidas em Treinador → Ajuda → Fontes de dados, no final da página.
 
-Observações
-
-- O limite de 36 tabelas é temporário; uma nova política de cache continua pendente.
-- A validação física realizada é parcial. Formas regionais, fundos especiais, timeout forçado, uso prolongado de memória e conferência visual do cartão centralizado continuam pendentes.
-- A leitura visual do arco de nível permanece desativada.
+O histórico completo está em CHANGELOG.md. A revisão dos vínculos não equivale a uma auditoria de todo o histórico de ataques legados. Permanecem pendentes cenários físicos de OCR, medição prolongada de memória e a política definitiva do cache PvP.

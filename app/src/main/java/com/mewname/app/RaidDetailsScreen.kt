@@ -33,6 +33,7 @@ import java.util.Date
 @Composable
 internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEVEL_5", bubble: Boolean = false, raidScreenText: String = "", detectedRaidLevel: Int? = null, shielded: Boolean = false, onBack: () -> Unit) {
     val context = LocalContext.current
+    val navigationContentPadding = LocalNavigationContentPadding.current
     val language = appLanguage()
     fun tr(pt: String,en: String,es: String) = lt(language,pt,en,es)
     val repository = remember { RaidCounterRepository(context.applicationContext) }
@@ -45,6 +46,9 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     var selectedId by rememberSaveable(bossName) { mutableStateOf<String?>(bossName) }
     var formChoices by remember(bossName) { mutableStateOf<List<RaidChoice>>(emptyList()) }
     var refresh by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
+    var catalogRefreshing by remember { mutableStateOf(false) }
+    var catalogRefreshFailed by remember { mutableStateOf(false) }
     var report by remember(selectedId,tier,level) { mutableStateOf<RaidReport?>(null) }
     var trainerReport by remember(selectedId, tier) { mutableStateOf<RaidReport?>(null) }
     var trainersLoading by remember(selectedId, tier) { mutableStateOf(false) }
@@ -152,12 +156,60 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         }, contentAlignment=Alignment.Center) { Box(Modifier.size(42.dp,4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha=.4f),RoundedCornerShape(4.dp))) }
         AppTopBar(title={Text(tr("Detalhes da raid","Raid details","Detalles de la incursión"))}, navigationIcon={
             IconButton(onClick=onBack) { Icon(if(bubble) Icons.Default.Close else Icons.Default.ArrowBack,tr("Fechar","Close","Cerrar")) }
-        },actions={if(!bubble) IconButton(onClick={refresh++},enabled=!loading){Icon(Icons.Default.Refresh,tr("Atualizar","Refresh","Actualizar"))}})
-        LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        }, actions = {
+            if (catalogRefreshing) {
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
+            } else if (boss == null || !bubble) {
+                IconButton(
+                    enabled = if (boss == null) meta != null && inferredTier else !loading,
+                    onClick = {
+                        if (boss != null) {
+                            refresh++
+                        } else {
+                            catalogRefreshing = true
+                            catalogRefreshFailed = false
+                            val previousSelection = selectedId
+                            scope.launch {
+                                try {
+                                    val identity = withContext(Dispatchers.IO) {
+                                        repository.catalog(refresh = true)
+                                        repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel)
+                                    }
+                                    // A manual selection made during the request takes precedence.
+                                    if (selectedId == previousSelection) {
+                                        formChoices = identity.alternatives
+                                        selectedId = identity.selected?.id
+                                        tier = identity.selected?.tier ?: initialTier
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    catalogRefreshFailed = true
+                                } finally {
+                                    catalogRefreshing = false
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Icon(Icons.Default.Refresh, if (boss == null)
+                        tr("Atualizar raids disponíveis", "Refresh available raids", "Actualizar incursiones disponibles")
+                    else tr("Atualizar", "Refresh", "Actualizar"))
+                }
+            }
+        })
+        LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(start=16.dp, top=16.dp, end=16.dp, bottom=16.dp + navigationContentPadding),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             if(meta==null && !failed) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if(meta==null && failed) item { Text(tr("Não foi possível carregar os dados da raid.","Could not load raid data.","No se pudieron cargar los datos.")) }
             if(meta!=null && boss==null) item { Text(if(formChoices.isNotEmpty()) tr("Chefe não identificado. Escolha uma raid atual deste nível.","Boss not identified. Choose a current raid at this level.","Jefe no identificado. Elige una incursión actual de este nivel.") else tr("Não foi possível identificar o chefe nem encontrar raids atuais deste nível.","The boss could not be identified and no current raids were found at this level.","No se pudo identificar al jefe ni encontrar incursiones actuales de este nivel.")) }
-            if(bubble && boss==null && formChoices.isNotEmpty()) item {
+            if (catalogRefreshFailed) item {
+                Text(tr("Não foi possível atualizar as raids disponíveis. Os dados salvos foram preservados. Tente novamente.",
+                    "Could not refresh available raids. Saved data was preserved. Try again.",
+                    "No se pudieron actualizar las incursiones disponibles. Se conservaron los datos guardados. Inténtalo de nuevo."))
+            }
+            if(boss==null && formChoices.isNotEmpty()) item {
                 RaidVariantSelector(tr("Selecionar raid","Select raid","Seleccionar incursión"),formChoices,
                     label={"${name(it.id)} · ${raidLabel(it)}"},onSelect={selectedId=it.id; tier=it.tier})
             }
@@ -289,7 +341,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                     if(!bubble) TextButton(onClick={openExternalUrl(context,"https://www.pokebattler.com/raids/${b.id}")}) { Text(tr("Abrir Pokébattler ↗","Open Pokébattler ↗","Abrir Pokébattler ↗")) }
                 } }
             }
-        }
+            if (navigationContentPadding > 0.dp) item {
         if(report!=null) AppActionButton(onClick={
             val types=report!!.counters.flatMap { listOf(it.fast.type,it.charged.type) }.filter { it.isNotBlank() }.distinct()
             val attacks=types.flatMap { type -> (1..3).map { "@$it${localizedTypeLabel(type,language)}" } }.joinToString(",")
@@ -297,6 +349,17 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             val query=if(species.isNotBlank()) "$species&$attacks" else attacks
             clipboard.setText(AnnotatedString(query));copied=true
         },modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)) { Text(if(copied) tr("Copiado","Copied","Copiado") else tr("Copiar filtro","Copy filter","Copiar filtro")) }
+            }
+        }
+        if (navigationContentPadding == 0.dp) {
+        if(report!=null) AppActionButton(onClick={
+            val types=report!!.counters.flatMap { listOf(it.fast.type,it.charged.type) }.filter { it.isNotBlank() }.distinct()
+            val attacks=types.flatMap { type -> (1..3).map { "@$it${localizedTypeLabel(type,language)}" } }.joinToString(",")
+            val species=report!!.counters.mapNotNull { meta?.pokemon?.get(it.id)?.dex?.takeIf { dex -> dex>0 } }.distinct().joinToString(",")
+            val query=if(species.isNotBlank()) "$species&$attacks" else attacks
+            clipboard.setText(AnnotatedString(query));copied=true
+        },modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)) { Text(if(copied) tr("Copiado","Copied","Copiado") else tr("Copiar filtro","Copy filter","Copiar filtro")) }
+        }
     }
 }
 @Composable internal fun RaidCpRow(label: String, low: String, high: String) {

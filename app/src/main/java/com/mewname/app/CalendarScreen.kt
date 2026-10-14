@@ -129,7 +129,7 @@ internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().background(Brush.verticalGradient(LocalAppAppearance.current.background))
             .padding(padding).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)) {
+            contentPadding = PaddingValues(top = 12.dp, bottom = 12.dp + LocalNavigationContentPadding.current)) {
             if (!compactToday) item {
                 AppSectionCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

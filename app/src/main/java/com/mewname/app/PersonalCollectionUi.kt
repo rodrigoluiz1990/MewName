@@ -288,6 +288,7 @@ internal fun PersonalCollectionPreferences() {
         }
     }
     LazyColumn(
+        contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current),
         state = listState,
         modifier = Modifier.fillMaxSize().pointerInput(listState) {
             detectDragGesturesAfterLongPress(
@@ -441,7 +442,7 @@ internal fun PersonalCollectionScreen(
                 if (species == null) LinearProgressIndicator(Modifier.fillMaxWidth())
                 LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp)) {
+                    contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationContentPadding.current)) {
                     if (quickGroup == null && species != null && entries.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum Pokémon encontrado.") }
                     if (quickGroup != null) {
                         if (species != null && quickTargets.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum Pokémon encontrado.") }
@@ -595,7 +596,7 @@ internal fun PersonalCollectionPortrait(target: PersonalCollectionTarget, images
     }
 }
 @Composable
-private fun CollectionShadowAura() {
+internal fun CollectionShadowAura() {
     val context = LocalContext.current
     val frame by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null) {
         value = withContext(Dispatchers.IO) {

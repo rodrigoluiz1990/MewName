@@ -39,7 +39,7 @@ internal fun loadMoveEffects(context: android.content.Context): Map<Int, Map<Str
 }
 
 @Composable
-internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effects: Map<String, Double>) {
+internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effects: Map<String, Double>, extraContent: (@Composable () -> Unit)? = null) {
     fun tr(pt: String, en: String, es: String) = when(language) {
         AppLanguage.PT_BR -> pt; AppLanguage.EN -> en; AppLanguage.ES -> es
     }
@@ -49,14 +49,15 @@ internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effect
     val positive = stages.values.any { it > 0 }
     val negative = stages.values.any { it < 0 }
     val effectLabel = when { positive && negative -> "Boost/Debuff"; positive -> "Boost"; negative -> "Debuff"; else -> null }
+    val weatherKey = raidWeather(listOf(entry.type)).firstOrNull()
     val weather = when(entry.type) {
-        "Grass", "Fire", "Ground" -> tr("☀ Sol", "☀ Sunny", "☀ Sol")
-        "Water", "Electric", "Bug" -> tr("☂ Chuva", "☂ Rain", "☂ Lluvia")
-        "Normal", "Rock" -> tr("⛅ Parcial", "⛅ Partly", "⛅ Parcial")
-        "Fairy", "Fighting", "Poison" -> tr("☁ Nublado", "☁ Cloudy", "☁ Nublado")
-        "Dragon", "Flying", "Psychic" -> tr("≋ Vento", "≋ Windy", "≋ Viento")
-        "Ice", "Steel" -> tr("❄ Neve", "❄ Snow", "❄ Nieve")
-        "Dark", "Ghost" -> tr("≋ Névoa", "≋ Fog", "≋ Niebla")
+        "Grass", "Fire", "Ground" -> tr("Sol", "Sunny", "Sol")
+        "Water", "Electric", "Bug" -> tr("Chuva", "Rain", "Lluvia")
+        "Normal", "Rock" -> tr("Parcial", "Partly", "Parcial")
+        "Fairy", "Fighting", "Poison" -> tr("Nublado", "Cloudy", "Nublado")
+        "Dragon", "Flying", "Psychic" -> tr("Vento", "Windy", "Viento")
+        "Ice", "Steel" -> tr("Neve", "Snow", "Nieve")
+        "Dark", "Ghost" -> tr("Névoa", "Fog", "Niebla")
         else -> "—"
     }
     val shape = RoundedCornerShape(16.dp)
@@ -67,6 +68,8 @@ internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effect
         .padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            AssetImageIcon("types/POKEMON_TYPE_${entry.type.uppercase(java.util.Locale.ROOT)}.png",
+                localizedTypeLabel(entry.type, language), Modifier.size(20.dp), fallbackSize = 20.dp)
             val category = if(fast) tr("Rápido", "Fast", "Rápido") else tr("Carregado", "Charged", "Cargado")
             Text("${entry.localizedName(language)} ($category)", Modifier.weight(1f), fontWeight = FontWeight.Bold,
                 fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -82,9 +85,14 @@ internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effect
                     Text(if(expanded) "⌃" else "⌄", fontSize = 13.sp)
                 }
             }
-            Text(weather, Modifier.background(glass, RoundedCornerShape(7.dp)).padding(4.dp), fontSize = 10.sp)
-            AssetImageIcon("types/POKEMON_TYPE_${entry.type.uppercase(java.util.Locale.ROOT)}.png",
-                localizedTypeLabel(entry.type, language), Modifier.size(20.dp), fallbackSize = 20.dp)
+            Row(Modifier.background(glass, RoundedCornerShape(7.dp)).padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                weatherKey?.let { key ->
+                    AssetImageIcon("pokedex_icons/weather_$key.png", null, Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(weather, fontSize = 10.sp)
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             MoveMetricsPill("PvE", entry.power, entry.energyDelta, entry.duration?.let { "${it / 1000.0}s" }, Modifier.weight(1f))
@@ -102,6 +110,7 @@ internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effect
                     Text(tr("Chance: ", "Chance: ", "Probabilidad: ") + "${(it*100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                 }
         }
+        extraContent?.invoke()
     }
 }
 

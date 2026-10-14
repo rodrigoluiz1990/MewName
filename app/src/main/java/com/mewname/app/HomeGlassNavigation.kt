@@ -14,10 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
@@ -35,14 +37,18 @@ internal val HomeNavigationContentHeight = 96.dp
 private object HomeNavigationShape : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val corner = with(density) { 22.dp.toPx() }
-        val radius = with(density) { 36.dp.toPx() }
-        val shoulder = with(density) { 10.dp.toPx() }
+        // The button radius is 32.dp; keep an 8.dp gap along its entire lower half.
+        val radius = with(density) { 40.dp.toPx() }
         val middle = size.width / 2f
         return Outline.Generic(Path().apply {
             moveTo(corner, 0f)
-            lineTo(middle - radius - shoulder, 0f)
-            cubicTo(middle - radius, 0f, middle - radius, radius, middle, radius)
-            cubicTo(middle + radius, radius, middle + radius, 0f, middle + radius + shoulder, 0f)
+            lineTo(middle - radius, 0f)
+            arcTo(
+                Rect(middle - radius, -radius, middle + radius, radius),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = -180f,
+                forceMoveTo = false
+            )
             lineTo(size.width - corner, 0f)
             quadraticBezierTo(size.width, 0f, size.width, corner)
             lineTo(size.width, size.height)
@@ -71,7 +77,16 @@ internal fun HomeGlassNavigation(
     Box(Modifier.fillMaxWidth().height(HomeNavigationContentHeight + bottomInset)) {
         Box(Modifier.fillMaxWidth().height(64.dp + bottomInset).offset(y = 32.dp)
             .background(Brush.verticalGradient(dockColors), HomeNavigationShape)
-            .border(0.5.dp, appearance.border, HomeNavigationShape))
+            .border(0.5.dp, appearance.border, HomeNavigationShape)
+            .clip(HomeNavigationShape)
+            // Do not let touches on the opaque dock activate content hidden below it.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                }
+            })
         Row(Modifier.fillMaxWidth().offset(y = 40.dp).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
             NavigationIcon("calendar", lt(language, "Calendário", "Calendar", "Calendario"), onCalendarClick, Modifier.weight(1f))
             NavigationIcon("names", lt(language, "Definir nomes", "Name presets", "Definir nombres"), onNamesClick, Modifier.weight(1f))
