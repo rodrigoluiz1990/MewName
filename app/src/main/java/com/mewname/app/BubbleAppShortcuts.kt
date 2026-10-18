@@ -5,6 +5,7 @@ internal data class BubbleAppShortcut(
     val screen: AppScreen? = null, val url: String? = null
 )
 internal val bubbleAppShortcuts = listOf(
+    BubbleAppShortcut("app_missions", "missions", "Missões diárias", "Daily missions", "Misiones diarias", AppScreen.DAILY_MISSIONS),
     BubbleAppShortcut("app_calendar", "calendar", "Calendário", "Calendar", "Calendario",
         screen = AppScreen.CALENDAR),
     BubbleAppShortcut("app_names", "names", "Definir nomes", "Name presets", "Definir nombres", AppScreen.PRESET_LIST),

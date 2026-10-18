@@ -1219,10 +1219,10 @@
     },
     {
         "duration": 4000,
-        "energy_delta": -50,
+        "energy_delta": -33,
         "move_id": 288,
         "name": "Psycho Boost",
-        "power": 70,
+        "power": 130,
         "stamina_loss_scaler": 0.01,
         "type": "Psychic"
     },
@@ -1728,7 +1728,7 @@
         "duration": 3500,
         "energy_delta": -100,
         "move_id": 360,
-        "name": "Aeroblast",
+        "name": "Aeroblast Plus",
         "power": 200,
         "stamina_loss_scaler": 0.01,
         "type": "Flying"
@@ -1737,7 +1737,7 @@
         "duration": 3500,
         "energy_delta": -100,
         "move_id": 361,
-        "name": "Aeroblast",
+        "name": "Aeroblast Plus Plus",
         "power": 225,
         "stamina_loss_scaler": 0.01,
         "type": "Flying"
@@ -1746,7 +1746,7 @@
         "duration": 2500,
         "energy_delta": -100,
         "move_id": 362,
-        "name": "Sacred Fire",
+        "name": "Sacred Fire Plus",
         "power": 135,
         "stamina_loss_scaler": 0.01,
         "type": "Fire"
@@ -1755,7 +1755,7 @@
         "duration": 2500,
         "energy_delta": -100,
         "move_id": 363,
-        "name": "Sacred Fire",
+        "name": "Sacred Fire Plus Plus",
         "power": 155,
         "stamina_loss_scaler": 0.01,
         "type": "Fire"
@@ -1908,7 +1908,7 @@
         "duration": 2000,
         "energy_delta": -33,
         "move_id": 382,
-        "name": "Myst Fire",
+        "name": "Mystical Fire",
         "power": 60,
         "stamina_loss_scaler": 0.01,
         "type": "Fire"
@@ -2058,33 +2058,6 @@
         "type": "Dark"
     },
     {
-        "duration": 500,
-        "energy_delta": 7,
-        "move_id": 401,
-        "name": "Psywave",
-        "power": 4,
-        "stamina_loss_scaler": 0.01,
-        "type": "Psychic"
-    },
-    {
-        "duration": 500,
-        "energy_delta": 6,
-        "move_id": 402,
-        "name": "Metal Sound",
-        "power": 4,
-        "stamina_loss_scaler": 0.01,
-        "type": "Steel"
-    },
-    {
-        "duration": 500,
-        "energy_delta": 7,
-        "move_id": 403,
-        "name": "Sand Attack",
-        "power": 4,
-        "stamina_loss_scaler": 0.01,
-        "type": "Ground"
-    },
-    {
         "duration": 3000,
         "energy_delta": -100,
         "move_id": 404,
@@ -2103,8 +2076,8 @@
         "type": "Ghost"
     },
     {
-        "duration": 2700,
-        "energy_delta": -45,
+        "duration": 2500,
+        "energy_delta": -50,
         "move_id": 406,
         "name": "Aura Wheel Electric",
         "power": 100,
@@ -2112,10 +2085,10 @@
         "type": "Electric"
     },
     {
-        "duration": 2700,
-        "energy_delta": -45,
+        "duration": 2500,
+        "energy_delta": -50,
         "move_id": 407,
-        "name": "Aura Wheel Electric",
+        "name": "Aura Wheel Dark",
         "power": 100,
         "stamina_loss_scaler": 0.01,
         "type": "Dark"
@@ -2148,7 +2121,7 @@
         "type": "Ghost"
     },
     {
-        "duration": 2700,
+        "duration": 3000,
         "energy_delta": -33,
         "move_id": 465,
         "name": "Flower Trick",
@@ -2211,7 +2184,7 @@
         "type": "Fighting"
     },
     {
-        "duration": 3300,
+        "duration": 3500,
         "energy_delta": -100,
         "move_id": 472,
         "name": "Thunder Cage",
@@ -2229,7 +2202,7 @@
         "type": "Dragon"
     },
     {
-        "duration": 3300,
+        "duration": 3500,
         "energy_delta": -100,
         "move_id": 484,
         "name": "Clanging Scales",
@@ -2238,7 +2211,7 @@
         "type": "Dragon"
     },
     {
-        "duration": 1800,
+        "duration": 2000,
         "energy_delta": -100,
         "move_id": 485,
         "name": "Crush Grip",
@@ -2247,7 +2220,7 @@
         "type": "Normal"
     },
     {
-        "duration": 3300,
+        "duration": 3500,
         "energy_delta": -50,
         "move_id": 486,
         "name": "Dragon Energy",
@@ -2299,5 +2272,73 @@
         "power": 105.0,
         "stamina_loss_scaler": 0.01,
         "type": "Dragon"
+    },
+    {
+        "move_id": 490,
+        "name": "Beak Blast",
+        "type": "Flying",
+        "duration": 2500,
+        "power": 125,
+        "energy_delta": -50
+    },
+    {
+        "move_id": 491,
+        "name": "Mind Blown",
+        "type": "Fire",
+        "duration": 4000,
+        "power": 130,
+        "energy_delta": -33
+    },
+    {
+        "move_id": 492,
+        "name": "Drum Beating",
+        "type": "Grass",
+        "duration": 4500,
+        "power": 115,
+        "energy_delta": -33
+    },
+    {
+        "move_id": 493,
+        "name": "Pyroball",
+        "type": "Fire",
+        "duration": 2000,
+        "power": 150,
+        "energy_delta": -100
+    },
+    {
+        "move_id": 497,
+        "name": "Plasma Fists",
+        "type": "Electric",
+        "duration": 3500,
+        "power": 135,
+        "energy_delta": -50
+    },
+    {
+        "move_id": 592,
+        "name": "Snipe Shot",
+        "type": "Water",
+        "duration": 3500,
+        "power": 100,
+        "energy_delta": -33
+    },
+    {
+        "move_id": 593,
+        "name": "Dive",
+        "type": "Water",
+        "duration": 3300,
+        "power": 70,
+        "energy_delta": -33
+    },
+    {
+        "move_id": 594,
+        "name": "Gulp Missile Gulping",
+        "type": "Normal",
+        "duration": 2500
+    },
+    {
+        "move_id": 595,
+        "name": "Gulp Missile Gorging",
+        "type": "Normal",
+        "duration": 2500
     }
 ]

@@ -1,0 +1,23 @@
+tx_fieldmove_BehemothBash.png | 433bfff075c7ca215339908e9579aff41ae01411 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_BehemothBash.png
+tx_fieldmove_BehemothBlade.png | 3a47233376d9f664223efc265757ba5f5e854fa2 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_BehemothBlade.png
+tx_fieldmove_DynamaxCannon.png | 143d82874cad7f424229285d76e8c6e4ca5555cb | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_DynamaxCannon.png
+tx_fieldmove_FreezeShock.png | 8ffbc8809349d8b8bbe01f011f3390c9534a505f | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_FreezeShock.png
+tx_fieldmove_IceBurn.png | 61b3e5edbe88ef192ec4f4f49aa18dfb729b40b4 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_IceBurn.png
+tx_fieldmove_MoongeistBeam.png | fcf6fd51aa80fd35daa2b2e4afd7777baab2a8f2 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_MoongeistBeam.png
+tx_fieldmove_RoarofTime.png | 780dd61281b8900b63dc297575646e3701108858 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_RoarofTime.png
+tx_fieldmove_SpacialRend.png | e71757747fd6315edcd3ef8dedba86a070fa7eeb | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_SpacialRend.png
+tx_fieldmove_SunsteelStrike.png | d200b6c9c76b4f2ac1ad50af1512858379f723ed | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Banners/tx_fieldmove_SunsteelStrike.png
+Eternatus_AEportrait.png | 504808b112e34869936639822900a143d9181af6 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/Eternatus_AEportrait.png
+ic_b_kyurem_aeportrait.png | ff273274e03c0e9df50da5134c8ec7a199509e09 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/ic_b_kyurem_aeportrait.png
+ic_dawnwing_aeportrait.png | 0cedfe3306fb74ab4788d9839f0747f56b4c4a0a | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/ic_dawnwing_aeportrait.png
+ic_duskmane_aeportrait.png | 00b855d597902b20b4b88bb23213f1b2a7c6bb31 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/ic_duskmane_aeportrait.png
+ic_fieldmoveIcon.png | 98041d9215da39068cb9d7b7ec37e325d4a8869f | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/ic_fieldmoveIcon.png
+ic_fieldmove_dialga.png | b3a878f99c492c4764f24c3ca01e8a4f7a0f3391 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/ic_fieldmove_dialga.png
+ic_fieldmove_palkia.png | 9ae1523e29aa9d103a8eb0a2281ffe6ddc7c145d | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/ic_fieldmove_palkia.png
+ic_w_kyurem_aeportrait.png | 6983bf64cd51022ff2f1e126173611450dab2bcf | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/ic_w_kyurem_aeportrait.png
+zacian_AEportrait.png | e1c46ded0853a2ea669b11e52908227a77e6c6f4 | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/zacian_AEportrait.png
+zamazenta_AEportrait.png | b480935c4a4e23c57517b29509bb6b69be86ca6a | https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/AdventureEffect/Portrait/zamazenta_AEportrait.png
+
+https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/pokemon_icon_150_51.png
+https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/pokemon_icon_150_52.png
+Updated from Pokemon GO 0.433.0 UnityCache on the connected device, 2026-10-16. See phone-sources.json for provenance and PNG hashes. Includes Mega Mewtwo X/Y portraits and Dynamic Punch/Future Sight banners.

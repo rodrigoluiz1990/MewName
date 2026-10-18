@@ -91,6 +91,7 @@ internal fun TrainerProfileScreen(
     var showLayout by rememberSaveable { mutableStateOf(false) }
     var showBubbleOptions by rememberSaveable { mutableStateOf(false) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
+    var showBackup by rememberSaveable { mutableStateOf(false) }
     var showUpdate by rememberSaveable { mutableStateOf(false) }
     var pictureRevision by remember { mutableStateOf(0) }
     var importingQr by rememberSaveable { mutableStateOf(false) }
@@ -109,8 +110,9 @@ internal fun TrainerProfileScreen(
             }
         }
     }
-    fun closePage() { showCollection = false; showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
+    fun closePage() { showBackup = false; showCollection = false; showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
     val page = when {
+        showBackup -> "backup"
         showCollection -> "collection"
         showPvp -> "pvp"
         showLayout -> "layout"
@@ -205,6 +207,7 @@ internal fun TrainerProfileScreen(
                 ProfileMenuRow("Layout", onClick = { showLayout = true })
                 ProfileMenuRow(lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición"),
                     onClick = { showBubbleOptions = true })
+                ProfileMenuRow(lt(language, "Backup e restauração", "Backup and restore", "Copia y restauración"), onClick = { showBackup = true })
                 ProfileMenuRow(lt(language, "Ajuda", "Help", "Ayuda"), onClick = { showHelp = true })
                 ProfileMenuRow(lt(language, "Atualizar", "Update", "Actualizar"), onClick = { showUpdate = true })
                 Text(
@@ -223,6 +226,7 @@ internal fun TrainerProfileScreen(
         AppUpdateScreen(uiState = uiState, onBack = { closePage() }, onRefresh = onRefreshAppUpdate)
     } else {
         val title = when (destination) {
+            "backup" -> lt(language, "Backup e restauração", "Backup and restore", "Copia y restauración")
             "collection" -> "Coleção pessoal"
             "pvp" -> lt(language, "Cálculo PvP", "PvP calculation", "Cálculo PvP")
             "layout" -> "Layout"
@@ -239,6 +243,7 @@ internal fun TrainerProfileScreen(
                 .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.padding(bottom = LocalNavigationContentPadding.current)),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (destination) {
+                    "backup" -> BackupControls()
                     "collection" -> PersonalCollectionPreferences()
                     "pvp" -> PvpCalculationPreferences()
                     "layout" -> AppearancePreferences()

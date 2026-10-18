@@ -1,0 +1,1565 @@
+{
+  "source": "https://bulbapedia.bulbagarden.net/wiki/Event_Pok%C3%A9mon_(GO)",
+  "translationNote": "PT/ES are descriptive app translations; not asserted to be official localized names.",
+  "labels": {
+    "pm1.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm1.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm1.ffall_2019.icon.png": {
+      "pt": "Fantasia de Shedinja",
+      "en": "Shedinja costume",
+      "es": "Disfraz de Shedinja"
+    },
+    "pm10.fgofest_2026.icon.png": {
+      "pt": "Chapéu de Poké Bola",
+      "en": "Poké Ball hat",
+      "es": "Sombrero de Poké Ball"
+    },
+    "pm104.cfall_2023.icon.png": {
+      "pt": "Coroa de flores de cempasúchil",
+      "en": "Marigold crown",
+      "es": "Corona de cempasúchil"
+    },
+    "pm105.cfall_2023.icon.png": {
+      "pt": "Coroa de flores de cempasúchil",
+      "en": "Marigold crown",
+      "es": "Corona de cempasúchil"
+    },
+    "pm113.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm12.cfashion_2021_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm125.cspring_2023_instinct.icon.png": {
+      "pt": "Acessório de Spark",
+      "en": "Spark accessory",
+      "es": "Accesorio de Spark"
+    },
+    "pm131.cspring_2023_mystic.icon.png": {
+      "pt": "Acessório de Blanche",
+      "en": "Blanche accessory",
+      "es": "Accesorio de Blanche"
+    },
+    "pm131.fcostume_2020.icon.png": {
+      "pt": "Laço",
+      "en": "Bow",
+      "es": "Lazo"
+    },
+    "pm132.fspring_2026_a.icon.png": {
+      "pt": "Chapéu de Pokopia",
+      "en": "Pokopia hat",
+      "es": "Sombrero de Pokopia"
+    },
+    "pm132.fspring_2026_b.icon.png": {
+      "pt": "Boné de Pokopia",
+      "en": "Pokopia cap",
+      "es": "Gorra de Pokopia"
+    },
+    "pm133.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm133.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm133.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm133.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm133.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm133.fgofest_2024_mtiara.icon.png": {
+      "pt": "Coroa lunar",
+      "en": "Moon crown",
+      "es": "Corona lunar"
+    },
+    "pm133.fgofest_2024_stiara.icon.png": {
+      "pt": "Coroa solar",
+      "en": "Sun crown",
+      "es": "Corona solar"
+    },
+    "pm134.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm134.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm134.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm134.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm135.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm135.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm135.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm135.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm136.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm136.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm136.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm136.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm142.fsummer_2023.icon.png": {
+      "pt": "Bolsa",
+      "en": "Satchel",
+      "es": "Bolso"
+    },
+    "pm143.cgofest_2022_noevolve.icon.png": {
+      "pt": "Chapéu de caubói",
+      "en": "Cowboy hat",
+      "es": "Sombrero de vaquero"
+    },
+    "pm143.cnightcap.icon.png": {
+      "pt": "Gorro de dormir",
+      "en": "Nightcap",
+      "es": "Gorro de dormir"
+    },
+    "pm143.fwildarea_2024.icon.png": {
+      "pt": "Jaqueta com tachas",
+      "en": "Studded jacket",
+      "es": "Chaqueta con tachuelas"
+    },
+    "pm149.cfall_2023.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm163.cjan_2022_noevolve.icon.png": {
+      "pt": "Traje de Ano-Novo",
+      "en": "New Year's outfit",
+      "es": "Traje de Año Nuevo"
+    },
+    "pm164.cjan_2022_noevolve.icon.png": {
+      "pt": "Traje de Ano-Novo",
+      "en": "New Year's outfit",
+      "es": "Traje de Año Nuevo"
+    },
+    "pm172.canniversary.icon.png": {
+      "pt": "Chapéu de festa",
+      "en": "Party hat",
+      "es": "Gorro de fiesta"
+    },
+    "pm172.ccostume_2.icon.png": {
+      "pt": "Cartola de Ano-Novo",
+      "en": "New Year's top hat",
+      "es": "Chistera de Año Nuevo"
+    },
+    "pm172.cfall_2018.icon.png": {
+      "pt": "Boné H.F.",
+      "en": "H.F. cap",
+      "es": "Gorra H.F."
+    },
+    "pm172.challoween_2017.icon.png": {
+      "pt": "Chapéu de bruxa",
+      "en": "Witch hat",
+      "es": "Sombrero de bruja"
+    },
+    "pm172.choliday_2016.icon.png": {
+      "pt": "Gorro de Natal",
+      "en": "Christmas hat",
+      "es": "Gorro de Navidad"
+    },
+    "pm172.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm172.cone_year_anniversary.icon.png": {
+      "pt": "Boné de Ash",
+      "en": "Ash's cap",
+      "es": "Gorra de Ash"
+    },
+    "pm172.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm172.csummer_2018.icon.png": {
+      "pt": "Chapéu e óculos de sol",
+      "en": "Sun hat and sunglasses",
+      "es": "Sombrero y gafas de sol"
+    },
+    "pm172.cwinter_2018.icon.png": {
+      "pt": "Gorro de inverno",
+      "en": "Winter beanie",
+      "es": "Gorro de invierno"
+    },
+    "pm175.capril_2020_noevolve.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm176.capril_2020_noevolve.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm185.fwinter_2025.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm194.cfall_2023.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm195.cfall_2023.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm196.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm196.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm196.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm196.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm196.fgofest_2024_sscarf.icon.png": {
+      "pt": "Lenço solar",
+      "en": "Sun scarf",
+      "es": "Pañuelo solar"
+    },
+    "pm197.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm197.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm197.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm197.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm197.fgofest_2024_mscarf.icon.png": {
+      "pt": "Lenço lunar",
+      "en": "Moon scarf",
+      "es": "Pañuelo lunar"
+    },
+    "pm199.f2022.icon.png": {
+      "pt": "Óculos de 2022",
+      "en": "2022 glasses",
+      "es": "Gafas de 2022"
+    },
+    "pm2.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm2.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm20.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa verde",
+      "en": "Green party hat",
+      "es": "Gorro de fiesta verde"
+    },
+    "pm202.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa verde",
+      "en": "Green party hat",
+      "es": "Gorro de fiesta verde"
+    },
+    "pm215.cfashion_2021_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm216.challoween_2025.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm217.challoween_2025.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm222.fspring_2026.icon.png": {
+      "pt": "Óculos de sol rosa",
+      "en": "Pink sunglasses",
+      "es": "Gafas de sol rosas"
+    },
+    "pm225.fwinter_2020.icon.png": {
+      "pt": "Laço natalino",
+      "en": "Holiday ribbon",
+      "es": "Lazo navideño"
+    },
+    "pm234.cwinter_2018.icon.png": {
+      "pt": "Sinos natalinos",
+      "en": "Holiday bells",
+      "es": "Cascabeles navideños"
+    },
+    "pm238.cfall_2020_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm239.cspring_2023_instinct.icon.png": {
+      "pt": "Acessório de Spark",
+      "en": "Spark accessory",
+      "es": "Accesorio de Spark"
+    },
+    "pm242.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm25.canniversary.icon.png": {
+      "pt": "Chapéu de festa",
+      "en": "Party hat",
+      "es": "Gorro de fiesta"
+    },
+    "pm25.canniversary_2022_noevolve.icon.png": {
+      "pt": "Chapéu de bolo",
+      "en": "Cake hat",
+      "es": "Sombrero de tarta"
+    },
+    "pm25.capril_2020_noevolve.icon.png": {
+      "pt": "Chapéu florido",
+      "en": "Flower hat",
+      "es": "Sombrero con flores"
+    },
+    "pm25.ccostume_1.icon.png": {
+      "pt": "Boné de trotamundos",
+      "en": "World cap",
+      "es": "Gorra de trotamundos"
+    },
+    "pm25.ccostume_2.icon.png": {
+      "pt": "Cartola de Ano-Novo",
+      "en": "New Year's top hat",
+      "es": "Chistera de Año Nuevo"
+    },
+    "pm25.cfall_2018.icon.png": {
+      "pt": "Boné H.F.",
+      "en": "H.F. cap",
+      "es": "Gorra H.F."
+    },
+    "pm25.cfall_2023_noevolve.icon.png": {
+      "pt": "Chapéu de detetive (2023)",
+      "en": "Detective hat (2023)",
+      "es": "Sombrero de detective (2023)"
+    },
+    "pm25.cfeb_2019.icon.png": {
+      "pt": "Chapéu de detetive",
+      "en": "Detective hat",
+      "es": "Sombrero de detective"
+    },
+    "pm25.cgofest_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Meloetta",
+      "en": "Meloetta hat",
+      "es": "Sombrero de Meloetta"
+    },
+    "pm25.cgofest_2022_noevolve.icon.png": {
+      "pt": "Flor de Gracidea",
+      "en": "Gracidea flower",
+      "es": "Flor Gracídea"
+    },
+    "pm25.cgotour_2023_bandana.icon.png": {
+      "pt": "Laço de May",
+      "en": "May's bow",
+      "es": "Lazo de Aura"
+    },
+    "pm25.cgotour_2023_bandana_noevolve.icon.png": {
+      "pt": "Laço de May",
+      "en": "May's bow",
+      "es": "Lazo de Aura"
+    },
+    "pm25.cgotour_2023_hat.icon.png": {
+      "pt": "Gorro de Brendan",
+      "en": "Brendan's hat",
+      "es": "Gorro de Bruno"
+    },
+    "pm25.cgotour_2023_hat_noevolve.icon.png": {
+      "pt": "Gorro de Brendan",
+      "en": "Brendan's hat",
+      "es": "Gorro de Bruno"
+    },
+    "pm25.challoween_2017.icon.png": {
+      "pt": "Chapéu de bruxa",
+      "en": "Witch hat",
+      "es": "Sombrero de bruja"
+    },
+    "pm25.challoween_2021_noevolve.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm25.choenn_2020_noevolve.icon.png": {
+      "pt": "Chapéu de Rayquaza",
+      "en": "Rayquaza hat",
+      "es": "Sombrero de Rayquaza"
+    },
+    "pm25.choliday_2016.icon.png": {
+      "pt": "Gorro de Natal",
+      "en": "Christmas hat",
+      "es": "Gorro de Navidad"
+    },
+    "pm25.choliday_2023.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm25.cindonesia_2025_noevolve.icon.png": {
+      "pt": "Camisa batique",
+      "en": "Batik shirt",
+      "es": "Camisa batik"
+    },
+    "pm25.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm25.cjan_2023_noevolve.icon.png": {
+      "pt": "Cartola de Ano-Novo",
+      "en": "New Year's top hat",
+      "es": "Chistera de Año Nuevo"
+    },
+    "pm25.cjohto_2020_noevolve.icon.png": {
+      "pt": "Chapéu de Umbreon",
+      "en": "Umbreon hat",
+      "es": "Sombrero de Umbreon"
+    },
+    "pm25.ckanto_2020_noevolve.icon.png": {
+      "pt": "Chapéu de Charizard",
+      "en": "Charizard hat",
+      "es": "Sombrero de Charizard"
+    },
+    "pm25.cmay_2019_noevolve.icon.png": {
+      "pt": "Chapéu de detetive",
+      "en": "Detective hat",
+      "es": "Sombrero de detective"
+    },
+    "pm25.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm25.cone_year_anniversary.icon.png": {
+      "pt": "Boné de Ash",
+      "en": "Ash's cap",
+      "es": "Gorra de Ash"
+    },
+    "pm25.cpi.icon.png": {
+      "pt": "Chapéu de detetive (2023)",
+      "en": "Detective hat (2023)",
+      "es": "Sombrero de detective (2023)"
+    },
+    "pm25.csafari_2020_noevolve.icon.png": {
+      "pt": "Chapéu de safári",
+      "en": "Safari hat",
+      "es": "Sombrero de safari"
+    },
+    "pm25.csinnoh_2020_noevolve.icon.png": {
+      "pt": "Chapéu de Lucario",
+      "en": "Lucario hat",
+      "es": "Sombrero de Lucario"
+    },
+    "pm25.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm25.csummer_2018.icon.png": {
+      "pt": "Chapéu e óculos de sol",
+      "en": "Sun hat and sunglasses",
+      "es": "Sombrero y gafas de sol"
+    },
+    "pm25.ctcg_2022_noevolve.icon.png": {
+      "pt": "Boné Pokémon TCG",
+      "en": "Pokémon TCG cap",
+      "es": "Gorra de JCC Pokémon"
+    },
+    "pm25.cwinter_2018.icon.png": {
+      "pt": "Gorro de inverno",
+      "en": "Winter beanie",
+      "es": "Gorro de invierno"
+    },
+    "pm25.fadventure_hat_2020.icon.png": {
+      "pt": "Explorador",
+      "en": "Explorer",
+      "es": "Explorador"
+    },
+    "pm25.fanniversary_2026.icon.png": {
+      "pt": "Assistente do Professor Willow",
+      "en": "Professor Willow's assistant",
+      "es": "Ayudante del Profesor Willow"
+    },
+    "pm25.fanniversary_2026_malaysia_01.icon.png": {
+      "pt": "PokéXciting! · Malásia",
+      "en": "PokéXciting! · Malaysia",
+      "es": "PokéXciting! · Malasia"
+    },
+    "pm25.fanniversary_2026_philippine_01.icon.png": {
+      "pt": "PokéXciting! · Filipinas",
+      "en": "PokéXciting! · Philippines",
+      "es": "PokéXciting! · Filipinas"
+    },
+    "pm25.fanniversary_2026_singapore_01.icon.png": {
+      "pt": "PokéXciting! · Singapura",
+      "en": "PokéXciting! · Singapore",
+      "es": "PokéXciting! · Singapur"
+    },
+    "pm25.fanniversary_2026_taiwan_01.icon.png": {
+      "pt": "PokéXciting! · Taiwan",
+      "en": "PokéXciting! · Taiwan",
+      "es": "PokéXciting! · Taiwán"
+    },
+    "pm25.fbb_2026.icon.png": {
+      "pt": "Camisa de beisebol",
+      "en": "Baseball shirt",
+      "es": "Camiseta de béisbol"
+    },
+    "pm25.fcopy_2019.icon.png": {
+      "pt": "Clone",
+      "en": "Clone",
+      "es": "Clon"
+    },
+    "pm25.fcostume_2020.icon.png": {
+      "pt": "Boné de trotamundos",
+      "en": "World cap",
+      "es": "Gorra de trotamundos"
+    },
+    "pm25.fdiwali_2024.icon.png": {
+      "pt": "Sári",
+      "en": "Saree",
+      "es": "Sari"
+    },
+    "pm25.fdoctor.icon.png": {
+      "pt": "Ph.D.",
+      "en": "Ph.D.",
+      "es": "Doctora"
+    },
+    "pm25.ffall_2019.icon.png": {
+      "pt": "Fantasia de Mimikyu",
+      "en": "Mimikyu costume",
+      "es": "Disfraz de Mimikyu"
+    },
+    "pm25.fflying_01.icon.png": {
+      "pt": "Balões · Taipei",
+      "en": "Balloons · Taipei",
+      "es": "Globos · Taipei"
+    },
+    "pm25.fflying_02.icon.png": {
+      "pt": "Balões · Singapura",
+      "en": "Balloons · Singapore",
+      "es": "Globos · Singapur"
+    },
+    "pm25.fflying_03.icon.png": {
+      "pt": "Balões · Jeju",
+      "en": "Balloons · Jeju",
+      "es": "Globos · Jeju"
+    },
+    "pm25.fflying_04.icon.png": {
+      "pt": "Balões · Indonésia",
+      "en": "Balloons · Indonesia",
+      "es": "Globos · Indonesia"
+    },
+    "pm25.fflying_5th_anniv.icon.png": {
+      "pt": "Balões do 5º aniversário",
+      "en": "5th anniversary balloons",
+      "es": "Globos del 5.º aniversario"
+    },
+    "pm25.fflying_okinawa.icon.png": {
+      "pt": "Balões · Okinawa",
+      "en": "Balloons · Okinawa",
+      "es": "Globos · Okinawa"
+    },
+    "pm25.ffossil_2026.icon.png": {
+      "pt": "Escavador",
+      "en": "Excavator",
+      "es": "Excavador"
+    },
+    "pm25.fglass_helmet_2026.icon.png": {
+      "pt": "Astronauta",
+      "en": "Astronaut",
+      "es": "Astronauta"
+    },
+    "pm25.fgofest_2022.icon.png": {
+      "pt": "Lenço de Shaymin",
+      "en": "Shaymin scarf",
+      "es": "Pañuelo de Shaymin"
+    },
+    "pm25.fgofest_2024_mtiara.icon.png": {
+      "pt": "Coroa lunar",
+      "en": "Moon crown",
+      "es": "Corona lunar"
+    },
+    "pm25.fgofest_2024_stiara.icon.png": {
+      "pt": "Coroa solar",
+      "en": "Sun crown",
+      "es": "Corona solar"
+    },
+    "pm25.fgofest_2025_goggles_blue.icon.png": {
+      "pt": "Traje com óculos · detalhes azuis",
+      "en": "Outfit with goggles · blue accents",
+      "es": "Traje con gafas · detalles azules"
+    },
+    "pm25.fgofest_2025_goggles_red.icon.png": {
+      "pt": "Traje com óculos · detalhes vermelhos",
+      "en": "Outfit with goggles · red accents",
+      "es": "Traje con gafas · detalles rojos"
+    },
+    "pm25.fgofest_2025_goggles_yellow.icon.png": {
+      "pt": "Traje com óculos · detalhes amarelos",
+      "en": "Outfit with goggles · yellow accents",
+      "es": "Traje con gafas · detalles amarillos"
+    },
+    "pm25.fgofest_2025_monocle_blue.icon.png": {
+      "pt": "Traje com monóculo · detalhes azuis",
+      "en": "Outfit with monocle · blue accents",
+      "es": "Traje con monóculo · detalles azules"
+    },
+    "pm25.fgofest_2025_monocle_red.icon.png": {
+      "pt": "Traje com monóculo · detalhes vermelhos",
+      "en": "Outfit with monocle · red accents",
+      "es": "Traje con monóculo · detalles rojos"
+    },
+    "pm25.fgofest_2025_monocle_yellow.icon.png": {
+      "pt": "Traje com monóculo · detalhes amarelos",
+      "en": "Outfit with monocle · yellow accents",
+      "es": "Traje con monóculo · detalles amarillos"
+    },
+    "pm25.fgofest_2026_cap_blue.icon.png": {
+      "pt": "Boné da Equipe Mystic",
+      "en": "Team Mystic cap",
+      "es": "Gorra del Equipo Mystic"
+    },
+    "pm25.fgofest_2026_cap_red.icon.png": {
+      "pt": "Boné da Equipe Valor",
+      "en": "Team Valor cap",
+      "es": "Gorra del Equipo Valor"
+    },
+    "pm25.fgofest_2026_cap_yellow.icon.png": {
+      "pt": "Boné da Equipe Instinct",
+      "en": "Team Instinct cap",
+      "es": "Gorra del Equipo Instinct"
+    },
+    "pm25.fgotour_2024_a.icon.png": {
+      "pt": "Acessório de Lucas",
+      "en": "Lucas's headwear",
+      "es": "Accesorio de León"
+    },
+    "pm25.fgotour_2024_a_02.icon.png": {
+      "pt": "Acessório de Dawn",
+      "en": "Dawn's headwear",
+      "es": "Accesorio de Maya"
+    },
+    "pm25.fgotour_2024_b.icon.png": {
+      "pt": "Acessório de Rei",
+      "en": "Rei's headwear",
+      "es": "Accesorio de Luka"
+    },
+    "pm25.fgotour_2024_b_02.icon.png": {
+      "pt": "Acessório de Akari",
+      "en": "Akari's headwear",
+      "es": "Accesorio de Kira"
+    },
+    "pm25.fgotour_2025_a.icon.png": {
+      "pt": "Acessório de Hilbert",
+      "en": "Hilbert's headwear",
+      "es": "Accesorio de Lucho"
+    },
+    "pm25.fgotour_2025_a_02.icon.png": {
+      "pt": "Acessório de Hilda",
+      "en": "Hilda's headwear",
+      "es": "Accesorio de Liza"
+    },
+    "pm25.fgotour_2025_b.icon.png": {
+      "pt": "Acessório de Nate",
+      "en": "Nate's headwear",
+      "es": "Accesorio de Rizzo"
+    },
+    "pm25.fgotour_2025_b_02.icon.png": {
+      "pt": "Acessório de Rosa",
+      "en": "Rosa's headwear",
+      "es": "Accesorio de Nanci"
+    },
+    "pm25.fgotour_2026_a.icon.png": {
+      "pt": "Acessório de Red",
+      "en": "Red's headwear",
+      "es": "Accesorio de Rojo"
+    },
+    "pm25.fgotour_2026_a_02.icon.png": {
+      "pt": "Acessório de Leaf",
+      "en": "Leaf's headwear",
+      "es": "Accesorio de Verde"
+    },
+    "pm25.fgotour_2026_b.icon.png": {
+      "pt": "Acessório de Ethan",
+      "en": "Ethan's headwear",
+      "es": "Accesorio de Eco"
+    },
+    "pm25.fgotour_2026_b_02.icon.png": {
+      "pt": "Acessório de Lyra",
+      "en": "Lyra's headwear",
+      "es": "Accesorio de Lira"
+    },
+    "pm25.fgotour_2026_c.icon.png": {
+      "pt": "Acessório de Calem",
+      "en": "Calem's headwear",
+      "es": "Accesorio de Kalm"
+    },
+    "pm25.fgotour_2026_c_02.icon.png": {
+      "pt": "Acessório de Serena",
+      "en": "Serena's headwear",
+      "es": "Accesorio de Serena"
+    },
+    "pm25.fhorizons.icon.png": {
+      "pt": "Boné de capitão",
+      "en": "Captain's cap",
+      "es": "Gorra de capitán"
+    },
+    "pm25.fjeju.icon.png": {
+      "pt": "Camisa de Jeju",
+      "en": "Jeju shirt",
+      "es": "Camisa de Jeju"
+    },
+    "pm25.fk_2026_a_01.icon.png": {
+      "pt": "Hanbok",
+      "en": "Hanbok",
+      "es": "Hanbok"
+    },
+    "pm25.fkariyushi.icon.png": {
+      "pt": "Camisa Kariyushi",
+      "en": "Kariyushi shirt",
+      "es": "Camisa Kariyushi"
+    },
+    "pm25.fkurta.icon.png": {
+      "pt": "Kurta",
+      "en": "Kurta",
+      "es": "Kurta"
+    },
+    "pm25.fpop_star.icon.png": {
+      "pt": "Estrela pop",
+      "en": "Pop star",
+      "es": "Estrella pop"
+    },
+    "pm25.fpxp_2026.icon.png": {
+      "pt": "Traje espacial de Cosmog",
+      "en": "Cosmog spacesuit",
+      "es": "Traje espacial de Cosmog"
+    },
+    "pm25.frock_star.icon.png": {
+      "pt": "Estrela do rock",
+      "en": "Rock star",
+      "es": "Estrella del rock"
+    },
+    "pm25.fsummer_2023_a.icon.png": {
+      "pt": "Coroa de gemas rosa",
+      "en": "Pink gem crown",
+      "es": "Corona de gemas rosa"
+    },
+    "pm25.fsummer_2023_b.icon.png": {
+      "pt": "Coroa de gemas amarela",
+      "en": "Yellow gem crown",
+      "es": "Corona de gemas amarilla"
+    },
+    "pm25.fsummer_2023_c.icon.png": {
+      "pt": "Coroa de gemas verde",
+      "en": "Green gem crown",
+      "es": "Corona de gemas verde"
+    },
+    "pm25.fsummer_2023_d.icon.png": {
+      "pt": "Coroa de gemas azul",
+      "en": "Blue gem crown",
+      "es": "Corona de gemas azul"
+    },
+    "pm25.fsummer_2023_e.icon.png": {
+      "pt": "Coroa de gemas roxa",
+      "en": "Purple gem crown",
+      "es": "Corona de gemas morada"
+    },
+    "pm25.ftshirt_01.icon.png": {
+      "pt": "Camisa de frutas",
+      "en": "Fruit shirt",
+      "es": "Camisa de frutas"
+    },
+    "pm25.ftshirt_02.icon.png": {
+      "pt": "Camisa roxa de flores",
+      "en": "Purple floral shirt",
+      "es": "Camisa morada de flores"
+    },
+    "pm25.ftshirt_03.icon.png": {
+      "pt": "Camisa batique",
+      "en": "Batik shirt",
+      "es": "Camisa batik"
+    },
+    "pm25.fvisor_2026.icon.png": {
+      "pt": "Viseira de maratona",
+      "en": "Marathon visor",
+      "es": "Visera de maratón"
+    },
+    "pm25.fvs_2019.icon.png": {
+      "pt": "Libre",
+      "en": "Libre",
+      "es": "Libre"
+    },
+    "pm25.fwcs_2022.icon.png": {
+      "pt": "Traje do Mundial 2022",
+      "en": "World Championships 2022 outfit",
+      "es": "Traje del Mundial 2022"
+    },
+    "pm25.fwcs_2023.icon.png": {
+      "pt": "Traje do Mundial 2023",
+      "en": "World Championships 2023 outfit",
+      "es": "Traje del Mundial 2023"
+    },
+    "pm25.fwcs_2024.icon.png": {
+      "pt": "Traje do Mundial 2024",
+      "en": "World Championships 2024 outfit",
+      "es": "Traje del Mundial 2024"
+    },
+    "pm25.fwcs_2025.icon.png": {
+      "pt": "Traje do Mundial 2025",
+      "en": "World Championships 2025 outfit",
+      "es": "Traje del Mundial 2025"
+    },
+    "pm25.fwcs_2026.icon.png": {
+      "pt": "Traje do Mundial 2026",
+      "en": "World Championships 2026 outfit",
+      "es": "Traje del Mundial 2026"
+    },
+    "pm25.fwinter_2020.icon.png": {
+      "pt": "Traje de inverno",
+      "en": "Winter outfit",
+      "es": "Traje de invierno"
+    },
+    "pm26.canniversary.icon.png": {
+      "pt": "Chapéu de festa",
+      "en": "Party hat",
+      "es": "Gorro de fiesta"
+    },
+    "pm26.ccostume_1.icon.png": {
+      "pt": "Boné de trotamundos",
+      "en": "World cap",
+      "es": "Gorra de trotamundos"
+    },
+    "pm26.ccostume_2.icon.png": {
+      "pt": "Cartola de Ano-Novo",
+      "en": "New Year's top hat",
+      "es": "Chistera de Año Nuevo"
+    },
+    "pm26.cfall_2018.icon.png": {
+      "pt": "Boné H.F.",
+      "en": "H.F. cap",
+      "es": "Gorra H.F."
+    },
+    "pm26.cfeb_2019.icon.png": {
+      "pt": "Chapéu de detetive",
+      "en": "Detective hat",
+      "es": "Sombrero de detective"
+    },
+    "pm26.challoween_2017.icon.png": {
+      "pt": "Chapéu de bruxa",
+      "en": "Witch hat",
+      "es": "Sombrero de bruja"
+    },
+    "pm26.choliday_2016.icon.png": {
+      "pt": "Gorro de Natal",
+      "en": "Christmas hat",
+      "es": "Gorro de Navidad"
+    },
+    "pm26.choliday_2023.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm26.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm26.cone_year_anniversary.icon.png": {
+      "pt": "Boné de Ash",
+      "en": "Ash's cap",
+      "es": "Gorra de Ash"
+    },
+    "pm26.cpi.icon.png": {
+      "pt": "Chapéu de detetive (2023)",
+      "en": "Detective hat (2023)",
+      "es": "Sombrero de detective (2023)"
+    },
+    "pm26.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm26.csummer_2018.icon.png": {
+      "pt": "Chapéu e óculos de sol",
+      "en": "Sun hat and sunglasses",
+      "es": "Sombrero y gafas de sol"
+    },
+    "pm26.cwinter_2018.icon.png": {
+      "pt": "Gorro de inverno",
+      "en": "Winter beanie",
+      "es": "Gorro de invierno"
+    },
+    "pm265.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa verde",
+      "en": "Green party hat",
+      "es": "Gorro de fiesta verde"
+    },
+    "pm281.cfall_2020_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm282.cgofest_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Meloetta",
+      "en": "Meloetta hat",
+      "es": "Sombrero de Meloetta"
+    },
+    "pm287.csummer_2024.icon.png": {
+      "pt": "Viseira de verão",
+      "en": "Summer visor",
+      "es": "Visera de verano"
+    },
+    "pm288.csummer_2024.icon.png": {
+      "pt": "Viseira de verão",
+      "en": "Summer visor",
+      "es": "Visera de verano"
+    },
+    "pm289.csummer_2024.icon.png": {
+      "pt": "Viseira de verão",
+      "en": "Summer visor",
+      "es": "Visera de verano"
+    },
+    "pm3.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm3.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm3.fcopy_2019.icon.png": {
+      "pt": "Clone",
+      "en": "Clone",
+      "es": "Clon"
+    },
+    "pm302.fcostume_2020.icon.png": {
+      "pt": "Chapéu de Litwick",
+      "en": "Litwick hat",
+      "es": "Sombrero de Litwick"
+    },
+    "pm31.croyal_noevolve.icon.png": {
+      "pt": "Coroa",
+      "en": "Crown",
+      "es": "Corona"
+    },
+    "pm33.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm330.cgofest_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Meloetta",
+      "en": "Meloetta hat",
+      "es": "Sombrero de Meloetta"
+    },
+    "pm34.croyal_noevolve.icon.png": {
+      "pt": "Coroa",
+      "en": "Crown",
+      "es": "Corona"
+    },
+    "pm355.cfall_2022_noevolve.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm356.cfall_2022_noevolve.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm359.cfall_2022_noevolve.icon.png": {
+      "pt": "Óculos de sol",
+      "en": "Sunglasses",
+      "es": "Gafas de sol"
+    },
+    "pm363.choliday_2021_noevolve.icon.png": {
+      "pt": "Cachecol natalino",
+      "en": "Holiday scarf",
+      "es": "Bufanda navideña"
+    },
+    "pm37.cfall_2022.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm38.cfall_2022.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm387.cgems_1_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Lucas",
+      "en": "Lucas's hat",
+      "es": "Gorro de León"
+    },
+    "pm387.cgems_2_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Dawn",
+      "en": "Dawn's hat",
+      "es": "Gorro de Maya"
+    },
+    "pm39.cjan_2024.icon.png": {
+      "pt": "Laço de Ano-Novo",
+      "en": "New Year's ribbon",
+      "es": "Lazo de Año Nuevo"
+    },
+    "pm390.cgems_1_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Lucas",
+      "en": "Lucas's hat",
+      "es": "Gorro de León"
+    },
+    "pm390.cgems_2_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Dawn",
+      "en": "Dawn's hat",
+      "es": "Gorro de Maya"
+    },
+    "pm393.cgems_1_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Lucas",
+      "en": "Lucas's hat",
+      "es": "Gorro de León"
+    },
+    "pm393.cgems_2_2021_noevolve.icon.png": {
+      "pt": "Chapéu de Dawn",
+      "en": "Dawn's hat",
+      "es": "Gorro de Maya"
+    },
+    "pm393.challoween_2021_noevolve.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm4.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm4.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm4.ffall_2019.icon.png": {
+      "pt": "Fantasia de Cubone",
+      "en": "Cubone costume",
+      "es": "Disfraz de Cubone"
+    },
+    "pm4.fgoggles_2026.icon.png": {
+      "pt": "Óculos de Friede",
+      "en": "Friede's goggles",
+      "es": "Gafas de Friede"
+    },
+    "pm40.cjan_2024.icon.png": {
+      "pt": "Laço de Ano-Novo",
+      "en": "New Year's ribbon",
+      "es": "Lazo de Año Nuevo"
+    },
+    "pm403.cfall_2020_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm426.challoween_2021_noevolve.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm427.capril_2020_noevolve.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm428.capril_2020_noevolve.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm440.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm453.cfall_2020_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm454.cfall_2020_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm466.cspring_2023_instinct.icon.png": {
+      "pt": "Acessório de Spark",
+      "en": "Spark accessory",
+      "es": "Accesorio de Spark"
+    },
+    "pm468.capril_2020_noevolve.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm470.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm470.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm470.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm470.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm471.choliday_2021_noevolve.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm471.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm471.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm471.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm471.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm477.cfall_2022_noevolve.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm5.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm5.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm5.fgoggles_2026.icon.png": {
+      "pt": "Óculos de Friede",
+      "en": "Friede's goggles",
+      "es": "Gafas de Friede"
+    },
+    "pm50.cfall_2022.icon.png": {
+      "pt": "Chapéu da Semana de Moda",
+      "en": "Fashion Week hat",
+      "es": "Sombrero de la Semana de la Moda"
+    },
+    "pm51.cfall_2022.icon.png": {
+      "pt": "Chapéu da Semana de Moda",
+      "en": "Fashion Week hat",
+      "es": "Sombrero de la Semana de la Moda"
+    },
+    "pm522.cfashion_2021_noevolve.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm54.choliday_2023.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm546.cspring_2024.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm547.cspring_2024.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm55.choliday_2023.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm572.cfashion_2025.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm573.cfashion_2025.icon.png": {
+      "pt": "Traje da Semana de Moda",
+      "en": "Fashion Week outfit",
+      "es": "Traje de la Semana de la Moda"
+    },
+    "pm6.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm6.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm6.fcopy_2019.icon.png": {
+      "pt": "Clone",
+      "en": "Clone",
+      "es": "Clon"
+    },
+    "pm6.fgoggles_2026.icon.png": {
+      "pt": "Óculos de Friede",
+      "en": "Friede's goggles",
+      "es": "Gafas de Friede"
+    },
+    "pm613.fwinter_2020.icon.png": {
+      "pt": "Laço natalino",
+      "en": "Holiday ribbon",
+      "es": "Lazo navideño"
+    },
+    "pm614.fwinter_2020.icon.png": {
+      "pt": "Laço natalino",
+      "en": "Holiday ribbon",
+      "es": "Lazo navideño"
+    },
+    "pm656.cfall_2024.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm657.cfall_2024.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm658.cfall_2024.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm7.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm7.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm7.csummer_2018.icon.png": {
+      "pt": "Óculos do Esquadrão Squirtle",
+      "en": "Squirtle Squad sunglasses",
+      "es": "Gafas del Escuadrón Squirtle"
+    },
+    "pm7.ffall_2019.icon.png": {
+      "pt": "Fantasia de Yamask",
+      "en": "Yamask costume",
+      "es": "Disfraz de Yamask"
+    },
+    "pm700.choliday_2022.icon.png": {
+      "pt": "Chapéu natalino",
+      "en": "Holiday hat",
+      "es": "Gorro navideño"
+    },
+    "pm700.cmay_2023.icon.png": {
+      "pt": "Chapéu de explorador",
+      "en": "Explorer hat",
+      "es": "Sombrero de explorador"
+    },
+    "pm700.cnovember_2018.icon.png": {
+      "pt": "Coroa de flores",
+      "en": "Flower crown",
+      "es": "Corona de flores"
+    },
+    "pm700.cspring_2023.icon.png": {
+      "pt": "Flores de cerejeira",
+      "en": "Cherry blossoms",
+      "es": "Flores de cerezo"
+    },
+    "pm702.cwinter_2024.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm714.challoween_2025.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm715.challoween_2025.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm722.cfall_2024.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm723.cfall_2024.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm724.cfall_2024.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm737.fwinter_2025.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm738.fwinter_2025.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm760.fwildarea_2025.icon.png": {
+      "pt": "Traje de explorador",
+      "en": "Explorer outfit",
+      "es": "Traje de explorador"
+    },
+    "pm77.cspring_2023_valor.icon.png": {
+      "pt": "Acessório de Candela",
+      "en": "Candela accessory",
+      "es": "Accesorio de Candela"
+    },
+    "pm78.cspring_2023_valor.icon.png": {
+      "pt": "Acessório de Candela",
+      "en": "Candela accessory",
+      "es": "Accesorio de Candela"
+    },
+    "pm79.cpi_noevolve.icon.png": {
+      "pt": "Chapéu de detetive",
+      "en": "Detective hat",
+      "es": "Sombrero de detective"
+    },
+    "pm79.f2020.icon.png": {
+      "pt": "Óculos de 2020",
+      "en": "2020 glasses",
+      "es": "Gafas de 2020"
+    },
+    "pm8.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm8.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm8.csummer_2018.icon.png": {
+      "pt": "Óculos do Esquadrão Squirtle",
+      "en": "Squirtle Squad sunglasses",
+      "es": "Gafas del Escuadrón Squirtle"
+    },
+    "pm80.f2021.icon.png": {
+      "pt": "Óculos de 2021",
+      "en": "2021 glasses",
+      "es": "Gafas de 2021"
+    },
+    "pm831.cwinter_2024.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm832.cwinter_2024.icon.png": {
+      "pt": "Traje natalino",
+      "en": "Holiday outfit",
+      "es": "Traje navideño"
+    },
+    "pm870.fgofest_2025_train_conductor.icon.png": {
+      "pt": "Traje de maquinista",
+      "en": "Train conductor outfit",
+      "es": "Traje de maquinista"
+    },
+    "pm88.canniversary_2024.icon.png": {
+      "pt": "Chapéu de festa",
+      "en": "Party hat",
+      "es": "Gorro de fiesta"
+    },
+    "pm89.canniversary_2024.icon.png": {
+      "pt": "Chapéu de festa",
+      "en": "Party hat",
+      "es": "Gorro de fiesta"
+    },
+    "pm9.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm9.cspring_2020_noevolve.icon.png": {
+      "pt": "Viseira de Pikachu",
+      "en": "Pikachu visor",
+      "es": "Visera de Pikachu"
+    },
+    "pm9.csummer_2018.icon.png": {
+      "pt": "Óculos do Esquadrão Squirtle",
+      "en": "Squirtle Squad sunglasses",
+      "es": "Gafas del Escuadrón Squirtle"
+    },
+    "pm9.fcopy_2019.icon.png": {
+      "pt": "Clone",
+      "en": "Clone",
+      "es": "Clon"
+    },
+    "pm901.challoween_2025.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm907.chorizons_2025_noevolve.icon.png": {
+      "pt": "Chapéu com broche de Liko",
+      "en": "Hat with Liko's pin",
+      "es": "Sombrero con pin de Liko"
+    },
+    "pm94.cfall_2022_noevolve.icon.png": {
+      "pt": "Traje de Halloween",
+      "en": "Halloween outfit",
+      "es": "Traje de Halloween"
+    },
+    "pm94.cfall_2023_noevolve.icon.png": {
+      "pt": "Traje de Halloween (2023)",
+      "en": "Halloween outfit (2023)",
+      "es": "Traje de Halloween (2023)"
+    },
+    "pm94.cjan_2020_noevolve.icon.png": {
+      "pt": "Chapéu de festa vermelho",
+      "en": "Red party hat",
+      "es": "Gorro de fiesta rojo"
+    },
+    "pm94.fcostume_2020.icon.png": {
+      "pt": "Fantasia de Mega Banette",
+      "en": "Mega Banette costume",
+      "es": "Disfraz de Mega-Banette"
+    },
+    "pm999.fcoin_a1.icon.png": {
+      "pt": "Moeda do 9º aniversário",
+      "en": "9th anniversary coin",
+      "es": "Moneda del 9.º aniversario"
+    },
+    "pokemon_icon_150_1000.png": {
+      "pt": "Armadura",
+      "en": "Armored",
+      "es": "Armadura"
+    }
+  },
+  "excludedFiles": [
+    "pm150.cONE_YEAR_ANNIVERSARY.icon.png",
+    "pm249.cONE_YEAR_ANNIVERSARY.icon.png"
+  ]
+}

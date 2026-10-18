@@ -309,12 +309,12 @@ internal fun SelectionModalDialog(
     }
 }
 @Composable
-internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonName: String?, level: Double?, attack: Int?, defense: Int?, stamina: Int?, rankCalculator: PvpRankCalculator, onDismiss: () -> Unit, onLevelSelected: (Double) -> Unit) {
+internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonName: String?, level: Double?, sourceLevel: Double?, isLucky: Boolean, isShadow: Boolean, isPurified: Boolean, attack: Int?, defense: Int?, stamina: Int?, rankCalculator: PvpRankCalculator, onDismiss: () -> Unit, onLevelSelected: (Double) -> Unit) {
     val initialLevel = level ?: 1.0
     var previewLevel by remember(level) { mutableStateOf(initialLevel) }
     val cp = if (pokemonName != null && attack != null && defense != null && stamina != null) rankCalculator.estimateCpAtLevel(context, pokemonName, attack, defense, stamina, previewLevel) else null
     val hp = if (pokemonName != null && stamina != null) rankCalculator.estimateHpAtLevel(context, pokemonName, stamina, previewLevel) else null
-    val cost = powerUpCostBetweenLevels(initialLevel, previewLevel)
+    val cost = sourceLevel?.let { powerUpCostBetweenLevels(it, previewLevel, isLucky, isShadow, isPurified) }
     ReviewModalCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)), modifier = Modifier.fillMaxWidth().widthIn(max = 320.dp)) {
             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (LocalGlassReviewStyle.current) ReviewModalHeader(lt(language, "Selecionar n\u00EDvel", "Select level", "Seleccionar nivel"), onDismiss)
@@ -325,7 +325,12 @@ internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonN
                     TextButton(onClick = { previewLevel = (previewLevel + 0.5).coerceAtMost(51.0) }, enabled = previewLevel < 51.0) { Text("+") }
                 }
                 Text(lt(language, "CP ${cp ?: "-"} \u2022 PS ${hp ?: "-"}", "CP ${cp ?: "-"} \u2022 HP ${hp ?: "-"}", "PC ${cp ?: "-"} \u2022 PS ${hp ?: "-"}"), style = MaterialTheme.typography.bodyMedium)
-                Text(lt(language, "Poeira ${cost.stardust} \u2022 Doces ${cost.candy}", "Dust ${cost.stardust} \u2022 Candy ${cost.candy}", "Polvo ${cost.stardust} \u2022 Caramelos ${cost.candy}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    if (cost == null) lt(language, "Nível inicial não identificado", "Starting level not identified", "Nivel inicial no identificado")
+                    else lt(language, "Poeira ${cost.stardust} • Doces ${cost.candy}", "Dust ${cost.stardust} • Candy ${cost.candy}", "Polvo ${cost.stardust} • Caramelos ${cost.candy}") +
+                        if (cost.candyXl > 0) lt(language, " • Doces XL ${cost.candyXl}", " • Candy XL ${cost.candyXl}", " • Caramelos XL ${cost.candyXl}") else "",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     TextButton(onClick = onDismiss) { Text(lt(language, "Cancelar", "Cancel", "Cancelar")) }
                     TextButton(onClick = { onLevelSelected(previewLevel) }) { Text(lt(language, "Confirmar", "Confirm", "Confirmar")) }
@@ -484,10 +489,10 @@ internal fun MarkerCheckboxField(
                 .clickable { onCheckedChange(!checked) },
             contentAlignment = Alignment.Center
         ) {
-            Checkbox(
+            AppCollectionCheckbox(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.heightIn(min = 48.dp)
             )
         }
     }

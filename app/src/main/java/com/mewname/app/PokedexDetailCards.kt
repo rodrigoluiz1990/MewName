@@ -34,7 +34,7 @@ internal fun PokedexMatchupCards(matchups: List<TypeMatchupEntry>) {
         .filter { it.isNotEmpty() }.forEach { group ->
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                group.sortedBy { it.multiplier }.forEach { matchup ->
+                group.sortedByDescending { it.multiplier }.forEach { matchup ->
                     val accent = when {
                         matchup.multiplier > 1.0 -> Color(0xFFCA4149)
                         matchup.multiplier < 0.5 -> Color(0xFF26772D)
@@ -61,6 +61,10 @@ internal fun PokedexFamilyCards(details: PokedexLocalDetails, entries: List<Poke
     Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         details.evolutionPaths.filter { it.members.isNotEmpty() }.groupBy { it.members.first() }.values.forEach { paths ->
+            if (paths.all { it.steps.isEmpty() } && details.evolutionPaths.any { it.steps.isNotEmpty() }) {
+                Text(lt(appLanguage(), "Forma regional / alternativa", "Regional / alternative form", "Forma regional / alternativa"),
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             PokedexFamilyBranch(paths, details, entries, onSelect)
         }
     }
@@ -72,6 +76,7 @@ private fun PokedexFamilyBranch(paths: List<PokedexEvolutionPath>, details: Poke
     val language = appLanguage()
     val member = paths.first().members.first()
     val entry = entries.firstOrNull { pokedexIdentity(it.name) == pokedexIdentity(member) }
+        ?: entries.firstOrNull { e -> e.aliases.any { pokedexIdentity(it) == pokedexIdentity(member) } }
     val branches = paths.filter { it.members.size > 1 }.groupBy { it.members[1] }.values.toList()
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Column(Modifier.width(96.dp).clickable(enabled = entry != null, role = Role.Button) { entry?.let { onSelect(it.name) } }
@@ -147,7 +152,7 @@ private fun PokedexEvolutionCost(step: PokedexEvolution, language: AppLanguage, 
     }
 }
 @Composable
-private fun PokedexCandyIcon(colors: Pair<Int, Int>?) {
+internal fun PokedexCandyIcon(colors: Pair<Int, Int>?) {
     val primary = Color(colors?.first ?: 0xFFEE78AC.toInt())
     val secondary = Color(colors?.second ?: 0xFFFFD8EB.toInt())
     // GO candy texture: red = stripes, green = body, blue = highlights.
@@ -187,7 +192,7 @@ internal fun PokedexWeather(types: List<String>) {
     }
 }
 @Composable
-private fun PokedexMegaEnergyIcon(colors: Pair<Int, Int>?) {
+internal fun PokedexMegaEnergyIcon(colors: Pair<Int, Int>?) {
     val body = Color(colors?.first ?: 0xFF78C7AA.toInt())
     val highlight = Color(colors?.second ?: 0xFFE0FBFF.toInt())
     // Preserve the GO texture's shading, rim and DNA masks rather than displaying an outline.

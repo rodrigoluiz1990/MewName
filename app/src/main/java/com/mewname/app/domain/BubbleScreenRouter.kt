@@ -61,10 +61,17 @@ internal object BubbleScreenRouter {
         }
         return Target.Battle(if (advice.mode == BattleMode.RAID) {
             val level = measured("simbolos nivel") { raidLevel() }
+            if (com.mewname.app.BuildConfig.DEBUG)
+                android.util.Log.d("RaidReadTiming", "detectedLevel=$level name=${advice.bossName}")
             val recovered = if (advice.bossName == null) measured("nome parcial catalogo") {
                 val repository = RaidCounterRepository(context.applicationContext)
-                RaidBossResolver.resolveOccludedName(positionedLines, repository.metadata(),
-                    runCatching { repository.catalog() }.getOrDefault(emptyList()), level)
+                val metadata = repository.metadata()
+                val catalog = runCatching { repository.catalog() }.getOrDefault(emptyList())
+                RaidBossResolver.resolveOccludedName(positionedLines, metadata, catalog, level)
+                    ?: RaidBossResolver.resolveBossCp(positionedLines, metadata, catalog, level)?.also {
+                        if (com.mewname.app.BuildConfig.DEBUG)
+                            android.util.Log.d("RaidReadTiming", "bossCp recovered=$it")
+                    }
             } else null
             advice.copy(bossName = advice.bossName ?: recovered?.id, raidLevel = level)
         } else advice)

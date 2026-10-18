@@ -280,22 +280,35 @@ fun TypesScreen(onBack: () -> Unit) {
         title = t(language, "Tipos", "Types", "Tipos"),
         onBack = onBack
     ) {
-        AppSectionCard(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (selectedTypes.isEmpty()) {
-                    Text(
-                        t(language, "Nenhum tipo selecionado", "No type selected", "Ningun tipo seleccionado"),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        selectedTypes.forEach { type ->
-                            TypeBadge(type = type, language = language)
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val typeWidth = (maxWidth - 16.dp) / 3
+            AppSectionCard(Modifier.fillMaxWidth()) {
+                Box(
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth().heightIn(min = 40.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (selectedTypes.isEmpty()) {
+                        Text(
+                            t(language, "Nenhum tipo selecionado", "No type selected", "Ningun tipo seleccionado"),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            selectedTypes.forEach { type ->
+                                Box(Modifier.width(typeWidth).height(40.dp), contentAlignment = Alignment.CenterStart) {
+                                    TypeBadge(
+                                        type = type,
+                                        language = language,
+                                        filled = true,
+                                        selected = true,
+                                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(999.dp)).clickable(
+                                            role = androidx.compose.ui.semantics.Role.Button,
+                                            onClickLabel = t(language, "Remover tipo", "Remove type", "Quitar tipo")
+                                        ) { selectedTypes.remove(type) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -304,6 +317,7 @@ fun TypesScreen(onBack: () -> Unit) {
 
         TypeSelector(types = types, selectedTypes = selectedTypes, maxSelection = 2, language = language, verticalSpacing = 2.dp)
         MatchupSection(matchup = matchup, language = language)
+        TypePokemonExamples(selectedTypes.toSet())
     }
 }
 
@@ -327,9 +341,10 @@ fun MovesScreen(onBack: () -> Unit) {
     }
     val catalog = catalogState.value
     val isLoading = catalog.isEmpty()
+    var moveSort by rememberSaveable { mutableStateOf(MoveSort.NAME) }
+    var reverseSort by rememberSaveable { mutableStateOf(false) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     LaunchedEffect(showFilters) { if (showFilters) listState.scrollToItem(0) }
     var query by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf<MoveCategory?>(null) }
@@ -348,7 +363,7 @@ fun MovesScreen(onBack: () -> Unit) {
             )
         }
     }
-    val filtered = remember(indexedCatalog, normalizedQuery, selectedCategory, selectedType) {
+    val filtered = remember(indexedCatalog, normalizedQuery, selectedCategory, selectedType, moveSort, language, reverseSort) {
         indexedCatalog.filter { indexed ->
             val entry = indexed.entry
             (selectedCategory == null || entry.category == selectedCategory) &&
@@ -357,7 +372,7 @@ fun MovesScreen(onBack: () -> Unit) {
                     normalizedQuery.isBlank() ||
                         indexed.searchIndex.contains(normalizedQuery)
                     )
-        }.map { it.entry }
+        }.map { it.entry }.sortedWith(moveComparator(moveSort, language, reverseSort))
     }
     val visibleEntries by remember(filtered, visibleCount) {
         derivedStateOf { filtered.take(visibleCount) }
@@ -373,16 +388,7 @@ fun MovesScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconToggleButton(checked = showFilters, onCheckedChange = {
-                        showFilters = it
-                        if (!it) focusManager.clearFocus()
-                    }) {
-                        BadgedBox(badge = { if (query.isNotBlank() || selectedCategory != null || selectedType != null) Badge() }) {
-                            Icon(Icons.Default.Search, contentDescription = if (showFilters)
-                                t(language, "Ocultar filtros", "Hide filters", "Ocultar filtros") else
-                                t(language, "Mostrar filtros", "Show filters", "Mostrar filtros"))
-                        }
-                    }
+                    AppFilterToggle(showFilters, query.isNotBlank() || selectedCategory != null || selectedType != null || moveSort != MoveSort.NAME || reverseSort, { showFilters = it })
                 }
             )
         }
@@ -398,7 +404,7 @@ fun MovesScreen(onBack: () -> Unit) {
         ) {
             if (showFilters) item(key = "moveFilters") {
                 MoveSearchPanel(query, { query = it }, t(language, "Buscar ataque", "Search move", "Buscar ataque"),
-                    selectedCategory, { selectedCategory = it }, selectedType, { selectedType = it }, types, language)
+                    selectedCategory, { selectedCategory = it }, selectedType, { selectedType = it }, types, language, order = moveSort, onOrder = { moveSort = it; visibleCount = 80 }, reversed = reverseSort, onReversed = { reverseSort = it; visibleCount = 80 })
             }
             item {
                 Text(
@@ -470,8 +476,9 @@ fun PokedexScreen(onBack: () -> Unit) {
     }
     val types = remember(pokedex) { pokedex.flatMap { listOfNotNull(it.type1, it.type2) }.distinct().sorted() }
     val normalizedQuery = remember(query) { normalizeSearch(query) }
-    val filtered = remember(pokedex, selectedType, normalizedQuery) {
-        pokedex.filter { entry ->
+    val national = remember(pokedex) { com.mewname.app.domain.nationalPokedexEntries(pokedex) }
+    val filtered = remember(pokedex, national, selectedType, normalizedQuery) {
+        val matchedNumbers = pokedex.filter { entry ->
             (selectedType == null || entry.type1 == selectedType || entry.type2 == selectedType) &&
                 (
                     normalizedQuery.isBlank() ||
@@ -481,7 +488,8 @@ fun PokedexScreen(onBack: () -> Unit) {
                         entry.number.toString().contains(normalizedQuery) ||
                         entry.aliases.any { normalizeSearch(it).contains(normalizedQuery) }
                     )
-        }
+        }.map { it.number }.toSet()
+        national.filter { it.number in matchedNumbers }
     }
 
     pokedex.firstOrNull { it.name == detailsName }?.let { selected ->
@@ -496,28 +504,19 @@ fun PokedexScreen(onBack: () -> Unit) {
                 navigationIcon = { IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t(language, "Voltar", "Back", "Volver"))
                 } },
-                actions = { IconToggleButton(checked = showFilters, onCheckedChange = { showFilters = it }) {
-                    BadgedBox(badge = { if (query.isNotBlank() || selectedType != null) Badge() }) {
-                        Icon(Icons.Default.Search, contentDescription = t(language, "Filtros", "Filters", "Filtros"))
-                    }
-                } }
+                actions = { AppFilterToggle(showFilters, query.isNotBlank() || selectedType != null, { showFilters = it }) }
             )
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (showFilters) {
-                AppSectionCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        AppGlassTextField(search = true, value = query, onValueChange = { query = it },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            label = { Text(t(language, "Nome ou número", "Name or number", "Nombre o número")) })
-                        if (types.isNotEmpty()) TypeSelectorSingle(types = types, selectedType = selectedType,
-                            onSelect = { selectedType = it }, language = language, showAllOption = false)
-                        TextButton(onClick = { query = ""; selectedType = null }, enabled = query.isNotBlank() || selectedType != null) {
-                            Text(t(language, "Limpar filtros", "Clear filters", "Borrar filtros"))
-                        }
-                    }
+                AppFilterPanel(query.isNotBlank() || selectedType != null, onClear = { query = ""; selectedType = null }) {
+                    AppGlassTextField(search = true, value = query, onValueChange = { query = it },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        label = { Text(t(language, "Nome ou número", "Name or number", "Nombre o número")) })
+                    if (types.isNotEmpty()) TypeSelectorSingle(types = types, selectedType = selectedType,
+                        onSelect = { selectedType = it }, language = language, showAllOption = false)
                 }
             }
             Text("${filtered.size} Pokémon", style = MaterialTheme.typography.labelMedium,
@@ -537,7 +536,7 @@ fun PokedexScreen(onBack: () -> Unit) {
                                     org.json.JSONArray(listOf(entry.name.uppercase(java.util.Locale.ROOT), "")).toString(),
                                     entry.localizedName(language)), images, com.mewname.app.domain.PersonalCollectionGroup.NORMAL)
                             Text(entry.number.toString().padStart(4, '0'), style = MaterialTheme.typography.labelSmall)
-                            Text(entry.localizedName(language), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            Text(com.mewname.app.domain.nationalPokedexName(entry, language), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 style = MaterialTheme.typography.labelMedium, modifier = Modifier.fillMaxWidth(),
                                 minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
@@ -609,6 +608,7 @@ fun RaidPlannerScreen(
     var selectedTier by rememberSaveable { mutableStateOf("RAID_LEVEL_5") }
     var selectedShields by rememberSaveable { mutableStateOf(false) }
     val searchState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    var raidQuery by rememberSaveable { mutableStateOf("") }
     val counterRepository = remember { com.mewname.app.domain.RaidCounterRepository(context.applicationContext) }
     var live by remember { mutableStateOf<List<RaidHistoryCategory>>(emptyList()) }
     var savedRaids by remember { mutableStateOf<List<RaidHistoryCategory>>(emptyList()) }
@@ -645,7 +645,7 @@ fun RaidPlannerScreen(
             val cached = withContext(Dispatchers.IO) { counterRepository.catalog() }
             live = groups(cached)
             savedRaids = groups(withContext(Dispatchers.IO) { counterRepository.savedCatalog() }).map { it.copy(id = it.id.removePrefix("live_")) }
-            if (cached.isEmpty() || retry > 0) {
+            if (cached.isEmpty() || retry > 0 || withContext(Dispatchers.IO) { counterRepository.catalogNeedsRefresh() }) {
                 try {
                     val refreshed = withContext(Dispatchers.IO) { counterRepository.catalog(refresh = true) }
                     live = groups(refreshed)
@@ -698,12 +698,20 @@ fun RaidPlannerScreen(
         }
         androidx.activity.compose.BackHandler { selectedMaxBoss = null }
         SimpleToolScreen(title = t(language, "Batalha Max", "Max Battle", "Combate Max"),
+            scrollable = false,
             onBack = { selectedMaxBoss = null }) {
             if (result?.isFailure == true) {
                 AppStatusMessage(t(language, "Não foi possível calcular as sugestões.", "Could not calculate suggestions.", "No se pudieron calcular las sugerencias."), error = true)
             } else {
-                AppLoadingIndicator()
-                Text(t(language, "Calculando sugestões...", "Calculating suggestions...", "Calculando sugerencias..."))
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        AppLoadingIndicator()
+                        Text(t(language, "Calculando sugestões...", "Calculating suggestions...", "Calculando sugerencias..."))
+                    }
+                }
             }
         }
         return
@@ -737,6 +745,7 @@ fun RaidPlannerScreen(
                 result.getOrThrow().isEmpty() ->
                     AppStatusMessage(t(language, "Nenhuma raid disponível.", "No raids available.", "No hay raids disponibles."))
                 else -> RaidHistorySection(categories = displayCategories, language = language,
+                    showFilters = true, query = raidQuery, onQuery = { raidQuery = it },
                     loading = loading, loadedCount = loadedCount, totalCount = totalCount,
                     onSelectBoss = { boss, category ->
                         selectedBoss = raidHistorySpriteId(boss)
@@ -768,7 +777,7 @@ private fun PokemonFilterBuilderLegacy(context: Context) {
         )
     }
     val allTypes = remember {
-        listOf("Bug", "Dark", "Dragon", "Electric", "Fairy", "Fighting", "Fire", "Flying", "Ghost", "Grass", "Ground", "Ice", "Normal", "Poison", "Psychic", "Rock", "Steel", "Water")
+        pokemonTypeFilterOrder
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1360,7 +1369,7 @@ private fun PokemonFilterBuilder(
     }
     val output = buildOrderedFilter(selectionOrder, expressionGroups())
     val allTypes = remember {
-        listOf("Bug", "Dark", "Dragon", "Electric", "Fairy", "Fighting", "Fire", "Flying", "Ghost", "Grass", "Ground", "Ice", "Normal", "Poison", "Psychic", "Rock", "Steel", "Water")
+        pokemonTypeFilterOrder
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1628,42 +1637,16 @@ private fun MatchupSection(
     matchup: List<TypeMatchupEntry>,
     language: AppLanguage
 ) {
-    if (matchup.isEmpty()) return
-    val strongDouble = matchup.filter { it.multiplier >= 2.55 }
-    val strong = matchup.filter { it.multiplier in 1.01..2.54 }
-    val weak = matchup.filter { it.multiplier in 0.40..0.99 }
-    val veryWeak = matchup.filter { it.multiplier < 0.40 }
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (strongDouble.isNotEmpty()) {
-            Text(t(language, "Fraqueza dupla", "Double weakness", "Debilidad doble"), fontWeight = FontWeight.Bold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                strongDouble.forEach { item ->
-                    TypeStatBar(type = item.attackType, language = language, text = formatMultiplier(item.multiplier))
-                }
-            }
-        }
-        if (strong.isNotEmpty()) {
-            Text(t(language, "Fraquezas", "Weaknesses", "Debilidades"), fontWeight = FontWeight.Bold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                strong.forEach { item ->
-                    TypeStatBar(type = item.attackType, language = language, text = formatMultiplier(item.multiplier))
-                }
-            }
-        }
-        if (weak.isNotEmpty()) {
-            Text(t(language, "Resistencias", "Resistances", "Resistencias"), fontWeight = FontWeight.Bold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                weak.forEach { item ->
-                    TypeStatBar(type = item.attackType, language = language, text = formatMultiplier(item.multiplier))
-                }
-            }
-        }
-        if (veryWeak.isNotEmpty()) {
-            Text(t(language, "Resistencia dupla", "Double resistance", "Resistencia doble"), fontWeight = FontWeight.Bold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                veryWeak.forEach { item ->
-                    TypeStatBar(type = item.attackType, language = language, text = formatMultiplier(item.multiplier))
+    val groups = listOf(
+        t(language, "Fraquezas", "Weaknesses", "Debilidades") to matchup.filter { it.multiplier > 1.0 },
+        t(language, "Resistências", "Resistances", "Resistencias") to matchup.filter { it.multiplier < 1.0 }
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        groups.filter { it.second.isNotEmpty() }.forEach { (title, entries) ->
+            AppSectionCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    PokedexMatchupCards(entries)
                 }
             }
         }
@@ -1679,8 +1662,9 @@ private fun TypeSelector(
     language: AppLanguage,
     verticalSpacing: Dp = 2.dp
 ) {
-    UniformOptionGrid(count = types.size, verticalSpacing = verticalSpacing) { index ->
-        val type = types[index]
+    val orderedTypes = remember(types) { orderedPokemonFilterTypes(types) }
+    UniformOptionGrid(count = orderedTypes.size, verticalSpacing = verticalSpacing) { index ->
+        val type = orderedTypes[index]
         Box(modifier = Modifier.fillMaxWidth()) {
             Surface(
                 modifier = Modifier
@@ -1713,7 +1697,8 @@ private fun TypeSelector(
                         language = language,
                         modifier = Modifier.fillMaxWidth(),
                         showAssetIcon = true,
-                        filled = true
+                        filled = true,
+                        selected = type in selectedTypes
                     )
                 }
             }
@@ -1730,7 +1715,8 @@ internal fun TypeSelectorSingle(
     language: AppLanguage,
     showAllOption: Boolean = true
 ) {
-    val itemCount = types.size + if (showAllOption) 1 else 0
+    val orderedTypes = remember(types) { orderedPokemonFilterTypes(types) }
+    val itemCount = orderedTypes.size + if (showAllOption) 1 else 0
     UniformOptionGrid(count = itemCount, verticalSpacing = 2.dp) { index ->
         if (showAllOption && index == 0) {
             AppChoiceChip(
@@ -1750,7 +1736,7 @@ internal fun TypeSelectorSingle(
                 }
             )
         } else {
-            val type = types[index - if (showAllOption) 1 else 0]
+            val type = orderedTypes[index - if (showAllOption) 1 else 0]
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1786,8 +1772,9 @@ private fun TypeSelectorSingleTriState(
     onJoinerChange: (String, String) -> Unit,
     language: AppLanguage
 ) {
-    UniformOptionGrid(count = types.size) { index ->
-        val type = types[index]
+    val orderedTypes = remember(types) { orderedPokemonFilterTypes(types) }
+    UniformOptionGrid(count = orderedTypes.size) { index ->
+        val type = orderedTypes[index]
         val selection = selections[type]
         val mode = selection?.mode
         val prefix = when (mode) {
@@ -2329,6 +2316,7 @@ internal fun sortRaidCategoriesByDex(
 @Composable
 private fun RaidHistorySection(
     categories: List<RaidHistoryCategory>, language: AppLanguage,
+    showFilters: Boolean, query: String, onQuery: (String) -> Unit,
     loading: Boolean, loadedCount: Int, totalCount: Int,
     onSelectBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit,
     onSelectMaxBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit
@@ -2342,7 +2330,6 @@ private fun RaidHistorySection(
     if (groups.isEmpty()) return
     var selectedGroupName by rememberSaveable { mutableStateOf(RaidCategoryGroup.CURRENT.name) }
     var tabIndex by rememberSaveable { mutableStateOf(0) }
-    var query by rememberSaveable { mutableStateOf("") }
     val safeGroupIndex = groups.indexOfFirst { (group) -> group.name == selectedGroupName }.coerceAtLeast(0)
     val groupCategories = groupedCategories[groups[safeGroupIndex].first].orEmpty()
     val safeTabIndex = tabIndex.coerceIn(groupCategories.indices)
@@ -2371,11 +2358,10 @@ private fun RaidHistorySection(
                 }
             }
         }
-        AppGlassTextField(
-                    search = true,
-                    value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text(t(language, "Buscar chefe", "Search boss", "Buscar jefe")) }, singleLine = true
-        )
+        if (showFilters) AppFilterPanel(query.isNotBlank(), onClear = { onQuery("") }, showClear = false) {
+            AppGlassTextField(search = true, value = query, onValueChange = onQuery, modifier = Modifier.fillMaxWidth(),
+                label = { Text(t(language, "Buscar chefe", "Search boss", "Buscar jefe")) }, singleLine = true)
+        }
         if (loading) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AppLoadingIndicator(Modifier.size(18.dp))
@@ -3438,7 +3424,7 @@ private fun formatMultiplier(value: Double): String {
 
 
 @Composable
-internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false) {
+internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false, showFilters: Boolean = true, onFilterActive: (Boolean) -> Unit = {}) {
     val context = LocalContext.current
     var categoryIndex by rememberSaveable { mutableStateOf(0) }
     val categories = com.mewname.app.domain.BackgroundCategory.entries
@@ -3461,14 +3447,18 @@ internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false) {
         normalizeSearch(it.displayName).contains(normalizeSearch(query)) &&
             (!onlyCollected || obtained["background|${it.fileName}"] == true)
     }
-    AppPillTabRow(selectedTabIndex = categoryIndex, edgePadding = 0.dp, divider = {}) {
-        (listOf("Todos") + categories.map { it.label }).forEachIndexed { index, label ->
-            AppPillTab(selected = categoryIndex == index, onClick = { categoryIndex = index }, text = { Text(label) })
+    androidx.compose.runtime.SideEffect { onFilterActive(query.isNotBlank() || onlyCollected || categoryIndex != 0) }
+    if (showFilters) AppFilterPanel(query.isNotBlank() || onlyCollected || categoryIndex != 0,
+        onClear = { query = ""; onlyCollected = false; categoryIndex = 0 }) {
+        AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
+            search = true, label = { Text("Buscar fundo") }, singleLine = true)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            (listOf("Todos") + categories.map { it.label }).forEachIndexed { index, label ->
+                AppChoiceChip(selected = categoryIndex == index, onClick = { categoryIndex = index }, label = { Text(label) })
+            }
         }
+        AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
     }
-    AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-        label = { Text("Buscar fundo") }, singleLine = true)
-    AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
     if (backgrounds == null) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (backgrounds != null && entries.isEmpty()) item { Text("Nenhum fundo encontrado.") }

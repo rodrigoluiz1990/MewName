@@ -112069,3 +112069,27 @@ TEXT: Asalto Espadón
 
 RESOURCE ID: move_name_488
 TEXT: Agua Fría
+
+RESOURCE ID: move_name_0489
+TEXT: Espada Mística
+
+RESOURCE ID: move_name_0490
+TEXT: Pico Cañón
+
+RESOURCE ID: move_name_0491
+TEXT: Cabeza Sorpresa
+
+RESOURCE ID: move_name_0492
+TEXT: Batería Asalto
+
+RESOURCE ID: move_name_0493
+TEXT: Balón Ígneo
+
+RESOURCE ID: move_name_0497
+TEXT: Puños Plasma
+
+RESOURCE ID: move_name_0592
+TEXT: Disparo Certero
+
+RESOURCE ID: move_name_0593
+TEXT: Buceo

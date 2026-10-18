@@ -180,11 +180,16 @@ internal class RaidCounterRepository(private val context: Context) {
             android.util.Log.d("RaidReadTiming", "refresh boss=$id tier=$tier level=$level: ${android.os.SystemClock.elapsedRealtime() - started}ms")
         }
     }
+    fun catalogNeedsRefresh(): Boolean = runCatching {
+        val cached = JSONObject(AtomicFile(File(directory, "catalog.json")).openRead().bufferedReader().use { it.readText() })
+        screenCacheExpired(cached.optLong("mewnameFetchedAt"), RAID_CATALOG_MAX_AGE)
+    }.getOrDefault(true)
+
     fun catalog(refresh: Boolean = false): List<RaidChoice> {
         val target = File(directory, "catalog.json")
         val raw = if (refresh) get("raids") else runCatching { JSONObject(AtomicFile(target).openRead().bufferedReader().use { it.readText() }) }.getOrNull() ?: return emptyList()
         val entries = raidCatalogChoices(raw, saved = false)
-        require(entries.isNotEmpty()); if (refresh) write(target,raw)
+        require(entries.isNotEmpty()); if (refresh) write(target,raw.put("mewnameFetchedAt", System.currentTimeMillis()))
         return entries
     }
     fun savedCatalog(): List<RaidChoice> = runCatching {

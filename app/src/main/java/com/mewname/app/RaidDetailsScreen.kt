@@ -47,6 +47,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     var formChoices by remember(bossName) { mutableStateOf<List<RaidChoice>>(emptyList()) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    var identityLoading by remember { mutableStateOf(true) }
     var catalogRefreshing by remember { mutableStateOf(false) }
     var catalogRefreshFailed by remember { mutableStateOf(false) }
     var report by remember(selectedId,tier,level) { mutableStateOf<RaidReport?>(null) }
@@ -62,6 +63,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     // A service overlay has no Activity back dispatcher, even for a disabled handler.
     if (!bubble) BackHandler(onBack = onBack)
     LaunchedEffect(language, bossName, raidScreenText, detectedRaidLevel) {
+        identityLoading = true
         try { withContext(Dispatchers.IO) {
             val identityStarted = android.os.SystemClock.elapsedRealtime()
             val loaded = repository.metadata()
@@ -89,6 +91,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             }.toMap()
             withContext(Dispatchers.Main) { moveNames=labels; pokemonNames=names }
         } } catch(e: CancellationException) { throw e } catch(_: Exception) { failed=true;loading=false }
+        finally { identityLoading = false }
     }
     LaunchedEffect(boss?.id,tier,level,refresh) {
         val selected=boss ?: return@LaunchedEffect
@@ -104,7 +107,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             weakness=withContext(Dispatchers.Default) { runCatching {
                 GameInfoRepository.matchupAgainst(context.applicationContext,selected.types).filter { it.multiplier > 1 }
             }.getOrDefault(emptyList()) }
-            if ((!bubble && report == null) || refresh > 0) report=withContext(Dispatchers.IO) { repository.refresh(selected.id,tier,level) }
+            if ((!bubble && screenCacheExpired(report?.fetchedAt, BATTLE_DATA_MAX_AGE)) || refresh > 0) report=withContext(Dispatchers.IO) { repository.refresh(selected.id,tier,level) }
         } catch(e: CancellationException) { throw e }
         catch(_: Exception) { failed=true }
         finally { loading=false }
@@ -117,7 +120,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         trainersFailed = false
         try {
             trainerReport = withContext(Dispatchers.IO) { repository.cached(selected.id, tier, 20) }
-            if (trainerReport == null || refresh > 0) {
+            if (trainerReport == null || refresh > 0 || (!bubble && screenCacheExpired(trainerReport?.fetchedAt, BATTLE_DATA_MAX_AGE))) {
                 trainerReport = withContext(Dispatchers.IO) { repository.refresh(selected.id, tier, 20) }
             }
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -157,50 +160,52 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         AppTopBar(title={Text(tr("Detalhes da raid","Raid details","Detalles de la incursión"))}, navigationIcon={
             IconButton(onClick=onBack) { Icon(if(bubble) Icons.Default.Close else Icons.Default.ArrowBack,tr("Fechar","Close","Cerrar")) }
         }, actions = {
-            if (catalogRefreshing) {
-                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                }
-            } else if (boss == null || !bubble) {
-                IconButton(
-                    enabled = if (boss == null) meta != null && inferredTier else !loading,
-                    onClick = {
-                        if (boss != null) {
-                            refresh++
-                        } else {
-                            catalogRefreshing = true
-                            catalogRefreshFailed = false
-                            val previousSelection = selectedId
-                            scope.launch {
-                                try {
-                                    val identity = withContext(Dispatchers.IO) {
-                                        repository.catalog(refresh = true)
-                                        repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel)
-                                    }
-                                    // A manual selection made during the request takes precedence.
-                                    if (selectedId == previousSelection) {
-                                        formChoices = identity.alternatives
-                                        selectedId = identity.selected?.id
-                                        tier = identity.selected?.tier ?: initialTier
-                                    }
-                                } catch (cancelled: CancellationException) {
-                                    throw cancelled
-                                } catch (_: Exception) {
-                                    catalogRefreshFailed = true
-                                } finally {
-                                    catalogRefreshing = false
+            IconButton(
+                enabled = !identityLoading && !catalogRefreshing && (boss == null || (!loading && !trainersLoading)),
+                onClick = {
+                    if (boss != null) {
+                        refresh++
+                    } else {
+                        catalogRefreshing = true
+                        catalogRefreshFailed = false
+                        val previousSelection = selectedId
+                        scope.launch {
+                            try {
+                                val (loaded, identity) = withContext(Dispatchers.IO) {
+                                    val metadata = repository.metadata()
+                                    repository.catalog(refresh = true)
+                                    metadata to repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel)
                                 }
+                                meta = loaded
+                                inferredTier = true
+                                failed = false
+                                // Preserve a selection made while the catalog request was running.
+                                if (selectedId == previousSelection) {
+                                    formChoices = identity.alternatives
+                                    selectedId = identity.selected?.id
+                                    tier = identity.selected?.tier ?: initialTier
+                                }
+                                // This explicit refresh also downloads counters and portraits
+                                // when the refreshed catalog identifies the boss in the overlay.
+                                refresh++
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                catalogRefreshFailed = true
+                            } finally {
+                                catalogRefreshing = false
                             }
                         }
                     }
-                ) {
-                    Icon(Icons.Default.Refresh, if (boss == null)
-                        tr("Atualizar raids disponíveis", "Refresh available raids", "Actualizar incursiones disponibles")
-                    else tr("Atualizar", "Refresh", "Actualizar"))
                 }
+            ) {
+                Icon(Icons.Default.Refresh, if (boss == null)
+                    tr("Atualizar raids disponíveis", "Refresh available raids", "Actualizar incursiones disponibles")
+                else tr("Atualizar", "Refresh", "Actualizar"))
             }
         })
         LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(start=16.dp, top=16.dp, end=16.dp, bottom=16.dp + navigationContentPadding),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            if (catalogRefreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if(meta==null && !failed) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if(meta==null && failed) item { Text(tr("Não foi possível carregar os dados da raid.","Could not load raid data.","No se pudieron cargar los datos.")) }
             if(meta!=null && boss==null) item { Text(if(formChoices.isNotEmpty()) tr("Chefe não identificado. Escolha uma raid atual deste nível.","Boss not identified. Choose a current raid at this level.","Jefe no identificado. Elige una incursión actual de este nivel.") else tr("Não foi possível identificar o chefe nem encontrar raids atuais deste nível.","The boss could not be identified and no current raids were found at this level.","No se pudo identificar al jefe ni encontrar incursiones actuales de este nivel.")) }
@@ -235,7 +240,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                            "Suggestions use available Mega data; estimates do not include the shield phase.",
                            "Las sugerencias usan los datos Mega disponibles; la estimación no incluye la fase de escudos."),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(tr("Golpes possíveis do chefe","Possible boss attacks","Ataques posibles del jefe"),style=MaterialTheme.typography.titleSmall)
+                    Text(tr("Movimentos","Moves","Movimientos"),style=MaterialTheme.typography.titleSmall)
                     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                             Text(tr("Rápidos","Fast","Rápidos"),style=MaterialTheme.typography.labelLarge)
@@ -258,7 +263,6 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                         RaidCpRow("", "67%", "100%")
                         RaidCpRow(tr("Normal · Nv. 20","Normal · Lv. 20","Normal · Nv. 20"),"${raidCp(capture,10,false)}","${raidCp(capture,15,false)}")
                         RaidCpRow(tr("Com clima · Nv. 25","Boosted · Lv. 25","Con clima · Nv. 25"),"${raidCp(capture,10,true)}","${raidCp(capture,15,true)}")
-                        Text(tr("IVs: 10/10/10 e 15/15/15","IVs: 10/10/10 and 15/15/15","IV: 10/10/10 y 15/15/15"),style=MaterialTheme.typography.bodySmall)
                         Text(raidWeather(capture.types).joinToString(" · ") { weather -> when(weather) {
                             "sunny" -> tr("☀ Ensolarado / Limpo","☀ Sunny / Clear","☀ Soleado / Despejado")
                             "rain" -> tr("☂ Chuvoso","☂ Rainy","☂ Lluvioso")
@@ -273,17 +277,13 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                 item { Row(verticalAlignment=Alignment.CenterVertically) {
                     Text(tr("Pokémon sugeridos","Suggested Pokémon","Pokémon sugeridos"),Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
                     listOf(40,50).forEach { value -> TextButton(onClick={level=value; repository.setPreferredLevel(value)}) { Text(if(level==value) "• $value" else "$value") } }
-                }; Text(tr("Sem clima · Megas, sombrosos e lendários incluídos","No weather · Megas, shadows and legendaries included","Sin clima · Megas, oscuros y legendarios incluidos"),style=MaterialTheme.typography.bodySmall) }
+                } }
                 if(loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 if(failed) item { Text(tr("Falha ao atualizar. Os dados salvos foram preservados.","Update failed. Saved data was preserved.","No se pudo actualizar. Se conservaron los datos guardados.")) }
                 if(!loading && report==null) item {
                     Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
                         Text(tr("Ainda não há sugestões salvas para este chefe.","There are no saved suggestions for this boss yet.","Todavía no hay sugerencias guardadas para este jefe."))
-                        AppActionButton(
-                            onClick={refresh++},
-                            enabled=!loading,
-                            modifier=Modifier.fillMaxWidth()
-                        ) { Text(tr("Atualizar esta raid","Update this raid","Actualizar esta incursión")) }
+
                     }
                 }
                 run {
@@ -304,10 +304,6 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                                     Text(count + if (trainerRange.last == 1) tr(" pessoa", " trainer", " persona")
                                         else tr(" pessoas", " trainers", " personas"),
                                         style = MaterialTheme.typography.headlineSmall)
-                                    Text(tr("Estimativa Pokébattler com Pokémon no nível 20, sem bônus de clima. Independente do nível 40/50 da lista. A quantidade depende da equipe e dos golpes do chefe.",
-                                        "Pokébattler estimate with level-20 Pokémon and no weather boost. Independent of the 40/50 list level. Group size depends on teams and boss moves.",
-                                        "Estimación de Pokébattler con Pokémon de nivel 20, sin bono de clima. Independiente del nivel 40/50 de la lista. La cantidad depende del equipo y los ataques del jefe."),
-                                        style = MaterialTheme.typography.bodySmall)
                                 } else {
                                     Text(if (trainersLoading) tr("Calculando para o nível 20…", "Calculating for level 20…", "Calculando para el nivel 20…")
                                         else tr("Estimativa de nível 20 indisponível.", "Level-20 estimate unavailable.", "Estimación de nivel 20 no disponible."))
@@ -317,9 +313,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                                         "Could not update the group estimate. Saved data was kept when available.",
                                         "No se pudo actualizar la estimación de personas. Se conservaron los datos guardados disponibles."),
                                         style = MaterialTheme.typography.bodySmall)
-                                    TextButton(onClick = { refresh++ }, enabled = !trainersLoading && !loading) {
-                                        Text(tr("Tentar novamente", "Retry", "Reintentar"))
-                                    }
+
                                 }
                             }
                         }
@@ -335,7 +329,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                         }
                     }
                 } }
-                report?.let { r -> item { Text(tr("Filtro por espécies e tipos de golpes. Confira a forma e os golpes recomendados.","Filter by species and attack types. Check the recommended form and moves.","Filtro por especies y tipos de ataque. Revisa la forma y los ataques recomendados."),style=MaterialTheme.typography.bodySmall)
+                report?.let { r -> item {
                     Text(tr("★ Golpe especial","★ Special move","★ Ataque especial"),style=MaterialTheme.typography.bodySmall)
                     Text("Pokébattler · " + DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT).format(Date(r.fetchedAt)),style=MaterialTheme.typography.bodySmall)
                     if(!bubble) TextButton(onClick={openExternalUrl(context,"https://www.pokebattler.com/raids/${b.id}")}) { Text(tr("Abrir Pokébattler ↗","Open Pokébattler ↗","Abrir Pokébattler ↗")) }

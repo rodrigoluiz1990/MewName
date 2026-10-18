@@ -179,9 +179,9 @@ internal data class HomeMenuAction(val icon: String, val title: String, val onCl
 
 private val AtmosphericGroups = listOf(
     listOf("calendar", "promo", "names", "filters"),
-    listOf("pokedex", "collections", "types"),
+    listOf("pokedex", "collections", "types", "missions"),
     listOf("raid", "rocket", "research", "eggs"),
-    listOf("adventure", "legacy", "moves")
+    listOf("adventure", "legacy", "moves", "team_analysis")
 )
 
 @Composable

@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,7 +79,8 @@ fun TypeBadge(
     showAssetIcon: Boolean = true,
     stacked: Boolean = false,
     inlinePrefix: String? = null,
-    filled: Boolean = false
+    filled: Boolean = false,
+    selected: Boolean = false
 ) {
     val spec = typeSpec(type) ?: return
     if (stacked) {
@@ -135,7 +139,7 @@ fun TypeBadge(
             modifier = modifier
                 .background(containerColor, RoundedCornerShape(999.dp))
                 .border(1.dp, spec.color.copy(alpha = if (filled) 0.0f else 0.45f), RoundedCornerShape(999.dp))
-                .padding(horizontal = 8.dp, vertical = 5.dp),
+                .padding(horizontal = if (selected) 5.dp else 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
@@ -168,16 +172,22 @@ fun TypeBadge(
                     )
                 }
             }
-            Spacer(Modifier.width(if (showAssetIcon) 8.dp else 6.dp))
+            Spacer(Modifier.width(if (selected) 3.dp else if (showAssetIcon) 8.dp else 6.dp))
             Text(
                 listOfNotNull(inlinePrefix?.takeIf { it.isNotBlank() }, localizedTypeLabel(type, language))
                     .joinToString(" "),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = textColor,
+                modifier = if (selected) Modifier.weight(1f) else Modifier,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (selected) {
+                Spacer(Modifier.width(3.dp))
+                Icon(Icons.Default.Check, contentDescription = null,
+                    modifier = Modifier.size(10.dp), tint = textColor)
+            }
         }
     }
 }

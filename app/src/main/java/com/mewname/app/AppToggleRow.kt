@@ -33,10 +33,6 @@ internal fun AppToggleRow(
 ) {
     val appearance = LocalAppAppearance.current
     val shape = RoundedCornerShape(10.dp)
-    val track by animateColorAsState(
-        if (checked) Color(0xFF39BCCD) else if (appearance.dark) Color(0xFF636774) else Color(0xFFB7C3D5),
-        label = "toggleTrack")
-    val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, label = "toggleThumb")
     val background = if (appearance.glass) Color(0xFFE5E9F6) else appearance.card.first()
     Row(
         modifier.fillMaxWidth().heightIn(min = 44.dp)
@@ -57,10 +53,30 @@ internal fun AppToggleRow(
                     style = MaterialTheme.typography.bodySmall)
             }
         }
-        Box(Modifier.size(40.dp, 22.dp).clip(RoundedCornerShape(50)).background(track).padding(3.dp)) {
-            Box(Modifier.offset(x = thumbOffset).size(16.dp)
-                .shadow(1.dp, RoundedCornerShape(50))
-                .background(Color.White, RoundedCornerShape(50)))
-        }
+        AppToggleThumb(checked)
+    }
+}
+
+@Composable
+internal fun AppToggle(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier) {
+    Box(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+        .then(if (onCheckedChange != null) Modifier.toggleable(
+            value = checked, role = Role.Switch, onValueChange = onCheckedChange) else Modifier),
+        contentAlignment = Alignment.Center) {
+        AppToggleThumb(checked)
+    }
+}
+
+@Composable
+private fun AppToggleThumb(checked: Boolean) {
+    val appearance = LocalAppAppearance.current
+    val track by animateColorAsState(
+        if (checked) Color(0xFF39BCCD) else if (appearance.dark) Color(0xFF636774) else Color(0xFFB7C3D5),
+        label = "toggleTrack")
+    val thumbOffset by animateDpAsState(if (checked) 18.dp else 0.dp, label = "toggleThumb")
+    Box(Modifier.size(40.dp, 22.dp).clip(RoundedCornerShape(50)).background(track).padding(3.dp)) {
+        Box(Modifier.offset(x = thumbOffset).size(16.dp)
+            .shadow(1.dp, RoundedCornerShape(50))
+            .background(Color.White, RoundedCornerShape(50)))
     }
 }

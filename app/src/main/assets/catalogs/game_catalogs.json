@@ -1,5 +1,7 @@
 {
   "legacyMoves": {
+    "TOUCANNON": ["BEAK BLAST", "Bico Explosivo", "Pico Cañón"],
+    "BLACEPHALON": ["MIND BLOWN", "Explosão Mental", "Cabeza Sorpresa"],
     "THIEVUL": ["Icy Wind","Vento Congelante","Viento Helado"],
     "INTELEON": ["Hydro Cannon","Hidro Canhão","Hidrocañón"],
     "OINKOLOGNE": ["Mud Slap","Tapa de Lama","Bofetón Lodo"],
@@ -64,7 +66,7 @@
     "BRELOOM": ["GRASS KNOT","Nó de Grama","HIERBA LAZO"],
     "SLAKING": ["BODY SLAM","Pancada Corporal","GOLPE CUERPO"],
     "NINJASK": ["BUG BITE","Picada","PICADURA"],
-    "MAWHILE": ["ASTONISH","ESPANTAR","IMPRESIONAR"],
+    "MAWILE": ["ASTONISH","ESPANTAR","IMPRESIONAR"],
     "AGGRON": ["METEOR MASH","Meteoro Esmagador","PUÑO METEORO"],
     "FLYGON": ["EARTH POWER","Poder da Terra","TIERRA VIVA"],
     "ALTARIA": ["MOONBLAST","Explosão Lunar","FUERZA LUNAR"],
@@ -276,5 +278,8 @@
     {"pokemon":"Crowned Sword Zacian","aliases":["CROWNED SWORD ZACIAN","ZACIAN CROWNED SWORD","ZACIAN"],"move":"Behemoth Blade","movePt":"Espada Colossal","moveAliases":["BEHEMOTH BLADE","ESPADA COLOSSAL","ESPADA BEHEMOTH"],"effectName":"Behemoth Blade","effectNamePt":"Espada Colossal","effectAliases":["ADVENTURE EFFECT","EFEITO AVENTURA","BEHEMOTH BLADE","ESPADA COLOSSAL","ESPADA BEHEMOTH"],"description":"Concede bônus ofensivo em encontros e batalhas por tempo limitado."},
     {"pokemon":"Crowned Shield Zamazenta","aliases":["CROWNED SHIELD ZAMAZENTA","ZAMAZENTA CROWNED SHIELD","ZAMAZENTA"],"move":"Behemoth Bash","movePt":"Pancada Colossal","moveAliases":["BEHEMOTH BASH","PANCADA COLOSSAL","IMPACTO BEHEMOTH"],"effectName":"Behemoth Bash","effectNamePt":"Pancada Colossal","effectAliases":["ADVENTURE EFFECT","EFEITO AVENTURA","BEHEMOTH BASH","PANCADA COLOSSAL","IMPACTO BEHEMOTH"],"description":"Concede bônus defensivo em encontros e batalhas por tempo limitado."},
     {"pokemon":"Eternatus","aliases":["ETERNATUS"],"move":"Dynamax Cannon","movePt":"Canhão Dynamax","moveAliases":["DYNAMAX CANNON","CANHAO DYNAMAX"],"effectName":"Dynamax Cannon","effectNamePt":"Canhão Dynamax","effectAliases":["ADVENTURE EFFECT","EFEITO AVENTURA","DYNAMAX CANNON","CANHAO DYNAMAX"],"description":"Canaliza energia Dynamax em batalhas e encontros por tempo limitado."}
-  ]
+  ,
+{"pokemon":"Mega Mewtwo X","descriptionEs":"Aumenta el daño en megaincursiones y rompe dos escudos a la vez en supermegaincursiones.","description":"Aumenta o dano em Megarreides e quebra dois escudos por vez em Super Megarreides.","descriptionEn":"Boosts damage in Mega Raids and breaks two shields at once in Super Mega Raids.","movePt":"Soco Dinâmico+","source":"https://pokemongo.com/pt-BR/news/more-mega-updates-2026","moveType":"Fighting","effectName":"Dynamic Punch+","moveAliases":["DYNAMIC PUNCH+","SOCO DINAMICO+"],"aliases":["MEGA MEWTWO X","MEWTWO MEGA X","MEWTWO"],"effectAliases":["DYNAMIC PUNCH+","SOCO DINAMICO+"],"move":"Dynamic Punch+","effectNamePt":"Soco Dinâmico+","combat":{"power":130,"energyDelta":-100,"durationMs":2500,"pvpPower":130,"pvpEnergyDelta":-80,"megaLevel":1,"nameEs":"Puño Dinámico+","source":"https://www.dittobase.com/pokemon-go/moves/dynamic-punch-plus","verifiedAt":"2026-10-16"}},
+{"pokemon":"Mega Mewtwo Y","descriptionEs":"Destaca Pokémon con valoración de 3 o 4 estrellas al iniciar el encuentro.","description":"Destaca Pokémon com avaliação de 3 ou 4 estrelas ao iniciar o encontro.","descriptionEn":"Highlights Pokémon with a 3- or 4-star appraisal when an encounter starts.","movePt":"Visão do Futuro+","source":"https://pokemongo.com/pt-BR/news/more-mega-updates-2026","moveType":"Psychic","effectName":"Future Sight+","moveAliases":["FUTURE SIGHT+","VISAO DO FUTURO+"],"aliases":["MEGA MEWTWO Y","MEWTWO MEGA Y","MEWTWO"],"effectAliases":["FUTURE SIGHT+","VISAO DO FUTURO+"],"move":"Future Sight+","effectNamePt":"Visão do Futuro+","combat":{"power":140,"energyDelta":-100,"durationMs":2500,"pvpPower":130,"pvpEnergyDelta":-80,"megaLevel":1,"nameEs":"Premonición+","source":"https://www.dittobase.com/pokemon-go/moves/futuresight-plus","verifiedAt":"2026-10-16"}}
+]
 }

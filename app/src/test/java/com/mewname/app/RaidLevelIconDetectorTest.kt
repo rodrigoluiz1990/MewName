@@ -3,6 +3,8 @@ package com.mewname.app
 import android.graphics.Bitmap
 import android.graphics.Color
 import com.mewname.app.domain.RaidLevelIconDetector
+import com.mewname.app.domain.BattleOcrLine
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -13,6 +15,23 @@ class RaidLevelIconDetectorTest {
     @Test fun countsThreeAndFiveRepeatedRaidSymbols() {
         assertEquals(3, RaidLevelIconDetector.detect(raidBitmap(3), cpTop = 240))
         assertEquals(5, RaidLevelIconDetector.detect(raidBitmap(5), cpTop = 240))
+    }
+
+    @Test fun separatePcLabelDoesNotMoveSymbolCropDown() {
+        val digits = BattleOcrLine("53394", .28f, .20f, .85f, .26f)
+        val label = BattleOcrLine("PC", .17f, .24f, .27f, .27f)
+        val anchor = RaidLevelIconDetector.cpAnchor(listOf(label, digits))!!
+        assertEquals(digits, anchor)
+        assertEquals(5, RaidLevelIconDetector.detect(raidBitmap(5), (anchor.top * 1200).toInt()))
+    }
+
+    @Test fun anchorAcceptsJoinedPrefixButRejectsGymAndTimer() {
+        val digits = BattleOcrLine("P53394", .25f, .20f, .85f, .26f)
+        assertEquals(digits, RaidLevelIconDetector.cpAnchor(listOf(digits)))
+        assertEquals(digits.copy(text="53394-"), RaidLevelIconDetector.cpAnchor(listOf(digits.copy(text="53394-"))))
+        assertNull(RaidLevelIconDetector.cpAnchor(listOf(digits.copy(top=.05f, bottom=.09f))))
+        assertNull(RaidLevelIconDetector.cpAnchor(listOf(digits.copy(text="0:53:394"))))
+        assertNull(RaidLevelIconDetector.cpAnchor(listOf(digits.copy(text="PC"))))
     }
 
     private fun raidBitmap(count: Int): Bitmap {

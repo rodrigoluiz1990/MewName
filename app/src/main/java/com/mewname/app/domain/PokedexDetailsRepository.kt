@@ -19,7 +19,8 @@ internal data class PokedexLocalDetails(
     val familySprites: Map<String, String?> = emptyMap(),
     val evolutionPaths: List<PokedexEvolutionPath> = emptyList(),
     val candyColors: Map<String, Pair<Int, Int>> = emptyMap(),
-    val megaColors: Map<String, Pair<Int, Int>> = emptyMap()
+    val megaColors: Map<String, Pair<Int, Int>> = emptyMap(),
+    val info: JSONObject? = null
 )
 internal data class PokedexOpponent(val name: String, val sprite: String?, val shadow: Boolean)
 internal data class PokedexOnlineSnapshot(val json: String, val fetchedAt: Long, val stale: Boolean)
@@ -50,7 +51,19 @@ internal class PokedexDetailsRepository(private val context: Context) {
         val metadata = RaidCounterRepository(context).metadata()
         val raid = (listOf(entry.name) + entry.aliases).firstNotNullOfOrNull { metadata.resolve(it) }
         val types = raid?.types ?: listOfNotNull(entry.type1, entry.type2)
-        val family = PokemonFamilySuggester().familyMembersFor(context, null, entry.name)
+        val allEntries = GameInfoRepository.loadPokedexCatalog(context)
+        val canonicalNames = allEntries.associate { pokedexIdentity(it.name) to it.name }
+        val aliasNames = allEntries.flatMap { e -> e.aliases.map { pokedexIdentity(it) to e.name } }
+            .groupBy({ it.first }, { it.second }).mapNotNull { (key, values) ->
+                values.distinct().singleOrNull()?.let { key to it }
+            }.toMap()
+        val resolvedNames = mutableMapOf<String, String>()
+        fun canonical(member: String): String = resolvedNames.getOrPut(member) {
+            val identity = pokedexIdentity(member)
+            canonicalNames[identity] ?: aliasNames[identity] ?: member
+        }
+        val family = (PokemonFamilySuggester().familyMembersFor(context, null, entry.name).map(::canonical) +
+            allEntries.filter { it.number == entry.number }.map { it.name }).distinct()
         val moves = PokemonMoveRepository.load(context, entry.name, language)
         val catalog = GameInfoRepository.loadMoveCatalog(context).associateBy { pokedexIdentity(it.name) }
         val calculator = PvpRankCalculator()
@@ -63,7 +76,9 @@ internal class PokedexDetailsRepository(private val context: Context) {
         val target = PersonalCollectionTarget(JSONArray(listOf(entry.name.uppercase(Locale.ROOT), "")).toString(), entry.name)
         val images = PersonalCollectionImages(context)
         val evolutions = parsePokedexEvolutions(context.assets.open("pokemon/evolutions.json").bufferedReader().use { it.readText() })
-        val familyConnections = evolutions + pokedexGigantamaxForms(context, images)
+        val familyConnections = (evolutions + pokedexGigantamaxForms(context, images)).map {
+            it.copy(from = canonical(it.from), to = canonical(it.to))
+        }
         val paths = pokedexEvolutionPaths(family, familyConnections)
         val temporarySprites = familyConnections.filter { it.spriteFile != null }.associate { it.to to it.spriteFile!! }
         return PokedexLocalDetails(types, listOf("attack","defense","stamina").map { stats?.optInt(it) }, family,
@@ -72,18 +87,32 @@ internal class PokedexDetailsRepository(private val context: Context) {
             images.url(target), images.url(target, true),
             paths.flatMap { it.members }.distinct().associateWith { member ->
                 temporarySprites[member]?.let { images.gameSprite(it) } ?: images.url(PersonalCollectionTarget(
-                    JSONArray(listOf(member.uppercase(Locale.ROOT), "")).toString(), member)) }, paths, pokedexCandyColors(context, paths), pokedexMegaColors(context, familyConnections))
+                    JSONArray(listOf(member.uppercase(Locale.ROOT), "")).toString(), member)) }, paths, pokedexCandyColors(context, paths), pokedexMegaColors(context, familyConnections), PokedexInfoCatalog.load(context, entry))
+    }
+
+    /** Disk only: publish this before starting any network request. */
+    fun cachedOnline(fileName: String): PokedexOnlineSnapshot? {
+        require(fileName in setOf("gamemaster.json", "rankings-500.json", "rankings-1500.json", "rankings-2500.json", "rankings-10000.json"))
+        return runCatching {
+            val cached = synchronized(cacheLock) {
+                JSONObject(AtomicFile(File(context.filesDir, "pokedex-online-v1/$fileName")).openRead().bufferedReader().use { it.readText() })
+            }
+            val data = cached.getString("data")
+            if (fileName == "gamemaster.json") require(JSONObject(data).getJSONArray("pokemon").length() > 0)
+            else require(JSONArray(data).length() > 0)
+            PokedexOnlineSnapshot(data, cached.optLong("fetchedAt"), false)
+        }.getOrNull()
     }
 
     /** Fresh data for 24h; a failed refresh never replaces a good file. Call on Dispatchers.IO. */
     fun online(fileName: String, force: Boolean = false): PokedexOnlineSnapshot {
-        require(fileName in setOf("gamemaster.json", "rankings-1500.json", "rankings-2500.json", "rankings-10000.json"))
+        require(fileName in setOf("gamemaster.json", "rankings-500.json", "rankings-1500.json", "rankings-2500.json", "rankings-10000.json"))
         val file = AtomicFile(File(context.filesDir, "pokedex-online-v1/$fileName"))
-        val cached = runCatching { JSONObject(file.openRead().bufferedReader().use { it.readText() }) }.getOrNull()
-        val timestamp = cached?.optLong("fetchedAt") ?: 0L
-        if (!force && cached != null && System.currentTimeMillis() - timestamp < 86_400_000L)
-            return PokedexOnlineSnapshot(cached.getString("data"), timestamp, false)
-        val path = if (fileName == "gamemaster.json") fileName else "rankings/all/overall/$fileName"
+        val cached = cachedOnline(fileName)
+        val timestamp = cached?.fetchedAt ?: 0L
+        if (!force && cached != null && !screenCacheExpired(timestamp, BATTLE_DATA_MAX_AGE))
+            return cached
+        val path = pokedexOnlinePath(fileName)
         try {
             val connection = URL("https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/$path").openConnection() as HttpURLConnection
             val data = try {
@@ -112,7 +141,7 @@ internal class PokedexDetailsRepository(private val context: Context) {
             }
             return PokedexOnlineSnapshot(data, now, false)
         } catch (error: Exception) {
-            if (cached != null) return PokedexOnlineSnapshot(cached.getString("data"), timestamp, true)
+            if (cached != null) return cached.copy(stale = true)
             throw error
         }
     }
@@ -142,4 +171,11 @@ internal fun parsePokedexLeague(cap: Int, speciesId: String, snapshot: PokedexOn
     }.orEmpty()
     return PokedexLeagueDetails(cap, index?.plus(1), row?.optDouble("score")?.takeIf { it.isFinite() },
         raidStrings(row?.optJSONArray("moveset")), opponents("matchups"), opponents("counters"), snapshot)
+}
+
+internal fun pokedexOnlinePath(fileName: String): String = when (fileName) {
+    "gamemaster.json" -> fileName
+    "rankings-500.json" -> "rankings/little/overall/$fileName"
+    "rankings-1500.json", "rankings-2500.json", "rankings-10000.json" -> "rankings/all/overall/$fileName"
+    else -> error("Unsupported Pokédex data file: $fileName")
 }

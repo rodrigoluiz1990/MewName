@@ -22,7 +22,9 @@ data class AdventureEffectCatalogEntry(
     val effectName: String,
     val effectNamePt: String,
     val effectAliases: List<String>,
-    val description: String
+    val description: String, val moveType: String? = null, val descriptionEn: String = "", val descriptionEs: String = "",
+    val combatDetails: MoveCatalogEntry? = null,
+    val combatMegaLevel: Int? = null
 ) {
     val normalizedPokemonAliases: List<String> = (aliases + pokemon)
         .map(::normalizeCatalogText)
@@ -121,7 +123,19 @@ object GameCatalogRepository {
                                 effectName = item.optString("effectName").ifBlank { item.getString("move") },
                                 effectNamePt = item.optString("effectNamePt").ifBlank { item.optString("movePt").ifBlank { item.getString("move") } },
                                 effectAliases = item.optJSONArrayStrings("effectAliases"),
-                                description = item.optString("description")
+                                description = item.optString("description"), moveType = item.optString("moveType").ifBlank { null },
+                                descriptionEn = item.optString("descriptionEn"), descriptionEs = item.optString("descriptionEs"),
+                                combatMegaLevel = item.optJSONObject("combat")?.getInt("megaLevel"),
+                                combatDetails = item.optJSONObject("combat")?.let { combat ->
+                                    // Supplemental stats keep their own identity until the move-ID catalog includes them.
+                                    MoveCatalogEntry(
+                                        name = item.getString("move"), namePt = item.getString("movePt"),
+                                        nameEs = combat.getString("nameEs"), type = item.getString("moveType"),
+                                        power = combat.getInt("power"), energyDelta = combat.getInt("energyDelta"),
+                                        duration = combat.getInt("durationMs"), pvpPower = combat.getInt("pvpPower"),
+                                        pvpEnergyDelta = combat.getInt("pvpEnergyDelta"), category = MoveCategory.CHARGED
+                                    )
+                                }
                             )
                         )
                     }

@@ -38,6 +38,15 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
         "Não encontramos informações nos dados salvos. Atualize a tela $normalScreenName no app, fora do modo sobreposição, e faça uma nova leitura.",
         "No information found in saved data. Update $normalScreenName in the normal app, outside overlay mode, then scan again.",
         "No encontramos información en los datos guardados. Actualiza $normalScreenName en la app, fuera del modo superposición, y vuelve a leer.")
+    val redemptions = remember { PromoCodeRedemptions(context.applicationContext) }
+    var redeemedCodes by remember { mutableStateOf(redemptions.redeemedCodes()) }
+    DisposableEffect(redemptions) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            redeemedCodes = redemptions.redeemedCodes()
+        }
+        redemptions.preferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { redemptions.preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
     val repository = remember { LeekDuckRepository(context.applicationContext) }
     var data by remember(section) { mutableStateOf<LeekCatalog?>(null) }
     var loading by remember(section) { mutableStateOf(true) }
@@ -104,6 +113,8 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
     }
     fun groupLabel(key: String) = when (key) {
         "All" -> tr("Todos", "All", "Todos")
+        "Unredeemed" -> tr("Não resgatados", "Not redeemed", "Sin canjear")
+        "Redeemed" -> tr("Resgatados", "Redeemed", "Canjeados")
         "Grunts" -> tr("Recrutas", "Grunts", "Reclutas")
         "Leaders" -> tr("Líderes", "Leaders", "Líderes")
         "Active" -> tr("Disponíveis", "Available", "Disponibles")
@@ -121,14 +132,19 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
         LeekSection.ROCKET -> listOf("All", "Grunts", "Leaders", "Giovanni")
         LeekSection.EGGS -> listOf("All", "Regular", "Gifts", "Routes", "Sync")
         LeekSection.RESEARCH -> listOf("All", "Regular", "Event")
-        LeekSection.CODES -> listOf("All", "Active", "Expired")
+        LeekSection.CODES -> listOf("All", "Active", "Expired", "Unredeemed", "Redeemed")
     }
     val filtered = (if (capture != null) capturedEntries.orEmpty() else data?.entries.orEmpty()).filter { entry ->
         val matchesGroup = group == "All" || when(section) {
             LeekSection.ROCKET -> entry.group == group
             LeekSection.EGGS -> eggOrigin(entry.title) == group
             LeekSection.RESEARCH -> entry.description == group
-            LeekSection.CODES -> if (group == "Expired") expired(entry) else !expired(entry)
+            LeekSection.CODES -> when (group) {
+                "Redeemed" -> redemptions.isRedeemed(entry.code, redeemedCodes)
+                "Unredeemed" -> !redemptions.isRedeemed(entry.code, redeemedCodes)
+                "Expired" -> expired(entry) && !redemptions.isRedeemed(entry.code, redeemedCodes)
+                else -> !expired(entry) && !redemptions.isRedeemed(entry.code, redeemedCodes)
+            }
         }
         (section != LeekSection.RESEARCH || !expired(entry)) && matchesGroup && (distance == "All" || section != LeekSection.EGGS || entry.title.startsWith("$distance km")) &&
             (search.isBlank() || (section == LeekSection.RESEARCH && ResearchTaskComparison.matches(entryTitle(entry), search)) || (entryTitle(entry) + " " + entry.group + " " + entry.title + " " + entry.description + " " + description(entry) + " " + entry.code + " " +
@@ -142,19 +158,35 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
         AppTopBar(title = { Text(title) }, navigationIcon = {
             if (capture != null) IconButton(onClick = onBack) { Icon(Icons.Default.Close, contentDescription = tr("Fechar", "Close", "Cerrar")) }
             else TextButton(onClick = onBack) { Text("‹", style = MaterialTheme.typography.headlineMedium) }
-        }, actions = { if (capture == null) IconButton(onClick = { refresh++ }, enabled = !loading) {
+        }, actions = {
+            if (capture == null) IconButton(onClick = { refresh++ }, enabled = !loading) {
             Icon(Icons.Default.Refresh, contentDescription = tr("Atualizar", "Refresh", "Actualizar"))
         } })
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (capture == null) item {
-                AppGlassTextField(search, { search = it }, Modifier.fillMaxWidth(), search = true, singleLine = true,
-                    label = { Text(tr("Pesquisar", "Search", "Buscar")) })
+                AppPillTabRow(selectedTabIndex = groups.indexOf(group).coerceAtLeast(0)) {
+                    groups.forEach { key ->
+                        AppPillTab(group == key, { group = key }, text = { Text(groupLabel(key)) })
+                    }
+                }
             }
-            if (capture == null) item { LeekFilters(groups, group, { group = it }, ::groupLabel) }
-            if (section == LeekSection.EGGS && capture == null) item {
-                LeekFilters(listOf("All") + data?.entries.orEmpty().map { it.title.substringBefore(" km") }.distinct(), distance,
-                    { distance = it }) { if(it == "All") groupLabel(it) else "$it km" }
+            if (capture == null && section == LeekSection.EGGS) item {
+                val distances = listOf("All") + data?.entries.orEmpty().map { it.title.substringBefore(" km") }.distinct()
+                AppPillTabRow(selectedTabIndex = distances.indexOf(distance).coerceAtLeast(0)) {
+                    distances.forEach { value ->
+                        AppPillTab(distance == value, { distance = value }, text = {
+                            Text(if (value == "All") groupLabel(value) else "$value km")
+                        })
+                    }
+                }
+            }
+            if (capture == null && section != LeekSection.CODES) item {
+                AppFilterPanel(search.isNotBlank() || distance != "All" || group != (if (section == LeekSection.CODES) "Active" else "All"),
+                    onClear = { search = ""; distance = "All"; group = if (section == LeekSection.CODES) "Active" else "All" }, showClear = false) {
+                    AppGlassTextField(search, { search = it }, Modifier.fillMaxWidth(), search = true, singleLine = true,
+                        label = { Text(tr("Pesquisar", "Search", "Buscar")) })
+                }
             }
             if (capture != null) item {
                 Text(when (section) {
@@ -206,10 +238,21 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
                                 entry.expires != null -> tr("Validade: ", "Expires: ", "Vence: ") + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(entry.expires))
                                 else -> tr("Validade não informada", "Expiration unknown", "Vencimiento desconocido")
                             }, style = MaterialTheme.typography.bodySmall)
+                            val redeemed = redemptions.isRedeemed(entry.code, redeemedCodes)
                             val clipboard = LocalClipboardManager.current
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 AppActionButton(onClick = { clipboard.setText(AnnotatedString(entry.code)) }, secondary = true) { Text(tr("Copiar", "Copy", "Copiar")) }
-                                AppActionButton(onClick = { openExternalUrl(context, "https://store.pokemongo.com/offer-redemption?passcode=" + android.net.Uri.encode(entry.code)) }, enabled = !expired(entry)) { Text(tr("Resgatar", "Redeem", "Canjear")) }
+                                AppActionButton(onClick = {
+                                    if (redeemed) {
+                                        redemptions.setRedeemed(entry.code, false)
+                                    } else {
+                                        openExternalUrl(context, "https://store.pokemongo.com/offer-redemption?passcode=" + android.net.Uri.encode(entry.code))
+                                        redemptions.setRedeemed(entry.code, true)
+                                    }
+                                }, enabled = redeemed || !expired(entry), secondary = redeemed) {
+                                    Text(if (redeemed) tr("Resgatado", "Redeemed", "Canjeado")
+                                        else tr("Resgatar", "Redeem", "Canjear"))
+                                }
                             }
                         }
                     }
@@ -230,13 +273,6 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
                 Spacer(Modifier.height(24.dp))
             }
         }
-    }
-}
-
-@Composable
-private fun LeekFilters(values: List<String>, selected: String, onSelect: (String) -> Unit, label: (String) -> String) {
-    AppPillTabRow(selectedTabIndex = values.indexOf(selected).coerceAtLeast(0)) {
-        values.forEach { value -> AppPillTab(selected == value, { onSelect(value) }, text = { Text(label(value)) }) }
     }
 }
 

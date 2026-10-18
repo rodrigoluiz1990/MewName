@@ -74,16 +74,8 @@ internal fun AppInfoChip(onClick: () -> Unit, label: @Composable () -> Unit) {
 internal fun AppCollectionCheckbox(
     checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier
 ) {
-    if (!LocalAppButtonStyle.current) {
-        Checkbox(checked, onCheckedChange, modifier = modifier)
-        return
-    }
-    Checkbox(checked, onCheckedChange, modifier = modifier,
-        colors = CheckboxDefaults.colors(
-            checkedColor = Color(0xFF6D9CC0),
-            uncheckedColor = Color(0xFF89A6BD),
-            checkmarkColor = Color.White
-        ))
+    AppToggle(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier)
+
 }
 
 @Composable

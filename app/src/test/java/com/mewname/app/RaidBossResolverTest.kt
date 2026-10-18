@@ -11,6 +11,48 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RaidBossResolverTest {
     private val meta get() = RaidCounterRepository(ApplicationProvider.getApplicationContext<Context>()).metadata()
+    private val voltorb = RaidChoice("VOLTORB_HISUIAN_FORM", "RAID_LEVEL_1")
+    private val voltorbCatalog get() = listOf(voltorb, RaidChoice("BELDUM", "RAID_LEVEL_1"),
+        RaidChoice("NINCADA", "RAID_LEVEL_1"), RaidChoice("SLOWPOKE_GALARIAN_FORM", "RAID_LEVEL_1"))
+
+    @Test fun plainVoltorbSelectsUniqueCurrentRegionalForm() {
+        assertEquals(voltorb, RaidBossResolver.resolve("Voltorb", "BATALHA", meta, voltorbCatalog, 1).selected)
+        assertEquals(voltorb, RaidBossResolver.resolve("Voltorb", "BATALHA", meta, voltorbCatalog).selected)
+    }
+
+    @Test fun twoCurrentRegionalFormsRequireManualChoice() {
+        val choices = voltorbCatalog + RaidChoice("VOLTORB", "RAID_LEVEL_1")
+        assertNull(RaidBossResolver.resolve("Voltorb", "BATALHA", meta, choices, 1).selected)
+        assertEquals(voltorb, RaidBossResolver.resolve("VOLTORB_HISUIAN_FORM", "", meta, choices, 1).selected)
+    }
+
+    @Test fun historicalRegionalFormDoesNotBecomeCurrent() {
+        val result = RaidBossResolver.resolve("Voltorb", "", meta, emptyList(), 1, listOf(voltorb))
+        assertNull(result.selected)
+        assertTrue(result.alternatives.isEmpty())
+    }
+
+    @Test fun damagedVoltorbNameResolvesOnlyInsideBossBandAndCorrectTier() {
+        listOf("Voforb", "Vforb", "Voltorb").forEach { reading ->
+            val line = BattleOcrLine(reading, .25f, .25f, .75f, .34f)
+            assertEquals(reading, voltorb, RaidBossResolver.resolveOccludedName(listOf(line), meta, voltorbCatalog, 1))
+            assertNull(RaidBossResolver.resolveOccludedName(listOf(line), meta, voltorbCatalog, 3))
+            assertNull(RaidBossResolver.resolveOccludedName(listOf(line), meta, voltorbCatalog, null))
+            val gym = BattleOcrLine(reading, .25f, .05f, .75f, .12f)
+            assertNull(RaidBossResolver.resolveOccludedName(listOf(gym), meta, voltorbCatalog, 1))
+        }
+    }
+
+    @Test fun damagedNameCannotChooseBetweenRegionalForms() {
+        val line = BattleOcrLine("Vforb", .25f, .25f, .75f, .34f)
+        assertNull(RaidBossResolver.resolveOccludedName(listOf(line), meta,
+            voltorbCatalog + RaidChoice("VOLTORB", "RAID_LEVEL_1"), 1))
+        listOf("Vxxxx", "forb", "BATALHA").forEach {
+            assertNull(RaidBossResolver.resolveOccludedName(
+                listOf(BattleOcrLine(it, .25f, .25f, .75f, .34f)), meta, voltorbCatalog, 1))
+        }
+    }
+
     @Test fun identifiedCurrentUltraBeastKeepsItsCategoryDespiteFourSymbols() {
         val r = RaidBossResolver.resolve("Buzzwole", "Buzzwole BATALHA", meta,
             listOf(RaidChoice("BUZZWOLE", "RAID_LEVEL_ULTRA_BEAST")), 4,

@@ -44,6 +44,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class AppScreen {
+    PVP_TEAM,
+    DAILY_MISSIONS,
     CALENDAR,
     TRAINER_PROFILE,
     HOME,

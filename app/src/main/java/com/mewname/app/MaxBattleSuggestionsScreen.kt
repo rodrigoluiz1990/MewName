@@ -71,7 +71,7 @@ internal fun MaxBattleSuggestionsScreen(
             requireNotNull(resolved) { "Max tier unavailable" }
             val cached = withContext(Dispatchers.IO) { repository.cached(id, resolved, role) }
             report = cached
-            if (cached == null || refresh > 0) {
+            if (screenCacheExpired(cached?.fetchedAt, BATTLE_DATA_MAX_AGE) || refresh > 0) {
                 report = withContext(Dispatchers.IO) { repository.refresh(id, resolved, role) }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }

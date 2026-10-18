@@ -237,11 +237,20 @@ internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
             items(featuredEvents, key = { it.id }) { event ->
                 CalendarEventCard(event, compactToday, locale) { selectedEvent = event }
             }
-            if (!compactToday && categories.isNotEmpty()) item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    item { AppChoiceChip(activeFilter.isBlank(), { filter = "" }, { Text(tr("Todos", "All", "Todos")) }) }
-                    items(categories, key = { it.first }) { (key, label) ->
-                        AppChoiceChip(activeFilter == key, { filter = if (activeFilter == key) "" else key }, { Text(label) })
+            if (!compactToday) item {
+                AppFilterPanel(activeFilter.isNotBlank() || !dayOnly, onClear = { filter = ""; dayOnly = true }, showClear = false) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        item { AppChoiceChip(activeFilter.isBlank(), { filter = "" }, { Text(tr("Todos", "All", "Todos")) }) }
+                        items(categories, key = { it.first }) { (key, label) ->
+                            AppChoiceChip(activeFilter == key, { filter = if (activeFilter == key) "" else key }, { Text(label) })
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AppChoiceChip(dayOnly, { dayOnly = true }, { Text(tr("Dia selecionado", "Selected day", "Día seleccionado")) })
+                        AppChoiceChip(!dayOnly, { dayOnly = false }, {
+                            Text(if (weekView) tr("Toda a semana", "Whole week", "Toda la semana")
+                                else tr("Todo o mês", "Whole month", "Todo el mes"))
+                        })
                     }
                 }
             }
@@ -251,13 +260,6 @@ internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
                         Text(tr("Eventos", "Events", "Eventos"), Modifier.weight(1f),
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text(displayedEvents.size.toString(), style = MaterialTheme.typography.titleMedium)
-                    }
-                    if (!compactToday) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AppChoiceChip(dayOnly, { dayOnly = true }, { Text(tr("Dia selecionado", "Selected day", "Día seleccionado")) })
-                        AppChoiceChip(!dayOnly, { dayOnly = false }, {
-                            Text(if (weekView) tr("Toda a semana", "Whole week", "Toda la semana")
-                                else tr("Todo o mês", "Whole month", "Todo el mes"))
-                        })
                     }
                     if (dayOnly) Text(
                         selectedDate.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM", locale)).replaceFirstChar { it.titlecase(locale) },

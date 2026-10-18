@@ -1,13 +1,13 @@
 [
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_defense_stat_stage_change": -1
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
         "energy_delta": -45,
         "move_id": 13,
         "name": "Wrap",
-        "power": 60,
+        "power": 70,
         "turn_duration": 1,
         "type": "Normal"
     },
@@ -20,7 +20,7 @@
         "type": "Normal"
     },
     {
-        "energy_delta": -50,
+        "energy_delta": -45,
         "move_id": 16,
         "name": "Dark Pulse",
         "power": 80,
@@ -39,7 +39,7 @@
         "energy_delta": -40,
         "move_id": 20,
         "name": "Vice Grip",
-        "power": 40,
+        "power": 70,
         "turn_duration": 1,
         "type": "Normal"
     },
@@ -95,7 +95,7 @@
         "energy_delta": -65,
         "move_id": 31,
         "name": "Earthquake",
-        "power": 110,
+        "power": 120,
         "turn_duration": 1,
         "type": "Ground"
     },
@@ -132,7 +132,7 @@
         "type": "Electric"
     },
     {
-        "energy_delta": -70,
+        "energy_delta": -65,
         "move_id": 36,
         "name": "Flash Cannon",
         "power": 110,
@@ -164,10 +164,10 @@
         "type": "Ice"
     },
     {
-        "energy_delta": -75,
+        "energy_delta": -45,
         "move_id": 42,
         "name": "Heat Wave",
-        "power": 95,
+        "power": 75,
         "turn_duration": 1,
         "type": "Fire"
     },
@@ -180,10 +180,10 @@
         "type": "Flying"
     },
     {
-        "energy_delta": -45,
+        "energy_delta": -40,
         "move_id": 46,
         "name": "Drill Run",
-        "power": 80,
+        "power": 70,
         "turn_duration": 1,
         "type": "Ground"
     },
@@ -217,20 +217,20 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_defense_stat_stage_change": -1
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
         "energy_delta": -40,
         "move_id": 50,
         "name": "Poison Fang",
-        "power": 45,
+        "power": 50,
         "turn_duration": 1,
         "type": "Poison"
     },
     {
         "buffs": {
-            "activation_chance": 0.125,
-            "attacker_attack_stat_stage_change": 2
+            "attacker_attack_stat_stage_change": 1,
+            "activation_chance": 0.125
         },
         "energy_delta": -35,
         "move_id": 51,
@@ -241,13 +241,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_attack_stat_stage_change": -1
+            "target_attack_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
-        "energy_delta": -40,
+        "energy_delta": -50,
         "move_id": 53,
         "name": "Bubble Beam",
-        "power": 25,
+        "power": 50,
         "turn_duration": 1,
         "type": "Water"
     },
@@ -314,13 +314,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_attack_stat_stage_change": -1
+            "target_attack_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
         "energy_delta": -50,
         "move_id": 63,
         "name": "Rock Tomb",
-        "power": 80,
+        "power": 75,
         "turn_duration": 1,
         "type": "Rock"
     },
@@ -341,10 +341,10 @@
         "type": "Rock"
     },
     {
-        "energy_delta": -45,
+        "energy_delta": -50,
         "move_id": 66,
         "name": "Shadow Sneak",
-        "power": 50,
+        "power": 75,
         "turn_duration": 1,
         "type": "Ghost"
     },
@@ -370,15 +370,15 @@
         "type": "Ghost"
     },
     {
-        "energy_delta": -55,
+        "energy_delta": -50,
         "move_id": 70,
         "name": "Shadow Ball",
-        "power": 100,
+        "power": 90,
         "turn_duration": 1,
         "type": "Ghost"
     },
     {
-        "energy_delta": -45,
+        "energy_delta": -40,
         "move_id": 72,
         "name": "Magnet Bomb",
         "power": 70,
@@ -389,16 +389,16 @@
         "energy_delta": -50,
         "move_id": 74,
         "name": "Iron Head",
-        "power": 70,
+        "power": 85,
         "turn_duration": 1,
         "type": "Steel"
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_defense_stat_stage_change": 1
+            "attacker_defense_stat_stage_change": 1,
+            "activation_chance": 1.0
         },
-        "energy_delta": -45,
+        "energy_delta": -50,
         "move_id": 75,
         "name": "Parabolic Charge",
         "power": 70,
@@ -430,10 +430,10 @@
         "type": "Electric"
     },
     {
-        "energy_delta": -45,
+        "energy_delta": -40,
         "move_id": 80,
         "name": "Twister",
-        "power": 45,
+        "power": 70,
         "turn_duration": 1,
         "type": "Dragon"
     },
@@ -465,9 +465,13 @@
         "energy_delta": -55,
         "move_id": 85,
         "name": "Draining Kiss",
-        "power": 60,
+        "power": 80,
         "turn_duration": 1,
-        "type": "Fairy"
+        "type": "Fairy",
+        "buffs": {
+            "attacker_defense_stat_stage_change": 1,
+            "activation_chance": 1.0
+        }
     },
     {
         "energy_delta": -55,
@@ -479,13 +483,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 0.1,
-            "target_attack_stat_stage_change": -1
+            "target_attack_stat_stage_change": -1,
+            "activation_chance": 0.1
         },
-        "energy_delta": -60,
+        "energy_delta": -50,
         "move_id": 87,
         "name": "Moonblast",
-        "power": 110,
+        "power": 90,
         "turn_duration": 1,
         "type": "Fairy"
     },
@@ -543,21 +547,21 @@
     },
     {
         "buffs": {
-            "activation_chance": 0.5,
-            "target_defense_stat_stage_change": -1
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
-        "energy_delta": -45,
+        "energy_delta": -55,
         "move_id": 95,
         "name": "Bulldoze",
-        "power": 45,
+        "power": 80,
         "turn_duration": 1,
         "type": "Ground"
     },
     {
-        "energy_delta": -40,
+        "energy_delta": -45,
         "move_id": 96,
         "name": "Mud Bomb",
-        "power": 60,
+        "power": 65,
         "turn_duration": 1,
         "type": "Ground"
     },
@@ -611,10 +615,10 @@
         "type": "Fire"
     },
     {
-        "energy_delta": -50,
+        "energy_delta": -60,
         "move_id": 104,
         "name": "Brine",
-        "power": 60,
+        "power": 100,
         "turn_duration": 1,
         "type": "Water"
     },
@@ -720,18 +724,18 @@
     },
     {
         "buffs": {
-            "activation_chance": 0.3,
-            "attacker_attack_stat_stage_change": 1
+            "attacker_attack_stat_stage_change": 1,
+            "activation_chance": 0.125
         },
-        "energy_delta": -35,
+        "energy_delta": -40,
         "move_id": 121,
         "name": "Air Cutter",
-        "power": 45,
+        "power": 60,
         "turn_duration": 1,
         "type": "Flying"
     },
     {
-        "energy_delta": -65,
+        "energy_delta": -60,
         "move_id": 122,
         "name": "Hurricane",
         "power": 110,
@@ -740,13 +744,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_defense_stat_stage_change": -1
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
         "energy_delta": -40,
         "move_id": 123,
         "name": "Brick Break",
-        "power": 40,
+        "power": 50,
         "turn_duration": 1,
         "type": "Fighting"
     },
@@ -783,10 +787,10 @@
         "type": "Normal"
     },
     {
-        "energy_delta": -35,
+        "energy_delta": -40,
         "move_id": 131,
         "name": "Body Slam",
-        "power": 55,
+        "power": 65,
         "turn_duration": 1,
         "type": "Normal"
     },
@@ -936,13 +940,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_defense_stat_stage_change": -1
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
-        "energy_delta": -40,
+        "energy_delta": -45,
         "move_id": 258,
         "name": "Sand Tomb",
-        "power": 25,
+        "power": 55,
         "turn_duration": 1,
         "type": "Ground"
     },
@@ -956,14 +960,14 @@
     },
     {
         "buffs": {
-            "activation_chance": 0.1,
             "attacker_attack_stat_stage_change": 1,
-            "attacker_defense_stat_stage_change": 1
+            "attacker_defense_stat_stage_change": 1,
+            "activation_chance": 0.1
         },
         "energy_delta": -45,
         "move_id": 262,
         "name": "Silver Wind",
-        "power": 60,
+        "power": 75,
         "turn_duration": 1,
         "type": "Bug"
     },
@@ -1013,13 +1017,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 0.1,
-            "target_defense_stat_stage_change": -1
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 0.1
         },
-        "energy_delta": -55,
+        "energy_delta": -45,
         "move_id": 273,
         "name": "Energy Ball",
-        "power": 90,
+        "power": 80,
         "turn_duration": 1,
         "type": "Grass"
     },
@@ -1032,10 +1036,10 @@
         "type": "Psychic"
     },
     {
-        "energy_delta": -55,
+        "energy_delta": -45,
         "move_id": 276,
         "name": "Mirror Coat",
-        "power": 60,
+        "power": 75,
         "turn_duration": 1,
         "type": "Psychic"
     },
@@ -1063,7 +1067,7 @@
         "energy_delta": -40,
         "move_id": 280,
         "name": "Foul Play",
-        "power": 60,
+        "power": 65,
         "turn_duration": 1,
         "type": "Dark"
     },
@@ -1097,13 +1101,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_attack_stat_stage_change": -2
+            "attacker_attack_stat_stage_change": -2,
+            "activation_chance": 1.0
         },
         "energy_delta": -35,
         "move_id": 288,
         "name": "Psycho Boost",
-        "power": 70,
+        "power": 85,
         "turn_duration": 1,
         "type": "Psychic"
     },
@@ -1188,7 +1192,7 @@
         "type": "Normal"
     },
     {
-        "energy_delta": -50,
+        "energy_delta": -45,
         "move_id": 301,
         "name": "Meteor Mash",
         "power": 100,
@@ -1221,10 +1225,10 @@
     },
     {
         "buffs": {
-            "activation_chance": 0.1,
-            "target_defense_stat_stage_change": -1
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 0.1
         },
-        "energy_delta": -55,
+        "energy_delta": -50,
         "move_id": 304,
         "name": "Earth Power",
         "power": 90,
@@ -1245,13 +1249,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_attack_stat_stage_change": -1
+            "target_attack_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
         "energy_delta": -45,
         "move_id": 306,
         "name": "Lunge",
-        "power": 60,
+        "power": 70,
         "turn_duration": 1,
         "type": "Bug"
     },
@@ -1318,13 +1322,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_defense_stat_stage_change": 1
+            "attacker_defense_stat_stage_change": 1,
+            "activation_chance": 1.0
         },
         "energy_delta": -40,
         "move_id": 314,
         "name": "Drain Punch",
-        "power": 20,
+        "power": 40,
         "turn_duration": 1,
         "type": "Fighting"
     },
@@ -1353,7 +1357,7 @@
         "type": "Water"
     },
     {
-        "energy_delta": -40,
+        "energy_delta": -35,
         "move_id": 317,
         "name": "Blaze Kick",
         "power": 60,
@@ -1601,7 +1605,7 @@
         "energy_delta": -40,
         "move_id": 359,
         "name": "Icicle Spear",
-        "power": 65,
+        "power": 70,
         "turn_duration": 1,
         "type": "Ice"
     },
@@ -1719,7 +1723,7 @@
         "type": "Dark"
     },
     {
-        "energy_delta": -90,
+        "energy_delta": -65,
         "move_id": 371,
         "name": "Shadow Force",
         "power": 120,
@@ -1763,7 +1767,7 @@
         "type": "Ghost"
     },
     {
-        "energy_delta": -60,
+        "energy_delta": -55,
         "move_id": 377,
         "name": "High Horsepower",
         "power": 100,
@@ -1806,7 +1810,7 @@
         "energy_delta": -35,
         "move_id": 381,
         "name": "Double Iron Bash",
-        "power": 55,
+        "power": 70,
         "turn_duration": 1,
         "type": "Steel"
     },
@@ -1836,13 +1840,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_defense_stat_stage_change": -1
+            "attacker_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
-        "energy_delta": -70,
+        "energy_delta": -45,
         "move_id": 384,
         "name": "Dragon Ascent",
-        "power": 150,
+        "power": 110,
         "turn_duration": 1,
         "type": "Flying"
     },
@@ -1855,7 +1859,7 @@
         "type": "Fire"
     },
     {
-        "energy_delta": -50,
+        "energy_delta": -55,
         "move_id": 388,
         "name": "Spacial Rend",
         "power": 95,
@@ -1868,7 +1872,11 @@
         "name": "Oblivion Wing",
         "power": 85,
         "turn_duration": 1,
-        "type": "Flying"
+        "type": "Flying",
+        "buffs": {
+            "attacker_defense_stat_stage_change": 1,
+            "activation_chance": 1.0
+        }
     },
     {
         "buffs": {
@@ -1976,10 +1984,10 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_defense_stat_stage_change": -1
+            "attacker_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
-        "energy_delta": -50,
+        "energy_delta": -40,
         "move_id": 399,
         "name": "Volt Tackle",
         "power": 90,
@@ -2012,24 +2020,24 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_attack_stat_stage_change": 1
+            "attacker_attack_stat_stage_change": 1,
+            "activation_chance": 1.0
         },
         "energy_delta": -45,
         "move_id": 406,
-        "name": "406",
+        "name": "Aura Wheel Electric",
         "power": 100,
         "turn_duration": 1,
         "type": "Electric"
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_attack_stat_stage_change": 1
+            "attacker_attack_stat_stage_change": 1,
+            "activation_chance": 1.0
         },
         "energy_delta": -45,
         "move_id": 407,
-        "name": "407",
+        "name": "Aura Wheel Dark",
         "power": 100,
         "turn_duration": 1,
         "type": "Dark"
@@ -2056,13 +2064,13 @@
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_attack_stat_stage_change": 1
+            "attacker_attack_stat_stage_change": 1,
+            "activation_chance": 1.0
         },
-        "energy_delta": -35,
+        "energy_delta": -40,
         "move_id": 464,
         "name": "Rage Fist",
-        "power": 50,
+        "power": 55,
         "turn_duration": 1,
         "type": "Ghost"
     },
@@ -2157,7 +2165,7 @@
     {
         "energy_delta": -45,
         "move_id": 482,
-        "name": "482",
+        "name": "Dynamax Cannon",
         "power": 80,
         "turn_duration": 1,
         "type": "Dragon"
@@ -2186,30 +2194,30 @@
         "energy_delta": -45,
         "move_id": 486,
         "name": "Dragon Energy",
-        "power": 100,
+        "power": 90,
         "turn_duration": 1,
         "type": "Dragon"
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "attacker_attack_stat_stage_change": 1
+            "attacker_attack_stat_stage_change": 1,
+            "activation_chance": 1.0
         },
         "energy_delta": -40,
         "move_id": 487,
-        "name": "487",
+        "name": "Aqua Step",
         "power": 55,
         "turn_duration": 1,
         "type": "Water"
     },
     {
         "buffs": {
-            "activation_chance": 1.0,
-            "target_attack_stat_stage_change": -1
+            "target_attack_stat_stage_change": -1,
+            "activation_chance": 1.0
         },
         "energy_delta": -45,
         "move_id": 488,
-        "name": "488",
+        "name": "Chilling Water",
         "power": 60,
         "turn_duration": 1,
         "type": "Water"
@@ -2217,7 +2225,7 @@
     {
         "energy_delta": -35,
         "move_id": 489,
-        "name": "489",
+        "name": "Secret Sword",
         "power": 70,
         "turn_duration": 1,
         "type": "Fighting"
@@ -2239,5 +2247,88 @@
                       "activation_chance": 1.0,
                       "attacker_defense_stat_stage_change": -1
                   }
+    },
+    {
+        "move_id": 490,
+        "name": "Beak Blast",
+        "type": "Flying",
+        "power": 110,
+        "energy_delta": -55,
+        "buffs": {
+            "target_attack_stat_stage_change": -1,
+            "activation_chance": 1.0
+        }
+    },
+    {
+        "move_id": 491,
+        "name": "Mind Blown",
+        "type": "Fire",
+        "power": 90,
+        "energy_delta": -35,
+        "buffs": {
+            "attacker_defense_stat_stage_change": -4,
+            "activation_chance": 1.0
+        }
+    },
+    {
+        "move_id": 492,
+        "name": "Drum Beating",
+        "type": "Grass",
+        "power": 60,
+        "energy_delta": -35,
+        "buffs": {
+            "target_attack_stat_stage_change": -1,
+            "activation_chance": 1.0
+        }
+    },
+    {
+        "move_id": 493,
+        "name": "Pyroball",
+        "type": "Fire",
+        "power": 75,
+        "energy_delta": -40
+    },
+    {
+        "move_id": 497,
+        "name": "Plasma Fists",
+        "type": "Electric",
+        "power": 60,
+        "energy_delta": -35
+    },
+    {
+        "move_id": 592,
+        "name": "Snipe Shot",
+        "type": "Water",
+        "power": 65,
+        "energy_delta": -35,
+        "buffs": {
+            "attacker_attack_stat_stage_change": 2,
+            "activation_chance": 0.125
+        }
+    },
+    {
+        "move_id": 593,
+        "name": "Dive",
+        "type": "Water",
+        "power": 50,
+        "energy_delta": -40
+    },
+    {
+        "move_id": 594,
+        "name": "Gulp Missile Gulping",
+        "type": "Normal",
+        "buffs": {
+            "target_defense_stat_stage_change": -1,
+            "activation_chance": 1.0
+        }
+    },
+    {
+        "move_id": 595,
+        "name": "Gulp Missile Gorging",
+        "type": "Normal",
+        "buffs": {
+            "target_attack_stat_stage_change": -2,
+            "activation_chance": 1.0
+        }
     }
 ]

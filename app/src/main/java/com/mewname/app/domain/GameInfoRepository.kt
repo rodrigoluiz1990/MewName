@@ -49,11 +49,24 @@ data class PokedexCatalogEntry(
     val aliases: List<String> = emptyList()
 ) {
     fun localizedName(language: AppLanguage): String {
-        return when (language) {
-            AppLanguage.PT_BR -> namePt ?: name
-            AppLanguage.ES -> nameEs ?: name
-            AppLanguage.EN -> name
+        if (language == AppLanguage.EN) return name
+        val translated = when (language) {
+            AppLanguage.PT_BR -> namePt
+            AppLanguage.ES -> nameEs
+            AppLanguage.EN -> null
         }
+        val display = pokemonDisplayName(name)
+        // Translations are keyed by dex number and contain only the species name.
+        // Keep explicit forms instead of replacing them with the base species.
+        if (display.contains('(')) {
+            val base = display.substringBefore(" (")
+            val localizedBase = translated?.substringBefore(" (") ?: base
+            return localizedBase + " (" + display.substringAfter('(')
+        }
+        return if (translated != null && !name.equals(translated, true) &&
+            name.startsWith(translated + " ", true)) translated + name.substring(translated.length)
+        else if (name.contains(' ') && name != translated && aliases.any { it.contains('(') }) name
+        else translated ?: display
     }
 }
 
@@ -229,6 +242,7 @@ object GameInfoRepository {
             val aliasMap = buildMap<String, List<String>> {
                 for (index in 0 until namesArray.length()) {
                     val item = namesArray.getJSONObject(index)
+                    if (isRedundantPokedexSpecies(item.getString("name"))) continue
                     put(
                         normalizeCatalogName(item.getString("name")),
                         item.optJSONArrayStrings("aliases")
@@ -254,6 +268,7 @@ object GameInfoRepository {
             val loaded = buildList {
                 for (index in 0 until namesArray.length()) {
                     val item = namesArray.getJSONObject(index)
+                    if (isRedundantPokedexSpecies(item.getString("name"))) continue
                     val name = item.getString("name")
                     val normalized = normalizeCatalogName(name)
                     val forms = formMap[normalized].orEmpty()
@@ -299,6 +314,7 @@ object GameInfoRepository {
         val basicLoaded = mutableListOf<PokedexCatalogEntry>()
         for (index in 0 until namesArray.length()) {
             val item = namesArray.getJSONObject(index)
+            if (isRedundantPokedexSpecies(item.getString("name"))) continue
             basicLoaded += PokedexCatalogEntry(
                 number = item.optInt("dex"),
                 name = item.getString("name"),
@@ -322,6 +338,7 @@ object GameInfoRepository {
         val aliasMap = buildMap<String, List<String>> {
             for (index in 0 until namesArray.length()) {
                 val item = namesArray.getJSONObject(index)
+                if (isRedundantPokedexSpecies(item.getString("name"))) continue
                 put(
                     normalizeCatalogName(item.getString("name")),
                     item.optJSONArrayStrings("aliases")
@@ -347,6 +364,7 @@ object GameInfoRepository {
         val loaded = mutableListOf<PokedexCatalogEntry>()
         for (index in 0 until namesArray.length()) {
             val item = namesArray.getJSONObject(index)
+            if (isRedundantPokedexSpecies(item.getString("name"))) continue
             val name = item.getString("name")
             val normalized = normalizeCatalogName(name)
             val forms = formMap[normalized].orEmpty()

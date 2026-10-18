@@ -1,5 +1,87 @@
 # Histórico de alterações
 
+## 1.0.32 - 2026-10-18
+
+Alterações acumuladas desde a release 1.0.31.
+
+### Missões diárias
+
+- Nova tela para cadastrar, editar, ativar e concluir missões, com renovação diária e escolha de ícone.
+- Caixa compacta na sobreposição: toque conclui a missão; ao concluir todas, a caixa desaparece.
+- Arraste da caixa com posição salva e visual glassmorphism; ocultação durante a captura do OCR.
+- Seleção ampliada com itens do jogo, PokéStop, pesquisa diária, recursos de fusão, maçãs, moedas, passes, armazenamento e incubadoras.
+- Ícone próprio no menu; ícone da missão à esquerda do nome e remoção de ícones redundantes.
+- Modal com título e Salvar centralizados, fechamento pelo X e controles de ativação padronizados.
+
+### Backup, códigos promocionais e ajuda
+
+- Backup e restauração dos dados pessoais, acessíveis pelo menu Treinador antes da Ajuda.
+- Correções de leitura e gravação pelo seletor de arquivos Android, incluindo tamanho desconhecido informado como zero bytes.
+- Botão único de códigos promocionais alterna entre Resgatar e Resgatado: abre o navegador e registra o resgate; novo toque desfaz a marcação.
+- Abas para separar códigos resgatados e filtros integrados às abas, sem botão adicional de resgate.
+- Ajuda reorganizada conforme o menu principal, com bloco separado para a sobreposição e instruções consolidadas de missões.
+- Corrigido o acesso à política de privacidade; fontes de dados ampliadas.
+
+### Filtros, navegação e aparência
+
+- Painel compartilhado de filtros, Limpar à direita e remoção de Limpar quando há apenas busca textual.
+- Busca recolhível em Coleções e filtros reorganizados nas telas de ataques.
+- Removida a lupa de Ovos, Pesquisa de Campo, Equipe GO Rocket, Raids e Calendário; filtros ficam acessíveis na tela.
+- Abas antes dos filtros em Ovos, Pesquisa de Campo e GO Rocket, incluindo as distâncias dos ovos.
+- Ordem compartilhada dos tipos: Planta, Fogo, Água, Elétrico, Psíquico, Normal, Lutador, Pedra, Terrestre, Venenoso, Inseto, Voador, Aço, Sombrio, Fantasma, Gelo, Dragão e Fada.
+- Controles de ativação padronizados como toggles; títulos dos modais de nomes centralizados, X no topo e ação principal centralizada.
+- Indicadores de carregamento centralizados nas telas ajustadas.
+- Novos ícones de menu e remoção do nome duplicado no modal de Pokémon da coleção.
+- Telas com cache exibem dados salvos imediatamente e atualizam em segundo plano quando necessário.
+
+### Ataques e efeitos de aventura
+
+- Ordenação por combobox integrado aos filtros, com inversão de sentido e opções em ordem alfabética.
+- Pokédex Nacional como ordenação inicial nas listas de ataques vinculados a Pokémon; lista geral de golpes mantém ordenação por nome.
+- Catálogos PvE/PvP, traduções e vínculos de ataques atualizados com os dados disponíveis do jogo.
+- Revisados valores e associações de golpes, incluindo Fissura, Chifre Broca e Martelo Gigatônico.
+- Efeitos de aventura com retratos e banners do jogo, cartões translúcidos, ajustes de espaçamento e ícone mais visível.
+- Incluídos efeitos de aventura de Mewtwo, descrições resumidas e dados de combate disponíveis.
+
+### Pokédex e tipos
+
+- Lista principal limitada aos 1025 números da Pokédex Nacional; formas especiais e fusões acessíveis pela família.
+- Removidas duplicações de espécies e corrigidos vínculos de sprites e identificação de formas, incluindo Zacian Coroado e Raichu de Alola.
+- Otimizada a resolução de nomes e famílias, corrigindo carregamento prolongado de fichas como Dipplin.
+- Atualizar passa a recarregar também os dados locais da ficha.
+- Abas padronizadas e novas abas Pokédex, Tamanho e Fantasia quando houver trajes disponíveis.
+- Informações de altura, peso, região, companheiro, captura, troca, transferências e custos com ícones de doces, poeira e energia.
+- Comparação visual de tamanhos, tabela de limites por categoria e Professor Willow como referência de escala.
+- Revisados indicadores de disponibilidade e nomes de fantasias, com descrições em português, inglês e espanhol.
+- Removido o bloco redundante de informações adicionais da aba Geral.
+- PvP com Copinha, ícones e nomes completos das ligas; limite de PC entre parênteses e grafia Ultra Liga.
+- Golpes separados em blocos de rápidos e carregados; melhores combinações PvE/PvP após os carregados, com rápidos à esquerda e carregados à direita.
+- Títulos de blocos padronizados em negrito e nomenclatura Pontuação nas combinações.
+- Tela de Tipos mostra exemplos da combinação exata selecionada e cartões de fraquezas/resistências em ordem decrescente de multiplicador.
+- Corrigidas falha ao selecionar dois tipos, resolução de sprite de Scovillain e variações de tamanho do campo selecionado; toque no tipo selecionado permite removê-lo.
+
+### Análise de Equipe PvP e fortalecimento
+
+- Nova tela Análise de Equipe PvP para avaliar três Pokémon e seus golpes, com confrontos favoráveis, ameaças e cobertura da equipe.
+- Análise de equipe baseada nos confrontos publicados pelo PvPoke; combinações sem dados equivalentes ficam como desconhecidas, sem simulação completa de batalhas.
+- Ícone próprio de análise de equipe no menu principal.
+- Corrigidos custos de doces e poeira nos níveis iniciais e meios níveis da ferramenta de ajuste de nível na sugestão de nomes.
+
+### Raids, OCR e manutenção
+
+- Detalhes de raids com subtítulo Movimentos, menos legendas e atualização no topo, inclusive sem chefe identificado.
+- Atualização do catálogo quando faltam opções para exibir os dados da raid.
+- Melhor identificação de formas regionais a partir do catálogo atual, incluindo Voltorb de Hisui.
+- Recuperação de nomes fragmentados de megas, como Mega Dragonite, com correspondência única e nível compatível.
+- Identificação alternativa pelo PC exato do chefe, nível e catálogo atual, incluindo distinção entre Dialga e Forma Origem.
+- Contagem dos símbolos usa a posição dos dígitos do PC; tolerância a ruídos externos de OCR sem alterar dígitos.
+- Logs debug detalham coordenadas, nível, candidatos e motivos de rejeição para investigar falhas intermitentes.
+- Ampliados testes automatizados de dados, sprites, backup, missões, filtros, equipes e identificação de raids; compatibilidade do Robolectric com JDK 17 ajustada.
+
+- Preparação da release: 490 testes JVM/Robolectric sem falhas e lint release sem erros (43 avisos); APKs debug e release compilados sem a prévia Dinamax.
+
+A prévia visual Dinamax do Squirtle não faz parte desta release. O roteiro completo de validação física do OCR continua pendente; as verificações pontuais não cobrem todos os aparelhos e cenários.
+
 ## 1.0.31 - 2026-10-14
 
 Alterações acumuladas desde a release 1.0.30.

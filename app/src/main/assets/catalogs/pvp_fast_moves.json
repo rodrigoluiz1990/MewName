@@ -16,10 +16,10 @@
         "type": "Bug"
     },
     {
-        "energy_delta": 2,
+        "energy_delta": 4,
         "move_id": 202,
         "name": "Bite",
-        "power": 4,
+        "power": 2,
         "turn_duration": 1,
         "type": "Dark"
     },
@@ -56,10 +56,10 @@
         "type": "Electric"
     },
     {
-        "energy_delta": 5,
+        "energy_delta": 8,
         "move_id": 207,
         "name": "Low Kick",
-        "power": 4,
+        "power": 6,
         "turn_duration": 2,
         "type": "Fighting"
     },
@@ -80,7 +80,7 @@
         "type": "Fire"
     },
     {
-        "energy_delta": 7,
+        "energy_delta": 8,
         "move_id": 210,
         "name": "Wing Attack",
         "power": 5,
@@ -128,10 +128,10 @@
         "type": "Grass"
     },
     {
-        "energy_delta": 8,
+        "energy_delta": 9,
         "move_id": 216,
         "name": "Mud Shot",
-        "power": 4,
+        "power": 3,
         "turn_duration": 2,
         "type": "Ground"
     },
@@ -160,10 +160,10 @@
         "type": "Normal"
     },
     {
-        "energy_delta": 2,
+        "energy_delta": 4,
         "move_id": 220,
         "name": "Scratch",
-        "power": 4,
+        "power": 3,
         "turn_duration": 1,
         "type": "Normal"
     },
@@ -211,7 +211,7 @@
         "energy_delta": 9,
         "move_id": 226,
         "name": "Psycho Cut",
-        "power": 3,
+        "power": 4,
         "turn_duration": 2,
         "type": "Psychic"
     },
@@ -235,7 +235,7 @@
         "energy_delta": 7,
         "move_id": 229,
         "name": "Bullet Punch",
-        "power": 8,
+        "power": 7,
         "turn_duration": 2,
         "type": "Steel"
     },
@@ -259,7 +259,7 @@
         "energy_delta": 10,
         "move_id": 233,
         "name": "Mud Slap",
-        "power": 12,
+        "power": 11,
         "turn_duration": 3,
         "type": "Ground"
     },
@@ -347,7 +347,7 @@
         "energy_delta": 8,
         "move_id": 244,
         "name": "Powder Snow",
-        "power": 5,
+        "power": 6,
         "turn_duration": 2,
         "type": "Ice"
     },
@@ -355,7 +355,7 @@
         "energy_delta": 11,
         "move_id": 249,
         "name": "Charge Beam",
-        "power": 5,
+        "power": 6,
         "turn_duration": 3,
         "type": "Electric"
     },
@@ -387,7 +387,7 @@
         "energy_delta": 12,
         "move_id": 260,
         "name": "Infestation",
-        "power": 6,
+        "power": 10,
         "turn_duration": 3,
         "type": "Bug"
     },
@@ -464,18 +464,18 @@
         "type": "Normal"
     },
     {
-        "energy_delta": 8,
+        "energy_delta": 9,
         "move_id": 282,
         "name": "Take Down",
-        "power": 5,
+        "power": 14,
         "turn_duration": 3,
         "type": "Normal"
     },
     {
-        "energy_delta": 8,
+        "energy_delta": 10,
         "move_id": 283,
         "name": "Waterfall",
-        "power": 12,
+        "power": 11,
         "turn_duration": 3,
         "type": "Water"
     },
@@ -499,7 +499,7 @@
         "energy_delta": 8,
         "move_id": 297,
         "name": "Smack Down",
-        "power": 12,
+        "power": 11,
         "turn_duration": 3,
         "type": "Rock"
     },
@@ -507,7 +507,7 @@
         "energy_delta": 8,
         "move_id": 320,
         "name": "Charm",
-        "power": 13,
+        "power": 12,
         "turn_duration": 3,
         "type": "Fairy"
     },
@@ -536,7 +536,7 @@
         "type": "Ice"
     },
     {
-        "energy_delta": 12,
+        "energy_delta": 14,
         "move_id": 345,
         "name": "Gust",
         "power": 16,
@@ -603,7 +603,7 @@
         "energy_delta": 13,
         "move_id": 387,
         "name": "Geomancy",
-        "power": 4,
+        "power": 8,
         "turn_duration": 3,
         "type": "Fairy"
     },

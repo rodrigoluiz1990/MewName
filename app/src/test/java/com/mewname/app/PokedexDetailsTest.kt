@@ -48,7 +48,7 @@ class PokedexDetailsTest {
         val wrapped = object : ContextWrapper(context) { override fun getFilesDir() = root }
         val dir = File(root,"pokedex-online-v1").apply { mkdirs() }
         val timestamp = System.currentTimeMillis()
-        File(dir,"rankings-1500.json").writeText(JSONObject().put("fetchedAt",timestamp).put("data","[]").toString())
+        File(dir,"rankings-1500.json").writeText(JSONObject().put("fetchedAt",timestamp).put("data","""[{"speciesId":"pikachu"}]""").toString())
         val cached = PokedexDetailsRepository(wrapped).online("rankings-1500.json")
         assertEquals(timestamp,cached.fetchedAt); assertFalse(cached.stale)
         assertThrows(IllegalArgumentException::class.java) { PokedexDetailsRepository(wrapped).online("../other.json") }
@@ -79,4 +79,17 @@ class PokedexDetailsTest {
         assertEquals(result.getValue("palkia_origin").sprite, result.getValue("palkia_origin_shadow").sprite)
         assertTrue(result.getValue("palkia_origin_shadow").shadow)
     }
+    @Test fun littleCupUsesItsOwnRankingAndPreservesEligibility() {
+        assertEquals("rankings/little/overall/rankings-500.json", pokedexOnlinePath("rankings-500.json"))
+        assertEquals("rankings/all/overall/rankings-1500.json", pokedexOnlinePath("rankings-1500.json"))
+        val snapshot = PokedexOnlineSnapshot("""[{"speciesId":"bulbasaur","score":85,"moveset":["VINE_WHIP","POWER_WHIP","SEED_BOMB"]}]""", 1L, false)
+        val eligible = parsePokedexLeague(500, "bulbasaur", snapshot)
+        assertEquals(500, eligible.cap)
+        assertEquals(1, eligible.rank)
+        assertEquals(3, eligible.moves.size)
+        val missing = parsePokedexLeague(500, "venusaur", snapshot)
+        assertNull(missing.rank)
+        assertTrue(missing.moves.isEmpty())
+    }
+
 }

@@ -41,4 +41,47 @@ class MoveSearchFiltersTest {
         assertEquals("Necrozma (Juba Crepúsculo)", effects.single { it.pokemon == "Dusk Mane Necrozma" }.displayPokemonPt)
         assertEquals("Necrozma (Asas Alvorada)", effects.single { it.pokemon == "Dawn Wings Necrozma" }.displayPokemonPt)
     }
+    @Test fun mewtwoEffectsKeepPlusMovesDistinctFromRegularAttacks() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val effects = GameCatalogRepository.loadAdventureEffectCatalog(context)
+        val x = effects.single { it.pokemon == "Mega Mewtwo X" }
+        val y = effects.single { it.pokemon == "Mega Mewtwo Y" }
+        assertEquals("Dynamic Punch+", x.move)
+        assertEquals("Future Sight+", y.move)
+        assertEquals("Fighting", x.moveType)
+        assertEquals("Psychic", y.moveType)
+        val index = GameInfoRepository.loadMoveCatalog(context).associateBy { it.name.uppercase(java.util.Locale.US) }
+        assertNull(adventureMoveDetails(x.copy(combatDetails = null), index))
+        assertNull(adventureMoveDetails(y.copy(combatDetails = null), index))
+        val xMove = requireNotNull(adventureMoveDetails(x, index))
+        val yMove = requireNotNull(adventureMoveDetails(y, index))
+        assertEquals("Dynamic Punch+", xMove.name)
+        assertEquals("Future Sight+", yMove.name)
+        assertEquals(130, xMove.power)
+        assertEquals(140, yMove.power)
+        listOf(xMove, yMove).forEach {
+            assertEquals(-100, it.energyDelta)
+            assertEquals(2500, it.duration)
+            assertEquals(130, it.pvpPower)
+            assertEquals(-80, it.pvpEnergyDelta)
+            assertTrue(matchesMoveFilters(it, MoveCategory.CHARGED, it.type))
+        }
+        effects.forEach {
+            assertNotNull(it.move, adventureMoveDetails(it, index))
+        }
+        listOf(x, y).forEach {
+            assertTrue(it.descriptionEn.isNotBlank())
+            assertTrue(it.descriptionEs.isNotBlank())
+            assertTrue(it.normalizedMoveAliases.all { alias -> alias.endsWith("+") })
+        }
+    }
+    @Test fun nationalDexResolvesAllLegacyAndAdventurePokemon() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val numbers = GameInfoRepository.loadPokedexCatalog(context).flatMap { entry ->
+            (listOfNotNull(entry.name, entry.namePt, entry.nameEs) + entry.aliases).map { normalizeMoveLookup(it) to entry.number }
+        }.toMap()
+        val names = GameCatalogRepository.loadLegacyMoveCatalog(context).map { it.pokemon } +
+            GameCatalogRepository.loadAdventureEffectCatalog(context).map { it.pokemon }
+        names.forEach { assertNotNull(it, nationalDexNumber(it, numbers)) }
+    }
 }

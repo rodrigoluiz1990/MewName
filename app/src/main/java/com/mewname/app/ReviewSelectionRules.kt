@@ -234,56 +234,68 @@ internal fun reviewEvolutionStageRank(stageOrder: Map<String, Int>, pokemonName:
 
 internal data class PowerUpCost(
     val stardust: Int,
-    val candy: Int
+    val candy: Int,
+    val candyXl: Int = 0
 )
 
-private val reviewPowerUpCosts = listOf(
-    1.0 to PowerUpCost(200, 1),
-    3.0 to PowerUpCost(400, 1),
-    5.0 to PowerUpCost(600, 1),
-    7.0 to PowerUpCost(800, 1),
-    9.0 to PowerUpCost(1000, 1),
-    11.0 to PowerUpCost(1300, 1),
-    13.0 to PowerUpCost(1600, 1),
-    15.0 to PowerUpCost(1900, 2),
-    17.0 to PowerUpCost(2200, 2),
-    19.0 to PowerUpCost(2500, 2),
-    21.0 to PowerUpCost(3000, 2),
-    23.0 to PowerUpCost(3500, 3),
-    25.0 to PowerUpCost(4000, 3),
-    26.0 to PowerUpCost(4000, 4),
-    27.0 to PowerUpCost(4500, 4),
-    29.0 to PowerUpCost(5000, 4),
-    31.0 to PowerUpCost(6000, 6),
-    33.0 to PowerUpCost(7000, 8),
-    35.0 to PowerUpCost(8000, 10),
-    37.0 to PowerUpCost(9000, 12),
-    39.0 to PowerUpCost(10000, 15),
-    41.0 to PowerUpCost(11000, 15),
-    43.0 to PowerUpCost(12000, 15),
-    45.0 to PowerUpCost(13000, 15),
-    47.0 to PowerUpCost(14000, 15),
-    49.0 to PowerUpCost(15000, 17)
+// POKEMON_UPGRADE_SETTINGS from PokeMiners/game_masters (checked 2026-10-15).
+// Thresholds refer to the source level of each half-level power-up.
+private val reviewPowerUpDust = listOf(
+    1.0 to 200, 3.0 to 400, 5.0 to 600, 7.0 to 800, 9.0 to 1000,
+    11.0 to 1300, 13.0 to 1600, 15.0 to 1900, 17.0 to 2200, 19.0 to 2500,
+    21.0 to 3000, 23.0 to 3500, 25.0 to 4000, 27.0 to 4500, 29.0 to 5000,
+    31.0 to 6000, 33.0 to 7000, 35.0 to 8000, 37.0 to 9000, 39.0 to 10000,
+    41.0 to 11000, 43.0 to 12000, 45.0 to 13000, 47.0 to 14000, 49.0 to 15000
+)
+private val reviewPowerUpCandy = listOf(
+    1.0 to 1, 11.0 to 2, 21.0 to 3, 26.0 to 4, 31.0 to 6,
+    33.0 to 8, 35.0 to 10, 37.0 to 12, 39.0 to 15
+)
+private val reviewPowerUpCandyXl = listOf(
+    40.0 to 10, 42.0 to 12, 44.0 to 15, 46.0 to 17, 48.0 to 20
 )
 
 internal fun powerUpCostAtLevel(level: Double): PowerUpCost {
-    return reviewPowerUpCosts.lastOrNull { level >= it.first }?.second ?: reviewPowerUpCosts.first().second
+    // Level 51 comes from the buddy bonus, not a purchasable power-up.
+    if (!level.isFinite() || level < 1.0 || level >= 50.0) return PowerUpCost(0, 0)
+    return PowerUpCost(
+        stardust = reviewPowerUpDust.last { level >= it.first }.second,
+        candy = if (level < 40.0) reviewPowerUpCandy.last { level >= it.first }.second else 0,
+        candyXl = if (level >= 40.0) reviewPowerUpCandyXl.last { level >= it.first }.second else 0
+    )
 }
 
-internal fun powerUpCostBetweenLevels(currentLevel: Double, targetLevel: Double): PowerUpCost {
-    if (targetLevel <= currentLevel) return PowerUpCost(0, 0)
+internal fun powerUpCostBetweenLevels(
+    currentLevel: Double,
+    targetLevel: Double,
+    isLucky: Boolean = false,
+    isShadow: Boolean = false,
+    isPurified: Boolean = false
+): PowerUpCost {
+    if (!currentLevel.isFinite() || !targetLevel.isFinite() ||
+        currentLevel < 1.0 || targetLevel <= currentLevel) return PowerUpCost(0, 0)
     var stardust = 0
     var candy = 0
+    var candyXl = 0
     var level = currentLevel
-    while (level < targetLevel) {
-        val next = (level + 0.5).coerceAtMost(targetLevel)
-        if (next <= level) break
+    val target = targetLevel.coerceAtMost(50.0)
+    while (level < target) {
         val cost = powerUpCostAtLevel(level)
         stardust += cost.stardust
         candy += cost.candy
-        level = next
+        candyXl += cost.candyXl
+        level += 0.5
     }
-    return PowerUpCost(stardust, candy)
+    val modifier = when {
+        isShadow -> 1.2
+        isPurified -> 0.9
+        else -> 1.0
+    }
+    return PowerUpCost(
+        kotlin.math.ceil(stardust * modifier * (if (isLucky) 0.5 else 1.0)).toInt(),
+        kotlin.math.ceil(candy * modifier).toInt(),
+        kotlin.math.ceil(candyXl * modifier).toInt()
+    )
 }
 
 internal fun normalizeReviewKey(text: String): String {

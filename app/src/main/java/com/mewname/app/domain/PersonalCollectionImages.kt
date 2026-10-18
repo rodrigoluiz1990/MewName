@@ -24,6 +24,14 @@ internal class PersonalCollectionImages(context: Context) {
     private val species = (0 until names.length()).associate { i ->
         names.getJSONObject(i).let { key(it.getString("name")) to it }
     }
+    private val exactSprites = JSONObject(context.assets.open("pokemon/pokedex_sprites.json").bufferedReader().use { it.readText() })
+    private val speciesAliases = (0 until names.length()).flatMap { i ->
+        val entry = names.getJSONObject(i)
+        val aliases = entry.optJSONArray("aliases")
+        (0 until (aliases?.length() ?: 0)).map { key(aliases!!.getString(it)) to entry }
+    }.groupBy({ it.first }, { it.second }).mapNotNull { (alias, entries) ->
+        entries.distinctBy { it.getString("name") }.singleOrNull()?.let { alias to it }
+    }.toMap()
     private val imageIds = images.keys().asSequence().associateBy { key(it.removeSuffix("_FORM")) }
 
     /** Exact form ID lookup; never replaces an unknown form with the ordinary species. */
@@ -55,8 +63,12 @@ internal class PersonalCollectionImages(context: Context) {
             }
             return gameImages[form]?.let { gameSprite(it.substringAfterLast('/'), shiny) }
         }
-        val entry = species[key(name)] ?: return null
+        val entry = species[key(name)] ?: speciesAliases[key(name)] ?: return null
         val dex = entry.getInt("dex")
+        if (variant.isBlank()) {
+            val exact = exactSprites.optString(entry.getString("name").uppercase(Locale.ROOT))
+            if (exact.isNotBlank()) return gameSprite(exact, shiny)
+        }
         // Ordinary species must not inherit costume files accidentally assigned by raid feeds.
         if (!name.contains('(') && (variant.isBlank() || name in setOf("SCATTERBUG", "SPEWPA")))
             return gameSprite("pm$dex.icon.png", shiny) ?: gameSprite("pokemon_icon_${dex.toString().padStart(3, '0')}_00.png", shiny)
@@ -88,7 +100,7 @@ internal class PersonalCollectionImages(context: Context) {
             val file = images.optString(id)
             // The upstream catalog uses Unown as a placeholder for unavailable species.
             if (file.isNotBlank() && (dex == 201 || file != "pokemon_icon_201_00.png"))
-                return gameSprite(file.substringAfterLast('/'), shiny)
+                gameSprite(file.substringAfterLast('/'), shiny)?.let { return it }
         }
         // Never substitute another form or an ordinary sprite for an unavailable variant.
         return null

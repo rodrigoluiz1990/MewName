@@ -111391,3 +111391,27 @@ TEXT: Glaive Rush
 
 RESOURCE ID: move_name_488
 TEXT: Chilling Water
+
+RESOURCE ID: move_name_0489
+TEXT: Secret Sword
+
+RESOURCE ID: move_name_0490
+TEXT: Beak Blast
+
+RESOURCE ID: move_name_0491
+TEXT: Mind Blown
+
+RESOURCE ID: move_name_0492
+TEXT: Drum Beating
+
+RESOURCE ID: move_name_0493
+TEXT: Pyroball
+
+RESOURCE ID: move_name_0497
+TEXT: Plasma Fists
+
+RESOURCE ID: move_name_0592
+TEXT: Snipe Shot
+
+RESOURCE ID: move_name_0593
+TEXT: Dive

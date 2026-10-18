@@ -193,6 +193,8 @@ class MainActivity : ComponentActivity() {
 
                         AppScreen.PRESET_EDIT -> viewModel.navigateTo(AppScreen.PRESET_LIST)
                         AppScreen.TRAINER_PROFILE,
+                        AppScreen.PVP_TEAM,
+                        AppScreen.DAILY_MISSIONS,
                         AppScreen.CALENDAR,
                         AppScreen.COLLECTIONS,
                         AppScreen.PRESET_LIST,
@@ -305,6 +307,8 @@ class MainActivity : ComponentActivity() {
                         AdventureEffectsScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
                     }
 
+                    AppScreen.PVP_TEAM -> PvpTeamScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    AppScreen.DAILY_MISSIONS -> DailyMissionsScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
                     AppScreen.RAID_PLANNER -> {
                         RaidPlannerScreen(
                             onBack = { viewModel.navigateTo(AppScreen.HOME) }
@@ -419,6 +423,8 @@ fun HomeScreen(
         HomeMenuAction("collections", lt(language, "Cole\u00e7\u00f5es", "Collections", "Colecciones"), onGoToCollections),
         HomeMenuAction("raid", lt(language, "Raids", "Raids", "Raids"), onGoToRaidPlanner),
         HomeMenuAction("rocket", lt(language, "Equipe GO Rocket", "GO Rocket Team", "Equipo GO Rocket"), { onGoToLeek(AppScreen.ROCKET) }),
+        HomeMenuAction("team_analysis", lt(language, "Análise de Equipe PvP", "PvP Team Analysis", "Análisis de Equipo PvP"), { onGoToLeek(AppScreen.PVP_TEAM) }),
+        HomeMenuAction("missions", lt(language, "Missões diárias", "Daily missions", "Misiones diarias"), { onGoToLeek(AppScreen.DAILY_MISSIONS) }),
         HomeMenuAction("research", lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), { onGoToLeek(AppScreen.RESEARCH) }),
         HomeMenuAction("eggs", lt(language, "Ovos", "Eggs", "Huevos"), { onGoToLeek(AppScreen.EGGS) }),
         HomeMenuAction("adventure", lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura"), onGoToAdventureEffects),
@@ -568,7 +574,7 @@ internal fun AppUpdateScreen(
                 uiState.isCheckingForUpdate -> {
                     AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
-                            modifier = Modifier.padding(20.dp),
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -687,7 +693,6 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
     val moveIndex = catalog.moveIndex
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     LaunchedEffect(showFilters) { if (showFilters) listState.scrollToItem(0) }
     var selectedCategory by rememberSaveable { mutableStateOf<MoveCategory?>(null) }
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
@@ -696,11 +701,28 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
     val types = remember(entries, moveIndex) { entries.flatMap { entry -> entry.moves.mapNotNull {
         legacyMoveDetails(entry, it, moveIndex)?.type
     } }.distinct().sorted() }
-    val filteredEntries = remember(entries, normalizedQuery, selectedCategory, selectedType, moveIndex) {
+    var moveSort by rememberSaveable { mutableStateOf(MoveSort.NATIONAL_DEX) }
+    var reverseSort by rememberSaveable { mutableStateOf(false) }
+    val nationalDex = rememberMoveNationalDex()
+    val pokemonNumbers = remember(entries, nationalDex) { entries.associate { it.pokemon to nationalDexNumber(it.pokemon, nationalDex.orEmpty()) } }
+    val filteredEntries = remember(entries, normalizedQuery, selectedCategory, selectedType, moveIndex, moveSort, language, reverseSort, nationalDex) {
         entries.filter { entry -> normalizedQuery.isBlank() || entry.searchTerms.any { it.contains(normalizedQuery) } }
             .mapNotNull { entry ->
                 val moves = entry.moves.filter { matchesMoveFilters(legacyMoveDetails(entry, it, moveIndex), selectedCategory, selectedType) }
-                if (moves.isEmpty()) null else entry.copy(moves = moves)
+                if (moves.isEmpty()) null else entry.copy(moves = moves.sortedWith { left, right ->
+                    val l = legacyMoveDetails(entry, left, moveIndex)
+                    val r = legacyMoveDetails(entry, right, moveIndex)
+                    if (l != null && r != null) moveComparator(moveSort, language, reverseSort).compare(l, r) else left.compareTo(right)
+                })
+            }.sortedWith { left, right ->
+                if (moveSort == MoveSort.NATIONAL_DEX) compareSortValues(pokemonNumbers[left.pokemon], pokemonNumbers[right.pokemon], reverseSort)
+                else if (moveSort == MoveSort.NAME) left.pokemon.compareTo(right.pokemon, ignoreCase = true) * if (reverseSort) -1 else 1
+                else {
+                    val l = left.moves.firstOrNull()?.let { legacyMoveDetails(left, it, moveIndex) }
+                    val r = right.moves.firstOrNull()?.let { legacyMoveDetails(right, it, moveIndex) }
+                    compareValuesBy(l, r) { it == null }.takeIf { it != 0 }
+                        ?: if (l != null && r != null) moveComparator(moveSort, language, reverseSort).compare(l, r) else left.pokemon.compareTo(right.pokemon)
+                }
             }
     }
 
@@ -714,30 +736,27 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconToggleButton(checked = showFilters, onCheckedChange = {
-                        showFilters = it
-                        if (!it) focusManager.clearFocus()
-                    }) {
-                        BadgedBox(badge = { if (query.isNotBlank() || selectedCategory != null || selectedType != null) Badge() }) {
-                            Icon(Icons.Default.Search, contentDescription = if (showFilters)
-                                lt(language, "Ocultar filtros", "Hide filters", "Ocultar filtros") else
-                                lt(language, "Mostrar filtros", "Show filters", "Mostrar filtros"))
-                        }
-                    }
+                    AppFilterToggle(showFilters, query.isNotBlank() || selectedCategory != null || selectedType != null || moveSort != MoveSort.NATIONAL_DEX || reverseSort, { showFilters = it })
                 }
             )
         }
     ) { padding ->
+        if (catalog.loading || (moveSort == MoveSort.NATIONAL_DEX && nationalDex == null)) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                AppLoadingIndicator()
+            }
+            return@Scaffold
+        }
         LazyColumn(
             state = listState,
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            if (catalog.loading || catalog.failed) item { MoveScreenLoadFeedback(catalog.loading, catalog.failed, language) }
+            if (catalog.failed) item { MoveScreenLoadFeedback(language) }
             if (showFilters) item(key = "legacyFilters") {
                 MoveSearchPanel(query, { query = it }, lt(language, "Buscar Pokémon ou ataque", "Search Pokémon or move", "Buscar Pokémon o ataque"),
-                    selectedCategory, { selectedCategory = it }, selectedType, { selectedType = it }, types, language)
+                    selectedCategory, { selectedCategory = it }, selectedType, { selectedType = it }, types, language, order = moveSort, onOrder = { moveSort = it }, reversed = reverseSort, onReversed = { reverseSort = it }, allowNationalDex = true)
             }
             item {
                 Text(
@@ -763,7 +782,6 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
     }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     LaunchedEffect(showFilters) { if (showFilters) listState.scrollToItem(0) }
     val entries = catalog.entries
     val moveIndex = catalog.moveIndex
@@ -771,12 +789,21 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     val normalizedQuery = remember(query) { normalizeMoveLookup(query) }
-    val types = remember(entries, moveIndex) { entries.mapNotNull { adventureMoveDetails(it, moveIndex)?.type }.distinct().sorted() }
-    val filteredEntries = remember(entries, normalizedQuery, selectedType, moveIndex) {
+    val types = remember(entries, moveIndex) { entries.mapNotNull { adventureMoveDetails(it, moveIndex)?.type ?: it.moveType }.distinct().sorted() }
+    var moveSort by rememberSaveable { mutableStateOf(MoveSort.NATIONAL_DEX) }
+    var reverseSort by rememberSaveable { mutableStateOf(false) }
+    val nationalDex = rememberMoveNationalDex()
+    val pokemonNumbers = remember(entries, nationalDex) { entries.associate { it.pokemon to nationalDexNumber(it.pokemon, nationalDex.orEmpty()) } }
+    val filteredEntries = remember(entries, normalizedQuery, selectedType, moveIndex, moveSort, language, reverseSort, nationalDex) {
         entries.filter { entry -> (normalizedQuery.isBlank() ||
             listOf(entry.pokemon, entry.displayPokemonPt, entry.move, entry.movePt, entry.effectName, entry.effectNamePt)
                 .any { normalizeMoveLookup(it).contains(normalizedQuery) }) &&
-                matchesMoveFilters(adventureMoveDetails(entry, moveIndex), null, selectedType)
+                (selectedType == null || (adventureMoveDetails(entry, moveIndex)?.type ?: entry.moveType) == selectedType)
+        }.sortedWith { left, right ->
+            val l = adventureMoveDetails(left, moveIndex)
+            val r = adventureMoveDetails(right, moveIndex)
+            if (moveSort == MoveSort.NATIONAL_DEX) compareSortValues(pokemonNumbers[left.pokemon], pokemonNumbers[right.pokemon], reverseSort)
+            else if (l != null && r != null) moveComparator(moveSort, language, reverseSort).compare(l, r) else left.move.compareTo(right.move) * if (reverseSort) -1 else 1
         }
     }
 
@@ -790,30 +817,27 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconToggleButton(checked = showFilters, onCheckedChange = {
-                        showFilters = it
-                        if (!it) focusManager.clearFocus()
-                    }) {
-                        BadgedBox(badge = { if (query.isNotBlank() || selectedType != null) Badge() }) {
-                            Icon(Icons.Default.Search, contentDescription = if (showFilters)
-                                lt(language, "Ocultar filtros", "Hide filters", "Ocultar filtros") else
-                                lt(language, "Mostrar filtros", "Show filters", "Mostrar filtros"))
-                        }
-                    }
+                    AppFilterToggle(showFilters, query.isNotBlank() || selectedType != null || moveSort != MoveSort.NATIONAL_DEX || reverseSort, { showFilters = it })
                 }
             )
         }
     ) { padding ->
+        if (catalog.loading || (moveSort == MoveSort.NATIONAL_DEX && nationalDex == null)) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                AppLoadingIndicator()
+            }
+            return@Scaffold
+        }
         LazyColumn(
             state = listState,
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current),
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            if (catalog.loading || catalog.failed) item { MoveScreenLoadFeedback(catalog.loading, catalog.failed, language) }
+            if (catalog.failed) item { MoveScreenLoadFeedback(language) }
             if (showFilters) item(key = "adventureFilters") {
                 MoveSearchPanel(query, { query = it }, lt(language, "Buscar Pokémon, ataque ou efeito", "Search Pokémon, move or effect", "Buscar Pokémon, ataque o efecto"),
-                    null, {}, selectedType, { selectedType = it }, types, language, showCategory = false)
+                    null, {}, selectedType, { selectedType = it }, types, language, showCategory = false, order = moveSort, onOrder = { moveSort = it }, reversed = reverseSort, onReversed = { reverseSort = it }, allowNationalDex = true)
             }
             items(filteredEntries, key = { "${it.pokemon}|${it.move}" }) { entry ->
                 AdventureEffectCard(
@@ -989,28 +1013,62 @@ internal fun HelpMenuScreen(
             item {
                 AppSectionCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(lt(language, "Como usar cada tela", "How to use each screen", "Como usar cada pantalla"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(lt(language, "App principal", "Main app", "App principal"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        HelpLine(lt(language, "Calendário", "Calendar", "Calendario"), lt(language, "Consulte o mês, selecione um dia e filtre os eventos por categoria. Toque em um evento para ver datas e a publicação original. Atualizar busca os dados do calendário; a última consulta fica salva para uso sem internet.", "Browse the month, select a day and filter events by category. Tap an event for dates and the original post. Refresh downloads calendar data; the last successful update remains available offline.", "Consulta el mes, selecciona un día y filtra por categoría. Toca un evento para ver las fechas y la publicación original. Actualizar descarga los datos; la última consulta queda disponible sin conexión."))
+                        HelpLine(lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), lt(language, "Consulte recompensas e validade, copie o codigo ou toque em Resgatar para abrir a loja oficial. Disponivel significa listado pela fonte, sem garantia de resgate para sua conta. Validade desconhecida e mostrada quando a fonte nao informa a data.", "View rewards and expiry, copy a code or open the official redemption store. Available means listed by the source, not guaranteed redeemable for your account. Unknown expiry is shown when no public date is supplied.", "Consulta recompensas y vencimiento, copia el codigo o abre la tienda oficial. Disponible significa listado por la fuente; el canje depende de la cuenta. Se indica cuando la fecha es desconocida."))
+                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. Toque em um campo para configurar os simbolos e adiciona-lo ao nome. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. Tap a field to configure its symbols and add it to the name. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. Toca un campo para configurar sus simbolos y agregarlo al nombre. La superposición solo usa formatos guardados."))
+                        HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e mais uma vez para limpar. Escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and once more to clear it. Choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y una vez mas para limpiarla. Elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
+                        HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
+                        HelpLine(lt(language, "Coleções", "Collections", "Colecciones"), lt(language,
+                            "Organize sua coleção pessoal de Pokémon. Use a busca e os filtros para localizar registros e marque os que você possui.",
+                            "Organize your personal Pokémon collection. Use search and filters to find entries and mark the ones you own.",
+                            "Organiza tu colección personal de Pokémon. Usa la búsqueda y los filtros para encontrar registros y marcar los que tienes."))
+                        HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
+                        HelpLine(lt(language, "Missões diárias", "Daily missions", "Misiones diarias"), lt(language,
+                            "Abra Missões diárias pelo atalho da tela principal. Toque em +, escreva o nome da tarefa, escolha um ícone e toque em Salvar. Use Buscar ícone para localizar opções como PokéStop e caixa de tarefas diárias. Você pode criar quantas missões quiser. Toque no nome de uma missão para editar o nome ou o ícone; use a lixeira e confirme para excluir. As missões são lembretes pessoais, salvos neste aparelho.\n\nNa tela Missões diárias, marque a caixa de seleção para concluir ou desmarque para desfazer. Uma missão desmarcada volta à sobreposição enquanto esse modo estiver ativo. Todas as missões cadastradas voltam a ficar pendentes à meia-noite, conforme a data e o fuso horário do celular, sem precisar cadastrá-las novamente. Nome e ícone são preservados. Para deixar de repetir uma tarefa, exclua a missão.\n\nCom o modo de sobreposição ativo e missões pendentes, uma caixa mostra os ícones das tarefas. Toque em um ícone para marcar a missão como concluída e removê-la da caixa. A conclusão é manual: o app não verifica nem resgata tarefas no Pokémon GO. Arraste pela pequena barra no topo da caixa para movê-la; a posição fica salva. Se houver mais ícones do que espaço, role a lista. Quando todas as missões forem concluídas, a caixa desaparece.",
+                            "Open Daily missions from the home screen shortcut. Tap +, enter a task name, choose an icon and tap Save. Use Find icon to locate options such as PokéStop and the daily research box. You can create as many missions as you want. Tap a mission name to edit its name or icon; use the trash button and confirm to delete it. Missions are personal reminders saved on this device.\n\nOn the Daily missions screen, check the checkbox to complete a task or uncheck it to undo. An unchecked mission returns to the overlay while that mode is active. All saved missions become pending again at midnight according to the phone's date and time zone, without having to recreate them. Names and icons are preserved. Delete a mission to stop repeating it.\n\nWith overlay mode active and missions pending, a box displays the task icons. Tap an icon to mark that mission complete and remove it from the box. Completion is manual: the app does not check or claim tasks in Pokémon GO. Drag the small bar at the top of the box to move it; its position is saved. Scroll the list when there are more icons than fit. The box disappears when all missions are complete.",
+                            "Abre Misiones diarias desde el acceso de la pantalla principal. Toca +, escribe el nombre de la tarea, elige un icono y pulsa Guardar. Usa Buscar icono para encontrar opciones como Poképarada y la caja de tareas diarias. Puedes crear tantas misiones como quieras. Toca el nombre para editarlo o cambiar el icono; usa la papelera y confirma para eliminar. Son recordatorios personales guardados en este dispositivo.\n\nEn Misiones diarias, marca la casilla para completar una tarea o desmárcala para deshacer. Una misión desmarcada vuelve a la superposición si está activa. Todas las misiones guardadas vuelven a estar pendientes a medianoche según la fecha y zona horaria del celular, sin tener que crearlas de nuevo. Se conservan nombres e iconos. Elimina una misión para dejar de repetirla.\n\nCon la superposición activa y misiones pendientes, una caja muestra los iconos de las tareas. Toca un icono para completar la misión y retirarla de la caja. La finalización es manual: la app no comprueba ni reclama tareas en Pokémon GO. Arrastra la pequeña barra superior para mover la caja; su posición queda guardada. Desplaza la lista si no caben todos los iconos. La caja desaparece cuando completas todas las misiones."))
+                        HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a sobreposição usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; overlay mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la superposición usa datos guardados. Revisa formas y ataques al usar el filtro."))
+                        HelpLine(lt(language, "Equipe GO Rocket", "Team GO Rocket", "Equipo GO Rocket"), lt(language, "Consulte recrutas, lideres e Giovanni no app. Filtre por grupo e pesquise nomes, tipos ou falas no idioma selecionado ou no original. Cada bloco mostra as tres posicoes, capturas possiveis e fraquezas. Atualizar consulta o Leek Duck; sem internet, a ultima lista salva continua disponivel.", "Browse grunts, leaders and Giovanni in the app. Filter or search names, types and quotes in your selected language or the original. Cards show three slots, catchable Pokemon and weaknesses. Refresh checks Leek Duck; saved lists remain available offline.", "Consulta reclutas, lideres y Giovanni. Filtra y busca nombres, tipos o frases en el idioma seleccionado o en el original. Se muestran posiciones, capturas y debilidades. La ultima lista queda disponible sin conexion."))
+                        HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Consulte tarefas de campo e recompensas no app, com busca e filtros de pesquisas comuns e de evento. A tela salva o catalogo para a sobreposição e para consultas sem internet. Na sobreposição, o catalogo salvo e usado sem consulta automatica a internet; atualize somente pela tela normal de Pesquisas de Campo. Sem dados salvos ou correspondencias, a sobreposição pede uma atualizacao nessa tela.", "Browse field tasks and rewards in the app, with search and regular/event filters. This screen saves the shared catalog for offline overlay scans. The overlay never downloads updates. Use the normal Field Research screen to update; the overlay directs you there when saved data or matches are missing.", "Consulta tareas de campo y recompensas en la app, con búsqueda y filtros. El catálogo se guarda para consultas sin conexión. La superposición usa exclusivamente los datos guardados. Actualiza desde la pantalla normal de investigaciones cuando falten datos o coincidencias."))
+                        HelpLine(lt(language, "Ovos", "Eggs", "Huevos"), lt(language, "Filtre por distancia e origem: comuns, presentes, rotas e Sincroaventura. Consulte Pokemon, CP, shiny e raridade quando confirmada. Avisos de listas incompletas sao preservados. Textos descritivos do Leek Duck permanecem no idioma original. A fonte e a ultima consulta aparecem no fim de cada tela.", "Filter eggs by distance and origin. View Pokemon, CP, shiny and confirmed rarity. Incomplete-list notices are preserved. Leek Duck descriptions remain in their original language. Source and last checked date appear at the bottom.", "Filtra huevos por distancia y origen. Consulta Pokemon, CP, shiny y rareza confirmada. Se conservan avisos de listas incompletas y descripciones originales. La fuente y la ultima consulta aparecen al final."))
+                        HelpLine(lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura"), lt(language,
+                            "Consulte os ataques com Efeito de Aventura, seus Pokémon e as informações de uso de cada efeito. Toque na lupa para mostrar ou ocultar a busca e filtre por tipo.",
+                            "Browse Adventure Effect moves, their Pokémon and usage details for each effect. Tap the search icon to show or hide search and filter by type.",
+                            "Consulta los ataques con Efecto de Aventura, sus Pokémon y los detalles de uso de cada efecto. Toca la lupa para mostrar u ocultar la búsqueda y filtra por tipo."))
+                        HelpLine(lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legado"), lt(language,
+                            "Consulte os Pokémon e seus ataques legados. Use a lupa para abrir a busca e filtre por tipo ou por ataques rápidos e carregados. Os blocos mostram os dados disponíveis de cada ataque.",
+                            "Browse Pokémon and their legacy moves. Use the search icon to open search and filter by type or fast and charged moves. Cards show the available details for each move.",
+                            "Consulta los Pokémon y sus ataques legado. Usa la lupa para abrir la búsqueda y filtra por tipo o ataques rápidos y cargados. Los bloques muestran los datos disponibles de cada ataque."))
+                        HelpLine(lt(language, "Equipe PvP", "PvP team", "Equipo PvP"), lt(language,
+                            "Escolha a liga e três espécies diferentes. A equipe e os golpes ficam salvos por liga. A análise reúne apenas confrontos publicados pelo PvPoke para os golpes recomendados: + favorável, − desfavorável, = empate e ? sem dados. Trocar os golpes exige recalcular os confrontos, ainda indisponível nesta versão. A amostra não simula uma partida completa e não usa seus IVs, trocas ou escudos. Atualize os dados no ícone do topo; dados salvos permitem consultar sem internet.",
+                            "Choose a league and three different species. Teams and moves are saved per league. Analysis uses only published PvPoke matchups for recommended moves: + favorable, − unfavorable, = tie, ? unknown. Custom moves need recalculation, not yet available. This sample does not simulate a full match or your IVs, switches and shields. Refresh from the top icon; saved data works offline.",
+                            "Elige liga y tres especies diferentes. Se guardan equipo y ataques por liga. El análisis usa enfrentamientos publicados por PvPoke para ataques recomendados: + favorable, − desfavorable, = empate, ? sin datos. Ataques personalizados requieren un cálculo aún no disponible. No simula una partida ni tus IVs, cambios o escudos. Actualiza con el icono superior; los datos guardados funcionan sin internet."))
+                        HelpLine(lt(language, "Ataques rapidos/carregados", "Fast/Charged Moves", "Ataques rapidos/cargados"), lt(language, "Pesquise ataques por nome, tipo e categoria. Cada registro mostra dados de ginasio e PvP para comparar dano, energia e duracao.", "Search moves by name, type, and category. Each row shows Gym and PvP data so you can compare damage, energy, and duration.", "Busca ataques por nombre, tipo y categoria. Cada registro muestra datos de gimnasio y PvP para comparar dano, energia y duracion."))
+                    }
+                }
+            }
+            item {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(lt(language, "Modo sobreposição", "Overlay mode", "Modo superposición"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        HelpLine(lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"), lt(language, "Na janela de nomes sugeridos, toque em uma opcao para copiar o nome. Confira os dados da leitura antes de usar o apelido. Se nenhum nome aparecer, revise a captura e os formatos salvos.", "In the suggested names window, tap an option to copy the name. Check the scanned data before using the nickname. If no name appears, review the capture and saved presets.", "En la ventana de nombres sugeridos, toca una opcion para copiar el nombre. Revisa los datos leidos antes de usar el apodo. Si no aparece ningun nombre, revisa la captura y los formatos guardados."))
                         HelpLine(lt(language, "IVs durante a captura", "Encounter IV estimates", "IV durante la captura"), lt(language,
                             "Na tela de captura do jogo, toque na sobreposição para ler nome e PC. Confira a espécie e a forma no campo Nome; corrija os campos e toque em Recalcular. Nível é opcional: vazio consulta os níveis de 1 a 51 em passos de 0,5; preenchido restringe a busca. A tabela mostra IVs na ordem Ataque/Defesa/PS, seu percentual e o nível correspondente. São combinações compatíveis com o PC, não IVs confirmados nem probabilidades; a origem do encontro pode restringir as possibilidades. Confirme pela avaliação após capturar. X fecha o modal.",
                             "On the catch screen, tap the overlay to read the name and CP. Check the species and form in Name; edit fields and tap Recalculate. Level is optional: blank searches levels 1 to 51 in half-level steps; a value restricts the search. The table shows Attack/Defense/HP IVs, their percentage and level. These are CP-compatible combinations, not confirmed IVs or probabilities; encounter origin may restrict possibilities. Confirm with appraisal after catching. X closes the panel.",
                             "En la pantalla de captura, toca la superposición para leer nombre y PC. Revisa especie y forma en Nombre; corrige los campos y pulsa Recalcular. Nivel es opcional: vacío busca de 1 a 51 en pasos de 0,5; un valor limita la búsqueda. La tabla muestra IV de Ataque/Defensa/PS, porcentaje y nivel. Son combinaciones compatibles con el PC, no IV confirmados ni probabilidades; el origen del encuentro puede limitar las posibilidades. Confirma con la valoración tras capturar. X cierra el panel."))
-                        HelpLine("Calendario", lt(language, "Consulte o mês, selecione um dia e filtre os eventos por categoria. Toque em um evento para ver datas e a publicação original. Atualizar busca os dados do calendário; a última consulta fica salva para uso sem internet.", "Browse the month, select a day and filter events by category. Tap an event for dates and the original post. Refresh downloads calendar data; the last successful update remains available offline.", "Consulta el mes, selecciona un día y filtra por categoría. Toca un evento para ver las fechas y la publicación original. Actualizar descarga los datos; la última consulta queda disponible sin conexión."))
-                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. Toque em um campo para configurar os simbolos e adiciona-lo ao nome. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. Tap a field to configure its symbols and add it to the name. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. Toca un campo para configurar sus simbolos y agregarlo al nombre. La superposición solo usa formatos guardados."))
-                        HelpLine(lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"), lt(language, "Na janela de nomes sugeridos, toque em uma opcao para copiar o nome. Confira os dados da leitura antes de usar o apelido. Se nenhum nome aparecer, revise a captura e os formatos salvos.", "In the suggested names window, tap an option to copy the name. Check the scanned data before using the nickname. If no name appears, review the capture and saved presets.", "En la ventana de nombres sugeridos, toca una opcion para copiar el nombre. Revisa los datos leidos antes de usar el apodo. Si no aparece ningun nombre, revisa la captura y los formatos guardados."))
-                        HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e mais uma vez para limpar. Escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and once more to clear it. Choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y una vez mas para limpiarla. Elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
                         HelpLine(lt(language, "Filtros na sobreposição", "Overlay filters", "Filtros en la superposición"), lt(language, "Na tela Filtros do app principal, crie e salve filtros de Pokémon ou amigos. Para usá-los no jogo, mantenha a bolha pressionada e escolha Filtros Pokémon ou Filtros amigos. Toque em um filtro salvo para copiar o texto; o painel fecha automaticamente. Depois, cole o texto no campo de busca correspondente do Pokémon GO. Role a lista para ver outros filtros ou toque no X para fechar sem copiar. Se a lista estiver vazia, salve um filtro dessa categoria no app principal.", "On the main app’s Filters screen, create and save Pokémon or friend filters. To use them in the game, hold the bubble and choose Pokémon filters or Friend filters. Tap a saved filter to copy its text; the panel closes automatically. Then paste it into the corresponding Pokémon GO search field. Scroll to see more filters or tap X to close without copying. If the list is empty, save a filter for that category in the main app.", "En la pantalla Filtros de la app principal, crea y guarda filtros de Pokémon o amigos. Para usarlos en el juego, mantén pulsada la burbuja y elige Filtros Pokémon o Filtros amigos. Toca un filtro guardado para copiar el texto; el panel se cierra automáticamente. Después, pega el texto en el campo de búsqueda correspondiente de Pokémon GO. Desplázate para ver más filtros o toca la X para cerrar sin copiar. Si la lista está vacía, guarda un filtro de esa categoría en la app principal."))
-                        HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
-                        HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a sobreposição usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; overlay mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la superposición usa datos guardados. Revisa formas y ataques al usar el filtro."))
-                        HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
-                        HelpLine(lt(language, "Ataques rapidos/carregados", "Fast/Charged Moves", "Ataques rapidos/cargados"), lt(language, "Pesquise ataques por nome, tipo e categoria. Cada registro mostra dados de ginasio e PvP para comparar dano, energia e duracao.", "Search moves by name, type, and category. Each row shows Gym and PvP data so you can compare damage, energy, and duration.", "Busca ataques por nombre, tipo y categoria. Cada registro muestra datos de gimnasio y PvP para comparar dano, energia y duracion."))
-                        HelpLine(lt(language, "Equipe GO Rocket", "Team GO Rocket", "Equipo GO Rocket"), lt(language, "Consulte recrutas, lideres e Giovanni no app. Filtre por grupo e pesquise nomes, tipos ou falas no idioma selecionado ou no original. Cada bloco mostra as tres posicoes, capturas possiveis e fraquezas. Atualizar consulta o Leek Duck; sem internet, a ultima lista salva continua disponivel.", "Browse grunts, leaders and Giovanni in the app. Filter or search names, types and quotes in your selected language or the original. Cards show three slots, catchable Pokemon and weaknesses. Refresh checks Leek Duck; saved lists remain available offline.", "Consulta reclutas, lideres y Giovanni. Filtra y busca nombres, tipos o frases en el idioma seleccionado o en el original. Se muestran posiciones, capturas y debilidades. La ultima lista queda disponible sin conexion."))
-                        HelpLine(lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), lt(language, "Consulte recompensas e validade, copie o codigo ou toque em Resgatar para abrir a loja oficial. Disponivel significa listado pela fonte, sem garantia de resgate para sua conta. Validade desconhecida e mostrada quando a fonte nao informa a data.", "View rewards and expiry, copy a code or open the official redemption store. Available means listed by the source, not guaranteed redeemable for your account. Unknown expiry is shown when no public date is supplied.", "Consulta recompensas y vencimiento, copia el codigo o abre la tienda oficial. Disponible significa listado por la fuente; el canje depende de la cuenta. Se indica cuando la fecha es desconocida."))
                         HelpLine(lt(language, "Leitura de ovos, Rocket e pesquisas", "Egg, Rocket and research scanning", "Lectura de huevos, Rocket e investigaciones"), lt(language,
                             "No jogo, abra os ovos, a fala do recruta ou as pesquisas de campo e toque na sobreposição. A janela mostra possibilidades para as distancias, a fala ou as tarefas visiveis. Ovos antigos e origens diferentes podem ter outras especies; falas compartilhadas mostram ambos os recrutas. Pesquisas com o mesmo texto podem ter recompensas diferentes por evento e icone: as opcoes sao separadas e nao sao todas garantidas. Tarefas nao reconhecidas ou ausentes no catalogo nao recebem uma recompensa presumida. A sobreposição consulta somente os dados salvos. Atualize os catalogos nas telas normais do app; X volta ao jogo.",
                             "Open eggs, a grunt quote or field research in the game and tap the overlay. The window shows possibilities for the visible distances, quote or tasks. Older eggs and different origins may have other species; shared quotes show both grunts. Identical tasks may have different rewards by event and icon: options are separated and not all are guaranteed. Unrecognized or unlisted tasks are not assigned a guessed reward. The overlay only reads saved data. Update catalogs in the normal app screens; X returns to the game.",
                             "Abre los huevos, la frase de un recluta o las investigaciones de campo y toca la superposición. Se muestran posibilidades para las distancias, la frase o las tareas visibles. Los huevos antiguos pueden tener otras especies; las frases compartidas muestran ambos reclutas. Las tareas iguales pueden variar por evento e icono: no se garantizan todas las recompensas. No se inventan recompensas para tareas no reconocidas. Actualiza los catalogos en las pantallas normales de la app; X vuelve al juego."))
-                        HelpLine(lt(language, "Ovos", "Eggs", "Huevos"), lt(language, "Filtre por distancia e origem: comuns, presentes, rotas e Sincroaventura. Consulte Pokemon, CP, shiny e raridade quando confirmada. Avisos de listas incompletas sao preservados. Textos descritivos do Leek Duck permanecem no idioma original. A fonte e a ultima consulta aparecem no fim de cada tela.", "Filter eggs by distance and origin. View Pokemon, CP, shiny and confirmed rarity. Incomplete-list notices are preserved. Leek Duck descriptions remain in their original language. Source and last checked date appear at the bottom.", "Filtra huevos por distancia y origen. Consulta Pokemon, CP, shiny y rareza confirmada. Se conservan avisos de listas incompletas y descripciones originales. La fuente y la ultima consulta aparecen al final."))
-                        HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Consulte tarefas de campo e recompensas no app, com busca e filtros de pesquisas comuns e de evento. A tela salva o catalogo para a sobreposição e para consultas sem internet. Na sobreposição, o catalogo salvo e usado sem consulta automatica a internet; atualize somente pela tela normal de Pesquisas de Campo. Sem dados salvos ou correspondencias, a sobreposição pede uma atualizacao nessa tela.", "Browse field tasks and rewards in the app, with search and regular/event filters. This screen saves the shared catalog for offline overlay scans. The overlay never downloads updates. Use the normal Field Research screen to update; the overlay directs you there when saved data or matches are missing.", "Consulta tareas de campo y recompensas en la app, con búsqueda y filtros. El catálogo se guarda para consultas sin conexión. La superposición usa exclusivamente los datos guardados. Actualiza desde la pantalla normal de investigaciones cuando falten datos o coincidencias."))
+                    }
+                }
+            }
+            item {
+                AppSectionCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(lt(language, "Treinador e aplicativo", "Trainer and app", "Entrenador y aplicación"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         HelpLine(lt(language, "Atualizar", "Update", "Actualizar"), lt(language, "Consulta releases do app e mostra a versao instalada. Use quando quiser verificar se ha APK mais recente.", "Checks app releases and shows the installed version. Use it when you want to see whether a newer APK exists.", "Consulta releases de la app y muestra la version instalada. Usalo cuando quieras verificar si hay un APK mas reciente."))
                         HelpLine(lt(language, "Privacidade", "Privacy", "Privacidad"), lt(language, "Explica permissoes, captura de tela, processamento local, armazenamento e direitos da Pokemon Company.", "Explains permissions, screen capture, local processing, storage, and Pokemon Company rights.", "Explica permisos, captura de pantalla, procesamiento local, almacenamiento y derechos de Pokemon Company."))
                     }
@@ -1018,7 +1076,7 @@ internal fun HelpMenuScreen(
             }
             item {
                 AppActionButton(onClick = onGoToPrivacy, modifier = Modifier.fillMaxWidth()) {
-                    Text(lt(language, "Politica de privacidade", "Privacy policy", "Politica de privacidad"))
+                    Text(lt(language, "Política de privacidade", "Privacy policy", "Politica de privacidad"))
                 }
             }
             item {
@@ -1059,9 +1117,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-                .padding(bottom = LocalNavigationContentPadding.current),
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -1070,7 +1126,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(lt(language, "Politica de privacidade", "Privacy policy", "Politica de privacidad"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(lt(language, "Política de privacidade", "Privacy policy", "Politica de privacidad"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(
                             lt(
                                 language,
@@ -1208,8 +1264,8 @@ private fun LegacyMoveCard(
 internal fun legacyMoveDetails(entry: LegacyMoveCatalogEntry, moveName: String, index: Map<String, MoveCatalogEntry>): MoveCatalogEntry? =
     entry.canonicalMoves[moveName]?.let { index[normalizeMoveLookup(it)] } ?: index[normalizeMoveLookup(moveName)]
 
-private fun adventureMoveDetails(entry: AdventureEffectCatalogEntry, index: Map<String, MoveCatalogEntry>): MoveCatalogEntry? =
-    (listOf(entry.move, entry.movePt) + entry.moveAliases).firstNotNullOfOrNull { index[normalizeMoveLookup(it)] }
+internal fun adventureMoveDetails(entry: AdventureEffectCatalogEntry, index: Map<String, MoveCatalogEntry>): MoveCatalogEntry? =
+    (listOf(entry.move, entry.movePt) + entry.moveAliases).firstNotNullOfOrNull { index[normalizeMoveLookup(it)] } ?: entry.combatDetails
 
 @Composable
 private fun AdventureEffectCard(
@@ -1223,22 +1279,37 @@ private fun AdventureEffectCard(
 
     val description: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(lt(language, "Efeito de aventura", "Adventure effect", "Efecto aventura"),
-                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                coil.compose.AsyncImage(
+                    "file:///android_asset/adventure_effects/ic_fieldmoveIcon.png", null, Modifier.size(22.dp),
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                )
+                Text(lt(language, "Efeito de aventura", "Adventure effect", "Efecto aventura"),
+                    style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+            }
 
             Text(adventureEffectDescription(entry, language), style = MaterialTheme.typography.bodySmall)
         }
     }
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(pokemonName, modifier = Modifier.padding(horizontal = 4.dp),
-            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         if (moveDetails != null) {
-            MainMoveCard(moveDetails, language, effects[moveDetails.moveId].orEmpty(), extraContent = description)
+            MainMoveCard(moveDetails, language, effects[moveDetails.moveId].orEmpty(),
+                glassBackground = true,
+                extraContent = {
+                    entry.combatMegaLevel?.let { level ->
+                        Text(lt(language, "Poder base · Mega nível $level", "Base power · Mega Level $level", "Poder base · Meganivel $level"),
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                },
+                headerContent = { AdventureEffectArt(entry.move, pokemonName, description) })
         } else {
             AppSectionCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(moveName, fontWeight = FontWeight.SemiBold)
-                    description()
+                    AdventureEffectArt(entry.move, pokemonName, description)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        entry.moveType?.let { TypeIcon(it, language) }
+                        Text(moveName, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -1313,7 +1384,7 @@ private fun moveCatalogIndex(entries: List<MoveCatalogEntry>): Map<String, MoveC
     }
 }
 
-private fun normalizeMoveLookup(value: String): String {
+internal fun normalizeMoveLookup(value: String): String {
     return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
         .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
         .uppercase(java.util.Locale.US)
@@ -1322,6 +1393,8 @@ private fun normalizeMoveLookup(value: String): String {
 
 private fun adventureEffectDescription(entry: AdventureEffectCatalogEntry, language: AppLanguage): String {
     if (language == AppLanguage.PT_BR) return entry.description
+    if (language == AppLanguage.EN && entry.descriptionEn.isNotBlank()) return entry.descriptionEn
+    if (language == AppLanguage.ES && entry.descriptionEs.isNotBlank()) return entry.descriptionEs
     val translations = when (entry.move) {
         "Roar of Time" -> "Pauses timers for items such as Incense, Lucky Eggs, and Star Pieces." to
             "Pausa los temporizadores de objetos como Incienso, Huevo Suerte y Trozo Estrella."
@@ -1838,13 +1911,13 @@ fun PresetListScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
                     }
+                },
+                actions = {
+                    IconButton(onClick = onAdd) {
+                        Icon(Icons.Default.Add, lt(language, "Novo formato", "New preset", "Nuevo formato"))
+                    }
                 }
             )
-        },
-        floatingActionButton = {
-            AppAddButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, lt(language, "Novo", "New", "Nuevo"))
-            }
         }
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding),
@@ -2207,6 +2280,18 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
 }
 
 @Composable
+private fun NamingDialogHeader(title: String, onDismiss: () -> Unit) {
+    val language = appLanguage()
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.width(48.dp))
+        Text(title, Modifier.weight(1f), textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Default.Clear, lt(language, "Fechar", "Close", "Cerrar"))
+        }
+    }
+}
+@Composable
 private fun FieldConfigDialog(
     field: NamingField,
     symbolOptions: List<FieldSymbolOption>,
@@ -2218,7 +2303,7 @@ private fun FieldConfigDialog(
     val language = appLanguage()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(field.localizedLabel(language), fontWeight = FontWeight.Bold) },
+        title = { NamingDialogHeader(field.localizedLabel(language), onDismiss) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(fieldDescription(field, language), color = Color(0xFF555555))
@@ -2260,10 +2345,7 @@ private fun FieldConfigDialog(
                 AppActionButton(onClick = onAdd) {
                     Text(lt(language, "ADICIONAR", "ADD", "AGREGAR"))
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                AppSecondaryButton(onClick = onDismiss) {
-                    Text(lt(language, "Cancelar", "Cancel", "Cancelar"))
-                }
+
             }
         }
     )
@@ -2600,7 +2682,7 @@ fun SymbolPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { NamingDialogHeader(title, onDismiss) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppGlassTextField(
@@ -2629,11 +2711,7 @@ fun SymbolPickerDialog(
                 }
             }
         },
-        confirmButton = {
-            AppSecondaryButton(onClick = onDismiss) {
-                Text(lt(language, "Fechar", "Close", "Cerrar"))
-            }
-        }
+        confirmButton = {}
     )
 }
 
@@ -2668,7 +2746,7 @@ private fun FixedTextDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(lt(language, "Adicionar texto fixo", "Add fixed text", "Agregar texto fijo")) },
+        title = { NamingDialogHeader(lt(language, "Adicionar texto fixo", "Add fixed text", "Agregar texto fijo"), onDismiss) },
         text = {
             AppGlassTextField(
                 value = customText,
@@ -2692,10 +2770,7 @@ private fun FixedTextDialog(
                 ) {
                     Text(lt(language, "Adicionar", "Add", "Agregar"))
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                AppSecondaryButton(onClick = onDismiss) {
-                    Text(lt(language, "Cancelar", "Cancel", "Cancelar"))
-                }
+
             }
         }
     )
@@ -2730,10 +2805,6 @@ private fun <T> rememberMoveScreenCatalog(
     }
 
 @Composable
-private fun MoveScreenLoadFeedback(loading: Boolean, failed: Boolean, language: AppLanguage) {
-    if (loading) {
-        androidx.compose.material3.CircularProgressIndicator()
-    } else if (failed) {
-        Text(lt(language, "Falha ao carregar catálogo.", "Failed to load catalog.", "Error al cargar catálogo."))
-    }
+private fun MoveScreenLoadFeedback(language: AppLanguage) {
+    Text(lt(language, "Falha ao carregar catálogo.", "Failed to load catalog.", "Error al cargar catálogo."))
 }

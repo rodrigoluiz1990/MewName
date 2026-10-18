@@ -35,6 +35,24 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
     val entry = entries.firstOrNull { it.name == selectedName } ?: initial
     val repository = remember { PokedexDetailsRepository(context.applicationContext) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    val costumesByDex by produceState<Map<Int, List<PokedexCostume>>>(emptyMap(), language) {
+        value = withContext(Dispatchers.IO) {
+            val images = PersonalCollectionImages(context.applicationContext)
+            val costumeNames = CostumeNames(context.applicationContext)
+            CollectionDexCatalog.load(context.applicationContext).associate { species ->
+                species.dex to species.targets.filter { it.key in species.costumeKeys }.mapNotNull { target ->
+                    images.url(target)?.takeIf(costumeNames::isCostume)?.let { url ->
+                        PokedexCostume(costumeNames.label(url, target.label.substringAfter(" · "), language), url)
+                    }
+                }.distinctBy { it.url }
+            }
+        }
+    }
+    val costumes = costumesByDex[entry.number].orEmpty()
+    LaunchedEffect(entry.number, costumes.isEmpty()) {
+        if (tab == 5 && costumes.isEmpty()) tab = 0
+    }
+
     val moveEffects by produceState<Map<Int, Map<String, Double>>>(emptyMap()) {
         value = withContext(Dispatchers.IO) { loadMoveEffects(context.applicationContext) }
     }
@@ -50,7 +68,8 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
     val opponents by produceState<Map<String, PokedexOpponent>>(emptyMap(), opponentIds, entries, language) {
         value = withContext(Dispatchers.IO) { repository.opponents(opponentIds, entries, language) }
     }
-    LaunchedEffect(entry.name, language) {
+    LaunchedEffect(entry.name, language, refresh) {
+        localFailed = false
         try { local = withContext(Dispatchers.IO) { repository.local(entry, language) } }
         catch (e: CancellationException) { throw e }
         catch (e: Exception) { localFailed = true; android.util.Log.w("PokedexDetails", "Local data", e) }
@@ -58,12 +77,27 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
     LaunchedEffect(entry.name, refresh) {
         onlineLoading = true; onlineError = false
         try {
+            // Publish every available league before the first network request.
+            val saved = withContext(Dispatchers.IO) {
+                repository.cachedOnline("gamemaster.json")?.let { snapshot ->
+                    val matched = matchPvpokeSpecies(JSONObject(snapshot.json).getJSONArray("pokemon"), entry)
+                    val cachedLeagues = if (matched == null) emptyList() else listOf(500, 1500, 2500, 10000).mapNotNull { cap ->
+                        repository.cachedOnline("rankings-$cap.json")?.let { parsePokedexLeague(cap, matched.getString("speciesId"), it) }
+                    }
+                    Triple(snapshot, matched, cachedLeagues)
+                }
+            }
+            saved?.let { (snapshot, matched, cachedLeagues) ->
+                profileSnapshot = snapshot; profile = matched
+                cachedLeagues.forEach { leagues[it.cap] = it }
+            }
             val snapshot = withContext(Dispatchers.IO) { repository.online("gamemaster.json", refresh > 0) }
             profileSnapshot = snapshot
             val matched = withContext(Dispatchers.Default) { matchPvpokeSpecies(JSONObject(snapshot.json).getJSONArray("pokemon"), entry) }
+            if (profile?.optString("speciesId") != matched?.optString("speciesId")) leagues.clear()
             profile = matched
             if (matched != null) supervisorScope {
-                listOf(1500,2500,10000).map { cap -> launch {
+                listOf(500,1500,2500,10000).map { cap -> launch {
                     try {
                         val result = withContext(Dispatchers.IO) {
                             parsePokedexLeague(cap, matched.getString("speciesId"), repository.online("rankings-$cap.json", refresh > 0))
@@ -84,7 +118,6 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
         listOf(entries.maxOfOrNull { it.attack ?: 0 }, entries.maxOfOrNull { it.defense ?: 0 }, entries.maxOfOrNull { it.stamina ?: 0 })
             .map { (it ?: 1).coerceAtLeast(1) }
     }
-    val variants = entries.filter { it.number == entry.number }.distinctBy { it.name }
     BackHandler(onBack = onClose)
     Scaffold(
         topBar = {
@@ -104,14 +137,13 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
         }
     ) { padding ->
             Column(Modifier.fillMaxSize().background(Brush.verticalGradient(LocalAppAppearance.current.background)).padding(padding)) {
-                if (variants.size > 1) LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(variants, key = { it.name }) { form ->
-                        AppChoiceChip(form.name == entry.name, { selectedName = form.name }, { Text(form.name) })
+                val tabs = listOf(tr("Geral","Overview","General"), tr("Golpes","Moves","Ataques"), "PvP", "Pokédex", tr("Tamanho", "Size", "Tamaño")) + if (costumes.isNotEmpty()) listOf(tr("Fantasia", "Costumes", "Disfraces")) else emptyList()
+                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    AppPillTabRow(selectedTabIndex = tab.coerceIn(tabs.indices)) {
+                        tabs.forEachIndexed { i, title ->
+                            AppPillTab(selected = tab == i, onClick = { tab = i }, text = { Text(title) })
+                        }
                     }
-                }
-                val tabs = listOf(tr("Geral","Overview","General"), tr("Golpes","Moves","Ataques"), "PvP")
-                Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    tabs.forEachIndexed { i, title -> AppChoiceChip(tab == i, { tab = i }, { Text(title, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }, modifier = Modifier.weight(1f)) }
                 }
                 key(entry.name, tab) {
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 12.dp + LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -143,29 +175,34 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
                             item { PokedexDetailsSection(tr("Família e evoluções","Family and evolutions","Familia y evoluciones")) {
                                 local?.let { PokedexFamilyCards(it, entries) { name -> selectedName = name } }
                             } }
-                            profile?.let { p -> item { PokedexDetailsSection(tr("Informações adicionais","Additional information","Información adicional")) {
-                                if (p.has("buddyDistance")) Text(tr("Distância por doce: ","Buddy candy distance: ","Distancia por caramelo: ") + p.optInt("buddyDistance") + " km")
-                                if (p.has("thirdMoveCost")) Text(tr("Segundo carregado: ","Second charged move: ","Segundo ataque cargado: ") + p.optInt("thirdMoveCost") + tr(" de poeira estelar"," stardust"," de polvo estelar"))
-                                val tags = raidStrings(p.optJSONArray("tags")); if (tags.isNotEmpty()) Text(tags.joinToString(" · "))
-                            } } }
                         }
                         if (tab == 1) {
                             val moves = local?.moves
                             if (moves != null && moves.fastMoves.isEmpty() && moves.chargedMoves.isEmpty()) item { Text(tr("Golpes indisponíveis.","Moves unavailable.","Ataques no disponibles.")) }
                             listOf(tr("Rápidos","Fast","Rápidos") to moves?.fastMoves.orEmpty(), tr("Carregados","Charged","Cargados") to moves?.chargedMoves.orEmpty()).forEach { (title, list) ->
-                                item { Text(title, style = MaterialTheme.typography.titleMedium) }
-                                items(list, key = { title + it.name }) { move ->
+                                item { PokedexDetailsSection(title) {
+                                    list.forEach { move ->
                                     val detail = local?.moveStats?.get(pokedexIdentity(move.name))
                                     if (detail != null) MainMoveCard(detail, language, moveEffects[detail.moveId].orEmpty(),
                                         extraContent = if (move.legacy) ({ Text(tr("★ Golpe legado/especial", "★ Legacy/special move", "★ Ataque legado/especial"), style = MaterialTheme.typography.labelSmall) }) else null)
                                     else PokedexDetailsSection(move.localizedName + if (move.legacy) " ★" else "") {
                                         Text(tr("Dados de combate indisponíveis.", "Combat data unavailable.", "Datos de combate no disponibles."))
                                     }
-                                }
+                                    }
+                                } }
                             }
+                            item { PokedexMovesetCard(local, leagues.toMap(), onlineLoading) }
                         }
                         if (tab == 2) {
-                            listOf(1500,2500,10000).forEach { cap -> item { PokedexDetailsSection(when(cap) { 1500 -> "GL · 1500"; 2500 -> "UL · 2500"; else -> "ML" }) {
+                            listOf(500,1500,2500,10000).forEach { cap -> item { PokedexDetailsSection(
+                                title = when (cap) {
+                                    500 -> tr("Copinha (500 PC)", "Little Cup (500 CP)", "Copa Chica (500 PC)")
+                                    1500 -> tr("Grande Liga (1.500 PC)", "Great League (1,500 CP)", "Liga Super Ball (1500 PC)")
+                                    2500 -> tr("Ultra Liga (2.500 PC)", "Ultra League (2,500 CP)", "Liga Ultra Ball (2500 PC)")
+                                    else -> tr("Liga Mestra (PC ilimitado)", "Master League (unlimited CP)", "Liga Master Ball (PC ilimitado)")
+                                },
+                                iconAsset = "collection/" + when (cap) { 500 -> "little.png"; 1500 -> "great.png"; 2500 -> "ultra.png"; else -> "master.png" }
+                            ) {
                                 val result = leagues[cap]
                                 Text(if (result?.rank != null) "#${result.rank} · ${tr("Nota","Score","Nota")}: ${result.score ?: "—"}" else if (result != null) tr("Sem registro neste ranking.","Not listed in this ranking.","Sin registro en este ranking.") else tr("Dados indisponíveis.","Data unavailable.","Datos no disponibles."))
                                 result?.let { r ->
@@ -178,7 +215,7 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
                                     PokedexOpponentRow(tr("Principais ameaças", "Key counters", "Principales amenazas"), r.counters, opponents)
                                     Text("PvPoke · " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(r.snapshot.fetchedAt)) + if (r.snapshot.stale) tr(" · dados salvos"," · saved data"," · datos guardados") else "", style = MaterialTheme.typography.bodySmall)
                                 }
-                                profile?.optString("speciesId")?.let { id -> TextButton(onClick = { openExternalUrl(context, "https://pvpoke.com/rankings/all/$cap/overall/$id/") }) { Text(tr("Ver no PvPoke","View on PvPoke","Ver en PvPoke")) } }
+                                profile?.optString("speciesId")?.let { id -> TextButton(onClick = { openExternalUrl(context, "https://pvpoke.com/rankings/${if (cap == 500) "little" else "all"}/$cap/overall/$id/") }) { Text(tr("Ver no PvPoke","View on PvPoke","Ver en PvPoke")) } }
                             } } }
                             item { PokedexDetailsSection(tr("IV Master · família","Master IV · family","IV Master · familia")) {
                                 local?.let { d ->
@@ -188,6 +225,19 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
                                 }
                             } }
                         }
+                        if (tab == 3) item { PokedexInformationCard(entry, local?.info, local?.candyColors?.get(entry.name)) }
+                        if (tab == 4) item { PokedexSizeCard(local?.info, local?.sprite) }
+                        if (tab == 5) {
+                            items(costumes.chunked(2), key = { it.first().url }) { row ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    row.forEach { costume ->
+                                        PokedexCostumeCard(costume, Modifier.weight(1f))
+                                    }
+                                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+
                         if (onlineLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                         if (onlineError || profileSnapshot?.stale == true) item { Text(tr("Não foi possível atualizar parte dos dados online. Dados locais e salvos continuam disponíveis.","Some online data could not be refreshed. Local and saved data remain available.","No se pudieron actualizar algunos datos online. Los datos locales y guardados siguen disponibles.")) }
                         if (!onlineLoading && profileSnapshot != null && profile == null) item { Text(tr("Forma sem correspondência inequívoca no PvPoke; nenhum ranking de outra forma foi usado.","No unambiguous PvPoke form match; no other form's ranking was substituted.","Forma sin correspondencia inequívoca en PvPoke; no se sustituyó por otra forma.")) }
@@ -198,10 +248,13 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
 }
 
 @Composable
-private fun PokedexDetailsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun PokedexDetailsSection(title: String, iconAsset: String? = null, content: @Composable ColumnScope.() -> Unit) {
     AppSectionCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                iconAsset?.let { AssetImageIcon(it, null, Modifier.size(30.dp)) }
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
             content()
         }
     }

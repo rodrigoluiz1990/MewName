@@ -38,3 +38,5 @@ KeyTool.txt
 __pycache__/
 *.pyc
 *.pyo
+
+/reference-assets/pokemon-go-0.433.0/

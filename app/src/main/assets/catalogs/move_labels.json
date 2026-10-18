@@ -1950,11 +1950,21 @@
                                 "ES":  "Rueda Aural"
                             },
     "Chilling Water": {"EN":"Chilling Water","PT_BR":"Água Gelada","ES":"Agua Fría"},
-    "Secret Sword":  {
-                         "EN":  "Secret Sword",
-                         "PT_BR":  "Secret Sword",
-                         "ES":  "Secret Sword"
-                     },
+    "Secret Sword":  {"EN": "Secret Sword", "PT_BR": "Espada Secreta", "ES": "Espada Mística"},
     "Gigaton Hammer": {"EN":"Gigaton Hammer","PT_BR":"Martelo Gigatônico","ES":"Martillo Colosal"},
-    "Glaive Rush": {"EN":"Glaive Rush","PT_BR":"Fúria de Glaive","ES":"Asalto Espadón"}
+    "Glaive Rush": {"EN":"Glaive Rush","PT_BR":"Fúria de Glaive","ES":"Asalto Espadón"},
+    "Beak Blast": {"EN": "Beak Blast", "PT_BR": "Bico Explosivo", "ES": "Pico Cañón"},
+    "Mind Blown": {"EN": "Mind Blown", "PT_BR": "Explosão Mental", "ES": "Cabeza Sorpresa"},
+    "Drum Beating": {"EN": "Drum Beating", "PT_BR": "Toque do Tambor", "ES": "Batería Asalto"},
+    "Pyroball": {"EN": "Pyroball", "PT_BR": "Bola Incendiária", "ES": "Balón Ígneo"},
+    "Plasma Fists": {"EN": "Plasma Fists", "PT_BR": "Punhos de Plasma", "ES": "Puños Plasma"},
+    "Snipe Shot": {"EN": "Snipe Shot", "PT_BR": "Tiro Certeiro", "ES": "Disparo Certero"},
+    "Dive": {"EN": "Dive", "PT_BR": "Mergulho", "ES": "Buceo"},
+    "Aura Wheel Dark": {"EN": "Aura Wheel Dark", "PT_BR": "Roda de Aura", "ES": "Rueda Aural"},
+    "Aeroblast Plus": {"EN": "Aeroblast Plus", "PT_BR": "Explosão Aérea+", "ES": "Aerochorro+"},
+    "Aeroblast Plus Plus": {"EN": "Aeroblast Plus Plus", "PT_BR": "Explosão Aérea++", "ES": "Aerochorro++"},
+    "Sacred Fire Plus": {"EN": "Sacred Fire Plus", "PT_BR": "Fogo Sagrado+", "ES": "Fuego Sagrado+"},
+    "Sacred Fire Plus Plus": {"EN": "Sacred Fire Plus Plus", "PT_BR": "Fogo Sagrado++", "ES": "Fuego Sagrado++"},
+    "Gulp Missile Gulping": {"EN": "Gulp Missile Gulping", "PT_BR": "Gulp Missile Gulping", "ES": "Gulp Missile Gulping"},
+    "Gulp Missile Gorging": {"EN": "Gulp Missile Gorging", "PT_BR": "Gulp Missile Gorging", "ES": "Gulp Missile Gorging"}
 }

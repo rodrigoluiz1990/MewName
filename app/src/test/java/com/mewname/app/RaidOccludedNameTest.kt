@@ -28,6 +28,24 @@ class RaidOccludedNameTest {
         val choices = listOf(RaidChoice("MEWTWO", "RAID_LEVEL_5"), RaidChoice("MEWTWO_SHADOW_FORM", "RAID_LEVEL_5_SHADOW"))
         assertNull(RaidBossResolver.resolveOccludedName(listOf(line("ewtw")), meta, choices, 5))
     }
+    @Test fun fragmentedMegaDragoniteUsesOnlyUniqueCurrentMatchingTier() {
+        val dragonite = RaidChoice("DRAGONITE_MEGA", "RAID_LEVEL_MEGA")
+        val charizardX = RaidChoice("CHARIZARD_MEGA_X", "RAID_LEVEL_MEGA")
+        val charizardY = RaidChoice("CHARIZARD_MEGA_Y", "RAID_LEVEL_MEGA")
+        val catalog = listOf(dragonite, charizardX, charizardY)
+        listOf("Me Dra aite", "Mega Dra aite", "Mega Dragonite", "Dra gonite").forEach {
+            assertEquals(it, dragonite, RaidBossResolver.resolveOccludedName(listOf(line(it)), meta, catalog, 4))
+        }
+        assertNull(RaidBossResolver.resolveOccludedName(listOf(line("Me Dra aite")), meta, catalog, 5))
+        assertNull(RaidBossResolver.resolveOccludedName(listOf(line("Me Dra aite")), meta, catalog, null))
+        assertNull(RaidBossResolver.resolveOccludedName(listOf(line("Me Dra aite")), meta, catalog.drop(1), 4))
+        assertNull(RaidBossResolver.resolveOccludedName(listOf(line("Me Dra aite", .06f)), meta, catalog, 4))
+        assertNull(RaidBossResolver.resolveOccludedName(listOf(line("Me Cha rizard")), meta, catalog, 4))
+        listOf("Me Dra", "Me Xxx aite", "Academia Dragonite", "PC48947").forEach {
+            assertNull(it, RaidBossResolver.resolveOccludedName(listOf(line(it)), meta, catalog, 4))
+        }
+    }
+
     @Test fun explicitRaidSkipsRocketTranslations() {
         val stages = mutableListOf<String>()
         val result = BubbleScreenRouter.route(context,

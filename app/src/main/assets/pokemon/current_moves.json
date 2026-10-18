@@ -2235,32 +2235,36 @@
                          ]
     },
     {
-        "name":  "Blacephalon",
-        "fastMoves":  [
-                          {
-                              "name":  "Astonish",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Incinerate",
-                              "legacy":  false
-                          }
-                      ],
-        "chargedMoves":  [
-                             {
-                                 "name":  "Mystical Fire",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Overheat",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Shadow Ball",
-                                 "legacy":  false
-                             }
-                         ]
-    },
+    "name": "Blacephalon",
+    "fastMoves": [
+        {
+            "name": "Astonish",
+            "legacy": false
+        },
+        {
+            "name": "Incinerate",
+            "legacy": false
+        }
+    ],
+    "chargedMoves": [
+        {
+            "name": "Mystical Fire",
+            "legacy": false
+        },
+        {
+            "name": "Overheat",
+            "legacy": false
+        },
+        {
+            "name": "Shadow Ball",
+            "legacy": false
+        },
+        {
+            "name": "Mind Blown",
+            "legacy": true
+        }
+    ]
+},
     {
         "name":  "Blastoise",
         "fastMoves":  [
@@ -4369,36 +4373,40 @@
                          ]
     },
     {
-        "name":  "Cinderace",
-        "fastMoves":  [
-                          {
-                              "name":  "Fire Spin",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Tackle",
-                              "legacy":  false
-                          }
-                      ],
-        "chargedMoves":  [
-                             {
-                                 "name":  "Flame Charge",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Flamethrower",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Focus Blast",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Blast Burn",
-                                 "legacy":  true
-                             }
-                         ]
-    },
+    "name": "Cinderace",
+    "fastMoves": [
+        {
+            "name": "Fire Spin",
+            "legacy": false
+        },
+        {
+            "name": "Tackle",
+            "legacy": false
+        }
+    ],
+    "chargedMoves": [
+        {
+            "name": "Flame Charge",
+            "legacy": false
+        },
+        {
+            "name": "Flamethrower",
+            "legacy": false
+        },
+        {
+            "name": "Focus Blast",
+            "legacy": false
+        },
+        {
+            "name": "Blast Burn",
+            "legacy": true
+        },
+        {
+            "name": "Pyroball",
+            "legacy": false
+        }
+    ]
+},
     {
         "name":  "Clamperl",
         "fastMoves":  [
@@ -5276,32 +5284,36 @@
                          ]
     },
     {
-        "name":  "Cramorant",
-        "fastMoves":  [
-                          {
-                              "name":  "Peck",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Water Gun",
-                              "legacy":  false
-                          }
-                      ],
-        "chargedMoves":  [
-                             {
-                                 "name":  "Drill Peck",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Fly",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Hydro Pump",
-                                 "legacy":  false
-                             }
-                         ]
-    },
+    "name": "Cramorant",
+    "fastMoves": [
+        {
+            "name": "Peck",
+            "legacy": false
+        },
+        {
+            "name": "Water Gun",
+            "legacy": false
+        }
+    ],
+    "chargedMoves": [
+        {
+            "name": "Drill Peck",
+            "legacy": false
+        },
+        {
+            "name": "Fly",
+            "legacy": false
+        },
+        {
+            "name": "Hydro Pump",
+            "legacy": false
+        },
+        {
+            "name": "Dive",
+            "legacy": false
+        }
+    ]
+},
     {
         "name":  "Cranidos",
         "fastMoves":  [
@@ -13321,36 +13333,40 @@
                          ]
     },
     {
-        "name":  "Inteleon",
-        "fastMoves":  [
-                          {
-                              "name":  "Pound",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Water Gun",
-                              "legacy":  false
-                          }
-                      ],
-        "chargedMoves":  [
-                             {
-                                 "name":  "Shadow Ball",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Surf",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Water Pulse",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Hydro Cannon",
-                                 "legacy":  true
-                             }
-                         ]
-    },
+    "name": "Inteleon",
+    "fastMoves": [
+        {
+            "name": "Pound",
+            "legacy": false
+        },
+        {
+            "name": "Water Gun",
+            "legacy": false
+        }
+    ],
+    "chargedMoves": [
+        {
+            "name": "Shadow Ball",
+            "legacy": false
+        },
+        {
+            "name": "Surf",
+            "legacy": false
+        },
+        {
+            "name": "Water Pulse",
+            "legacy": false
+        },
+        {
+            "name": "Hydro Cannon",
+            "legacy": true
+        },
+        {
+            "name": "Snipe Shot",
+            "legacy": false
+        }
+    ]
+},
     {
         "name":  "Iron Boulder",
         "fastMoves":  [
@@ -23465,36 +23481,40 @@
                          ]
     },
     {
-        "name":  "Rillaboom",
-        "fastMoves":  [
-                          {
-                              "name":  "Razor Leaf",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Scratch",
-                              "legacy":  false
-                          }
-                      ],
-        "chargedMoves":  [
-                             {
-                                 "name":  "Earth Power",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Energy Ball",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Grass Knot",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Frenzy Plant",
-                                 "legacy":  true
-                             }
-                         ]
-    },
+    "name": "Rillaboom",
+    "fastMoves": [
+        {
+            "name": "Razor Leaf",
+            "legacy": false
+        },
+        {
+            "name": "Scratch",
+            "legacy": false
+        }
+    ],
+    "chargedMoves": [
+        {
+            "name": "Earth Power",
+            "legacy": false
+        },
+        {
+            "name": "Energy Ball",
+            "legacy": false
+        },
+        {
+            "name": "Grass Knot",
+            "legacy": false
+        },
+        {
+            "name": "Frenzy Plant",
+            "legacy": true
+        },
+        {
+            "name": "Drum Beating",
+            "legacy": false
+        }
+    ]
+},
     {
         "name":  "Riolu",
         "fastMoves":  [
@@ -29374,36 +29394,40 @@
                          ]
     },
     {
-        "name":  "Toucannon",
-        "fastMoves":  [
-                          {
-                              "name":  "Bullet Seed",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Peck",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Rock Smash",
-                              "legacy":  false
-                          }
-                      ],
-        "chargedMoves":  [
-                             {
-                                 "name":  "Drill Peck",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Flash Cannon",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Rock Blast",
-                                 "legacy":  false
-                             }
-                         ]
-    },
+    "name": "Toucannon",
+    "fastMoves": [
+        {
+            "name": "Bullet Seed",
+            "legacy": false
+        },
+        {
+            "name": "Peck",
+            "legacy": false
+        },
+        {
+            "name": "Rock Smash",
+            "legacy": false
+        }
+    ],
+    "chargedMoves": [
+        {
+            "name": "Drill Peck",
+            "legacy": false
+        },
+        {
+            "name": "Flash Cannon",
+            "legacy": false
+        },
+        {
+            "name": "Rock Blast",
+            "legacy": false
+        },
+        {
+            "name": "Beak Blast",
+            "legacy": true
+        }
+    ]
+},
     {
         "name":  "Toxapex",
         "fastMoves":  [
@@ -32607,32 +32631,36 @@
                          ]
     },
     {
-        "name":  "Zeraora",
-        "fastMoves":  [
-                          {
-                              "name":  "Spark",
-                              "legacy":  false
-                          },
-                          {
-                              "name":  "Volt Switch",
-                              "legacy":  false
-                          }
-                      ],
-        "chargedMoves":  [
-                             {
-                                 "name":  "Discharge",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Thunder Punch",
-                                 "legacy":  false
-                             },
-                             {
-                                 "name":  "Wild Charge",
-                                 "legacy":  false
-                             }
-                         ]
-    },
+    "name": "Zeraora",
+    "fastMoves": [
+        {
+            "name": "Spark",
+            "legacy": false
+        },
+        {
+            "name": "Volt Switch",
+            "legacy": false
+        }
+    ],
+    "chargedMoves": [
+        {
+            "name": "Discharge",
+            "legacy": false
+        },
+        {
+            "name": "Thunder Punch",
+            "legacy": false
+        },
+        {
+            "name": "Wild Charge",
+            "legacy": false
+        },
+        {
+            "name": "Plasma Fists",
+            "legacy": false
+        }
+    ]
+},
     {
         "name":  "Zigzagoon",
         "fastMoves":  [

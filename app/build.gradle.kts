@@ -21,7 +21,7 @@ val releaseTag = System.getenv("MEWNAME_RELEASE_TAG")?.takeIf { it.isNotBlank() 
 val releaseVersionName = releaseTag
     .takeIf { it != "dev" }
     ?.removePrefix("v")
-    ?: "1.0.31"
+    ?: "1.0.32"
 val hasReleaseSigning = releaseStoreFilePath != null &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
@@ -223,6 +223,8 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // Robolectric closes Android file descriptors reflectively on JDK 17.
+        unitTests.all { it.jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED") }
     }
     packaging {
         resources {

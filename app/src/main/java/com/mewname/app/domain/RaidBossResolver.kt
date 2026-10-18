@@ -14,22 +14,103 @@ internal object RaidBossResolver {
         val fragments = lines.filter {
             (it.top + it.bottom) / 2f in .16f.. .39f &&
                 it.left < .65f && it.right > .35f
-        }.map { raidKey(it.text) }.filter { it.matches(Regex("[a-z]{4,}")) }.distinct()
+        }.map { raidKey(it.text) }.filter { it.matches(Regex("[a-z ]{4,}")) }.distinct()
         if (fragments.isEmpty()) return null
         val candidates = catalog.filter {
-            !it.tier.contains("MAX") && !it.tier.contains("MEGA") &&
-                Regex("RAID_LEVEL_(\\d+)").find(it.tier)?.groupValues?.get(1)?.toIntOrNull() == detectedLevel
+            !it.tier.contains("MAX") && symbolCount(it.tier) == detectedLevel
         }.distinct()
         val matches = candidates.filter { choice ->
             val pokemon = meta.pokemon[choice.id] ?: return@filter false
-            val species = raidKey(baseId(pokemon.id)).replace(" ", "")
-            fragments.any { part -> part.length >= 4 && part.length * 2 >= species.length && part in species }
+            val species = raidKey(regionalBaseId(pokemon.id)).replace(" ", "")
+            fragments.any { fragment ->
+                // Join only fragments from the same OCR line in the boss-name band.
+                // A truncated Mega prefix is evidence only for a current Mega candidate.
+                val label = if (choice.tier.contains("MEGA"))
+                    fragment.replace(Regex("^(mega|meg|me) +"), "") else fragment
+                val part = label.replace(" ", "")
+                (part.length >= 4 && part.length * 2 >= species.length && part in species) ||
+                    closeOcrName(part, species, fragmented = ' ' in label)
+            }
         }
         return matches.singleOrNull()
     }
 
+    /** Exact boss CP is a fallback, never the capture CP or an arbitrary screen number.
+     * Unsupported raid categories deliberately remain manual choices. */
+    fun resolveBossCp(lines: List<BattleOcrLine>, meta: RaidMetadata,
+        catalog: List<RaidChoice>, detectedLevel: Int?): RaidChoice? {
+        fun log(message: String) {
+            if (com.mewname.app.BuildConfig.DEBUG) android.util.Log.d("RaidReadTiming", "bossCp $message")
+        }
+        val band = lines.filter {
+            (it.top + it.bottom) / 2f in .13f.. .28f && it.left < .65f && it.right > .35f
+        }
+        val readings = band.mapNotNull { parseBossCp(it.text) }.distinct()
+        log("level=$detectedLevel readings=$readings catalogSize=${catalog.size} band=$band")
+        if (detectedLevel == null) { log("rejected=missing_level"); return null }
+        val cp = readings.singleOrNull()
+        if (cp == null) { log("rejected=missing_or_ambiguous_cp"); return null }
+        val cpMatches = catalog.distinct().filter { choice ->
+            meta.pokemon[choice.id]?.let { bossCp(it, choice.tier) } == cp
+        }
+        val matches = cpMatches.filter { symbolCount(it.tier) == detectedLevel }
+        log("cpMatches=$cpMatches levelMatches=$matches result=${when {
+            cpMatches.isEmpty() -> "no_current_cp_match"
+            matches.isEmpty() -> "level_mismatch"
+            matches.size > 1 -> "ambiguous"
+            else -> "accepted"
+        }}")
+        return matches.singleOrNull()
+    }
+
+    // OCR may attach a background stroke after the digits; never repair digits
+    // or accept punctuation within a number (timer, decimal or range).
+    internal fun parseBossCp(text: String): Int? =
+        Regex("(?i)^(?:&\\s*)?(?:(?:pc|cp|po|p)\\s*)?([0-9]{4,6})\\s*[-–—.,]?$")
+            .matchEntire(text.trim())?.groupValues?.get(1)?.toIntOrNull()
+
+    internal fun bossCp(pokemon: RaidPokemon, tier: String): Int? {
+        // Displayed boss CP uses base attack/defense + 15 IV and fixed raid HP.
+        // These are not the encounter level 20/25 CP values.
+        val hp = when (tier) {
+            "RAID_LEVEL_1", "RAID_LEVEL_1_SHADOW" -> 600
+            "RAID_LEVEL_3", "RAID_LEVEL_3_SHADOW" -> 3600
+            "RAID_LEVEL_5", "RAID_LEVEL_5_SHADOW", "RAID_LEVEL_ULTRA_BEAST" -> 15000
+            "RAID_LEVEL_MEGA" -> 9000
+            else -> return null
+        }
+        if (pokemon.attack <= 0 || pokemon.defense <= 0) return null
+        return kotlin.math.floor((pokemon.attack + 15) * kotlin.math.sqrt((pokemon.defense + 15).toDouble()) *
+            kotlin.math.sqrt(hp.toDouble()) / 10).toInt()
+    }
+
     private fun baseId(id: String) = id.replace(Regex("_SHADOW(?=_FORM|$)"), "")
         .replace(Regex("_MEGA(?:_[XY])?$|_PRIMAL$"), "").removeSuffix("_FORM")
+
+    // Strip only regional qualifiers; other transformations retain their identity.
+    private fun regionalBaseId(id: String) = baseId(id)
+        .replace(Regex("_(ALOLAN|GALARIAN|HISUIAN|PALDEAN)$"), "")
+
+    private fun closeOcrName(part: String, species: String, fragmented: Boolean = false): Boolean {
+        if (part.length < 5 || species.length < 5 || part.first() != species.first()) return false
+        val missing = species.length - part.length
+        if (missing !in 0..2) return false
+        // A heavily occluded reading needs an intact suffix (Vforb -> Voltorb).
+        val anchoredFragments = fragmented && part.length >= 6 &&
+            part.take(3) == species.take(3) && part.takeLast(2) == species.takeLast(2)
+        val limit = if (part.takeLast(3) == species.takeLast(3) || anchoredFragments) missing + 1 else 1
+        var previous = IntArray(species.length + 1) { it }
+        for (i in part.indices) {
+            val next = IntArray(species.length + 1)
+            next[0] = i + 1
+            for (j in species.indices) next[j + 1] = minOf(
+                previous[j + 1] + 1, next[j] + 1,
+                previous[j] + if (part[i] == species[j]) 0 else 1
+            )
+            previous = next
+        }
+        return previous.last() <= limit
+    }
 
     // Preserve API category IDs while comparing their actual symbol count.
     private fun symbolCount(tier: String): Int? = when (tier) {
@@ -77,6 +158,24 @@ internal object RaidBossResolver {
                 ),
                 fromCatalog = levelCatalog.isNotEmpty()
             )
+        val text = raidKey(screenText)
+        // Raid-specific phrases avoid interpreting a gym name such as 'Shadow Park' as a form.
+        val shadow = Regex("\\b(?:shadow (?:raid|gem)|(?:raid|reide|incursao|incursion) (?:sombros[ao]|oscur[ao])|(?:gema[s]? purificada[s]?|purified gems?))\\b").containsMatchIn(text)
+        // A plain species label does not distinguish its regional forms in GO.
+        // Only current records may supply that missing qualifier, and ambiguity
+        // must remain a manual choice. Explicitly named regions stay exact.
+        if (identified.id == regionalBaseId(identified.id) && identified.dex > 0 && !shadow &&
+            !Regex("\\b(mega|primal|shadow)\\b").containsMatchIn(cleaned) &&
+            !Regex("\\b(?:mega|primal) ${Regex.escape(raidKey(identified.id))}\\b").containsMatchIn(text)) {
+            val regional = levelCatalog.filter { choice ->
+                val candidate = meta.pokemon[choice.id]
+                candidate?.dex == identified.dex &&
+                    regionalBaseId(choice.id) == identified.id
+            }.distinct()
+            if (regional.any { baseId(it.id) != identified.id }) {
+                return Result(regional.singleOrNull(), regional, true)
+            }
+        }
         val family = meta.pokemon.values.filter { baseId(it.id) == baseId(identified.id) }
         // A recognized boss has authoritative category IDs (e.g. ULTRA_BEAST), not just OCR stars.
         val familyIds = family.map { it.id }.toSet()
@@ -94,9 +193,6 @@ internal object RaidBossResolver {
             }
         }
             .sortedWith(compareBy<RaidChoice> { form(it.id) }.thenBy { it.id })
-        val text = raidKey(screenText)
-        // Raid-specific phrases avoid interpreting a gym name such as 'Shadow Park' as a form.
-        val shadow = Regex("\\b(?:shadow (?:raid|gem)|(?:raid|reide|incursao|incursion) (?:sombros[ao]|oscur[ao])|(?:gema[s]? purificada[s]?|purified gems?))\\b").containsMatchIn(text)
         val baseName = raidKey(baseId(identified.id))
         val mega = Regex("\\bmega[ -]+${Regex.escape(baseName)}(?: [xy])?\\b").containsMatchIn(text)
         val explicit = when {

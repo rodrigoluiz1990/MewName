@@ -9,12 +9,26 @@ import kotlin.math.max
 internal object RaidLevelIconDetector {
     fun detect(result: OcrResult): Int? {
         val bitmap = result.bitmap ?: return null
-        val cpTop = result.blocks.asSequence()
-            .flatMap { it.lines.asSequence() }
-            .firstOrNull { line -> Regex("(?i)\\b(?:PC|CP)(?:\\s*[0-9O]{2,})?\\b").containsMatchIn(line.text) }
-            ?.boundingBox?.top
-            ?: (bitmap.height * 0.20f).toInt()
+        val lines = result.blocks.flatMap { it.lines }.mapNotNull { line ->
+            line.boundingBox?.let { box -> BattleOcrLine(line.text,
+                box.left.toFloat() / bitmap.width, box.top.toFloat() / bitmap.height,
+                box.right.toFloat() / bitmap.width, box.bottom.toFloat() / bitmap.height) }
+        }
+        val anchor = cpAnchor(lines)
+        val cpTop = ((anchor?.top ?: .20f) * bitmap.height).toInt()
+        debug("levelAnchor source=${if (anchor == null) "fixed" else "digits"} text=${anchor?.text} box=$anchor cpTop=$cpTop bitmap=${bitmap.width}x${bitmap.height}")
         return detect(bitmap, cpTop)
+    }
+
+    // The small PC label sits below the top of its large digits. Using that label
+    // includes part of the number in the icon crop and corrupts the symbol count.
+    internal fun cpAnchor(lines: List<BattleOcrLine>): BattleOcrLine? = lines.filter {
+        (it.top + it.bottom) / 2f in .13f.. .28f && it.left < .65f && it.right > .35f &&
+            RaidBossResolver.parseBossCp(it.text) != null
+    }.maxByOrNull { it.bottom - it.top }
+
+    private fun debug(message: String) {
+        if (com.mewname.app.BuildConfig.DEBUG) android.util.Log.d("RaidReadTiming", message)
     }
 
     internal fun detect(bitmap: Bitmap, cpTop: Int): Int? {
@@ -23,12 +37,16 @@ internal object RaidLevelIconDetector {
         val right = (bitmap.width * 0.80f).toInt()
         val top = max((bitmap.height * 0.10f).toInt(), cpTop - (bitmap.height * 0.075f).toInt())
         val bottom = (cpTop - bitmap.height * 0.004f).toInt().coerceAtMost((bitmap.height * 0.23f).toInt())
+        debug("levelRegion left=$left top=$top right=$right bottom=$bottom")
         if (bottom - top < 12 || right - left < 80) return null
         // One native read for the region instead of hundreds of thousands of getPixel calls.
         val pixels = IntArray((right - left) * (bottom - top))
         bitmap.getPixels(pixels, 0, right - left, left, top, right - left, bottom - top)
         fun pixel(x: Int, y: Int) = pixels[(y - top) * (right - left) + x - left]
-        connectedIconCount(bitmap, left, top, right, bottom, pixels)?.let { return it }
+        connectedIconCount(bitmap, left, top, right, bottom, pixels)?.let {
+            debug("levelResult method=components count=$it")
+            return it
+        }
 
         val scores = IntArray(right - left)
         for (x in left + 1 until right - 1) {
@@ -76,6 +94,7 @@ internal object RaidLevelIconDetector {
             center in bitmap.width * 0.25f..bitmap.width * 0.75f
         }
         val count = centered.size
+        debug("levelProjection count=$count runs=$centered")
         if (count !in 1..6) return null
 
         val centers = centered.map { (it.first + it.last) / 2f }.sorted()

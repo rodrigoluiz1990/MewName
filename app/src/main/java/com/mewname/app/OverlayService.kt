@@ -140,6 +140,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = reason)
         }
     }
+    private val dailyMissions by lazy { DailyMissionOverlay(this, ::addOverlayView, ::detachOverlay, ::updateOverlayViewLayout) }
     private val captureSession by lazy {
         OverlayCaptureSession(this) { reason ->
             closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = reason)
@@ -198,6 +199,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             return
         }
         showFloatingButton()
+        if (!closingForPermissionLoss) dailyMissions.start()
         bubbleActive.value = !closingForPermissionLoss && floatingButton in attachedOverlays
         if (!closingForPermissionLoss) mainHandler.post(overlayPermissionWatchdog)
     }
@@ -656,6 +658,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     }
 
     private fun setBubbleHiddenForCapture(hidden: Boolean) {
+        dailyMissions.hideForCapture(hidden)
         val bubble = floatingButton ?: return
         bubble.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
         bubble.isEnabled = !hidden
@@ -2015,6 +2018,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private fun shutdownOverlays() {
         closingForPermissionLoss = true
         bubbleActive.value = false
+        dailyMissions.close()
         mainHandler.removeCallbacksAndMessages(null)
         captureProcessingTask.cancel()
         serviceJob.cancel()

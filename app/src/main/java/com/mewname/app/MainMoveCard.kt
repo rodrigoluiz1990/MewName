@@ -39,7 +39,7 @@ internal fun loadMoveEffects(context: android.content.Context): Map<Int, Map<Str
 }
 
 @Composable
-internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effects: Map<String, Double>, extraContent: (@Composable () -> Unit)? = null) {
+internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effects: Map<String, Double>, extraContent: (@Composable () -> Unit)? = null, headerContent: (@Composable () -> Unit)? = null, glassBackground: Boolean = false) {
     fun tr(pt: String, en: String, es: String) = when(language) {
         AppLanguage.PT_BR -> pt; AppLanguage.EN -> en; AppLanguage.ES -> es
     }
@@ -60,12 +60,10 @@ internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effect
         "Dark", "Ghost" -> tr("Névoa", "Fog", "Niebla")
         else -> "—"
     }
-    val shape = RoundedCornerShape(16.dp)
     val tint = typeSpec(entry.type)?.color ?: MaterialTheme.colorScheme.primary
     val glass = MaterialTheme.colorScheme.surface.copy(alpha = .72f)
-    Column(Modifier.fillMaxWidth().clip(shape)
-        .background(tint.copy(alpha = .24f)).border(1.dp, tint.copy(alpha = .55f), shape)
-        .padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    MoveCardSurface(glassBackground, tint) {
+        headerContent?.invoke()
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             AssetImageIcon("types/POKEMON_TYPE_${entry.type.uppercase(java.util.Locale.ROOT)}.png",
@@ -110,7 +108,33 @@ internal fun MainMoveCard(entry: MoveCatalogEntry, language: AppLanguage, effect
                     Text(tr("Chance: ", "Chance: ", "Probabilidad: ") + "${(it*100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                 }
         }
+        if (entry.moveId == 328 || entry.moveId == 329) {
+            Text(tr("Registro interno do jogo; sem Pokémon com esse ataque. Poder cadastrado, não validado em batalha.",
+                "Internal game entry; no Pokémon learns this move. Stored power, not battle-verified.",
+                "Registro interno del juego; ningún Pokémon aprende este ataque. Poder registrado, no validado en combate."),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (entry.moveId == 594 || entry.moveId == 595) {
+            Text(tr("Efeito especial de Cramorant. O jogo não informa poder ou custo de energia neste registro.",
+                "Special Cramorant effect. The game does not provide power or energy cost for this entry.",
+                "Efecto especial de Cramorant. El juego no indica poder ni coste de energía para este registro."),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         extraContent?.invoke()
+    }
+}
+
+@Composable
+private fun MoveCardSurface(glassBackground: Boolean, tint: Color, content: @Composable ColumnScope.() -> Unit) {
+    if (glassBackground) {
+        AppSectionCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp), content = content)
+        }
+    } else {
+        val shape = RoundedCornerShape(16.dp)
+        Column(Modifier.fillMaxWidth().clip(shape)
+            .background(tint.copy(alpha = .24f)).border(1.dp, tint.copy(alpha = .55f), shape)
+            .padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp), content = content)
     }
 }
 

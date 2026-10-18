@@ -223,7 +223,11 @@ private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Bool
                 else -> group.shortLabel
             }
             Text(emblem,color = foreground,fontWeight = FontWeight.Bold,
-                fontSize = if(group in setOf(PersonalCollectionGroup.SHINY,PersonalCollectionGroup.LUCKY,PersonalCollectionGroup.BACKGROUND)) 20.sp else 10.sp,
+                fontSize = when (group) {
+                    PersonalCollectionGroup.NORMAL -> 8.sp
+                    PersonalCollectionGroup.SHINY, PersonalCollectionGroup.LUCKY, PersonalCollectionGroup.BACKGROUND -> 20.sp
+                    else -> 10.sp
+                },
                 maxLines = 1)
         }
         if (checked) Icon(Icons.Default.Check,contentDescription = null,
@@ -377,6 +381,8 @@ internal fun PersonalCollectionScreen(
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
     val snapshot = rememberPersonalCollection()
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    var backgroundFiltersActive by remember { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var onlyCollected by rememberSaveable { mutableStateOf(false) }
     var section by rememberSaveable { mutableStateOf(0) }
@@ -411,6 +417,8 @@ internal fun PersonalCollectionScreen(
         if (!panel) AppTopBar(title = { Text("Coleções") }, navigationIcon = {
             if (!overlay) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
         }, actions = {
+            AppFilterToggle(showFilters, if (section == 1) backgroundFiltersActive else query.isNotBlank() || onlyCollected,
+                { showFilters = it })
             if (overlay) IconButton(onClick = onBack) { Icon(Icons.Default.Close, "Fechar coleção") }
         })
     }) { padding ->
@@ -420,24 +428,33 @@ internal fun PersonalCollectionScreen(
                     AppPillTab(selected = section == index, onClick = { section = index }, text = { Text(title) })
                 }
             }
-            if (section == 1) CollectionBackgroundsContent(inlinePreview = overlay) else {
-                if (panel) {
+            if (panel) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                AppFilterToggle(showFilters, if (section == 1) backgroundFiltersActive else query.isNotBlank() || onlyCollected || quickGroupName != PersonalCollectionGroup.NORMAL.name,
+                    { showFilters = it })
+            }
+            if (section == 1) CollectionBackgroundsContent(inlinePreview = overlay, showFilters = showFilters, onFilterActive = { backgroundFiltersActive = it }) else {
+                if (panel && showFilters) {
+                    AppFilterPanel(query.isNotBlank() || onlyCollected || quickGroupName != PersonalCollectionGroup.NORMAL.name,
+                        onClear = { query = ""; onlyCollected = false; quickGroupName = PersonalCollectionGroup.NORMAL.name }) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.weight(1f),
-                            label = { Text("Buscar Pokémon ou forma") }, singleLine = true)
-                        FilterChip(selected = onlyCollected, onClick = { onlyCollected = !onlyCollected }, label = { Text("Pegos") })
+                            search = true, label = { Text("Buscar Pokémon ou forma") }, singleLine = true)
+                        AppChoiceChip(selected = onlyCollected, onClick = { onlyCollected = !onlyCollected }, label = { Text("Pegos") })
                     }
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(selected = quickGroup == null, onClick = { quickGroupName = null }, label = { Text("Formas") })
+                        AppChoiceChip(selected = quickGroup == null, onClick = { quickGroupName = null }, label = { Text("Formas") })
                         (listOf(PersonalCollectionGroup.NORMAL) + snapshot.order.filter { it in snapshot.enabled }).distinct().forEach { group ->
-                            FilterChip(selected = quickGroup == group, onClick = { quickGroupName = group.name }, label = { Text(group.label) })
+                            AppChoiceChip(selected = quickGroup == group, onClick = { quickGroupName = group.name }, label = { Text(group.label) })
                         }
                     }
-                } else {
-                    AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Buscar Pokémon, forma ou número") }, singleLine = true)
-                    AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
+                    }
+                } else if (!panel && showFilters) {
+                    AppFilterPanel(query.isNotBlank() || onlyCollected, onClear = { query = ""; onlyCollected = false }) {
+                        AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
+                            search = true, label = { Text("Buscar Pokémon, forma ou número") }, singleLine = true)
+                        AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
+                    }
                 }
                 if (species == null) LinearProgressIndicator(Modifier.fillMaxWidth())
                 LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
@@ -502,8 +519,11 @@ internal fun PersonalCollectionScreen(
                     LazyVerticalGrid(columns = GridCells.Adaptive(100.dp), modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         entry.targets.filter { it.key !in entry.costumeKeys }.forEach { target ->
-                            item(key = "heading:" + target.key, span = { GridItemSpan(maxLineSpan) }) {
-                                Text(target.label, Modifier.padding(top = 12.dp), fontWeight = FontWeight.SemiBold)
+                            val formLabel = target.label.removePrefix(entry.name).trim().trimStart('·').trim()
+                            if (formLabel.isNotBlank()) {
+                                item(key = "heading:" + target.key, span = { GridItemSpan(maxLineSpan) }) {
+                                    Text(formLabel, Modifier.padding(top = 12.dp), fontWeight = FontWeight.SemiBold)
+                                }
                             }
                             val groups = (listOf(PersonalCollectionGroup.NORMAL) + snapshot.order).distinct().filter {
                                 (it == PersonalCollectionGroup.NORMAL || it in snapshot.enabled || it in snapshot.entries[target.key]?.groups.orEmpty()) && PersonalCollection.supports(target, it)
@@ -613,7 +633,7 @@ internal fun CollectionShadowAura() {
 }
 
 /** Crop only transparent padding; retain the game's original sprite pixels and proportions. */
-private object CollectionSpriteTrim : coil.transform.Transformation {
+internal object CollectionSpriteTrim : coil.transform.Transformation {
     override val cacheKey = "collection-go-sprite-trim-v1"
     override suspend fun transform(input: android.graphics.Bitmap, size: coil.size.Size): android.graphics.Bitmap {
         val pixels = IntArray(input.width * input.height)
