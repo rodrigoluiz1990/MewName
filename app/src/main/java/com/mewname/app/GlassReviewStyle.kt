@@ -200,19 +200,12 @@ internal fun ReviewModalCard(
 }
 @Composable
 internal fun ReviewModalHeader(title: String, onDismiss: () -> Unit) {
-    if (!LocalGlassReviewStyle.current) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            TextButton(onClick = onDismiss) { Text(lt(appLanguage(), "Fechar", "Close", "Cerrar")) }
-        }
-        return
-    }
     Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Text(title, Modifier.fillMaxWidth().padding(horizontal = 48.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd).size(48.dp)) {
-            Icon(Icons.Default.Close, contentDescription = lt(appLanguage(), "Fechar", "Close", "Cerrar"),
+            Icon(AppIcons.Close, contentDescription = lt(appLanguage(), "Fechar", "Close", "Cerrar"),
                 modifier = Modifier.size(20.dp))
         }
     }

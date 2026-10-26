@@ -109,7 +109,7 @@ internal object UserBackup {
 
     fun validate(text: String) { decode(text) }
 
-    fun restore(context: Context, text: String) {
+    @Synchronized fun restore(context: Context, text: String) {
         val incoming = decode(text) // Fully validate before changing anything.
         val previous = decode(export(context))
         try { apply(context, incoming) }

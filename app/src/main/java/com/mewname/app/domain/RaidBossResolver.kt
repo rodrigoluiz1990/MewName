@@ -42,10 +42,8 @@ internal object RaidBossResolver {
         fun log(message: String) {
             if (com.mewname.app.BuildConfig.DEBUG) android.util.Log.d("RaidReadTiming", "bossCp $message")
         }
-        val band = lines.filter {
-            (it.top + it.bottom) / 2f in .13f.. .28f && it.left < .65f && it.right > .35f
-        }
-        val readings = band.mapNotNull { parseBossCp(it.text) }.distinct()
+        val band = lines.filter { (it.top + it.bottom) / 2f in .13f.. .28f }
+        val readings = bossCpLines(band).mapNotNull { parseBossCp(it.text) }.distinct()
         log("level=$detectedLevel readings=$readings catalogSize=${catalog.size} band=$band")
         if (detectedLevel == null) { log("rejected=missing_level"); return null }
         val cp = readings.singleOrNull()
@@ -61,6 +59,52 @@ internal object RaidBossResolver {
             else -> "accepted"
         }}")
         return matches.singleOrNull()
+    }
+
+    /** Keep ambiguity explicit; absence of shadow text is not proof of a normal raid. */
+    fun bossCpCandidates(lines: List<BattleOcrLine>, screenText: String, meta: RaidMetadata,
+        catalog: List<RaidChoice>, detectedLevel: Int?, index: Map<Int, List<RaidChoice>>): List<RaidChoice> {
+        if (detectedLevel == null) return emptyList()
+        val cp = bossCpLines(lines).mapNotNull { parseBossCp(it.text) }.distinct().singleOrNull()
+            ?: return emptyList()
+        val text = raidKey(screenText)
+        val shadow = Regex("\\b(?:shadow raid|raid sombros[ao]|reide sombros[ao]|incursion oscura|purified gems?|gemas? purificadas?)\\b").containsMatchIn(text)
+        val normal = Regex("\\b(?:normal raid|regular raid|raid comum|reide comum|incursion normal)\\b").containsMatchIn(text)
+        if (shadow && normal) return emptyList()
+        val choices = (index[cp].orEmpty() + catalog).distinct().filter { choice ->
+            symbolCount(choice.tier) == detectedLevel &&
+                meta.pokemon[choice.id]?.let { bossCp(it, choice.tier) } == cp &&
+                (!shadow || choice.tier.contains("SHADOW")) &&
+                (!normal || !choice.tier.contains("SHADOW"))
+        }
+        val named = choices.filter { choice ->
+            val label = raidKey(choice.id).replace(" shadow", "")
+            lines.any { line -> (line.top + line.bottom) / 2f in .16f.. .39f &&
+                line.left < .65f && line.right > .35f && raidKey(line.text) == label }
+        }
+        val evidence = named.ifEmpty { choices }
+        val pool = evidence.filter { it in catalog }.ifEmpty { evidence }
+        if (com.mewname.app.BuildConfig.DEBUG) android.util.Log.d("RaidReadTiming",
+            "cpIndex cp=$cp level=$detectedLevel shadow=$shadow normal=$normal candidates=$pool")
+        return pool.sortedWith(compareBy<RaidChoice> { meta.pokemon[it.id]?.dex ?: Int.MAX_VALUE }
+            .thenBy { it.id }.thenBy { it.tier })
+    }
+
+    /** Join only adjacent numeric fragments with matching baselines and glyph heights. */
+    internal fun bossCpLines(lines: List<BattleOcrLine>): List<BattleOcrLine> {
+        val band = lines.filter { (it.top + it.bottom) / 2f in .13f.. .28f }
+        val fragments = band.filter { it.text.trim().matches(Regex("[0-9]{1,5}")) }.sortedBy { it.left }
+        val joined = fragments.zipWithNext().mapNotNull { (left, right) ->
+            val height = minOf(left.bottom-left.top, right.bottom-right.top)
+            val overlap = minOf(left.bottom,right.bottom)-maxOf(left.top,right.top)
+            val gap = right.left-left.right
+            if (height <= 0 || overlap < height * .8f || gap !in 0f.. .035f ||
+                kotlin.math.abs((left.bottom-left.top)-(right.bottom-right.top)) > height*.25f) return@mapNotNull null
+            val text = left.text.trim()+right.text.trim()
+            if (parseBossCp(text) == null) return@mapNotNull null
+            BattleOcrLine(text,left.left,minOf(left.top,right.top),right.right,maxOf(left.bottom,right.bottom))
+        }
+        return (band.filter { parseBossCp(it.text) != null } + joined).filter { it.left < .65f && it.right > .35f }
     }
 
     // OCR may attach a background stroke after the digits; never repair digits

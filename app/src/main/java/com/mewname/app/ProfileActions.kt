@@ -32,7 +32,7 @@ internal fun ProfileHeaderAction(kind: String, description: String, enabled: Boo
                 }
             }
         } else {
-            Icon(painterResource(if (kind == "edit") android.R.drawable.ic_menu_edit else android.R.drawable.ic_menu_camera),
+            Icon(if (kind == "edit") androidx.compose.ui.graphics.vector.rememberVectorPainter(AppIcons.Edit) else painterResource(android.R.drawable.ic_menu_camera),
                 contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
         }
     }
@@ -49,7 +49,7 @@ internal fun ProfileMenuRow(title: String, enabled: Boolean = true, onClick: () 
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(title, modifier = Modifier.weight(1f))
-            Text("›", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 12.dp))
+            Icon(AppIcons.Next, contentDescription = null, modifier = Modifier.padding(start = 12.dp))
         }
     }
 }

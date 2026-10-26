@@ -164,6 +164,8 @@ class MainActivity : ComponentActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DailyMissionStore(applicationContext).initializeDefaults(defaultDailyMissions(savedAppLanguage(applicationContext)))
+        AutomaticBackup.initialize(applicationContext)
         openBubbleDestination(intent)
         ContextCompat.registerReceiver(
             this,
@@ -269,7 +271,8 @@ class MainActivity : ComponentActivity() {
                             onBack = { viewModel.navigateTo(AppScreen.HOME) },
                             onAdd = { viewModel.navigateTo(AppScreen.PRESET_EDIT, NEW_PRESET_ID) },
                             onEdit = { viewModel.navigateTo(AppScreen.PRESET_EDIT, it) },
-                            onDelete = { viewModel.removeConfig(context, it) }
+                            onDelete = { viewModel.removeConfig(context, it) },
+                            onOrder = { viewModel.reorderConfigs(context, it) }
                         )
                     }
 
@@ -541,7 +544,7 @@ internal fun AppUpdateScreen(
                 title = { Text(lt(language, "Atualizacao do App", "App Update", "Actualizacion de la App")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
+                        Icon(AppIcons.Back, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
@@ -732,7 +735,7 @@ private fun LegacyMovesScreen(onBack: () -> Unit) {
                 title = { Text(lt(language, "Ataques Legados", "Legacy Moves", "Ataques Legados")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
+                        Icon(AppIcons.Back, lt(language, "Voltar", "Back", "Volver"))
                     }
                 },
                 actions = {
@@ -813,7 +816,7 @@ private fun AdventureEffectsScreen(onBack: () -> Unit) {
                 title = { Text(lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
+                        Icon(AppIcons.Back, lt(language, "Voltar", "Back", "Volver"))
                     }
                 },
                 actions = {
@@ -860,7 +863,7 @@ private fun DonationScreen(onBack: () -> Unit) {
                 title = { Text(lt(language, "Doacao", "Donate", "Donacion")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(AppIcons.Back, "Voltar")
                     }
                 }
             )
@@ -911,7 +914,7 @@ private fun TestMenuScreen(
                 title = { Text(lt(language, "Teste", "Test", "Prueba")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(AppIcons.Back, "Voltar")
                     }
                 }
             )
@@ -980,7 +983,7 @@ internal fun HelpMenuScreen(
                 title = { Text(lt(language, "Ajuda", "Help", "Ayuda")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(AppIcons.Back, "Voltar")
                     }
                 }
             )
@@ -1016,8 +1019,8 @@ internal fun HelpMenuScreen(
                         Text(lt(language, "App principal", "Main app", "App principal"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         HelpLine(lt(language, "Calendário", "Calendar", "Calendario"), lt(language, "Consulte o mês, selecione um dia e filtre os eventos por categoria. Toque em um evento para ver datas e a publicação original. Atualizar busca os dados do calendário; a última consulta fica salva para uso sem internet.", "Browse the month, select a day and filter events by category. Tap an event for dates and the original post. Refresh downloads calendar data; the last successful update remains available offline.", "Consulta el mes, selecciona un día y filtra por categoría. Toca un evento para ver las fechas y la publicación original. Actualizar descarga los datos; la última consulta queda disponible sin conexión."))
                         HelpLine(lt(language, "Codigos Promocionais", "Promo Codes", "Codigos Promocionales"), lt(language, "Consulte recompensas e validade, copie o codigo ou toque em Resgatar para abrir a loja oficial. Disponivel significa listado pela fonte, sem garantia de resgate para sua conta. Validade desconhecida e mostrada quando a fonte nao informa a data.", "View rewards and expiry, copy a code or open the official redemption store. Available means listed by the source, not guaranteed redeemable for your account. Unknown expiry is shown when no public date is supplied.", "Consulta recompensas y vencimiento, copia el codigo o abre la tienda oficial. Disponible significa listado por la fuente; el canje depende de la cuenta. Se indica cuando la fecha es desconocida."))
-                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. Toque em um campo para configurar os simbolos e adiciona-lo ao nome. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. Tap a field to configure its symbols and add it to the name. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. Toca un campo para configurar sus simbolos y agregarlo al nombre. La superposición solo usa formatos guardados."))
-                        HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e mais uma vez para limpar. Escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and once more to clear it. Choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y una vez mas para limpiarla. Elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado."))
+                        HelpLine(lt(language, "Definir Nomes", "Name Presets", "Definir Nombres"), lt(language, "Crie os formatos que a sobreposição usa para gerar apelidos. Adicione campos como nome, IV, liga PvP, genero, tamanho, fundo especial e ataques legados. Toque em um campo para configurar os simbolos e adiciona-lo ao nome. Pressione e arraste os blocos em Padrão do Nome para reorganizá-los; o preview acompanha a nova ordem. A sobreposição usa apenas formatos ja salvos.", "Create the formats used by the overlay to generate nicknames. Add fields like name, IV, PvP league, gender, size, special background, and legacy moves. Tap a field to configure its symbols and add it to the name. The overlay only uses saved formats.", "Crea los formatos que usa la superposición para generar apodos. Agrega campos como nombre, IV, liga PvP, genero, tamano, fondo especial y ataques legado. Toca un campo para configurar sus simbolos y agregarlo al nombre. La superposición solo usa formatos guardados."))
+                        HelpLine(lt(language, "Filtros", "Filters", "Filtros"), lt(language, "Monte buscas para Pokemon ou Pessoas. Toque uma opcao para incluir, toque de novo para excluir e mais uma vez para limpar. Escolha se ela combina com & ou vira alternativa com virgula. O texto copiado respeita o idioma selecionado. A primeira aba reúne suas tags favoritas. Mantenha uma tag pressionada para abrir o editor e marcar ou desmarcar Favorita pelo toggle. Criar tag usa um único campo: o texto da tag também será usado na busca. Ela fica em Minhas tags e pode receber um ícone. O primeiro bloco de Minhas tags permite criar uma tag. No editor aberto por toque prolongado, troque o ícone ou edite/exclua uma tag criada. No campo Filtro copiável, mantenha um bloco pressionado e arraste para mudar a ordem. Novas tags entram no final; copiar e salvar preservam a ordem exibida. Os recursos também estão disponíveis na sobreposição.", "Build searches for Pokemon or People. Tap an option to include it, tap again to exclude it, and once more to clear it. Choose whether it combines with & or becomes an alternative with comma. Copied text follows the selected language. The first tab contains favorite tags. Hold a tag to open its editor and use the Favorite toggle. Create tag uses one field for both the tag name and search text, under My tags with an optional icon. The first tile in My tags creates a tag. Hold a tag to change its icon or edit/delete a custom tag. In Copyable filter, hold and drag a block to reorder it. New tags are appended; copying and saving preserve the displayed order. These features also work in the overlay.", "Crea busquedas para Pokemon o Personas. Toca una opcion para incluirla, otra vez para excluirla y una vez mas para limpiarla. Elige si combina con & o si es alternativa con coma. El texto copiado respeta el idioma seleccionado. La primera pestaña reúne etiquetas favoritas. Mantén pulsada una etiqueta para abrir el editor y cambiar Favorita con el interruptor. Crear etiqueta usa un solo campo para el nombre y el texto de búsqueda, con icono opcional. El primer bloque de Mis etiquetas permite crear una etiqueta. Mantén pulsada una etiqueta para cambiar el icono o editar/eliminar una etiqueta creada. En Filtro copiable, mantén pulsado un bloque y arrástralo para cambiar el orden. Las etiquetas nuevas se añaden al final; copiar y guardar conservan el orden mostrado. También funciona en la superposición."))
                         HelpLine("Pokedex", lt(language, "Pesquise por nome, numero ou apelido do catalogo. Filtre por tipo e abra os cards para comparar tipos, atributos base e formas conhecidas.", "Search by name, number, or catalog alias. Filter by type and use the cards to compare typing, base stats, and known forms.", "Busca por nombre, numero o alias del catalogo. Filtra por tipo y usa las tarjetas para comparar tipos, estadisticas base y formas conocidas."))
                         HelpLine(lt(language, "Coleções", "Collections", "Colecciones"), lt(language,
                             "Organize sua coleção pessoal de Pokémon. Use a busca e os filtros para localizar registros e marque os que você possui.",
@@ -1025,11 +1028,11 @@ internal fun HelpMenuScreen(
                             "Organiza tu colección personal de Pokémon. Usa la búsqueda y los filtros para encontrar registros y marcar los que tienes."))
                         HelpLine(lt(language, "Tipos", "Types", "Tipos"), lt(language, "Selecione ate dois tipos defensivos para ver fraquezas, resistencias e resistencias duplas. Use junto com Raids para decidir ataque e sobrevivencia.", "Select up to two defensive types to see weaknesses, resistances, and double resistances. Use it with Raids to decide attack and survivability.", "Selecciona hasta dos tipos defensivos para ver debilidades, resistencias y resistencias dobles. Usalo con Raids para decidir ataque y supervivencia."))
                         HelpLine(lt(language, "Missões diárias", "Daily missions", "Misiones diarias"), lt(language,
-                            "Abra Missões diárias pelo atalho da tela principal. Toque em +, escreva o nome da tarefa, escolha um ícone e toque em Salvar. Use Buscar ícone para localizar opções como PokéStop e caixa de tarefas diárias. Você pode criar quantas missões quiser. Toque no nome de uma missão para editar o nome ou o ícone; use a lixeira e confirme para excluir. As missões são lembretes pessoais, salvos neste aparelho.\n\nNa tela Missões diárias, marque a caixa de seleção para concluir ou desmarque para desfazer. Uma missão desmarcada volta à sobreposição enquanto esse modo estiver ativo. Todas as missões cadastradas voltam a ficar pendentes à meia-noite, conforme a data e o fuso horário do celular, sem precisar cadastrá-las novamente. Nome e ícone são preservados. Para deixar de repetir uma tarefa, exclua a missão.\n\nCom o modo de sobreposição ativo e missões pendentes, uma caixa mostra os ícones das tarefas. Toque em um ícone para marcar a missão como concluída e removê-la da caixa. A conclusão é manual: o app não verifica nem resgata tarefas no Pokémon GO. Arraste pela pequena barra no topo da caixa para movê-la; a posição fica salva. Se houver mais ícones do que espaço, role a lista. Quando todas as missões forem concluídas, a caixa desaparece.",
+                            "Abra Missões diárias pelo atalho da tela principal. Ao iniciar uma instalação nova, seis missões padrão já ficam cadastradas. O botão + serve para criar suas próprias missões. Missões já cadastradas são preservadas, e tarefas excluídas não reaparecem automaticamente. Toque em +, escreva o nome da tarefa, escolha um ícone e toque em Salvar. Use Buscar ícone para localizar opções como PokéStop e caixa de tarefas diárias. Você pode criar quantas missões quiser. Toque no nome de uma missão para editar o nome ou o ícone; use a lixeira e confirme para excluir. As missões são lembretes pessoais, salvos neste aparelho.\n\nPara mudar a ordem, pressione e segure o bloco de uma missão, arraste para cima ou para baixo e solte. Nas bordas, a lista rola automaticamente. A mesma ordem aparece na sobreposição. Na tela Missões diárias, ative o controle para concluir ou desative para desfazer. Uma missão desmarcada volta à sobreposição enquanto esse modo estiver ativo. Todas as missões cadastradas voltam a ficar pendentes à meia-noite, conforme a data e o fuso horário do celular, sem precisar cadastrá-las novamente. Nome e ícone são preservados. Para deixar de repetir uma tarefa, exclua a missão.\n\nCom o modo de sobreposição ativo e missões pendentes, uma caixa mostra os ícones das tarefas. Toque em um ícone para marcar a missão como concluída e removê-la da caixa. A conclusão é manual: o app não verifica nem resgata tarefas no Pokémon GO. Em Treinador > Missões na sobreposição, escolha se a caixa fica livre ou vinculada ao botão de leitura. No modo livre, arraste pela pequena barra no topo; a posição fica salva. Quando vinculada, escolha acima, abaixo ou acima e abaixo: as missões acompanham o botão, e o último modo divide as pendentes, deixando uma missão extra acima quando a quantidade é ímpar. Se houver mais ícones do que espaço, role a lista. Quando todas as missões forem concluídas, a caixa desaparece.",
                             "Open Daily missions from the home screen shortcut. Tap +, enter a task name, choose an icon and tap Save. Use Find icon to locate options such as PokéStop and the daily research box. You can create as many missions as you want. Tap a mission name to edit its name or icon; use the trash button and confirm to delete it. Missions are personal reminders saved on this device.\n\nOn the Daily missions screen, check the checkbox to complete a task or uncheck it to undo. An unchecked mission returns to the overlay while that mode is active. All saved missions become pending again at midnight according to the phone's date and time zone, without having to recreate them. Names and icons are preserved. Delete a mission to stop repeating it.\n\nWith overlay mode active and missions pending, a box displays the task icons. Tap an icon to mark that mission complete and remove it from the box. Completion is manual: the app does not check or claim tasks in Pokémon GO. Drag the small bar at the top of the box to move it; its position is saved. Scroll the list when there are more icons than fit. The box disappears when all missions are complete.",
                             "Abre Misiones diarias desde el acceso de la pantalla principal. Toca +, escribe el nombre de la tarea, elige un icono y pulsa Guardar. Usa Buscar icono para encontrar opciones como Poképarada y la caja de tareas diarias. Puedes crear tantas misiones como quieras. Toca el nombre para editarlo o cambiar el icono; usa la papelera y confirma para eliminar. Son recordatorios personales guardados en este dispositivo.\n\nEn Misiones diarias, marca la casilla para completar una tarea o desmárcala para deshacer. Una misión desmarcada vuelve a la superposición si está activa. Todas las misiones guardadas vuelven a estar pendientes a medianoche según la fecha y zona horaria del celular, sin tener que crearlas de nuevo. Se conservan nombres e iconos. Elimina una misión para dejar de repetirla.\n\nCon la superposición activa y misiones pendientes, una caja muestra los iconos de las tareas. Toca un icono para completar la misión y retirarla de la caja. La finalización es manual: la app no comprueba ni reclama tareas en Pokémon GO. Arrastra la pequeña barra superior para mover la caja; su posición queda guardada. Desplaza la lista si no caben todos los iconos. La caja desaparece cuando completas todas las misiones."))
                         HelpLine(lt(language, "Raids", "Raids", "Raids"), lt(language, "Selecione a raid para ver golpes do chefe, fraquezas, PC de captura e atacantes com golpes sugeridos. Atualize pelo app principal; a sobreposição usa os dados salvos. O filtro combina espécies e tipos de golpes; confira as formas e os ataques.", "Select a raid for boss moves, weaknesses, catch CP and counters with recommended attacks. Update in the main app; overlay mode reads saved data. Check forms and moves after using the species and attack filter.", "Selecciona una incursión para ver ataques, debilidades, PC de captura y sugerencias. Actualiza en la app principal; la superposición usa datos guardados. Revisa formas y ataques al usar el filtro."))
-                        HelpLine(lt(language, "Equipe GO Rocket", "Team GO Rocket", "Equipo GO Rocket"), lt(language, "Consulte recrutas, lideres e Giovanni no app. Filtre por grupo e pesquise nomes, tipos ou falas no idioma selecionado ou no original. Cada bloco mostra as tres posicoes, capturas possiveis e fraquezas. Atualizar consulta o Leek Duck; sem internet, a ultima lista salva continua disponivel.", "Browse grunts, leaders and Giovanni in the app. Filter or search names, types and quotes in your selected language or the original. Cards show three slots, catchable Pokemon and weaknesses. Refresh checks Leek Duck; saved lists remain available offline.", "Consulta reclutas, lideres y Giovanni. Filtra y busca nombres, tipos o frases en el idioma seleccionado o en el original. Se muestran posiciones, capturas y debilidades. La ultima lista queda disponible sin conexion."))
+                        HelpLine(lt(language, "Equipe GO Rocket", "Team GO Rocket", "Equipo GO Rocket"), lt(language, "Consulte recrutas, lideres e Giovanni no app. Filtre por grupo e pesquise nomes, tipos ou falas no idioma selecionado ou no original. Cada bloco mostra o personagem, sua fala e os Pokémon das três posições com ícones de fraquezas. Toque em um Pokémon de cada posição para ver sugestões de espécies e ataques por pontuação ofensiva estimada; toque novamente para remover. As fraquezas aparecem por ícones, das mais eficazes para as menos eficazes. Uma única equipe de até três espécies cobre os adversários selecionados. Seleções parciais consideram apenas os adversários marcados. Cada cartão mostra um rápido seguido de até dois carregados; o segundo só aparece se ampliar a cobertura. A seleção adiciona os integrantes que mais complementam a cobertura já obtida, normalizando cada adversário pela melhor pontuação disponível; não garante a combinação global ótima. Para cada adversário, usa o melhor dos carregados, sem somar seus danos; O símbolo escolhido em Definir nome identifica golpes legados/especiais. A pontuação combina o Ataque base, o dano e a energia dos golpes PvP, a duração do rápido, o bônus de mesmo tipo (1,2×) e a eficácia contra o adversário. Fórmula: Ataque base × [dano ajustado do rápido + dano ajustado do carregado × energia gerada ÷ custo de energia] ÷ turnos do rápido ÷ 100. Maior pontuação indica maior rendimento ofensivo estimado contra o mesmo adversário; não é porcentagem, DPS ou tempo de vitória. Não considera defesa, PV, níveis, IVs, escudos, animações, efeitos dos golpes ou pausas da Equipe Rocket. Atualizar consulta o Leek Duck; sem internet, a ultima lista salva continua disponivel.", "Browse grunts, leaders and Giovanni in the app. Filter or search names, types and quotes in your selected language or the original. Cards show the character, quote and Pokémon with weakness icons. Select a Pokémon in each slot for species and moves ranked by estimated offense; tap again to deselect. Weakness icons are ordered from strongest to weakest. One team of up to three species covers all selected opponents. Partial selections only consider marked opponents. Each card shows one fast and up to two charged moves, with a second only when it adds coverage. Members are chosen greedily by complementary coverage normalized per opponent; this does not guarantee a global optimum. Each opponent uses the better charged move, never both damages added together; The symbol chosen in Name formatting marks legacy/special moves. Score = base Attack × [adjusted fast power + adjusted charged power × energy gained ÷ energy cost] ÷ fast turns ÷ 100. Adjusted power includes same-type bonus (1.2×) and effectiveness. Higher scores estimate higher offensive output against the same opponent, not a percentage, DPS or win time. Defense, HP, levels, IVs, shields, animations, move effects and Rocket pauses are excluded. Refresh checks Leek Duck; saved lists remain available offline.", "Consulta reclutas, lideres y Giovanni. Filtra y busca nombres, tipos o frases en el idioma seleccionado o en el original. Se muestran el personaje, su frase y los Pokémon con iconos de debilidad. Selecciona un Pokémon por posición para ver especies y ataques por puntuación ofensiva estimada; toca de nuevo para quitarlo. Los iconos de debilidad van de mayor a menor eficacia. Un equipo de hasta tres especies cubre los rivales seleccionados. Selecciones parciales solo consideran los rivales marcados. Cada tarjeta muestra un rápido y hasta dos cargados; el segundo solo si añade cobertura. Se eligen miembros por cobertura complementaria normalizada por rival, sin garantizar el óptimo global. Se usa el mejor cargado por rival, sin sumar ambos daños; El símbolo elegido en Definir nombre identifica ataques de legado/especiales. Puntuación = Ataque base × [daño ajustado del rápido + daño ajustado del cargado × energía generada ÷ coste] ÷ turnos del rápido ÷ 100. Incluye bonus de mismo tipo (1,2×) y eficacia. Un valor mayor estima más rendimiento ofensivo contra el mismo rival; no es porcentaje, DPS ni tiempo de victoria. Excluye defensa, PS, niveles, IV, escudos, animaciones, efectos de ataques y pausas Rocket. La ultima lista queda disponible sin conexion."))
                         HelpLine(lt(language, "Pesquisas de Campo", "Field Research", "Investigaciones de Campo"), lt(language, "Consulte tarefas de campo e recompensas no app, com busca e filtros de pesquisas comuns e de evento. A tela salva o catalogo para a sobreposição e para consultas sem internet. Na sobreposição, o catalogo salvo e usado sem consulta automatica a internet; atualize somente pela tela normal de Pesquisas de Campo. Sem dados salvos ou correspondencias, a sobreposição pede uma atualizacao nessa tela.", "Browse field tasks and rewards in the app, with search and regular/event filters. This screen saves the shared catalog for offline overlay scans. The overlay never downloads updates. Use the normal Field Research screen to update; the overlay directs you there when saved data or matches are missing.", "Consulta tareas de campo y recompensas en la app, con búsqueda y filtros. El catálogo se guarda para consultas sin conexión. La superposición usa exclusivamente los datos guardados. Actualiza desde la pantalla normal de investigaciones cuando falten datos o coincidencias."))
                         HelpLine(lt(language, "Ovos", "Eggs", "Huevos"), lt(language, "Filtre por distancia e origem: comuns, presentes, rotas e Sincroaventura. Consulte Pokemon, CP, shiny e raridade quando confirmada. Avisos de listas incompletas sao preservados. Textos descritivos do Leek Duck permanecem no idioma original. A fonte e a ultima consulta aparecem no fim de cada tela.", "Filter eggs by distance and origin. View Pokemon, CP, shiny and confirmed rarity. Incomplete-list notices are preserved. Leek Duck descriptions remain in their original language. Source and last checked date appear at the bottom.", "Filtra huevos por distancia y origen. Consulta Pokemon, CP, shiny y rareza confirmada. Se conservan avisos de listas incompletas y descripciones originales. La fuente y la ultima consulta aparecen al final."))
                         HelpLine(lt(language, "Efeitos de Aventura", "Adventure Effects", "Efectos de Aventura"), lt(language,
@@ -1057,7 +1060,7 @@ internal fun HelpMenuScreen(
                             "Na tela de captura do jogo, toque na sobreposição para ler nome e PC. Confira a espécie e a forma no campo Nome; corrija os campos e toque em Recalcular. Nível é opcional: vazio consulta os níveis de 1 a 51 em passos de 0,5; preenchido restringe a busca. A tabela mostra IVs na ordem Ataque/Defesa/PS, seu percentual e o nível correspondente. São combinações compatíveis com o PC, não IVs confirmados nem probabilidades; a origem do encontro pode restringir as possibilidades. Confirme pela avaliação após capturar. X fecha o modal.",
                             "On the catch screen, tap the overlay to read the name and CP. Check the species and form in Name; edit fields and tap Recalculate. Level is optional: blank searches levels 1 to 51 in half-level steps; a value restricts the search. The table shows Attack/Defense/HP IVs, their percentage and level. These are CP-compatible combinations, not confirmed IVs or probabilities; encounter origin may restrict possibilities. Confirm with appraisal after catching. X closes the panel.",
                             "En la pantalla de captura, toca la superposición para leer nombre y PC. Revisa especie y forma en Nombre; corrige los campos y pulsa Recalcular. Nivel es opcional: vacío busca de 1 a 51 en pasos de 0,5; un valor limita la búsqueda. La tabla muestra IV de Ataque/Defensa/PS, porcentaje y nivel. Son combinaciones compatibles con el PC, no IV confirmados ni probabilidades; el origen del encuentro puede limitar las posibilidades. Confirma con la valoración tras capturar. X cierra el panel."))
-                        HelpLine(lt(language, "Filtros na sobreposição", "Overlay filters", "Filtros en la superposición"), lt(language, "Na tela Filtros do app principal, crie e salve filtros de Pokémon ou amigos. Para usá-los no jogo, mantenha a bolha pressionada e escolha Filtros Pokémon ou Filtros amigos. Toque em um filtro salvo para copiar o texto; o painel fecha automaticamente. Depois, cole o texto no campo de busca correspondente do Pokémon GO. Role a lista para ver outros filtros ou toque no X para fechar sem copiar. Se a lista estiver vazia, salve um filtro dessa categoria no app principal.", "On the main app’s Filters screen, create and save Pokémon or friend filters. To use them in the game, hold the bubble and choose Pokémon filters or Friend filters. Tap a saved filter to copy its text; the panel closes automatically. Then paste it into the corresponding Pokémon GO search field. Scroll to see more filters or tap X to close without copying. If the list is empty, save a filter for that category in the main app.", "En la pantalla Filtros de la app principal, crea y guarda filtros de Pokémon o amigos. Para usarlos en el juego, mantén pulsada la burbuja y elige Filtros Pokémon o Filtros amigos. Toca un filtro guardado para copiar el texto; el panel se cierra automáticamente. Después, pega el texto en el campo de búsqueda correspondiente de Pokémon GO. Desplázate para ver más filtros o toca la X para cerrar sin copiar. Si la lista está vacía, guarda un filtro de esa categoría en la app principal."))
+                        HelpLine(lt(language, "Filtros na sobreposição", "Overlay filters", "Filtros en la superposición"), lt(language, "Na tela Filtros do app principal, crie e salve filtros de Pokémon ou amigos. Para usá-los no jogo, mantenha a bolha pressionada e escolha Filtros Pokémon ou Filtros amigos. Toque em um filtro salvo para abrir o painel rápido. Arraste pela alça superior para movê-lo. Toque nas tags para alternar normal, negação e desativada; toque em & ou vírgula para mudar a condição. Copiar mantém o painel aberto e o jogo continua acessível fora dele. Os ajustes não substituem o filtro salvo. O ícone de cópia da lista continua copiando e fechando a lista. Depois, cole o texto no campo de busca correspondente do Pokémon GO. Role a lista para ver outros filtros ou toque no X para fechar sem copiar. Toque em + para criar um filtro diretamente no painel. Em filtros de Pokémon, o lápis abre o texto salvo para ajustes; Salvar guarda uma nova combinação, preservando a anterior. Copiar fecha o painel para você colar no jogo.", "On the main app’s Filters screen, create and save Pokémon or friend filters. To use them in the game, hold the bubble and choose Pokémon filters or Friend filters. Tap a saved filter to open the movable quick panel. Drag its top handle. Tap tags to cycle normal, negated and disabled; tap an operator to switch AND/OR. Copy keeps this panel open and the game remains accessible outside it. Changes do not overwrite the saved filter. The list copy icon still copies and closes the list. Then paste it into the corresponding Pokémon GO search field. Scroll to see more filters or tap X to close without copying. Tap + to create a filter directly in the panel. For Pokémon filters, the pencil opens saved text for editing; Save stores a new combination and preserves the original. Copy closes the panel so you can paste into the game.", "En la pantalla Filtros de la app principal, crea y guarda filtros de Pokémon o amigos. Para usarlos en el juego, mantén pulsada la burbuja y elige Filtros Pokémon o Filtros amigos. Toca un filtro guardado para abrir el panel rápido móvil. Arrastra su asa superior. Toca etiquetas para alternar normal, negación y desactivada, y los operadores para cambiar la condición. Copiar mantiene el panel abierto y el juego accesible fuera de él. Los cambios no reemplazan el filtro guardado. Después, pega el texto en el campo de búsqueda correspondiente de Pokémon GO. Desplázate para ver más filtros o toca la X para cerrar sin copiar. Toca + para crear un filtro en el panel. En filtros de Pokémon, el lápiz permite ajustar el texto guardado; Guardar conserva la combinación original. Copiar cierra el panel para pegar en el juego."))
                         HelpLine(lt(language, "Leitura de ovos, Rocket e pesquisas", "Egg, Rocket and research scanning", "Lectura de huevos, Rocket e investigaciones"), lt(language,
                             "No jogo, abra os ovos, a fala do recruta ou as pesquisas de campo e toque na sobreposição. A janela mostra possibilidades para as distancias, a fala ou as tarefas visiveis. Ovos antigos e origens diferentes podem ter outras especies; falas compartilhadas mostram ambos os recrutas. Pesquisas com o mesmo texto podem ter recompensas diferentes por evento e icone: as opcoes sao separadas e nao sao todas garantidas. Tarefas nao reconhecidas ou ausentes no catalogo nao recebem uma recompensa presumida. A sobreposição consulta somente os dados salvos. Atualize os catalogos nas telas normais do app; X volta ao jogo.",
                             "Open eggs, a grunt quote or field research in the game and tap the overlay. The window shows possibilities for the visible distances, quote or tasks. Older eggs and different origins may have other species; shared quotes show both grunts. Identical tasks may have different rewards by event and icon: options are separated and not all are guaranteed. Unrecognized or unlisted tasks are not assigned a guessed reward. The overlay only reads saved data. Update catalogs in the normal app screens; X returns to the game.",
@@ -1106,7 +1109,7 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
                 title = { Text(lt(language, "Privacidade", "Privacy", "Privacidad")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(AppIcons.Back, "Voltar")
                     }
                 }
             )
@@ -1439,7 +1442,7 @@ private fun HomeActionSquare(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Box(Modifier.width(76.dp), contentAlignment = Alignment.Center) { customIcon?.invoke() }
                 Text(title, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text("›", style = MaterialTheme.typography.titleLarge)
+                Icon(AppIcons.Next, contentDescription = null)
             }
         }
         return
@@ -1692,7 +1695,7 @@ private fun IvValidationScreen(
                 title = { Text(lt(language, "Validador IV", "IV Validator", "Validador IV")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
+                        Icon(AppIcons.Back, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
@@ -1869,9 +1872,11 @@ fun PresetListScreen(
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (String) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    onOrder: (List<String>) -> Unit
 ) {
     val language = appLanguage()
+    var deleting by remember { mutableStateOf<NamingConfig?>(null) }
     val generator = remember { NameGenerator() }
     val exampleData = remember {
         PokemonScreenData(
@@ -1909,26 +1914,20 @@ fun PresetListScreen(
                 title = { Text(lt(language, "Formatos de Nome", "Name Presets", "Formatos de Nombre")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
+                        Icon(AppIcons.Back, lt(language, "Voltar", "Back", "Volver"))
                     }
                 },
                 actions = {
                     IconButton(onClick = onAdd) {
-                        Icon(Icons.Default.Add, lt(language, "Novo formato", "New preset", "Nuevo formato"))
+                        Icon(AppIcons.Add, lt(language, "Novo formato", "New preset", "Nuevo formato"))
                     }
                 }
             )
         }
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp, top = 16.dp, end = 16.dp,
-                bottom = 16.dp + LocalNavigationContentPadding.current
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            itemsIndexed(configs) { _, config ->
+        PresetOrderList(configs, onOrder, Modifier.fillMaxSize().padding(padding)) { config, cardModifier ->
                 val previewName = generator.generate(exampleData, config)
-                AppSectionCard(Modifier.fillMaxWidth()) {
+                AppSectionCard(cardModifier.fillMaxWidth()) {
                 ListItem(
                     colors = androidx.compose.material3.ListItemDefaults.colors(containerColor = Color.Transparent),
                     headlineContent = { Text(config.name, fontWeight = FontWeight.Bold) },
@@ -1942,13 +1941,22 @@ fun PresetListScreen(
                     },
                     modifier = Modifier.clickable { onEdit(config.id) },
                     trailingContent = {
-                        IconButton(onClick = { if (configs.size > 1) onDelete(config.id) }) {
-                            Icon(Icons.Default.Delete, lt(language, "Excluir", "Delete", "Eliminar"), tint = MaterialTheme.colorScheme.error)
+                        IconButton(enabled = configs.size > 1, onClick = { deleting = config }) {
+                            Icon(AppIcons.Delete, lt(language, "Excluir", "Delete", "Eliminar"), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 )
                 }
-            }
+        }
+    }
+    deleting?.let { config ->
+        Dialog(onDismissRequest = { deleting = null }) {
+            AppModalPanel(title = lt(language, "Excluir formato?", "Delete preset?", "Eliminar formato?"),
+                onClose = { deleting = null }, actions = {
+                    AppActionButton(onClick = { if (configs.size > 1) onDelete(config.id); deleting = null }) {
+                        Text(lt(language, "Excluir", "Delete", "Eliminar"))
+                    }
+                }) { Text(config.name) }
         }
     }
 }
@@ -1961,7 +1969,6 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
     var showSymbolPickerFor by remember { mutableStateOf<FieldSymbolOption?>(null) }
     var selectedField by remember { mutableStateOf<NamingField?>(null) }
     var showFixedTextDialog by remember { mutableStateOf(false) }
-    var selectedIndexForMove by remember { mutableStateOf<Int?>(null) }
 
     val generator = remember { NameGenerator() }
     val availableVariableFields = remember {
@@ -2068,7 +2075,7 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 title = { Text(lt(language, "Configurar Nome", "Edit Preset", "Configurar Nombre")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver"))
+                        Icon(AppIcons.Back, lt(language, "Voltar", "Back", "Volver"))
                     }
                 }
             )
@@ -2089,92 +2096,27 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text(
-                lt(language, "Preview do Apelido", "Nickname Preview", "Vista previa del apodo"),
-                style = sectionTitleStyle,
-                fontWeight = FontWeight.Bold
-            )
-            AppSectionCard(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        previewName,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Text(lt(language, "Padrao do Nome", "Name Pattern", "Patron del Nombre"), style = sectionTitleStyle, fontWeight = FontWeight.Bold)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                    .heightIn(min = 48.dp)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val effectiveBlocks = draftConfig.effectiveBlocks()
-                if (effectiveBlocks.isEmpty()) {
-                    Text(
-                        lt(language, "Nenhum campo adicionado ainda", "No fields added yet", "Todavia no se agregaron campos"),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
-                } else {
-                    effectiveBlocks.forEachIndexed { index, block ->
-                        val isSelected = selectedIndexForMove == index
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary)
-                                .border(if (isSelected) 2.dp else 0.dp, Color.White, RoundedCornerShape(8.dp))
-                                .clickable {
-                                    if (selectedIndexForMove == null) {
-                                        selectedIndexForMove = index
-                                    } else {
-                                        val selected = selectedIndexForMove!!
-                                        val reordered = effectiveBlocks.toMutableList()
-                                        Collections.swap(reordered, selected, index)
-                                        draftConfig = draftConfig.copy(blocks = reordered)
-                                        selectedIndexForMove = null
-                                    }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    block.localizedLabel(language),
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Icon(
-                                    Icons.Default.Clear,
-                                    null,
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .padding(start = 4.dp)
-                                        .clickable {
-                                            val updated = effectiveBlocks.toMutableList()
-                                            updated.removeAt(index)
-                                            draftConfig = draftConfig.copy(blocks = updated)
-                                        },
-                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary
-                                )
-                            }
+            AppSectionCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(lt(language, "Preview do Apelido", "Nickname Preview", "Vista previa del apodo"),
+                        style = sectionTitleStyle, fontWeight = FontWeight.Bold)
+                    androidx.compose.material3.Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                        color = appControlFill(selected = true), contentColor = appControlInk(),
+                        border = androidx.compose.foundation.BorderStroke(.75.dp, appControlInk().copy(alpha = .30f))) {
+                        Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
+                            Text(previewName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
+            }
+
+            AppSectionCard(Modifier.fillMaxWidth()) {
+              Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(lt(language, "Padrao do Nome", "Name Pattern", "Patron del Nombre"), style = sectionTitleStyle, fontWeight = FontWeight.Bold)
+                NamingPatternReorder(draftConfig.effectiveBlocks()) { blocks ->
+                    draftConfig = draftConfig.copy(blocks = blocks)
+                }
+              }
             }
 
             Text(lt(language, "Campos variaveis", "Variable Fields", "Campos Variables"), style = sectionTitleStyle, fontWeight = FontWeight.Bold)
@@ -2287,7 +2229,7 @@ private fun NamingDialogHeader(title: String, onDismiss: () -> Unit) {
         Text(title, Modifier.weight(1f), textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Default.Clear, lt(language, "Fechar", "Close", "Cerrar"))
+            Icon(AppIcons.Close, lt(language, "Fechar", "Close", "Cerrar"))
         }
     }
 }
@@ -2301,12 +2243,13 @@ private fun FieldConfigDialog(
     onAdd: () -> Unit
 ) {
     val language = appLanguage()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { NamingDialogHeader(field.localizedLabel(language), onDismiss) },
-        text = {
+    Dialog(onDismissRequest = onDismiss) {
+    AppModalPanel(
+        onClose = onDismiss,
+        title = field.localizedLabel(language),
+        content = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(fieldDescription(field, language), color = Color(0xFF555555))
+                Text(fieldDescription(field, language), color = LocalAppAppearance.current.text)
                 if (field == NamingField.UNIQUE_FORM) {
                     UniqueFormFieldConfigContent(
                         onPickSymbol = onPickSymbol,
@@ -2336,7 +2279,7 @@ private fun FieldConfigDialog(
                 }
             }
         },
-        confirmButton = {
+        actions = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -2349,6 +2292,7 @@ private fun FieldConfigDialog(
             }
         }
     )
+    }
 }
 
 @Composable
@@ -2552,7 +2496,7 @@ private fun VariableActionCard(
             if (leadingIcon != null) {
                 leadingIcon()
             } else {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(AppIcons.Add, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
             }
             Text(
                 label,
@@ -2680,10 +2624,11 @@ fun SymbolPickerDialog(
     )
     var customText by remember(title, initialValue) { mutableStateOf(initialValue) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { NamingDialogHeader(title, onDismiss) },
-        text = {
+    Dialog(onDismissRequest = onDismiss) {
+    AppModalPanel(
+        onClose = onDismiss,
+        title = title,
+        content = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppGlassTextField(
                     value = customText,
@@ -2711,8 +2656,9 @@ fun SymbolPickerDialog(
                 }
             }
         },
-        confirmButton = {}
+        actions = {}
     )
+    }
 }
 
 @Composable
@@ -2744,10 +2690,11 @@ private fun FixedTextDialog(
     val language = appLanguage()
     var customText by remember { mutableStateOf(TextFieldValue("")) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { NamingDialogHeader(lt(language, "Adicionar texto fixo", "Add fixed text", "Agregar texto fijo"), onDismiss) },
-        text = {
+    Dialog(onDismissRequest = onDismiss) {
+    AppModalPanel(
+        onClose = onDismiss,
+        title = lt(language, "Adicionar texto fixo", "Add fixed text", "Agregar texto fijo"),
+        content = {
             AppGlassTextField(
                 value = customText,
                 onValueChange = { customText = it },
@@ -2755,7 +2702,7 @@ private fun FixedTextDialog(
                 modifier = Modifier.fillMaxWidth()
             )
         },
-        confirmButton = {
+        actions = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -2774,6 +2721,7 @@ private fun FixedTextDialog(
             }
         }
     )
+    }
 }
 
 private data class MoveScreenCatalog<T>(

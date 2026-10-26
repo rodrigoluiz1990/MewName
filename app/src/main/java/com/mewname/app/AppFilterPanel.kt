@@ -19,7 +19,7 @@ internal fun AppFilterToggle(expanded: Boolean, active: Boolean, onToggle: (Bool
         if (!it) focus.clearFocus()
     }) {
         BadgedBox(badge = { if (active) Badge() }) {
-            Icon(Icons.Default.Search, lt(language,
+            Icon(AppIcons.Search, lt(language,
                 if (expanded) "Ocultar filtros" else "Mostrar filtros",
                 if (expanded) "Hide filters" else "Show filters",
                 if (expanded) "Ocultar filtros" else "Mostrar filtros"))

@@ -233,11 +233,14 @@ internal class OcrPokemonNameReader(
                 !normalizeText(line.text).let { it.contains("DOCES") || it.contains("CANDY") || it.contains("CARAMELOS") }
         }
         val candidates = titleLines.mapNotNull { sanitizeNameCandidate(it.text)?.let(::normalizeText) }
+        val family = candyFamily?.let { familySuggester.familyMembersFor(context, it, null).map(::normalizeText).toSet() }
         for (candidate in candidates) {
-            names.firstOrNull { candidate == it.normalizedName || candidate in it.normalizedAliases }?.let { return it.name }
+            names.firstOrNull { candidate == it.normalizedName || candidate in it.normalizedAliases }?.let {
+                // A nickname can itself be another species. Conflicting candy must not confirm it.
+                if (family == null || it.normalizedName in family) return it.name
+            }
         }
         // Candy constrains a fuzzy nickname; it never identifies the evolution on its own.
-        val family = candyFamily?.let { familySuggester.familyMembersFor(context, it, null).map(::normalizeText).toSet() }
         if (family == null) {
             // Without candy evidence only accept a unique, one-character OCR repair
             // of a sufficiently long title. Never select an arbitrary close name.

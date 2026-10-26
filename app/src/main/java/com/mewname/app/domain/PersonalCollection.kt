@@ -54,7 +54,7 @@ object PersonalCollection {
         val enabled = prefs.getStringSet("groups", null)?.mapNotNull { raw ->
             PersonalCollectionGroup.entries.firstOrNull { it.name == raw }
         }?.toSet() ?: PersonalCollectionGroup.entries.toSet()
-        val entries = readEntries(prefs)
+        val entries = readEntries(context, prefs)
         val savedOrder = runCatching { JSONArray(prefs.getString("group_order", "[]")) }.getOrElse { JSONArray() }
         val order = normalizeOrder((0 until savedOrder.length()).mapNotNull { index ->
             PersonalCollectionGroup.entries.firstOrNull { it.name == savedOrder.optString(index) }
@@ -66,7 +66,7 @@ object PersonalCollection {
     private val entryCache = java.util.WeakHashMap<android.content.SharedPreferences, CachedEntries>()
 
     @Synchronized
-    private fun readEntries(prefs: android.content.SharedPreferences): Map<String, PersonalCollectionEntry> {
+    private fun readEntries(context: Context, prefs: android.content.SharedPreferences): Map<String, PersonalCollectionEntry> {
         val keys = prefs.getStringSet("entry_keys", null)
         val raw = if (keys == null) mapOf("legacy" to prefs.getString("entries", "[]").orEmpty())
             else keys.associateWith { prefs.getString("entry:" + it, "").orEmpty() }
@@ -76,17 +76,48 @@ object PersonalCollection {
         if (keys == null) {
             val array = runCatching { JSONArray(raw.getValue("legacy")) }.getOrElse { JSONArray() }
             for (i in 0 until array.length()) {
-                decodeEntry(array.optJSONObject(i))?.let { entries[it.target.key] = it }
+                decodeEntry(array.optJSONObject(i))?.let { entry ->
+                    val target = canonicalRegionalTarget(context, entry.target)
+                    entries[target.key] = PersonalCollectionEntry(target, entries[target.key]?.groups.orEmpty() + entry.groups)
+                }
             }
         } else {
             raw.forEach { (key, value) ->
-                val entry = if (cached?.raw?.get(key) == value) cached.entries[key]
-                    else decodeEntry(runCatching { JSONObject(value) }.getOrNull())
-                if (entry != null) entries[key] = entry
+                val entry = decodeEntry(runCatching { JSONObject(value) }.getOrNull())
+                if (entry != null) {
+                    val target = canonicalRegionalTarget(context, entry.target)
+                    entries[target.key] = PersonalCollectionEntry(target, entries[target.key]?.groups.orEmpty() + entry.groups)
+                }
             }
+        }
+        // Keep stable entry identities after merging aliases, so unrelated rows do not reload.
+        entries.keys.toList().forEach { key ->
+            cached?.entries?.get(key)?.takeIf { it == entries[key] }?.let { entries[key] = it }
         }
         entryCache[prefs] = CachedEntries(raw, entries)
         return entries
+    }
+
+    /** Merge legacy regional game IDs with their ordinary catalog keys, preserving captured flags. */
+    internal fun canonicalRegionalTarget(context: Context, target: PersonalCollectionTarget): PersonalCollectionTarget {
+        val aliased = CollectionFormAliases.resolve(context, target)
+        if (aliased.key != target.key) return aliased
+        val parts = runCatching { JSONArray(target.key) }.getOrNull() ?: return aliased
+        val code = parts.optString(1).removePrefix("GAME_FORM:").replace("_GALARIAN_STANDARD", "_GALARIAN")
+        if (!parts.optString(1).startsWith("GAME_FORM:")) return aliased
+        val match = Regex("^(.+)_(GALARIAN|GALAR|ALOLAN|ALOLA|HISUIAN|HISUI|PALDEAN|PALDEA)(_ZEN)?$").matchEntire(code) ?: return aliased
+        val region = when (match.groupValues[2]) {
+            "GALARIAN", "GALAR" -> "Galar"
+            "ALOLAN", "ALOLA" -> "Alola"
+            "HISUIAN", "HISUI" -> "Hisui"
+            else -> "Paldea"
+        }
+        val name = match.groupValues[1].replace('_', ' ') + " (" + region +
+            (if (match.groupValues[3].isNotEmpty()) " Zen" else "") + ")"
+        val canonical = names.canonicalName(context, name)
+        // Only fold an ID if the name resolver recognizes its exact regional form.
+        if (canonical == name) return aliased
+        return PersonalCollectionTarget(JSONArray(listOf(normalized(canonical), "")).toString(), canonical)
     }
 
     private fun decodeEntry(item: JSONObject?): PersonalCollectionEntry? {
@@ -126,15 +157,19 @@ object PersonalCollection {
         preferences(context).edit().putStringSet("groups", (if (enabled) current + group else current - group).map { it.name }.toSet()).apply()
     }
 
-    @Synchronized fun mark(context: Context, target: PersonalCollectionTarget, group: PersonalCollectionGroup, obtained: Boolean) {
+    @Synchronized fun mark(context: Context, originalTarget: PersonalCollectionTarget, group: PersonalCollectionGroup, obtained: Boolean) {
+        val target = canonicalRegionalTarget(context, originalTarget)
         if (obtained && !supports(target, group)) return
         val prefs = preferences(context)
-        val entries = readEntries(prefs)
+        val entries = readEntries(context, prefs)
         val old = entries[target.key]?.groups.orEmpty()
         val groups = if (obtained) old + group else old - group
         val existingKeys = prefs.getStringSet("entry_keys", null)
         val keys = (existingKeys ?: entries.keys).toMutableSet()
         val editor = prefs.edit()
+        // Remove aliases of this target so unmarking cannot resurrect a legacy flag.
+        keys.filter { it != target.key && canonicalRegionalTarget(context, PersonalCollectionTarget(it, "")).key == target.key }
+            .forEach { keys.remove(it); editor.remove("entry:" + it) }
         // Migrate the legacy array atomically on the first edit.
         if (existingKeys == null) {
             entries.values.forEach { editor.putString("entry:" + it.target.key, encodeEntry(it)) }

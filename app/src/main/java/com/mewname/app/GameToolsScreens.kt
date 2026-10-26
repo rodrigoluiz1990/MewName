@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +42,8 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -384,7 +388,7 @@ fun MovesScreen(onBack: () -> Unit) {
                 title = { Text(t(language, "Ataques", "Moves", "Ataques")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(AppIcons.Back, contentDescription = "Voltar")
                     }
                 },
                 actions = {
@@ -502,7 +506,7 @@ fun PokedexScreen(onBack: () -> Unit) {
             AppTopBar(
                 title = { Text("Pokédex") },
                 navigationIcon = { IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t(language, "Voltar", "Back", "Volver"))
+                    Icon(AppIcons.Back, contentDescription = t(language, "Voltar", "Back", "Volver"))
                 } },
                 actions = { AppFilterToggle(showFilters, query.isNotBlank() || selectedType != null, { showFilters = it }) }
             )
@@ -553,6 +557,21 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val language = appLanguage()
     var tabIndex by rememberSaveable { mutableStateOf(0) }
+    var creating by rememberSaveable { mutableStateOf(false) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var initialFilter by rememberSaveable { mutableStateOf("") }
+    var revision by remember { mutableStateOf(0) }
+    val storageKey = if (tabIndex == 0) SAVED_POKEMON_FILTERS_KEY else SAVED_PEOPLE_FILTERS_KEY
+    val filters = remember(storageKey, revision) { loadSavedFilters(context, storageKey) }
+    val inEditor = creating || editingId != null
+    fun closeEditor() { creating = false; editingId = null; initialFilter = ""; revision++ }
+    androidx.activity.compose.BackHandler(enabled = inEditor) { closeEditor() }
+    val save: (String) -> Unit = { value ->
+        val id = editingId
+        if (id != null) updateSavedFilter(context, storageKey, id, value)
+        else persistSavedFilters(context, storageKey, addSavedFilter(loadSavedFilters(context, storageKey).toMutableList(), value))
+        closeEditor()
+    }
     val tabTitles = listOf(
         t(language, "Pokemon", "Pokemon", "Pokemon"),
         t(language, "Pessoas", "People", "Personas")
@@ -562,12 +581,18 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
         containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
-                title = { Text(t(language, "Filtros", "Filters", "Filtros")) },
+                title = { Text(if (inEditor) {
+                    if (editingId != null) t(language, "Editar filtro", "Edit filter", "Editar filtro")
+                    else t(language, "Novo filtro", "New filter", "Nuevo filtro")
+                } else t(language, "Filtros", "Filters", "Filtros")) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    IconButton(onClick = { if (inEditor) closeEditor() else onBack() }) {
+                        Icon(AppIcons.Back, contentDescription = "Voltar")
                     }
                 },
+                actions = { if (!inEditor) IconButton(onClick = { initialFilter = ""; creating = true }) {
+                    Icon(AppIcons.Add, t(language, "Novo filtro", "New filter", "Nuevo filtro"))
+                } },
                 colors = TopAppBarDefaults.topAppBarColors()
             )
         }
@@ -581,15 +606,25 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
                 .padding(bottom = LocalNavigationContentPadding.current),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            AppPillTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
+            if (!inEditor) AppPillTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp, divider = {}) {
                 tabTitles.forEachIndexed { index, title ->
                     AppPillTab(selected = index == tabIndex, onClick = { tabIndex = index }, text = { Text(title) })
                 }
             }
-            when (tabIndex) {
-                0 -> PokemonFilterBuilder(context, language)
-                else -> PeopleFilterBuilder(context, language)
-            }
+            if (inEditor) androidx.compose.runtime.key(tabIndex, editingId, creating) {
+                if (tabIndex == 0) PokemonFilterBuilder(context, language, initialValue = initialFilter,
+                    onSaveFilter = save, showSaved = false)
+                else PeopleFilterBuilder(context, language, initialValue = initialFilter,
+                    onSaveFilter = save, showSaved = false)
+            } else if (filters.isEmpty()) {
+                Text(t(language, "Nenhum filtro salvo", "No saved filters", "No hay filtros guardados"), Modifier.padding(16.dp))
+            } else SavedFiltersSection(
+                title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"), filters = filters,
+                onCopy = { copyPlainText(context, it.value, language) },
+                onRemove = { entry -> persistSavedFilters(context, storageKey, filters.filterNot { it.id == entry.id }); revision++ },
+                onEdit = { _, _ -> },
+                onOpenEditor = { entry -> editingId = entry.id; initialFilter = entry.value }
+            )
         }
     }
 
@@ -666,6 +701,18 @@ fun RaidPlannerScreen(
         } finally {
             catalogLoading = false
         }
+        // Re-evaluate local schedule boundaries while this screen remains open.
+        while (true) {
+            kotlinx.coroutines.delay(60_000)
+            try {
+                val current = withContext(Dispatchers.IO) { counterRepository.catalog() }
+                live = groups(current)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                catalogError = true
+            }
+        }
     }
     val displayCategories = remember(live, savedRaids, loaded, catalogLoading) {
         sortRaidCategoriesByDex(normalizeRaidCategories(live, saved = false) +
@@ -721,7 +768,7 @@ fun RaidPlannerScreen(
             scrollable = false,
             actions = {
                 IconButton(onClick = { retry++ }, enabled = !catalogLoading) {
-                    Icon(Icons.Default.Refresh, contentDescription = t(language, "Atualizar", "Refresh", "Actualizar"))
+                    Icon(AppIcons.Refresh, contentDescription = t(language, "Atualizar", "Refresh", "Actualizar"))
                 }
             },
             title = t(language, "Raids", "Raids", "Raids"),
@@ -1030,7 +1077,7 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
                 title = { Text(t(language, "Coleções", "Collections", "Colecciones")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(AppIcons.Back, contentDescription = "Voltar")
                     }
                 }
             )
@@ -1090,7 +1137,7 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
                                     model = coil.request.ImageRequest.Builder(context)
                                         .data(pokemonShinyImageUrl(entry.number)).crossfade(true).build(),
                                     contentDescription = entry.localizedPokemonName,
-                                    modifier = Modifier.size(72.dp),
+                                    modifier = Modifier.size(64.dp),
                                     contentScale = androidx.compose.ui.layout.ContentScale.Fit
                                 )
                                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1131,13 +1178,13 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
                                     coil.compose.AsyncImage(
                                         model = coil.request.ImageRequest.Builder(context).data(entry.normalImageUrl).crossfade(true).build(),
                                         contentDescription = "${entry.localizedPokemonName} ${entry.costumeName}",
-                                        modifier = Modifier.size(58.dp),
+                                        modifier = Modifier.size(64.dp),
                                         contentScale = androidx.compose.ui.layout.ContentScale.Fit
                                     )
                                     coil.compose.AsyncImage(
                                         model = coil.request.ImageRequest.Builder(context).data(entry.shinyImageUrl).crossfade(true).build(),
                                         contentDescription = "${entry.localizedPokemonName} ${entry.costumeName} brilhante",
-                                        modifier = Modifier.size(58.dp),
+                                        modifier = Modifier.size(64.dp),
                                         contentScale = androidx.compose.ui.layout.ContentScale.Fit
                                     )
                                 }
@@ -1214,7 +1261,7 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
                     )
                     IconButton(onClick = { selectedBackground = null }) {
                         Icon(
-                            Icons.Default.Close,
+                            AppIcons.Close,
                             contentDescription = t(language, "Fechar", "Close", "Cerrar")
                         )
                     }
@@ -1241,9 +1288,13 @@ private fun CollectionVariantCheckbox(
 }
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun PokemonFilterBuilder(
+internal fun PokemonFilterBuilder(
     context: Context,
-    language: AppLanguage
+    language: AppLanguage,
+    onCopyFilter: ((String) -> Unit)? = null,
+    initialValue: String = "",
+    onSaveFilter: ((String) -> Unit)? = null,
+    showSaved: Boolean = true
 ) {
     var names by rememberSaveable { mutableStateOf("") }
     var nameDraft by rememberSaveable { mutableStateOf("") }
@@ -1258,96 +1309,22 @@ private fun PokemonFilterBuilder(
             addAll(loadSavedFilters(context, SAVED_POKEMON_FILTERS_KEY))
         }
     }
-    val sections = remember {
-        linkedMapOf(
-            "Status" to listOf(
-                FilterTokenOption("Brilhante", "Shiny", "Variocolor", "shiny", tokenPt = "brilhante", tokenEs = "variocolor"),
-                FilterTokenOption("Sombrio", "Shadow", "Oscuro", "shadow", tokenPt = "sombroso", tokenEs = "oscuro"),
-                FilterTokenOption("Purificado", "Purified", "Purificado", "purified", tokenPt = "purificado", tokenEs = "purificado"),
-                FilterTokenOption("Sortudo", "Lucky", "Suerte", "lucky", tokenPt = "sortudo", tokenEs = "suerte"),
-                FilterTokenOption("Favorito", "Favorite", "Favorito", "favorite", tokenPt = "favorito", tokenEs = "favorito"),
-                FilterTokenOption("Defensor", "Defender", "Defensor", "defender", tokenPt = "defensor", tokenEs = "defensor"),
-                FilterTokenOption("Evoluivel", "Can evolve", "Puede evolucionar", "evolve", tokenPt = "evoluir", tokenEs = "evolucionar"),
-                FilterTokenOption("Hipertreinamento", "Hyper Training", "Hiperentrenamiento", "hypertrained", tokenPt = "hipertreinamento", tokenEs = "hiperentrenamiento"),
-                FilterTokenOption("Evolui com item", "Item evolution", "Evolucion con objeto", "item", tokenPt = "item", tokenEs = "objeto"),
-                FilterTokenOption("Nova evolucao", "New evolution", "Nueva evolucion", "canevolve", tokenPt = "evoluirnovo", tokenEs = "evolucionarnuevo"),
-                FilterTokenOption("Evolui por missao", "Task evolution", "Evolucion por mision", "evolvequest", tokenPt = "evoluirpormissão", tokenEs = "evolucionarpormision"),
-                FilterTokenOption("Evolui por troca", "Trade evolution", "Evolucion por intercambio", "traded", tokenPt = "evoluirportroca", tokenEs = "evolucionarporintercambio"),
-                FilterTokenOption("Clima", "Weather boosted move", "Movimiento con clima", "weather", tokenPt = "@clima", tokenEs = "@clima"),
-                FilterTokenOption("Fundo", "Background", "Fondo", "background", tokenPt = "fundo", tokenEs = "fondo"),
-                FilterTokenOption("Fundo local", "Location background", "Fondo de ubicacion", "locationbackground", tokenPt = "fundodelocalidade", tokenEs = "fondodelugar")
-            ),
-            "Colecao" to listOf(
-                FilterTokenOption("Lendario", "Legendary", "Legendario", "legendary", tokenPt = "lendário", tokenEs = "legendario"),
-                FilterTokenOption("Mitico", "Mythical", "Singular", "mythical", tokenPt = "mítico", tokenEs = "singular"),
-                FilterTokenOption("Traje", "Costume", "Disfraz", "costume", tokenPt = "traje", tokenEs = "disfraz"),
-                FilterTokenOption("Trocado", "Traded", "Intercambiado", "traded", tokenPt = "trocado", tokenEs = "intercambiado"),
-                FilterTokenOption("Fusao", "Fusion", "Fusion", "fusion", tokenPt = "fusão", tokenEs = "fusion"),
-                FilterTokenOption("Apenas ovos", "Egg only", "Solo huevos", "eggsonly", tokenPt = "apenasovos", tokenEs = "solohuevos"),
-                FilterTokenOption("Chocado", "Hatched", "Eclosionado", "hatched", tokenPt = "chocado", tokenEs = "eclosionado"),
-                FilterTokenOption("Ultracriatura", "Ultra Beast", "Ultracriatura", "ultrabeast", tokenPt = "ultracriatura", tokenEs = "ultraente")
-            ),
-            "Batalha" to listOf(
-                FilterTokenOption("Mega", "Mega", "Mega", "megaevolve", tokenPt = "mega", tokenEs = "mega"),
-                FilterTokenOption("Dynamax", "Dynamax", "Dynamax", "dmax", tokenPt = "dinamax", tokenEs = "dinamax"),
-                FilterTokenOption("Gigantamax", "Gigantamax", "Gigamax", "gmax", tokenPt = "gigamax", tokenEs = "gigamax"),
-                FilterTokenOption("Ataque legado", "Legacy move", "Ataque legado", "@special", tokenPt = "@especial", tokenEs = "@especial"),
-                FilterTokenOption("Mega nivel 1", "Mega level 1", "Mega nivel 1", "mega1", tokenPt = "mega1", tokenEs = "mega1"),
-                FilterTokenOption("Mega nivel 2", "Mega level 2", "Mega nivel 2", "mega2", tokenPt = "mega2", tokenEs = "mega2"),
-                FilterTokenOption("Mega nivel 3", "Mega level 3", "Mega nivel 3", "mega3", tokenPt = "mega3", tokenEs = "mega3")
-            ),
-            "Avaliacao" to listOf(
-                FilterTokenOption("0 estrelas", "0 stars", "0 estrellas", "0*"),
-                FilterTokenOption("1 estrela", "1 star", "1 estrella", "1*"),
-                FilterTokenOption("2 estrelas", "2 stars", "2 estrellas", "2*"),
-                FilterTokenOption("3 estrelas", "3 stars", "3 estrellas", "3*"),
-                FilterTokenOption("4 estrelas", "4 stars", "4 estrellas", "4*"),
-                FilterTokenOption("0 Ataque", "0 Attack", "0 Ataque", "0attack", tokenPt = "0ataque", tokenEs = "0ataque"),
-                FilterTokenOption("1 Ataque", "1 Attack", "1 Ataque", "1attack", tokenPt = "1ataque", tokenEs = "1ataque"),
-                FilterTokenOption("2 Ataque", "2 Attack", "2 Ataque", "2attack", tokenPt = "2ataque", tokenEs = "2ataque"),
-                FilterTokenOption("3 Ataque", "3 Attack", "3 Ataque", "3attack", tokenPt = "3ataque", tokenEs = "3ataque"),
-                FilterTokenOption("0 Defesa", "0 Defense", "0 Defensa", "0defense", tokenPt = "0defesa", tokenEs = "0defensa"),
-                FilterTokenOption("1 Defesa", "1 Defense", "1 Defensa", "1defense", tokenPt = "1defesa", tokenEs = "1defensa"),
-                FilterTokenOption("2 Defesa", "2 Defense", "2 Defensa", "2defense", tokenPt = "2defesa", tokenEs = "2defensa"),
-                FilterTokenOption("3 Defesa", "3 Defense", "3 Defensa", "3defense", tokenPt = "3defesa", tokenEs = "3defensa"),
-                FilterTokenOption("0 PS", "0 HP", "0 PS", "0hp", tokenPt = "0ps", tokenEs = "0ps"),
-                FilterTokenOption("1 PS", "1 HP", "1 PS", "1hp", tokenPt = "1ps", tokenEs = "1ps"),
-                FilterTokenOption("2 PS", "2 HP", "2 PS", "2hp", tokenPt = "2ps", tokenEs = "2ps"),
-                FilterTokenOption("3 PS", "3 HP", "3 PS", "3hp", tokenPt = "3ps", tokenEs = "3ps")
-            ),
-            "Tamanho" to listOf(
-                FilterTokenOption("XXS", "XXS", "XXS", "xxs"),
-                FilterTokenOption("XS", "XS", "XS", "xs"),
-                FilterTokenOption("XL", "XL", "XL", "xl"),
-                FilterTokenOption("XXL", "XXL", "XXL", "xxl")
-            ),
-            "Companheiro" to listOf(
-                FilterTokenOption("Buddy 0", "Buddy 0", "Buddy 0", "buddy0", tokenPt = "companheiro0", tokenEs = "companero0"),
-                FilterTokenOption("Buddy 1", "Buddy 1", "Buddy 1", "buddy1", tokenPt = "companheiro1", tokenEs = "companero1"),
-                FilterTokenOption("Buddy 2", "Buddy 2", "Buddy 2", "buddy2", tokenPt = "companheiro2", tokenEs = "companero2"),
-                FilterTokenOption("Buddy 3", "Buddy 3", "Buddy 3", "buddy3", tokenPt = "companheiro3", tokenEs = "companero3"),
-                FilterTokenOption("Buddy 4", "Buddy 4", "Buddy 4", "buddy4", tokenPt = "companheiro4", tokenEs = "companero4"),
-                FilterTokenOption("Buddy 5", "Buddy 5", "Buddy 5", "buddy5", tokenPt = "companheiro5", tokenEs = "companero5")
-            ),
-            "Regiao" to listOf(
-                FilterTokenOption("Kanto", "Kanto", "Kanto", "kanto"),
-                FilterTokenOption("Johto", "Johto", "Johto", "johto"),
-                FilterTokenOption("Hoenn", "Hoenn", "Hoenn", "hoenn"),
-                FilterTokenOption("Sinnoh", "Sinnoh", "Sinnoh", "sinnoh"),
-                FilterTokenOption("Unova", "Unova", "Unova", "unova"),
-                FilterTokenOption("Kalos", "Kalos", "Kalos", "kalos"),
-                FilterTokenOption("Alola", "Alola", "Alola", "alola"),
-                FilterTokenOption("Galar", "Galar", "Galar", "galar"),
-                FilterTokenOption("Hisui", "Hisui", "Hisui", "hisui"),
-                FilterTokenOption("Paldea", "Paldea", "Paldea", "paldea")
-            ),
-            "Avancado" to emptyList()
-        )
+    val tagStore = remember(context) { FilterTagStore(context) }
+    var customTags by remember { mutableStateOf(tagStore.tags()) }
+    var editorKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var iconRevision by remember { mutableStateOf(0) }
+    val baseSections = remember { pokemonFilterSections() }
+    val sections = remember(baseSections, customTags) {
+        linkedMapOf("Minhas tags" to customTags.map { FilterTokenOption(it.name, it.name, it.name, it.id) }).apply { putAll(baseSections) }
     }
+    val favoritesPrefs = remember(context) { context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE) }
+    var favorites by remember { mutableStateOf(favoritesPrefs.getStringSet("favorite_filter_tokens", emptySet()).orEmpty().toSet()) }
     val sectionEntries = remember(sections) { sections.entries.toList() }
     var sectionTabIndex by rememberSaveable { mutableStateOf(0) }
+    val importedTerms = remember { mutableStateMapOf<String, FilterExpression>() }
     var selectionOrder by rememberSaveable { mutableStateOf(emptyList<String>()) }
     fun expressionGroups(): Map<String, List<FilterExpression>> = buildMap {
+        importedTerms.forEach { (key, value) -> put(key, listOf(value)) }
         names.split(',').map { it.trim() }.filter { it.isNotBlank() }.forEach {
             put("name:$it", listOf(FilterExpression(it)))
         }
@@ -1355,7 +1332,9 @@ private fun PokemonFilterBuilder(
             put("type:$key", resolveTypeExpressions(mapOf(key to value), language))
         }
         tokenSelections.forEach { (key, value) ->
-            put("token:$key", resolveTokenExpressions(mapOf(key to value), sections.values.flatten(), language))
+            val custom = customTags.firstOrNull { it.id == key }
+            put("token:$key", if (custom == null) resolveTokenExpressions(mapOf(key to value), sections.values.flatten(), language)
+                else listOf(FilterExpression((if (value.mode == FilterTokenMode.EXCLUDE) "!" else "") + custom.value, value.joinerBefore)))
         }
         moveFilters.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach {
             put("move:$it", listOf(FilterExpression(it)))
@@ -1367,25 +1346,76 @@ private fun PokemonFilterBuilder(
     fun syncSelectionOrder() {
         selectionOrder = reconcileFilterOrder(selectionOrder, expressionGroups().keys)
     }
+    LaunchedEffect(initialValue) {
+        val candidates = sections.values.flatten().associate { option ->
+            "token:${option.token}" to (customTags.firstOrNull { it.id == option.token }?.value ?: option.localizedToken(language))
+        } + pokemonTypeFilterOrder.associate { type ->
+            "type:$type" to resolveTypeExpressions(mapOf(type to FilterSelection(FilterTokenMode.INCLUDE)), language).single().value
+        }
+        val restored = restoreFilterTerms(initialValue, candidates)
+        restored.forEach { (key, expression) ->
+            val selection = FilterSelection(if (expression.value.startsWith("!")) FilterTokenMode.EXCLUDE else FilterTokenMode.INCLUDE, expression.joinerBefore)
+            when {
+                key.startsWith("token:") -> tokenSelections[key.removePrefix("token:")] = selection
+                key.startsWith("type:") -> typeSelections[key.removePrefix("type:")] = selection
+                else -> importedTerms[key] = expression
+            }
+        }
+        selectionOrder = restored.keys.toList()
+    }
     val output = buildOrderedFilter(selectionOrder, expressionGroups())
     val allTypes = remember {
         pokemonTypeFilterOrder
     }
 
+    val editing = editorKey
+    if (editing != null) {
+        val custom = customTags.firstOrNull { it.id == editing }
+        val option = sections.values.flatten().firstOrNull { it.token == editing }
+        FilterTagEditor(if (editing == "new") t(language, "Criar tag", "Create tag", "Crear etiqueta") else t(language, "Editar tag", "Edit tag", "Editar etiqueta"),
+            custom?.name ?: option?.let { localizedLabel(it, language) } ?: if (editing.startsWith("type:")) localizedTypeLabel(editing.removePrefix("type:"), language) else "", custom?.value.orEmpty(),
+            if (editing == "new") "mission_icons/pokeball_sprite.png" else tagStore.icon(editing), custom = custom != null || editing == "new",
+            initialFavorite = editing in favorites, allowIcon = !editing.startsWith("type:"),
+            onSave = { label, value, icon, favorite ->
+                val id = if (custom != null || editing == "new") tagStore.save(custom?.id, label, value).id else editing
+                favorites = if (favorite) favorites + id else favorites - id
+                favoritesPrefs.edit().putStringSet("favorite_filter_tokens", favorites).apply()
+                if (!id.startsWith("type:")) tagStore.icon(id, icon)
+                customTags = tagStore.tags(); iconRevision++
+                if (editing == "new") sectionTabIndex = 2
+                editorKey = null
+            }, onDelete = if (custom == null) null else ({
+                tagStore.delete(custom.id); customTags = tagStore.tags(); favorites = favorites - custom.id
+                tokenSelections.remove(custom.id); syncSelectionOrder(); editorKey = null
+            }), onClose = { editorKey = null }, inline = onCopyFilter != null)
+        if (onCopyFilter != null) return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SavedFiltersSection(
+        if (showSaved && onCopyFilter == null) SavedFiltersSection(
             title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
             filters = savedFilters,
+            onEdit = { entry, value ->
+                val updated = updateSavedFilter(context, SAVED_POKEMON_FILTERS_KEY, entry.id, value)
+                savedFilters.clear(); savedFilters.addAll(updated)
+            },
             onCopy = { entry -> copyPlainText(context, entry.value, language) },
             onRemove = { entry ->
                 savedFilters.remove(entry)
                 persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, savedFilters)
             }
         )
+        importedTerms.toMap().forEach { (id, expression) ->
+            AppGlassTextField(expression.value, { value ->
+                if (value.isBlank()) importedTerms.remove(id)
+                else importedTerms[id] = expression.copy(value = value)
+                syncSelectionOrder()
+            }, Modifier.fillMaxWidth(), label = { Text(t(language, "Tag personalizada", "Custom term", "Etiqueta personalizada")) })
+        }
         CopyableField(
             title = t(language, "Filtro copiavel", "Copyable filter", "Filtro copiable"),
             value = output,
             onSave = {
+                if (onSaveFilter != null) onSaveFilter(output) else {
                 val updated = addSavedFilter(savedFilters, output)
                 persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, updated)
                 Toast.makeText(
@@ -1393,8 +1423,9 @@ private fun PokemonFilterBuilder(
                     t(language, "Filtro salvo", "Filter saved", "Filtro guardado"),
                     Toast.LENGTH_SHORT
                 ).show()
+                }
             },
-            onCopy = { copyPlainText(context, output, language) },
+            onCopy = { onCopyFilter?.invoke(output) ?: copyPlainText(context, output, language) },
             onClear = {
                 names = ""
                 nameDraft = ""
@@ -1403,12 +1434,22 @@ private fun PokemonFilterBuilder(
                 manualDraft = ""
                 manualFilters = ""
                 typeSelections.clear()
+                importedTerms.clear()
                 tokenSelections.clear()
                 selectionOrder = emptyList()
+            },
+            previewContent = {
+                val groups = expressionGroups()
+                val keys = reconcileFilterOrder(selectionOrder, groups.keys)
+                FilterTagReorder(keys, label = { key ->
+                    val index = keys.indexOf(key)
+                    val previous = if (index > 0) keys[index - 1] else null
+                    filterGroupPreview(key, groups.getValue(key), previous)
+                }, onOrder = { selectionOrder = it })
             }
         )
-        val tabTitles = remember(sectionEntries) {
-            listOf("Tipo") + sectionEntries.map { it.key }
+        val tabTitles = remember(sectionEntries, language) {
+            listOf(t(language, "Favoritos", "Favorites", "Favoritos"), "Tipo") + sectionEntries.map { it.key }
         }
         AppPillTabRow(selectedTabIndex = sectionTabIndex, edgePadding = 0.dp, divider = {}) {
             tabTitles.forEachIndexed { index, title ->
@@ -1421,26 +1462,62 @@ private fun PokemonFilterBuilder(
         }
         when (sectionTabIndex) {
             0 -> {
+                val options = sections.values.flatten().filter { it.token in favorites }
+                val favoriteTypes = allTypes.filter { "type:$it" in favorites }
+                TypeSelectorSingleTriState(favoriteTypes, typeSelections,
+                    onCycle = { type -> typeSelections.cycleSelection(type); syncSelectionOrder() },
+                    onJoinerChange = { type, joiner -> typeSelections.updateJoiner(type, joiner) }, language = language,
+                    favoriteTypes = favoriteTypes.toSet(), onFavorite = { editorKey = "type:$it" })
+                if (options.isEmpty() && favoriteTypes.isEmpty()) Text(t(language, "Nenhuma tag favorita", "No favorite tags", "No hay etiquetas favoritas"))
+                UniformOptionGrid(count = options.size) { index ->
+                    val option = options[index]
+                    TriStateTokenChip(option, language, tokenSelections[option.token],
+                        onCycle = { tokenSelections.cycleSelection(option.token); syncSelectionOrder() },
+                        onJoinerChange = { tokenSelections.updateJoiner(option.token, it) },
+                        favorite = option.token in favorites,
+                        onFavorite = { editorKey = option.token },
+                        iconPath = remember(option.token, iconRevision) { tagStore.icon(option.token) })
+                }
+            }
+            1 -> {
                 TypeSelectorSingleTriState(
                     types = allTypes,
                     selections = typeSelections,
                     onCycle = { type -> typeSelections.cycleSelection(type); syncSelectionOrder() },
                     onJoinerChange = { type, joiner -> typeSelections.updateJoiner(type, joiner) },
-                    language = language
+                    language = language,
+                    favoriteTypes = allTypes.filter { "type:$it" in favorites }.toSet(),
+                    onFavorite = { editorKey = "type:$it" }
                 )
             }
             else -> {
-                val entry = sectionEntries[sectionTabIndex - 1]
+                val entry = sectionEntries[sectionTabIndex - 2]
                 Text(entry.key, fontWeight = FontWeight.Bold)
-                UniformOptionGrid(count = entry.value.size) { index ->
-                    val option = entry.value[index]
+                val hasCreateTile = entry.key == "Minhas tags"
+                UniformOptionGrid(count = entry.value.size + if (hasCreateTile) 1 else 0) { index ->
+                    if (hasCreateTile && index == 0) {
+                        Surface(onClick = { editorKey = "new" }, modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp),
+                            shape = RoundedCornerShape(14.dp), color = appControlFill(), contentColor = appControlInk(),
+                            border = androidx.compose.foundation.BorderStroke(.75.dp, LocalAppAppearance.current.border)) {
+                            Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center) {
+                                Icon(AppIcons.Add, contentDescription = null)
+                                Text(t(language, "Criar tag", "Create tag", "Crear etiqueta"), style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                        return@UniformOptionGrid
+                    }
+                    val option = entry.value[index - if (hasCreateTile) 1 else 0]
                     TriStateTokenChip(
                         option = option,
                         language = language,
                         selection = tokenSelections[option.token],
                         onCycle = { tokenSelections.cycleSelection(option.token); syncSelectionOrder() },
                         onJoinerChange = { joiner -> tokenSelections.updateJoiner(option.token, joiner) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        favorite = option.token in favorites,
+                        onFavorite = { editorKey = option.token },
+                        iconPath = remember(option.token, iconRevision) { tagStore.icon(option.token) }
                     )
                 }
                 when (entry.key) {
@@ -1530,9 +1607,13 @@ private fun PokemonFilterBuilder(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun PeopleFilterBuilder(
+internal fun PeopleFilterBuilder(
     context: Context,
-    language: AppLanguage
+    language: AppLanguage,
+    onCopyFilter: ((String) -> Unit)? = null,
+    initialValue: String = "",
+    onSaveFilter: ((String) -> Unit)? = null,
+    showSaved: Boolean = true
 ) {
     var names by rememberSaveable { mutableStateOf("") }
     val tokenSelections = remember { mutableStateMapOf<String, FilterSelection>() }
@@ -1554,8 +1635,10 @@ private fun PeopleFilterBuilder(
             FilterTokenOption("Nivel 5", "Friendship 5", "Amistad 5", "friendlevel5", tokenPt = "níveldeamizade5", tokenEs = "nivel de amistad 5")
         )
     }
+    val importedTerms = remember { mutableStateMapOf<String, FilterExpression>() }
     var selectionOrder by rememberSaveable { mutableStateOf(emptyList<String>()) }
     fun expressionGroups(): Map<String, List<FilterExpression>> = buildMap {
+        importedTerms.forEach { (key, value) -> put(key, listOf(value)) }
         names.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach {
             put("name:$it", listOf(FilterExpression(it)))
         }
@@ -1566,22 +1649,46 @@ private fun PeopleFilterBuilder(
     fun syncSelectionOrder() {
         selectionOrder = reconcileFilterOrder(selectionOrder, expressionGroups().keys)
     }
+    LaunchedEffect(initialValue) {
+        val candidates = options.associate { "token:${it.token}" to it.localizedToken(language) }
+        val restored = restoreFilterTerms(initialValue, candidates)
+        restored.forEach { (key, expression) ->
+            val selection = FilterSelection(if (expression.value.startsWith("!")) FilterTokenMode.EXCLUDE else FilterTokenMode.INCLUDE, expression.joinerBefore)
+            when {
+                key.startsWith("token:") -> tokenSelections[key.removePrefix("token:")] = selection
+                else -> importedTerms[key] = expression
+            }
+        }
+        selectionOrder = restored.keys.toList()
+    }
     val output = buildOrderedFilter(selectionOrder, expressionGroups())
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SavedFiltersSection(
+        if (showSaved && onCopyFilter == null) SavedFiltersSection(
             title = t(language, "Filtros salvos", "Saved filters", "Filtros guardados"),
             filters = savedFilters,
+            onEdit = { entry, value ->
+                val updated = updateSavedFilter(context, SAVED_PEOPLE_FILTERS_KEY, entry.id, value)
+                savedFilters.clear(); savedFilters.addAll(updated)
+            },
             onCopy = { entry -> copyPlainText(context, entry.value, language) },
             onRemove = { entry ->
                 savedFilters.remove(entry)
                 persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, savedFilters)
             }
         )
+        importedTerms.toMap().forEach { (id, expression) ->
+            AppGlassTextField(expression.value, { value ->
+                if (value.isBlank()) importedTerms.remove(id)
+                else importedTerms[id] = expression.copy(value = value)
+                syncSelectionOrder()
+            }, Modifier.fillMaxWidth(), label = { Text(t(language, "Tag personalizada", "Custom term", "Etiqueta personalizada")) })
+        }
         CopyableField(
             title = t(language, "Texto copiavel", "Copyable text", "Texto copiable"),
             value = output,
             onSave = {
+                if (onSaveFilter != null) onSaveFilter(output) else {
                 val updated = addSavedFilter(savedFilters, output)
                 persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, updated)
                 Toast.makeText(
@@ -1589,12 +1696,23 @@ private fun PeopleFilterBuilder(
                     t(language, "Filtro salvo", "Filter saved", "Filtro guardado"),
                     Toast.LENGTH_SHORT
                 ).show()
+                }
             },
-            onCopy = { copyPlainText(context, output, language) },
+            onCopy = { onCopyFilter?.invoke(output) ?: copyPlainText(context, output, language) },
             onClear = {
                 names = ""
+                importedTerms.clear()
                 tokenSelections.clear()
                 selectionOrder = emptyList()
+            },
+            previewContent = {
+                val groups = expressionGroups()
+                val keys = reconcileFilterOrder(selectionOrder, groups.keys)
+                FilterTagReorder(keys, label = { key ->
+                    val index = keys.indexOf(key)
+                    val previous = if (index > 0) keys[index - 1] else null
+                    filterGroupPreview(key, groups.getValue(key), previous)
+                }, onOrder = { selectionOrder = it })
             }
         )
         Text(t(language, "Filtros de pessoas", "People filters", "Filtros de personas"), fontWeight = FontWeight.Bold)
@@ -1763,14 +1881,16 @@ internal fun TypeSelectorSingle(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun TypeSelectorSingleTriState(
     types: List<String>,
     selections: MutableMap<String, FilterSelection>,
     onCycle: (String) -> Unit,
     onJoinerChange: (String, String) -> Unit,
-    language: AppLanguage
+    language: AppLanguage,
+    favoriteTypes: Set<String> = emptySet(),
+    onFavorite: ((String) -> Unit)? = null
 ) {
     val orderedTypes = remember(types) { orderedPokemonFilterTypes(types) }
     UniformOptionGrid(count = orderedTypes.size) { index ->
@@ -1787,7 +1907,7 @@ private fun TypeSelectorSingleTriState(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(40.dp)
-                    .clickable { onCycle(type) },
+                    .combinedClickable(onClick = { onCycle(type) }, onLongClick = onFavorite?.let { { it(type) } }),
                 shape = RoundedCornerShape(999.dp),
                 color = Color.Transparent
             ) {
@@ -1800,6 +1920,8 @@ private fun TypeSelectorSingleTriState(
                         inlinePrefix = prefix.trim().ifBlank { null },
                         filled = true
                     )
+                    if (type in favoriteTypes) Text("★", Modifier.align(Alignment.TopEnd).padding(end = 5.dp),
+                        style = MaterialTheme.typography.labelSmall)
                 }
             }
             if (selection != null) {
@@ -2138,7 +2260,7 @@ private fun PokedexCard(
                             .crossfade(true)
                             .build(),
                         contentDescription = primaryName,
-                        modifier = Modifier.size(68.dp),
+                        modifier = Modifier.size(64.dp),
                         contentScale = androidx.compose.ui.layout.ContentScale.Fit
                     )
                 }
@@ -2490,7 +2612,8 @@ private fun CopyableField(
     value: String,
     onSave: (() -> Unit)? = null,
     onCopy: () -> Unit,
-    onClear: (() -> Unit)? = null
+    onClear: (() -> Unit)? = null,
+    previewContent: (@Composable () -> Unit)? = null
 ) {
     val language = appLanguage()
     var copied by remember { mutableStateOf(false) }
@@ -2501,16 +2624,14 @@ private fun CopyableField(
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        AppSectionCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.24f))
-        ) {
+        AppSectionCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                Text(value.ifBlank { "-" })
+                if (previewContent != null && value.isNotBlank()) previewContent()
+                else Text(value.ifBlank { "-" })
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -2557,9 +2678,17 @@ private fun SavedFiltersSection(
     title: String,
     filters: List<SavedFilterEntry>,
     onCopy: (SavedFilterEntry) -> Unit,
-    onRemove: (SavedFilterEntry) -> Unit
+    onRemove: (SavedFilterEntry) -> Unit,
+    onEdit: (SavedFilterEntry, String) -> Unit,
+    onOpenEditor: ((SavedFilterEntry) -> Unit)? = null
 ) {
     if (filters.isEmpty()) return
+    val editLabel = t(appLanguage(), "Editar filtro salvo", "Edit saved filter", "Editar filtro guardado")
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    filters.firstOrNull { it.id == editingId }?.let { entry ->
+        SavedFilterEditor(entry, onSave = { value -> onEdit(entry, value); editingId = null },
+            onClose = { editingId = null })
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
@@ -2570,8 +2699,11 @@ private fun SavedFiltersSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable(onClickLabel = editLabel, role = androidx.compose.ui.semantics.Role.Button) {
+                            if (onOpenEditor != null) onOpenEditor(entry) else editingId = entry.id
+                        }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -2582,13 +2714,13 @@ private fun SavedFiltersSection(
                     )
                     IconButton(onClick = { onCopy(entry) }) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_filter_copy),
+                            imageVector = AppIcons.Copy,
                             contentDescription = "Copiar filtro salvo"
                         )
                     }
                     IconButton(onClick = { onRemove(entry) }) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_filter_trash),
+                            imageVector = AppIcons.Delete,
                             contentDescription = "Remover filtro salvo"
                         )
                     }
@@ -2613,7 +2745,7 @@ private fun SimpleToolScreen(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(AppIcons.Back, contentDescription = "Voltar")
                     }
                 },
                 actions = actions
@@ -2646,7 +2778,7 @@ private fun LoadingToolScreen(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(AppIcons.Back, contentDescription = "Voltar")
                     }
                 }
             )
@@ -3094,6 +3226,7 @@ private fun resolveTypeExpressions(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TriStateTokenChip(
     option: FilterTokenOption,
@@ -3101,39 +3234,34 @@ private fun TriStateTokenChip(
     selection: FilterSelection?,
     onCycle: () -> Unit,
     onJoinerChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    favorite: Boolean = false,
+    onFavorite: (() -> Unit)? = null,
+    iconPath: String? = null
 ) {
-    val mode = selection?.mode
-    val prefix = when (mode) {
+    val prefix = when (selection?.mode) {
         FilterTokenMode.INCLUDE -> "+ "
         FilterTokenMode.EXCLUDE -> "! "
         null -> ""
     }
-
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        AppChoiceChip(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            selected = mode != null,
-            onClick = onCycle,
-            excluded = mode == FilterTokenMode.EXCLUDE,
-            label = {
-                Text(
-                    prefix + localizedLabel(option, language),
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Surface(shape = RoundedCornerShape(14.dp), color = appControlFill(selection != null, selection?.mode == FilterTokenMode.EXCLUDE),
+            contentColor = appControlInk(), border = androidx.compose.foundation.BorderStroke(.75.dp, LocalAppAppearance.current.border),
+            modifier = Modifier.fillMaxWidth().heightIn(min = if (iconPath == null) 56.dp else 92.dp)
+                .combinedClickable(onClick = onCycle, onLongClick = onFavorite,
+                    onLongClickLabel = t(language, "Editar tag", "Edit tag", "Editar etiqueta"))) {
+            Box(contentAlignment = Alignment.Center) {
+              Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                if (iconPath != null) FilterTagIcon(iconPath, Modifier.size(32.dp))
+                Text(prefix + localizedLabel(option, language),
+                    Modifier.fillMaxWidth(), textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelLarge)
+              }
+              if (favorite) Text("★", Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 5.dp),
+                  style = MaterialTheme.typography.labelSmall, color = appControlInk())
             }
-        )
-        if (selection != null) {
-            JoinerSelector(
-                selected = selection.joinerBefore,
-                onSelect = onJoinerChange
-            )
         }
+        if (selection != null) JoinerSelector(selection.joinerBefore, onJoinerChange)
     }
 }
 
@@ -3460,31 +3588,32 @@ internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false, showFi
         AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
     }
     if (backgrounds == null) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (backgrounds != null && entries.isEmpty()) item { Text("Nenhum fundo encontrado.") }
-        items(entries, key = { it.assetPath }) { entry ->
-            val key = "background|${entry.fileName}"
-            AppSectionCard(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AppCollectionCheckbox(checked = obtained[key] == true, onCheckedChange = { checked ->
-                        if (checked) obtained[key] = true else obtained.remove(key)
-                        persistCollectionObtained(context, obtained.keys.toList())
-                    })
-                    BackgroundArtwork(assetPath = entry.assetPath,
-                        contentDescription = entry.displayName, modifier = Modifier.size(72.dp).clickable { preview = entry },
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                    Text(entry.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                }
-                if (inlinePreview && preview?.assetPath == entry.assetPath) {
-                    AppModalHeader(entry.displayName, onClose = { preview = null })
+    LazyVerticalGrid(columns = GridCells.Adaptive(96.dp), modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current + 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (backgrounds != null && entries.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum fundo encontrado.") }
+        entries.forEach { entry ->
+            item(key = entry.assetPath) {
+                val key = "background|${entry.fileName}"
+                CollectionTile(entry.displayName, obtained[key] == true, onClick = {
+                    if (obtained[key] == true) obtained.remove(key) else obtained[key] = true
+                    persistCollectionObtained(context, obtained.keys.toList())
+                }, onLongClick = { preview = entry }) {
                     BackgroundArtwork(assetPath = entry.assetPath, contentDescription = entry.displayName,
-                        modifier = Modifier.fillMaxWidth().height(280.dp),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                        modifier = Modifier.size(64.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                }
+            }
+            if (inlinePreview && preview?.assetPath == entry.assetPath) {
+                item(key = "preview:${entry.assetPath}", span = { GridItemSpan(maxLineSpan) }) {
+                    AppSectionCard(Modifier.fillMaxWidth()) {
+                        AppModalHeader(entry.displayName, onClose = { preview = null })
+                        BackgroundArtwork(assetPath = entry.assetPath, contentDescription = entry.displayName,
+                            modifier = Modifier.fillMaxWidth().height(280.dp),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                    }
                 }
             }
         }
-        item { Spacer(Modifier.height(24.dp)) }
     }
     if (!inlinePreview) preview?.let { entry ->
         Dialog(onDismissRequest = { preview = null }) {
@@ -3493,7 +3622,7 @@ internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false, showFi
                     Text(entry.displayName, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                     BackgroundArtwork(assetPath = entry.assetPath, contentDescription = entry.displayName,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 520.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                    IconButton(onClick = { preview = null }) { Icon(Icons.Default.Close, contentDescription = "Fechar") }
+                    IconButton(onClick = { preview = null }) { Icon(AppIcons.Close, contentDescription = "Fechar") }
                 }
             }
         }
@@ -3503,16 +3632,137 @@ internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false, showFi
 internal fun reconcileFilterOrder(order: List<String>, activeKeys: Set<String>): List<String> =
     order.filter { it in activeKeys }.distinct() + activeKeys.filter { it !in order }
 
+internal fun filterGroupPreview(key: String, group: List<FilterExpression>, previousKey: String?): String =
+    group.mapIndexed { index, expression ->
+        val operator = when {
+            index == 0 && previousKey == null -> ""
+            index == 0 && key.startsWith("name:") && previousKey?.startsWith("name:") == true -> ","
+            else -> expression.joinerBefore
+        }
+        operator + expression.value
+    }.joinToString("")
+
 internal fun buildOrderedFilter(order: List<String>, groups: Map<String, List<FilterExpression>>): String {
     val keys = reconcileFilterOrder(order, groups.keys)
-    val expressions = keys.flatMapIndexed { index, key ->
-        val group = groups.getValue(key)
-        // Consecutive names remain alternatives; other entries keep their chosen operator.
-        if (key.startsWith("name:") && index > 0 && keys[index - 1].startsWith("name:")) {
-            group.mapIndexed { part, expression -> if (part == 0) expression.copy(joinerBefore = ",") else expression }
-        } else group
-    }
-    return expressions.mapIndexed { index, expression ->
-        if (index == 0) expression.value else expression.joinerBefore + expression.value
+    return keys.mapIndexed { index, key ->
+        filterGroupPreview(key, groups.getValue(key), keys.getOrNull(index - 1))
     }.joinToString("")
+}
+
+private fun pokemonFilterSections(): Map<String, List<FilterTokenOption>> = linkedMapOf(
+            "Status" to listOf(
+                FilterTokenOption("Brilhante", "Shiny", "Variocolor", "shiny", tokenPt = "brilhante", tokenEs = "variocolor"),
+                FilterTokenOption("Sombrio", "Shadow", "Oscuro", "shadow", tokenPt = "sombroso", tokenEs = "oscuro"),
+                FilterTokenOption("Purificado", "Purified", "Purificado", "purified", tokenPt = "purificado", tokenEs = "purificado"),
+                FilterTokenOption("Sortudo", "Lucky", "Suerte", "lucky", tokenPt = "sortudo", tokenEs = "suerte"),
+                FilterTokenOption("Favorito", "Favorite", "Favorito", "favorite", tokenPt = "favorito", tokenEs = "favorito"),
+                FilterTokenOption("Defensor", "Defender", "Defensor", "defender", tokenPt = "defensor", tokenEs = "defensor"),
+                FilterTokenOption("Evoluivel", "Can evolve", "Puede evolucionar", "evolve", tokenPt = "evoluir", tokenEs = "evolucionar"),
+                FilterTokenOption("Hipertreinamento", "Hyper Training", "Hiperentrenamiento", "hypertrained", tokenPt = "hipertreinamento", tokenEs = "hiperentrenamiento"),
+                FilterTokenOption("Evolui com item", "Item evolution", "Evolucion con objeto", "item", tokenPt = "item", tokenEs = "objeto"),
+                FilterTokenOption("Nova evolucao", "New evolution", "Nueva evolucion", "canevolve", tokenPt = "evoluirnovo", tokenEs = "evolucionarnuevo"),
+                FilterTokenOption("Evolui por missao", "Task evolution", "Evolucion por mision", "evolvequest", tokenPt = "evoluirpormissão", tokenEs = "evolucionarpormision"),
+                FilterTokenOption("Evolui por troca", "Trade evolution", "Evolucion por intercambio", "traded", tokenPt = "evoluirportroca", tokenEs = "evolucionarporintercambio"),
+                FilterTokenOption("Clima", "Weather boosted move", "Movimiento con clima", "weather", tokenPt = "@clima", tokenEs = "@clima"),
+                FilterTokenOption("Fundo", "Background", "Fondo", "background", tokenPt = "fundo", tokenEs = "fondo"),
+                FilterTokenOption("Fundo local", "Location background", "Fondo de ubicacion", "locationbackground", tokenPt = "fundodelocalidade", tokenEs = "fondodelugar")
+            ),
+            "Colecao" to listOf(
+                FilterTokenOption("Lendario", "Legendary", "Legendario", "legendary", tokenPt = "lendário", tokenEs = "legendario"),
+                FilterTokenOption("Mitico", "Mythical", "Singular", "mythical", tokenPt = "mítico", tokenEs = "singular"),
+                FilterTokenOption("Traje", "Costume", "Disfraz", "costume", tokenPt = "traje", tokenEs = "disfraz"),
+                FilterTokenOption("Trocado", "Traded", "Intercambiado", "traded", tokenPt = "trocado", tokenEs = "intercambiado"),
+                FilterTokenOption("Fusao", "Fusion", "Fusion", "fusion", tokenPt = "fusão", tokenEs = "fusion"),
+                FilterTokenOption("Apenas ovos", "Egg only", "Solo huevos", "eggsonly", tokenPt = "apenasovos", tokenEs = "solohuevos"),
+                FilterTokenOption("Chocado", "Hatched", "Eclosionado", "hatched", tokenPt = "chocado", tokenEs = "eclosionado"),
+                FilterTokenOption("Ultracriatura", "Ultra Beast", "Ultracriatura", "ultrabeast", tokenPt = "ultracriatura", tokenEs = "ultraente")
+            ),
+            "Batalha" to listOf(
+                FilterTokenOption("Mega", "Mega", "Mega", "megaevolve", tokenPt = "mega", tokenEs = "mega"),
+                FilterTokenOption("Dynamax", "Dynamax", "Dynamax", "dmax", tokenPt = "dinamax", tokenEs = "dinamax"),
+                FilterTokenOption("Gigantamax", "Gigantamax", "Gigamax", "gmax", tokenPt = "gigamax", tokenEs = "gigamax"),
+                FilterTokenOption("Ataque legado", "Legacy move", "Ataque legado", "@special", tokenPt = "@especial", tokenEs = "@especial"),
+                FilterTokenOption("Mega nivel 1", "Mega level 1", "Mega nivel 1", "mega1", tokenPt = "mega1", tokenEs = "mega1"),
+                FilterTokenOption("Mega nivel 2", "Mega level 2", "Mega nivel 2", "mega2", tokenPt = "mega2", tokenEs = "mega2"),
+                FilterTokenOption("Mega nivel 3", "Mega level 3", "Mega nivel 3", "mega3", tokenPt = "mega3", tokenEs = "mega3")
+            ),
+            "Avaliacao" to listOf(
+                FilterTokenOption("0 estrelas", "0 stars", "0 estrellas", "0*"),
+                FilterTokenOption("1 estrela", "1 star", "1 estrella", "1*"),
+                FilterTokenOption("2 estrelas", "2 stars", "2 estrellas", "2*"),
+                FilterTokenOption("3 estrelas", "3 stars", "3 estrellas", "3*"),
+                FilterTokenOption("4 estrelas", "4 stars", "4 estrellas", "4*"),
+                FilterTokenOption("0 Ataque", "0 Attack", "0 Ataque", "0attack", tokenPt = "0ataque", tokenEs = "0ataque"),
+                FilterTokenOption("1 Ataque", "1 Attack", "1 Ataque", "1attack", tokenPt = "1ataque", tokenEs = "1ataque"),
+                FilterTokenOption("2 Ataque", "2 Attack", "2 Ataque", "2attack", tokenPt = "2ataque", tokenEs = "2ataque"),
+                FilterTokenOption("3 Ataque", "3 Attack", "3 Ataque", "3attack", tokenPt = "3ataque", tokenEs = "3ataque"),
+                FilterTokenOption("0 Defesa", "0 Defense", "0 Defensa", "0defense", tokenPt = "0defesa", tokenEs = "0defensa"),
+                FilterTokenOption("1 Defesa", "1 Defense", "1 Defensa", "1defense", tokenPt = "1defesa", tokenEs = "1defensa"),
+                FilterTokenOption("2 Defesa", "2 Defense", "2 Defensa", "2defense", tokenPt = "2defesa", tokenEs = "2defensa"),
+                FilterTokenOption("3 Defesa", "3 Defense", "3 Defensa", "3defense", tokenPt = "3defesa", tokenEs = "3defensa"),
+                FilterTokenOption("0 PS", "0 HP", "0 PS", "0hp", tokenPt = "0ps", tokenEs = "0ps"),
+                FilterTokenOption("1 PS", "1 HP", "1 PS", "1hp", tokenPt = "1ps", tokenEs = "1ps"),
+                FilterTokenOption("2 PS", "2 HP", "2 PS", "2hp", tokenPt = "2ps", tokenEs = "2ps"),
+                FilterTokenOption("3 PS", "3 HP", "3 PS", "3hp", tokenPt = "3ps", tokenEs = "3ps")
+            ),
+            "Tamanho" to listOf(
+                FilterTokenOption("XXS", "XXS", "XXS", "xxs"),
+                FilterTokenOption("XS", "XS", "XS", "xs"),
+                FilterTokenOption("XL", "XL", "XL", "xl"),
+                FilterTokenOption("XXL", "XXL", "XXL", "xxl")
+            ),
+            "Companheiro" to listOf(
+                FilterTokenOption("Buddy 0", "Buddy 0", "Buddy 0", "buddy0", tokenPt = "companheiro0", tokenEs = "companero0"),
+                FilterTokenOption("Buddy 1", "Buddy 1", "Buddy 1", "buddy1", tokenPt = "companheiro1", tokenEs = "companero1"),
+                FilterTokenOption("Buddy 2", "Buddy 2", "Buddy 2", "buddy2", tokenPt = "companheiro2", tokenEs = "companero2"),
+                FilterTokenOption("Buddy 3", "Buddy 3", "Buddy 3", "buddy3", tokenPt = "companheiro3", tokenEs = "companero3"),
+                FilterTokenOption("Buddy 4", "Buddy 4", "Buddy 4", "buddy4", tokenPt = "companheiro4", tokenEs = "companero4"),
+                FilterTokenOption("Buddy 5", "Buddy 5", "Buddy 5", "buddy5", tokenPt = "companheiro5", tokenEs = "companero5")
+            ),
+            "Regiao" to listOf(
+                FilterTokenOption("Kanto", "Kanto", "Kanto", "kanto"),
+                FilterTokenOption("Johto", "Johto", "Johto", "johto"),
+                FilterTokenOption("Hoenn", "Hoenn", "Hoenn", "hoenn"),
+                FilterTokenOption("Sinnoh", "Sinnoh", "Sinnoh", "sinnoh"),
+                FilterTokenOption("Unova", "Unova", "Unova", "unova"),
+                FilterTokenOption("Kalos", "Kalos", "Kalos", "kalos"),
+                FilterTokenOption("Alola", "Alola", "Alola", "alola"),
+                FilterTokenOption("Galar", "Galar", "Galar", "galar"),
+                FilterTokenOption("Hisui", "Hisui", "Hisui", "hisui"),
+                FilterTokenOption("Paldea", "Paldea", "Paldea", "paldea")
+            ),
+            "Avancado" to emptyList()
+        )
+
+internal fun quickFilterAppearance(context: Context, value: String, language: AppLanguage): Pair<String, String?> {
+    val store = FilterTagStore(context)
+    val custom = store.tags().firstOrNull { it.value.equals(value, true) }
+    if (custom != null) return custom.name to store.icon(custom.id)
+    val option = pokemonFilterSections().values.flatten().firstOrNull {
+        listOf(it.token, it.tokenPt, it.tokenEs).any { token -> token.equals(value, true) }
+    }
+    return if (option != null) localizedLabel(option, language) to store.icon(option.token) else value to null
+}
+
+internal fun updateSavedFilter(context: Context, key: String, id: String, value: String): List<SavedFilterEntry> {
+    val filters = loadSavedFilters(context, key)
+    if (value.isBlank()) return filters
+    val updated = filters.map { if (it.id == id) it.copy(value = value.trim()) else it }
+    persistSavedFilters(context, key, updated)
+    return updated
+}
+
+/** Match only unambiguous, single terms; preserve unmatched terms and duplicate occurrences verbatim. */
+internal fun restoreFilterTerms(value: String, candidates: Map<String, String>): Map<String, FilterExpression> {
+    val result = linkedMapOf<String, FilterExpression>()
+    parseQuickFilter(value).forEachIndexed { index, term ->
+        val matches = candidates.filterValues { it.equals(term.value, ignoreCase = true) }.keys
+        val matched = matches.singleOrNull()?.takeUnless { it in result }
+        result[matched ?: "imported:$index"] = FilterExpression((if (term.mode == 1) "!" else "") + term.value, term.joiner)
+    }
+    return result
+}
+
+internal fun saveNewFilter(context: Context, key: String, value: String) {
+    persistSavedFilters(context, key, addSavedFilter(loadSavedFilters(context, key).toMutableList(), value))
 }

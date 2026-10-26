@@ -23,7 +23,7 @@ internal fun AppSourcesScreen(onBack: () -> Unit) {
         AppTopBar(title = { Text(tr("Fontes de dados", "Data sources", "Fuentes de datos")) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar", "Back", "Volver"))
+                    Icon(AppIcons.Back, tr("Voltar", "Back", "Volver"))
                 }
             })
     }) { padding ->
@@ -43,6 +43,7 @@ internal fun AppSourcesScreen(onBack: () -> Unit) {
             item { SourceCard("Pokébattler", tr("Dados de combate e sugestões de Pokémon para raids.", "Battle data and raid counter suggestions.", "Datos de combate y sugerencias para incursiones."), "https://www.pokebattler.com/raids", { openExternalUrl(context, it) }) }
             item { SourceCard("Pokémon GO · Kanto", tr("Disponibilidade das espécies originais de Kanto e de seus brilhantes, confirmada pelos anúncios oficiais do GO Tour. Não atribui a mesma data de estreia nem inclui formas regionais.", "Original Kanto species and shiny availability confirmed by official GO Tour announcements. Does not assign a shared debut date or include regional forms.", "Disponibilidad de especies originales de Kanto y sus variocolores confirmada por los anuncios oficiales del GO Tour. No asigna una fecha común ni incluye formas regionales."), "https://pokemongo.com/news/pokemongotour-kanto", { openExternalUrl(context, it) }) }
             item { SourceCard("Game Master · PokeMiners", tr("Dados offline de altura, peso, tamanhos, companheiro e custos da Pokédex. Catálogo consultado em 18/10/2026.", "Offline Pokédex height, weight, size, buddy and cost data. Catalog retrieved on 2026-10-18.", "Datos sin conexión de altura, peso, tamaños, compañero y costes de Pokédex. Catálogo consultado el 18/10/2026."), "https://github.com/PokeMiners/game_masters", { openExternalUrl(context, it) }) }
+            item { SourceCard("Font Awesome Free 7.3.1", tr("Ícones de interface por Fonticons, Inc. (CC BY 4.0), convertidos para vetores Android. Licença incluída no aplicativo.", "Interface icons by Fonticons, Inc. (CC BY 4.0), converted to Android vectors. License bundled with the app.", "Iconos de interfaz de Fonticons, Inc. (CC BY 4.0), convertidos a vectores Android. Licencia incluida."), "https://fontawesome.com/license/free", { openExternalUrl(context, it) }) }
             item { SourceCard("PokeMiners", tr("Sprites e recursos visuais do Pokémon GO.", "Pokémon GO sprites and visual assets.", "Sprites y recursos visuales de Pokémon GO."), "https://github.com/PokeMiners/pogo_assets", { openExternalUrl(context, it) }) }
             item { SourceCard("Laboratório do Sam", tr("Calendário de eventos utilizado pelo app.", "Event calendar used by the app.", "Calendario de eventos utilizado por la app."), "https://rodrigoluiz1990.github.io/laboratorio-do-sam/Calendario/", { openExternalUrl(context, it) }) }
             item { SourceCard("Pokémon GO Hub", tr("Referência para consultar espécies, formas, ataques e PC. Selecione a forma desejada no site.", "Reference for species, forms, moves and CP. Select the desired form on the website.", "Referencia de especies, formas, ataques y PC. Selecciona la forma en el sitio."), "https://db.pokemongohub.net/", { openExternalUrl(context, it) }) }

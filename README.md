@@ -2,9 +2,9 @@
 
 App Android em Kotlin e Jetpack Compose para gerar apelidos de Pokémon no Pokémon GO a partir de capturas de tela e OCR com ML Kit. Permite revisar os dados reconhecidos, consultar rankings e escolher o nome; a alteração no jogo permanece manual.
 
-## Estado atual — 14/10/2026
+## Estado atual — 25/10/2026
 
-Versão preparada para release: **1.0.31**. Consulte o [histórico desde a 1.0.30](CHANGELOG.md) e as [notas da release](RELEASE_NOTES.md). As verificações físicas registradas correspondem a builds debug e não equivalem à validação do APK release. O versionCode é gerado a cada build. A publicação pode ser conferida na [página da release](https://github.com/rodrigoluiz1990/MewName/releases/tag/v1.0.31).
+Versão preparada para release: **1.0.33**. Consulte o [histórico desde a 1.0.32](CHANGELOG.md) e as [notas da release](RELEASE_NOTES.md). As verificações físicas registradas correspondem a builds debug e não equivalem à validação do APK release. O versionCode é gerado a cada build. A publicação pode ser conferida na [página da release](https://github.com/rodrigoluiz1990/MewName/releases/tag/v1.0.33).
 
 Funcionalidades disponíveis:
 
@@ -14,9 +14,19 @@ Funcionalidades disponíveis:
 - Pokédex, coleção pessoal, catálogos de ataques, efeitos de aventura, raids, calendário e outras consultas do jogo.
 - Sobreposição com atalhos reorganizáveis e painéis de revisão e coleção.
 
-Combinações compatíveis com o PC são possibilidades, não IVs confirmados. A leitura visual do arco de nível continua desativada; não deve ser considerada uma funcionalidade validada.
+Combinações compatíveis com o PC são possibilidades, não IVs confirmados. A leitura do arco de nível pode auxiliar fichas sem avaliação quando há calibração e compatibilidade com PC/PS; a regressão física completa permanece pendente.
 
 ## Melhorias recentes
+
+### Coleções, filtros, missões e OCR — 1.0.33
+
+- Coleções com abas de fantasias e adesivos, cartões compartilhados, formas regionais corrigidas e lista compacta na sobreposição. A busca posiciona a lista e o painel pode ser recolhido até a alça.
+- Filtros com tags próprias/favoritas e ícones; editor flutuante permite alternar condições e copiar. Tags e formatos de nome podem ser reordenados por arraste.
+- Missões com ordem por arraste e posicionamento livre ou junto ao botão de leitura. Backup automático diário mantém uma cópia na pasta escolhida, preservada após desinstalação.
+- Rocket sugere uma equipe de três Pokémon, com ataque rápido e até dois carregados, por estimativa ofensiva. Raids usam programação, PC e estrelas para restringir candidatos.
+- IV Master incorpora aprovações recentes; ícones e modais foram padronizados. O [changelog](CHANGELOG.md) detalha todas as alterações.
+- Permanecem pendentes a regressão física do OCR e a divergência de poeira do Moltres purificado. O experimento visual Dinamax não integra a release.
+
 
 ### Pokédex, eventos e interface — 1.0.31
 

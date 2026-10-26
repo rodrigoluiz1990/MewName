@@ -81,7 +81,7 @@ internal fun ReviewLogSelectionModal(
                     LogToggleOption(lt(language, "Composição dos nomes sugeridos", "Suggested name composition", "Composición de nombres sugeridos"), includeNames, onIncludeNamesChange)
                 ))
             }
-            Button(onClick = onExport, enabled = selected.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
+            AppActionButton(onClick = onExport, enabled = selected.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
                 Text(lt(language, "Exportar selecionados", "Export selected", "Exportar seleccionados"))
             }
         }

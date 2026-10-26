@@ -121,9 +121,9 @@ internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
     Box(Modifier.fillMaxSize()) {
     Scaffold(topBar = {
         AppTopBar(title = { Text(tr("Calendário", "Calendar", "Calendario")) },
-            navigationIcon = { if (!compactToday) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar", "Back", "Volver")) } },
+            navigationIcon = { if (!compactToday) IconButton(onClick = onBack) { Icon(AppIcons.Back, tr("Voltar", "Back", "Volver")) } },
             actions = {
-                IconButton(onClick = { retry++ }, enabled = !loading) { Icon(Icons.Default.Refresh, tr("Atualizar eventos", "Refresh events", "Actualizar eventos")) }
+                IconButton(onClick = { retry++ }, enabled = !loading) { Icon(AppIcons.Refresh, tr("Atualizar eventos", "Refresh events", "Actualizar eventos")) }
                 if (compactToday) AppModalCloseButton(onBack)
             })
     }) { padding ->
@@ -147,7 +147,7 @@ internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
                             }, modifier = Modifier.semantics {
                                 contentDescription = if (weekView) tr("Semana anterior", "Previous week", "Semana anterior")
                                     else tr("Mês anterior", "Previous month", "Mes anterior")
-                            }) { Text("‹", style = MaterialTheme.typography.headlineSmall) }
+                            }) { Icon(AppIcons.Back, contentDescription = null) }
                             val periodTitle = if (weekView) {
                                 val dateFormat = DateTimeFormatter.ofPattern("dd MMM", locale)
                                 visibleStart.format(dateFormat) + " – " + visibleStart.plusDays(6).format(dateFormat) + " · " +
@@ -161,7 +161,7 @@ internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
                             }, modifier = Modifier.semantics {
                                 contentDescription = if (weekView) tr("Próxima semana", "Next week", "Semana siguiente")
                                     else tr("Próximo mês", "Next month", "Mes siguiente")
-                            }) { Text("›", style = MaterialTheme.typography.headlineSmall) }
+                            }) { Icon(AppIcons.Next, contentDescription = null) }
                         }
                         if (weekView) {
                             BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -311,23 +311,22 @@ private fun CalendarEventDetails(event: CalendarEvent, onClose: () -> Unit) {
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
     val locale = when(language) { AppLanguage.PT_BR -> Locale("pt", "BR"); AppLanguage.ES -> Locale("es"); else -> Locale.ENGLISH }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", locale)
-    AppSectionCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            AppModalHeader(event.title, onClose = onClose)
-            Text(event.categoryLabel, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelMedium)
-            Text(tr("Início: ", "Starts: ", "Inicio: ") + event.start.format(formatter),
-                Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            Text(tr("Fim: ", "Ends: ", "Fin: ") + event.end.format(formatter),
-                Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }, modifier = Modifier.fillMaxWidth()) {
-                Text(tr("Mais detalhes", "More details", "Más detalles"))
-            } }
+    AppModalPanel(title = event.title, onClose = onClose, actions = {
+        event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }) {
+            Text(tr("Mais detalhes", "More details", "Más detalles"))
+        } }
+    }) {
+        Text(event.categoryLabel, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelMedium)
+        AppSectionCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(tr("Início", "Starts", "Inicio"), fontWeight = FontWeight.SemiBold)
+                Text(event.start.format(formatter))
+                Text(tr("Fim", "Ends", "Fin"), fontWeight = FontWeight.SemiBold)
+                Text(event.end.format(formatter))
+            }
         }
     }
-
 }
 
 internal fun shiftCalendarPeriod(date: LocalDate, weekView: Boolean, direction: Int): LocalDate =
@@ -348,12 +347,16 @@ private fun CalendarEventCard(event: CalendarEvent, compactToday: Boolean, local
                 Text(event.categoryLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 Text(event.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 val shortDate = DateTimeFormatter.ofPattern("dd MMM · HH:mm", locale)
-                val interval = if (event.start.toLocalDate() == event.end.toLocalDate()) {
-                    event.start.format(shortDate) + " – " + event.end.format(DateTimeFormatter.ofPattern("HH:mm", locale))
-                } else event.start.format(shortDate) + " → " + event.end.format(shortDate)
-                Text(interval, style = MaterialTheme.typography.bodySmall)
+                if (event.start.toLocalDate() == event.end.toLocalDate()) {
+                    Text(event.start.format(shortDate) + " – " + event.end.format(DateTimeFormatter.ofPattern("HH:mm", locale)),
+                        style = MaterialTheme.typography.bodySmall)
+                } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(event.start.format(shortDate), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                    Icon(AppIcons.Next, null, Modifier.size(16.dp))
+                    Text(event.end.format(shortDate), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                }
             }
-            Text("›", style = MaterialTheme.typography.titleLarge)
+            Icon(AppIcons.Next, contentDescription = null)
         }
     }
 }

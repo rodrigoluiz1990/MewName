@@ -10,8 +10,11 @@ import java.util.Locale
 internal class PersonalCollectionImages(context: Context) {
     private val spriteIndex = JSONObject(context.assets.open("pokemon/go_sprite_index.json").bufferedReader().use { it.readText() })
     private val spriteFiles = spriteIndex.getJSONObject("files")
+    private val localSprites = JSONObject(context.assets.open("pokemon/collection_local_sprites.json").bufferedReader().use { it.readText() })
+    private val spriteOverrides = JSONObject(context.assets.open("pokemon/collection_sprite_overrides.json").bufferedReader().use { it.readText() })
     internal fun gameSprite(file: String, shiny: Boolean = false): String? {
         val candidate = if (shiny) shinyFile(file) else file
+        localSprites.optString(candidate).takeIf { it.isNotBlank() }?.let { return "file:///android_asset/$it" }
         val path = spriteFiles.optString(candidate).takeIf { it.isNotBlank() } ?: return null
         return "https://raw.githubusercontent.com/PokeMiners/pogo_assets/${spriteIndex.getString("revision")}/" + path.replace(" ", "%20")
     }
@@ -50,6 +53,8 @@ internal class PersonalCollectionImages(context: Context) {
     }
 
     fun url(target: PersonalCollectionTarget, shiny: Boolean = false): String? {
+        if (spriteOverrides.has(target.key)) return spriteOverrides.optString(target.key)
+            .takeIf { it.isNotBlank() }?.let { gameSprite(it, shiny) }
         val parts = runCatching { JSONArray(target.key) }.getOrNull() ?: return null
         val name = parts.optString(0)
         val variant = parts.optString(1)

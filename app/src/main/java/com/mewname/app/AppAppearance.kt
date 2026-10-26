@@ -149,10 +149,8 @@ internal fun AppearancePreferences() {
             style = MaterialTheme.typography.bodySmall)
     }
     Text(lt(language, "Imagens dos eventos", "Event images", "Imágenes de eventos"), style = MaterialTheme.typography.titleMedium)
-    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-        Text(lt(language, "Troca automática", "Automatic rotation", "Cambio automático"), Modifier.weight(1f))
-        Switch(checked = appearance.eventAutoRotate, onCheckedChange = { prefs.edit().putBoolean("event_auto_rotate", it).apply() })
-    }
+    AppToggleRow(lt(language, "Troca automática", "Automatic rotation", "Cambio automático"),
+        appearance.eventAutoRotate, { prefs.edit().putBoolean("event_auto_rotate", it).apply() })
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(5, 10, 15, 30).forEach { seconds ->
             AppChoiceChip(selected = appearance.eventIntervalSeconds == seconds,

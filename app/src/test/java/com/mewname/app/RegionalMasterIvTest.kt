@@ -65,7 +65,7 @@ class RegionalMasterIvTest {
     }
 
     @Test fun regionalRulesDoNotFallBackToAnOrdinarySpecies() {
-        for (name in listOf("Articuno (Galar)", "Typhlosion (Hisui)", "Lilligant (Hisui)", "Stunfisk (Galar)")) {
+        for (name in listOf("Articuno (Hisui)", "Growlithe (Galar)")) {
             assertTrue(name, catalog.bestCombinations(context, family(name), name).isEmpty())
             assertNull(name, match(name, 98, 14, 15, 15))
         }

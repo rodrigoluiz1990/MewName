@@ -23,16 +23,102 @@ internal class DailyMissionOverlay(
     private val context: Context,
     private val add: (View, WindowManager.LayoutParams) -> Boolean,
     private val remove: (View) -> Unit,
-    private val update: (View, WindowManager.LayoutParams) -> Boolean = { _, _ -> false }
+    private val update: (View, WindowManager.LayoutParams) -> Boolean = { _, _ -> false },
+    private val refreshAnchor: () -> Unit = {}
 ) {
     private val store = DailyMissionStore(context)
     private val appearancePreferences = context.getSharedPreferences("home_layout", Context.MODE_PRIVATE)
     private val appearanceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key -> if (key == "style") render() }
     private val handler = Handler(Looper.getMainLooper())
-    private var window: View? = null
+    private data class Panel(val view: View, val params: WindowManager.LayoutParams, val above: Boolean, val count: Int)
+    private val windows = mutableListOf<Panel>()
+    private var anchor = android.graphics.Rect()
+    private var backdrop: View? = null
+    private var backdropParams: WindowManager.LayoutParams? = null
+    private var bubbleRadius = 0f
+    private fun clearWindows() {
+        windows.forEach { remove(it.view) }; windows.clear()
+        backdrop?.let(remove); backdrop = null; backdropParams = null
+    }
+    private fun createBackdrop() {
+        val appearance = AppAppearance.read(appearancePreferences)
+        val glass = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+            appearance.card.map { it.toArgb() }.toIntArray()).apply {
+            setStroke(dp(1).coerceAtLeast(1), appearance.border.toArgb())
+        }
+        val params = WindowManager.LayoutParams(dp(40), 1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.LEFT }
+        val view = object : View(context) {
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                super.onDraw(canvas)
+                if (anchor.isEmpty) return
+                // This decoration is above the reading window in Z order. Leave its
+                // circular icon untouched and let all touches reach the real button.
+                val hole = android.graphics.Path().apply {
+                    addCircle((anchor.centerX() - params.x).toFloat(),
+                        (anchor.centerY() - params.y).toFloat(), bubbleRadius,
+                        android.graphics.Path.Direction.CW)
+                }
+                canvas.save()
+                canvas.clipOutPath(hole)
+                glass.cornerRadius = width / 2f
+                glass.setBounds(0, 0, width, height)
+                glass.draw(canvas)
+                canvas.restore()
+            }
+        }.apply { visibility = if (hidden) View.INVISIBLE else View.VISIBLE }
+        if (add(view, params)) { backdrop = view; backdropParams = params }
+    }
+    private fun placement() = MissionPlacement.read(store.preferences)
+    private fun availableSize(): android.graphics.Point {
+        if (android.os.Build.VERSION.SDK_INT < 30) return android.graphics.Point(
+            context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
+        val manager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val metrics = manager.currentWindowMetrics
+        val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
+            android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+        return android.graphics.Point(metrics.bounds.width() - insets.left - insets.right,
+            metrics.bounds.height() - insets.top - insets.bottom)
+    }
+    fun followBubble(view: View, params: WindowManager.LayoutParams) {
+        if (placement() == MissionPlacement.FREE || !started) return
+        val size = availableSize()
+        val width = view.width.takeIf { it > 0 } ?: dp(56)
+        val height = view.height.takeIf { it > 0 } ?: dp(56)
+        val top = if (windows.any { it.above }) dp(46) else 0
+        val bottom = if (windows.any { !it.above }) dp(46) else 0
+        params.x = params.x.coerceIn(0, (size.x - width).coerceAtLeast(0))
+        params.y = params.y.coerceIn(top, (size.y - height - bottom).coerceAtLeast(top))
+        val icon = view.findViewById<View>(R.id.floating_icon)
+        bubbleRadius = (icon?.width?.takeIf { it > 0 } ?: (width - dp(8)).coerceAtLeast(1)) / 2f
+        anchor.set(params.x, params.y, params.x + width, params.y + height)
+        positionLinked()
+    }
+    private fun positionLinked() {
+        if (placement() == MissionPlacement.FREE || anchor.isEmpty) return
+        val size = availableSize()
+        windows.forEach { panel ->
+            val available = if (panel.above) anchor.top - dp(6) else size.y - anchor.bottom - dp(6)
+            panel.params.height = dp(4 + 36 * panel.count.coerceAtMost(5)).coerceAtMost(available.coerceAtLeast(1))
+            panel.params.x = (anchor.centerX() - panel.params.width / 2).coerceIn(0, (size.x - panel.params.width).coerceAtLeast(0))
+            panel.params.y = if (panel.above) anchor.top - dp(6) - panel.params.height else anchor.bottom + dp(6)
+            update(panel.view, panel.params)
+        }
+        backdropParams?.let { params ->
+            val top = windows.filter { it.above }.minOfOrNull { it.params.y } ?: (anchor.centerY() - bubbleRadius).toInt()
+            val bottom = windows.filter { !it.above }.maxOfOrNull { it.params.y + it.params.height } ?: (anchor.centerY() + bubbleRadius).toInt()
+            params.width = dp(40)
+            params.height = bottom - top
+            params.x = (anchor.centerX() - params.width / 2).coerceIn(0, (size.x - params.width).coerceAtLeast(0))
+            params.y = top
+            backdrop?.let { update(it, params); it.invalidate() }
+        }
+    }
     private var hidden = false
     private var started = false
-    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key -> if (key == "missions") render() }
+    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key -> if (key == "missions" || key == MissionPlacement.KEY) render() }
     private val midnight = Runnable { render(); schedule() }
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { render(); schedule() }
@@ -57,17 +143,38 @@ internal class DailyMissionOverlay(
     }
     fun hideForCapture(value: Boolean) {
         hidden = value
-        window?.visibility = if (value) View.INVISIBLE else View.VISIBLE
+        windows.forEach { it.view.visibility = if (value) View.INVISIBLE else View.VISIBLE }
+        backdrop?.visibility = if (value) View.INVISIBLE else View.VISIBLE
     }
     private fun render() {
-        window?.let(remove); window = null
+        clearWindows()
         if (!started) return
         val pending = store.all().filterNot { it.completed() }
         if (pending.isEmpty()) return
+        if (placement() != MissionPlacement.FREE) createBackdrop()
+        val (above, below) = placement().split(pending)
+        if (above.isNotEmpty()) createPanel(above, true)
+        if (below.isNotEmpty()) createPanel(below, false)
+        refreshAnchor()
+        positionLinked()
+    }
+    private fun createPanel(pending: List<DailyMission>, above: Boolean) {
+        val linked = placement() != MissionPlacement.FREE
         val appearance = AppAppearance.read(appearancePreferences)
         val column = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(2), dp(2), dp(2), dp(2)) }
         for (mission in pending) {
-            val button = ImageButton(context).apply {
+            val button = if (mission.icon.isBlank()) android.widget.TextView(context).apply {
+                text = mission.name.trim().take(2).uppercase()
+                textSize = 11f
+                gravity = android.view.Gravity.CENTER
+                setTextColor(appearance.text.toArgb())
+                contentDescription = mission.name
+                tooltipText = mission.name
+                setOnClickListener {
+                    store.complete(mission.id, true)
+                    Toast.makeText(context, "✓ ${mission.name}", Toast.LENGTH_SHORT).show()
+                }
+            } else ImageButton(context).apply {
                 contentDescription = mission.name
                 tooltipText = mission.name
                 setBackgroundColor(Color.TRANSPARENT)
@@ -77,6 +184,8 @@ internal class DailyMissionOverlay(
                     BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = 2 })
                 } }.getOrNull()
                 if (bitmap != null) setImageBitmap(bitmap) else setImageResource(android.R.drawable.ic_menu_agenda)
+                if (mission.icon in setOf("filter_icons/legendary.png", "filter_icons/mythical.png", "filter_icons/costume.png", "filter_icons/favorite_empty.png"))
+                    setColorFilter(appearance.text.toArgb())
                 setOnClickListener {
                     store.complete(mission.id, true)
                     Toast.makeText(context, "✓ ${mission.name}", Toast.LENGTH_SHORT).show()
@@ -92,7 +201,7 @@ internal class DailyMissionOverlay(
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             // Reuse the same translucent card palette and rim as the app's glass panels.
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+            background = if (linked) null else GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 appearance.card.map { it.toArgb() }.toIntArray()).apply {
                 cornerRadius = dp(16).toFloat()
                 setStroke(dp(1).coerceAtLeast(1), appearance.border.toArgb())
@@ -100,18 +209,11 @@ internal class DailyMissionOverlay(
             clipToOutline = true
             visibility = if (hidden) View.INVISIBLE else View.VISIBLE
         }
-        val params = WindowManager.LayoutParams(dp(40), dp(24 + 4 + 36 * pending.size.coerceAtMost(5)),
+        val params = WindowManager.LayoutParams(dp(40), dp((if (linked) 0 else 24) + 4 + 36 * pending.size.coerceAtMost(5)),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.LEFT }
-        val manager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val size = if (android.os.Build.VERSION.SDK_INT >= 30) {
-            val metrics = manager.currentWindowMetrics
-            val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
-                android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
-            android.graphics.Point(metrics.bounds.width() - insets.left - insets.right,
-                metrics.bounds.height() - insets.top - insets.bottom)
-        } else android.graphics.Point(context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
+        val size = availableSize()
         val maxX = (size.x - params.width).coerceAtLeast(0)
         val maxY = (size.y - params.height).coerceAtLeast(0)
         params.x = (store.preferences.getFloat("position_x", 1f) * size.x).toInt().coerceIn(0, maxX)
@@ -149,9 +251,9 @@ internal class DailyMissionOverlay(
             }
             true
         }
-        root.addView(handle, LinearLayout.LayoutParams(dp(40), dp(24)))
+        if (!linked) root.addView(handle, LinearLayout.LayoutParams(dp(40), dp(24)))
         root.addView(scroll, LinearLayout.LayoutParams(dp(40), 0, 1f))
-        if (add(root, params)) window = root
+        if (add(root, params)) windows += Panel(root, params, above, pending.size)
     }
     fun close() {
         if (!started) return
@@ -160,6 +262,6 @@ internal class DailyMissionOverlay(
         store.preferences.unregisterOnSharedPreferenceChangeListener(listener)
         appearancePreferences.unregisterOnSharedPreferenceChangeListener(appearanceListener)
         context.unregisterReceiver(receiver)
-        window?.let(remove); window = null
+        clearWindows()
     }
 }

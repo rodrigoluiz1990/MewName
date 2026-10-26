@@ -185,7 +185,7 @@ fun TypeBadge(
             )
             if (selected) {
                 Spacer(Modifier.width(3.dp))
-                Icon(Icons.Default.Check, contentDescription = null,
+                Icon(AppIcons.Selected, contentDescription = null,
                     modifier = Modifier.size(10.dp), tint = textColor)
             }
         }

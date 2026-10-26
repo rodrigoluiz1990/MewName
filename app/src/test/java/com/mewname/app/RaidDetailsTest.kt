@@ -69,9 +69,16 @@ class RaidDetailsTest {
             {"type":"RAID_TYPE_RAID","tier":"RAID_LEVEL_5_LEGACY","raids":[{"pokemonId":"KYOGRE"}]},
             {"type":"RAID_TYPE_RAID","tier":"RAID_LEVEL_5_FUTURE","raids":[{"pokemonId":"MEWTWO"}]},
             {"type":"RAID_TYPE_RAID","tier":"RAID_LEVEL_5_MAX","raids":[{"pokemonId":"GENGAR"}]}]}""")
-        assertEquals(listOf(
-            RaidChoice("ZACIAN_HERO_FORM","RAID_LEVEL_5"),
-            RaidChoice("GENGAR","RAID_LEVEL_5_MAX")
-        ),repository().catalog())
+        assertEquals(listOf(RaidChoice("GENGAR","RAID_LEVEL_5_MAX")),repository().catalog())
+        val now = java.time.LocalDateTime.now()
+        val calendar = File(context.filesDir, "calendar/${now.year}.json")
+        calendar.parentFile!!.mkdirs()
+        val event = JSONObject().put("titulo", "Zacian").put("inicio", now.minusDays(1).toString())
+            .put("fim", now.plusDays(1).toString()).put("link", "https://pokebattler.com/raids/ZACIAN_HERO_FORM")
+        calendar.writeText(JSONObject().put("years", JSONObject().put(now.year.toString(),
+            JSONObject().put("raid", org.json.JSONArray().put(event))))
+            .put("references", JSONObject()).put("meta", JSONObject()).put("fetchedAt", System.currentTimeMillis()).toString())
+        assertEquals(listOf(RaidChoice("GENGAR","RAID_LEVEL_5_MAX"),
+            RaidChoice("ZACIAN_HERO_FORM","RAID_LEVEL_5")),repository().catalog())
     }
 }

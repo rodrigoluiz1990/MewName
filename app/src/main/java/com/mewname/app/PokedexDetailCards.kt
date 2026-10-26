@@ -21,7 +21,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.mewname.app.domain.*
 import java.util.Locale
 
@@ -81,7 +80,7 @@ private fun PokedexFamilyBranch(paths: List<PokedexEvolutionPath>, details: Poke
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Column(Modifier.width(96.dp).clickable(enabled = entry != null, role = Role.Button) { entry?.let { onSelect(it.name) } }
             .padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            AsyncImage(details.familySprites[member], member, Modifier.size(80.dp))
+            PokedexSprite(details.familySprites[member], member, Modifier.size(64.dp))
             Text(entry?.localizedName(language) ?: member, modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         }
@@ -246,7 +245,7 @@ internal fun PokedexOpponentRow(title: String, ids: List<String>, opponents: Map
                 verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Box(Modifier.size(80.dp), contentAlignment = Alignment.Center) {
                     if (opponent?.shadow == true || id.endsWith("_shadow")) CollectionShadowAura()
-                    if (opponent?.sprite != null) AsyncImage(opponent.sprite, name, Modifier.size(64.dp))
+                    if (opponent?.sprite != null) PokedexSprite(opponent.sprite, name, Modifier.size(64.dp))
                     else Text("?", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(name, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)

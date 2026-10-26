@@ -10,11 +10,14 @@ internal data class CollectionSpecies(val dex: Int, val name: String, val target
 internal object CollectionDexCatalog {
     private fun id(text: String) = Normalizer.normalize(text, Normalizer.Form.NFD)
         .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "").uppercase(java.util.Locale.ROOT)
+        .replace("GALARIAN_STANDARD", "GALAR").replace("GALARIAN", "GALAR").replace("ALOLAN", "ALOLA").replace("HISUIAN", "HISUI").replace("PALDEAN", "PALDEA")
         .replace(Regex("[^A-Z0-9]"), "")
     fun load(context: Context, saved: Collection<PersonalCollectionTarget> = emptyList()): List<CollectionSpecies> {
         val names = JSONArray(context.assets.open("pokemon/names.json").bufferedReader().use { it.readText() })
         val game = JSONArray(context.assets.open("pokemon/collection_game_forms.json").bufferedReader().use { it.readText() })
         val costumeKeys = mutableSetOf<String>()
+        val costumeIds = (0 until game.length()).map { game.getJSONObject(it) }
+            .filter { it.optBoolean("costume") }.map { id(it.getString("id")) }.toSet()
         val groups = linkedMapOf<Int, MutableList<PersonalCollectionTarget>>()
         val labels = mutableMapOf<Int, String>()
         val known = mutableSetOf<String>()
@@ -24,11 +27,13 @@ internal object CollectionDexCatalog {
             val entry = names.getJSONObject(i)
             val name = entry.getString("name")
             val dex = entry.getInt("dex")
-            labels.putIfAbsent(dex, name)
+            // Asset order is not guaranteed: e.g. Paldean Tauros precedes ordinary Tauros.
+            if (dex !in labels || ('(' in labels.getValue(dex) && '(' !in name) || labels.getValue(dex).startsWith("$name ", true)) labels[dex] = name
             known.add(id(name)); dexByName[id(name)] = dex
             val aliases = entry.optJSONArray("aliases")
             if (aliases != null) for (a in 0 until aliases.length()) known.add(id(aliases.getString(a)))
             val list = groups.getOrPut(dex) { mutableListOf() }
+            val firstTarget = list.size
             val data = PokemonScreenData(pokemonName = name)
             val options = UniquePokemonCatalog.optionsFor(name)
             when {
@@ -43,12 +48,18 @@ internal object CollectionDexCatalog {
                 }
                 else -> PersonalCollection.target(context, data)?.let(list::add)
             }
+            // Some costumes have independent battle stats and therefore live in names.json too.
+            // Classify their existing collection key without removing them from the name/stat catalogs.
+            if (id(name) in costumeIds || (aliases != null && (0 until aliases.length()).any { id(aliases.getString(it)) in costumeIds })) {
+                costumeKeys.addAll(list.drop(firstTarget).map { it.key })
+            }
         }
         for (i in 0 until game.length()) {
             val form = game.getJSONObject(i)
             val dex = form.getInt("dex")
             val code = form.getString("id")
             val base = labels[dex] ?: continue
+            if (code.endsWith("HOME_FORM_REVERSION") || code.endsWith("HOME_REVERSION")) continue
             if (id(code) in known || (dex in uniqueDex && !form.optBoolean("costume"))) continue
             val suffix = code.substringAfter('_', code).lowercase().split('_').joinToString(" ") { it.replaceFirstChar(Char::titlecase) }
             val target = PersonalCollectionTarget(JSONArray(listOf(base.uppercase(java.util.Locale.ROOT), "GAME_FORM:$code")).toString(), "$base · $suffix")
@@ -69,19 +80,40 @@ internal object CollectionDexCatalog {
             val name = runCatching { JSONArray(target.key).getString(0) }.getOrNull() ?: continue
             dexByName[id(name)]?.let { groups.getOrPut(it) { mutableListOf() }.add(target) }
         }
-        return groups.map { (dex, targets) -> CollectionSpecies(dex, labels.getValue(dex), targets.distinctBy { it.key }, costumeKeys.intersect(targets.map { it.key }.toSet())) }.sortedBy { it.dex }
+        return groups.map { (dex, targets) -> CollectionSpecies(dex, labels.getValue(dex), targets.map { PersonalCollection.canonicalRegionalTarget(context, it) }.distinctBy { it.key }, targets.filter { it.key in costumeKeys }.map { PersonalCollection.canonicalRegionalTarget(context, it).key }.toSet()) }.sortedBy { it.dex }
     }
 }
 
 /** Quick marking always retains the exact species/form key; costumes stay in the detail view. */
 internal fun collectionQuickTargets(species: List<CollectionSpecies>, group: PersonalCollectionGroup,
-    query: String, obtained: Set<String>? = null): List<Pair<CollectionSpecies, PersonalCollectionTarget>> {
+    query: String, obtained: Set<String>? = null, costumesOnly: Boolean = false): List<Pair<CollectionSpecies, PersonalCollectionTarget>> {
     val search = query.trim()
     return species.flatMap { entry ->
         entry.targets.filter { target ->
-            target.key !in entry.costumeKeys && PersonalCollection.supports(target, group) &&
+            (target.key in entry.costumeKeys) == costumesOnly && PersonalCollection.supports(target, group) &&
                 (obtained == null || target.key in obtained) &&
                 (search.isEmpty() || entry.dex.toString().contains(search) || target.label.contains(search, true))
         }.map { entry to it }
+    }.distinctBy { it.second.key }
+}
+
+/** One row per exact form; original first, regional forms next, costumes remain in details. */
+internal fun collectionCompactTargets(species: List<CollectionSpecies>, query: String,
+    obtained: Set<String>? = null, costumesOnly: Boolean = false): List<Pair<CollectionSpecies, PersonalCollectionTarget>> {
+    val search = query.trim()
+    val regional = Regex("ALOLA|GALAR|HISUI|PALDEA", RegexOption.IGNORE_CASE)
+    return species.sortedBy { it.dex }.flatMap { entry ->
+        entry.targets.filter { (it.key in entry.costumeKeys) == costumesOnly }.distinctBy { it.key }
+            .sortedBy { target ->
+                val parts = JSONArray(target.key)
+                when {
+                    parts.optString(0).equals(entry.name, true) && parts.optString(1).isBlank() -> 0
+                    regional.containsMatchIn(target.key) -> 1
+                    else -> 2
+                }
+            }.filter { target ->
+                (obtained == null || target.key in obtained) &&
+                    (search.isBlank() || entry.dex.toString().contains(search) || target.label.contains(search, true))
+            }.map { entry to it }
     }.distinctBy { it.second.key }
 }

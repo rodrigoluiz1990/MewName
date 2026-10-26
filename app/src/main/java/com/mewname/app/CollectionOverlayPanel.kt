@@ -41,7 +41,7 @@ internal fun CollectionOverlayPanel(screenHeight: Int, onResize: (Int) -> Unit,
     // Preserve the mounted content and its scroll/search state, even at header-only height.
     val bodyHeight = maxOf(visibleBodyHeight, 240.dp)
     AppSectionCard(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().height(48.dp)
+        Box(Modifier.fillMaxWidth().height(CollectionOverlayWindow.HANDLE_DP.dp)
             .semantics {
                 contentDescription = "Arraste para ajustar a altura da coleção"
                 customActions = listOf(
@@ -70,11 +70,12 @@ internal fun CollectionOverlayPanel(screenHeight: Int, onResize: (Int) -> Unit,
             Box(Modifier.size(width = 36.dp, height = 4.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)))
         }
-        Box(Modifier.fillMaxWidth().height(48.dp)) {
+        Box(Modifier.fillMaxWidth().height(if (collapsed) 0.dp else 48.dp).clipToBounds()
+            .then(if (collapsed) Modifier.clearAndSetSemantics { } else Modifier)) {
             Text("Coleções", Modifier.align(Alignment.Center).padding(horizontal = 48.dp),
                 style = MaterialTheme.typography.titleMedium)
             IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) {
-                Icon(Icons.Default.Close, "Fechar coleção")
+                Icon(AppIcons.Close, "Fechar coleção")
             }
         }
         Box(Modifier.fillMaxWidth().height(visibleBodyHeight).clipToBounds()

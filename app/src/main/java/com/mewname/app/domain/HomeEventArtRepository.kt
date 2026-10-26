@@ -67,6 +67,24 @@ internal object HomeEventArtParser {
             News(title, link, image.substringBefore('=') + "=w1440")
         }.distinctBy { it.link.substringAfterLast('/') }.take(30)
 
+    /** Annual meteor showers have separate windows, not one continuous event. */
+    fun articles(news: News, englishHtml: String, currentYear: Int = LocalDate.now().year): List<HomeEventArt> {
+        val slug = news.link.substringAfterLast('/')
+        if (!slug.startsWith("minior-meteor-showers-")) return listOfNotNull(article(news, englishHtml))
+        val announcedYear = Regex("20[0-9]{2}").find(slug)?.value?.toIntOrNull() ?: return emptyList()
+        val paragraphs = Jsoup.parse(englishHtml).select("main p").map { it.text() }
+        if (paragraphs.none { it.contains("each year", true) }) return emptyList()
+        val windows = paragraphs.filter { it.contains("local time", true) && date.findAll(it).count() == 2 }
+            .mapNotNull { window -> article(news, "<main><p>${org.jsoup.nodes.Entities.escape(window)}</p></main>") }
+        val debutMonth = windows.firstOrNull()?.start?.monthValue ?: return emptyList()
+        return (maxOf(currentYear, announcedYear)..maxOf(currentYear + 1, announcedYear)).flatMap { year ->
+            windows.mapNotNull { event ->
+                if (year == announcedYear && event.start.monthValue < debutMonth) null
+                else event.copy(start = event.start.withYear(year), end = event.end.withYear(year))
+            }
+        }.distinctBy { it.start to it.end }
+    }
+
     fun article(news: News, englishHtml: String): HomeEventArt? {
         val slug = news.link.substringAfterLast('/')
         // Location-specific announcements must not become a worldwide home background.
@@ -104,7 +122,7 @@ internal class HomeEventArtRepository(context: Context) {
         HomeEventArtCatalog((0 until rows.length()).map { i -> rows.getJSONObject(i).let {
             HomeEventArt(it.getString("title"), it.getString("link"), it.getString("image"),
                 LocalDate.parse(it.getString("start")), LocalDate.parse(it.getString("end")), it.getInt("priority"))
-        } }, if (json.optInt("schema") == 3) json.getLong("fetchedAt") else 0L)
+        } }, if (json.optInt("schema") == 4) json.getLong("fetchedAt") else 0L)
     }.getOrNull()
 
     suspend fun refresh(locale: String): HomeEventArtCatalog = withContext(Dispatchers.IO) {
@@ -129,9 +147,9 @@ internal class HomeEventArtRepository(context: Context) {
                         // English gives one stable date grammar; title and art remain localized.
                         val html = fetch("https://pokemongo.com/en/news/" + item.link.substringAfterLast('/'))
                         ensureActive()
-                        HomeEventArtParser.article(item, html)
+                        HomeEventArtParser.articles(item, html)
                     }
-                } }.awaitAll().filterNotNull()
+                } }.awaitAll().flatten()
             }
         }
         val seasonEvents = source(true) {
@@ -144,7 +162,7 @@ internal class HomeEventArtRepository(context: Context) {
         val events = newsEvents + seasonEvents
         ensureActive()
         val result = HomeEventArtCatalog(events, System.currentTimeMillis())
-        val json = JSONObject().put("schema", 3).put("fetchedAt", result.fetchedAt).put("events", JSONArray(events.map {
+        val json = JSONObject().put("schema", 4).put("fetchedAt", result.fetchedAt).put("events", JSONArray(events.map {
             JSONObject().put("title", it.title).put("link", it.link).put("image", it.image)
                 .put("start", it.start.toString()).put("end", it.end.toString()).put("priority", it.priority)
         }))

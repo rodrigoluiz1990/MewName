@@ -280,6 +280,7 @@ class NameGenerator {
     }
 
     private fun toSuperscript(value: Int): String {
+        if (value == 0) return "⁰⁰"
         val digits = mapOf(
             '0' to '⁰',
             '1' to '¹',

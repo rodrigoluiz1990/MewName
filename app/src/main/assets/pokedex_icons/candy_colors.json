@@ -2,6 +2,21 @@
   "m_Name": "PokemonCandyColorData",
   "CandyColors": [
     {
+      "FamilyId": 0,
+      "PrimaryColor": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      },
+      "SecondaryColor": {
+        "r": 1,
+        "g": 0,
+        "b": 1,
+        "a": 1
+      }
+    },
+    {
       "FamilyId": 1,
       "PrimaryColor": {
         "r": 0.21598702669143677,
@@ -7217,21 +7232,6 @@
       }
     },
     {
-      "FamilyId": 0,
-      "PrimaryColor": {
-        "r": 1,
-        "g": 1,
-        "b": 1,
-        "a": 1
-      },
-      "SecondaryColor": {
-        "r": 1,
-        "g": 0,
-        "b": 1,
-        "a": 1
-      }
-    },
-	{
       "FamilyId": 931,
       "PrimaryColor": {
         "r": 0.9529412,

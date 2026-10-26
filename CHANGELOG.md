@@ -1,5 +1,77 @@
 # Histórico de alterações
 
+## 1.0.33 - 2026-10-25
+
+Alterações acumuladas desde a release 1.0.32.
+
+### Coleções e sprites
+
+- Nova aba Fantasias na coleção, separada das formas normais; Mewtwo de Armadura preserva seus atributos e seleção na sugestão de nomes.
+- Coleção de adesivos com marcação persistente; cartões de Fantasias, Fundos especiais e Adesivos compartilham imagem, nome, margens e indicador de coletado.
+- Fundos especiais e adesivos são marcados pelo toque no cartão; pressionar um fundo abre a prévia ampliada.
+- Novo layout compacto da coleção na sobreposição, com uma espécie por linha, sprite e sequência de formas coletáveis.
+- Alternância de layouts, busca em uma linha e painel recolhível até a alça para liberar os controles do jogo.
+- Busca posiciona a lista na espécie encontrada, priorizando nome/número exato e prefixo; retorno dos detalhes preserva a posição.
+- Formas regionais aparecem após a espécie principal; corrigidas duplicações e aliases Galar/Galarian, Meowth e Perrserker.
+- Revisados sprites e nomes de formas, incluindo Keldeo Ordinary/Resolute, Minior e formas técnicas HOME_FORM_REVERSION.
+- Sprites ausentes usam uma silhueta de Pikachu; imagens compartilhadas recebem recorte de margens transparentes e tamanhos consistentes.
+- Corrigidas classificações de fantasias e clones, preservando as marcações existentes ao normalizar identificadores.
+
+### Filtros e nomes
+
+- Tela inicial de filtros mostra os salvos; criação pelo +, edição ao tocar no cartão e ações independentes de copiar e excluir.
+- Tags personalizadas com nome/texto único, ícone opcional, edição por pressão longa e favorito configurável no editor.
+- Primeira aba reúne tags favoritas; criação integrada à aba Minhas tags e catálogo de ícones compartilhado com missões.
+- Tags selecionadas respeitam a ordem de inclusão e podem ser reorganizadas por arraste no filtro copiado e salvo.
+- Editor rápido de filtros na sobreposição com janela móvel, preview destacado, ícones compactos e cópia sem bloquear o jogo.
+- Toque na tag alterna inclusão, negação e desativação no preview do filtro rápido.
+- Preview do apelido e padrão do nome com visual compartilhado; arraste dos campos do padrão aprimorado.
+- Formatos de nome podem ser reordenados por pressão longa e arraste, com persistência da ordem.
+- Exclusão de formatos exige confirmação e mantém a proteção do último formato; IV 0% aparece como ⁰⁰ no apelido.
+
+### Missões e backup
+
+- Missões iniciais são configuradas em novas instalações, sem adicionar uma tela separada de modelos.
+- Ordem das missões editável por pressão longa e arraste dos cartões.
+- Configuração no Treinador permite caixa livre ou vinculada ao botão de leitura, acima, abaixo ou dividida entre ambos.
+- Barras compactas mantêm o estilo glassmorphism e acompanham o botão, com ajustes de sobreposição e alinhamento.
+- Catálogo compartilhado de ícones ampliado com itens do jogo, favorito, recursos e opção sem ícone; removidas duplicatas.
+- Confirmação de exclusão de missão preservada e padronizada.
+- Backup automático diário em pasta escolhida, mantendo uma cópia válida e preservando o arquivo após desinstalação.
+- Reinstalações podem localizar o backup ao selecionar a mesma pasta; gravação e restauração protegem os dados existentes.
+
+### Equipe GO Rocket, raids e eventos
+
+- Personagens Rocket com nome abaixo e fala ao lado; Pokémon em cartões com fraquezas por ícones, ordenadas por eficácia.
+- Seleção dos adversários é independente por recruta/líder; corrigidas associações e casos sem sugestões suficientes.
+- Sugestão de uma equipe de três Pokémon com ataque rápido e até dois carregados, considerando cobertura ofensiva conjunta.
+- Sugestões usam sprites, tipos dos ataques e símbolo de legado configurado pelo treinador; botão Copiar equipe sugerida abaixo dos cartões.
+- Raids de nível 5 e Mega seguem os intervalos da programação atual, evitando incluir chefes futuros do simulador.
+- Identificação de raids aprimorada com estrelas, PC do chefe, candidatos compatíveis e catálogo local ordenado pela Pokédex Nacional.
+- Quando a identificação é inconclusiva, chefes candidatos aparecem em cartões com sprite para seleção manual.
+- Imagens locais de eventos ampliadas e janelas de eventos recorrentes ajustadas no carrossel da tela inicial.
+
+### OCR, IV Master e dados
+
+- Leitura alternativa de nome, família pelos doces, PC e PS quando a avaliação inferior não está disponível.
+- Cruzamento de PC/PS/IVs e arco calibrado para auxiliar o nível; evidências ambíguas não são tratadas como confirmação.
+- PC visível auxilia o desempate de nível; PC parcial pode ser cruzado com PS e IVs conhecidos quando a combinação é única.
+- Arredondamento dos doces de purificados corrigido, incluindo Moltres do nível 35 ao 40: 106 doces.
+- Ajustada a distinção visual entre purificado e sombroso e o roteamento de telas de tags para os filtros.
+- Regras aprovadas do IV Master incorporadas, incluindo famílias de Darmanitan de Galar e Growlithe de Hisui; planilha reduzida às pendências atuais.
+- Catálogos de Pokémon e famílias reorganizados pela Pokédex Nacional; ferramentas de ordenação e geração do catálogo de PC de raids incluídas.
+
+### Interface e manutenção
+
+- Ícones de ações padronizados em Font Awesome 7.3.1, preservando dimensões compactas e incluindo licença e atribuição.
+- Modais de nomes, temperatura, introdução, calendário, backup e exclusão compartilham título centralizado, X e ações padronizadas.
+- Seletores de missão, variantes de raid e ataques PvP com opção selecionada destacada e fundo corrigido.
+- Seletor de Pokémon da Análise de Equipe com fundo opaco, título em negrito e separação entre sprite e nome.
+- Toggle de troca automática e botão de exportação de registros padronizados; confirmação do seletor de nível mantida.
+- Guia de release documentado e testes ampliados para persistência, filtros, coleções, missões, OCR, raids e equipes.
+
+O efeito experimental Dinamax do Squirtle permanece fora desta release. A regressão física completa do OCR e a divergência de poeira no fortalecimento do Moltres purificado continuam pendentes.
+
 ## 1.0.32 - 2026-10-18
 
 Alterações acumuladas desde a release 1.0.31.

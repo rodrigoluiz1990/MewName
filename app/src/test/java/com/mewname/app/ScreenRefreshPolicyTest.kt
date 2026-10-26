@@ -54,7 +54,16 @@ class ScreenRefreshPolicyTest {
         val repo = RaidCounterRepository(context)
         assertTrue(repo.catalogNeedsRefresh())
         file.writeText(JSONObject().put("mewnameFetchedAt", System.currentTimeMillis()).toString())
+        assertTrue(repo.catalogNeedsRefresh()) // A fresh simulator catalog is insufficient without a schedule.
+        val calendar = File(context.filesDir, "calendar/${java.time.LocalDate.now().year}.json")
+        calendar.parentFile!!.mkdirs()
+        fun schedule(time: Long) = JSONObject().put("years", JSONObject())
+            .put("references", JSONObject()).put("meta", JSONObject()).put("fetchedAt", time).toString()
+        calendar.writeText(schedule(System.currentTimeMillis()))
         assertFalse(repo.catalogNeedsRefresh())
+        calendar.writeText(schedule(1L))
+        assertTrue(repo.catalogNeedsRefresh())
+        calendar.writeText(schedule(System.currentTimeMillis()))
         file.writeText(JSONObject().put("mewnameFetchedAt", System.currentTimeMillis() - RAID_CATALOG_MAX_AGE).toString())
         assertTrue(repo.catalogNeedsRefresh())
     }

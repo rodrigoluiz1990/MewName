@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.mewname.app.domain.*
 import kotlinx.coroutines.*
 import org.json.JSONObject
@@ -125,12 +124,12 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
                 title = { Text("#${entry.number} · ${entry.localizedName(language)}") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar", "Back", "Volver"))
+                        Icon(AppIcons.Back, tr("Voltar", "Back", "Volver"))
                     }
                 },
                 actions = {
                     IconButton(onClick = { refresh++ }, enabled = !onlineLoading) {
-                        Icon(Icons.Default.Refresh, tr("Atualizar dados online", "Refresh online data", "Actualizar datos online"))
+                        Icon(AppIcons.Refresh, tr("Atualizar dados online", "Refresh online data", "Actualizar datos online"))
                     }
                 }
             )
@@ -154,10 +153,10 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
                             item { PokedexDetailsSection(tr("Pokémon e atributos","Pokémon and stats","Pokémon y atributos")) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        AsyncImage(local?.sprite, entry.name, Modifier.size(100.dp)); Text(tr("Normal","Normal","Normal"))
+                                        PokedexSprite(local?.sprite, entry.name, Modifier.size(64.dp)); Text(tr("Normal","Normal","Normal"))
                                     }
                                     local?.shiny?.let { url -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        AsyncImage(url, entry.name, Modifier.size(100.dp)); Text(tr("Brilhante","Shiny","Variocolor"))
+                                        PokedexSprite(url, entry.name, Modifier.size(64.dp)); Text(tr("Brilhante","Shiny","Variocolor"))
                                     } }
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) { types.forEach { TypeBadge(it, language, showAssetIcon = true) } }
@@ -184,8 +183,8 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
                                     list.forEach { move ->
                                     val detail = local?.moveStats?.get(pokedexIdentity(move.name))
                                     if (detail != null) MainMoveCard(detail, language, moveEffects[detail.moveId].orEmpty(),
-                                        extraContent = if (move.legacy) ({ Text(tr("★ Golpe legado/especial", "★ Legacy/special move", "★ Ataque legado/especial"), style = MaterialTheme.typography.labelSmall) }) else null)
-                                    else PokedexDetailsSection(move.localizedName + if (move.legacy) " ★" else "") {
+                                        extraContent = if (move.legacy) ({ Text(tr("${configuredLegacyMoveSymbol()} Golpe legado/especial", "${configuredLegacyMoveSymbol()} Legacy/special move", "${configuredLegacyMoveSymbol()} Ataque legado/especial"), style = MaterialTheme.typography.labelSmall) }) else null)
+                                    else PokedexDetailsSection(move.localizedName + if (move.legacy) " ${configuredLegacyMoveSymbol()}" else "") {
                                         Text(tr("Dados de combate indisponíveis.", "Combat data unavailable.", "Datos de combate no disponibles."))
                                     }
                                     }

@@ -7,11 +7,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.materialIcon
-import androidx.compose.material.icons.materialPath
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -31,30 +37,64 @@ internal fun SavedFiltersOverlay(
     filters: List<SavedFilterEntry>,
     maxHeight: Dp,
     onCopy: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onQuickEdit: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var draft by rememberSaveable { mutableStateOf("") }
+    var displayedFilters by remember { mutableStateOf(filters) }
     val language = appLanguage()
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
-    Surface(Modifier.fillMaxWidth().heightIn(max = maxHeight), shape = RoundedCornerShape(26.dp), color = Color.Transparent) {
+    Surface(Modifier.fillMaxWidth().heightIn(max = maxHeight).then(if (editing || editingId != null) Modifier.height(maxHeight) else Modifier), shape = RoundedCornerShape(26.dp), color = Color.Transparent) {
         Column(Modifier.background(Brush.verticalGradient(LocalAppAppearance.current.background))) {
             CompositionLocalProvider(LocalProfilePanel provides true) {
                 AppTopBar(
                     title = { Text(if (friends) tr("Filtros de amigos", "Friend filters", "Filtros de amigos")
                         else tr("Filtros de Pokémon", "Pokémon filters", "Filtros de Pokémon")) },
-                    navigationIcon = { IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, tr("Fechar", "Close", "Cerrar"))
-                    } }
+                    navigationIcon = { IconButton(onClick = {
+                        if (editing || editingId != null) {
+                            editingId = null
+                            editing = false
+                            displayedFilters = loadSavedFilters(context, if (friends) SAVED_PEOPLE_FILTERS_KEY else SAVED_POKEMON_FILTERS_KEY)
+                        } else onClose()
+                    }) {
+                        Icon(if (editing || editingId != null) AppIcons.Back else AppIcons.Close, tr("Voltar", "Back", "Volver"))
+                    } },
+                    actions = {
+                        if (!editing && editingId == null) IconButton(onClick = { draft = ""; editing = true }) {
+                            Icon(AppIcons.Add, tr("Criar filtro", "Create filter", "Crear filtro"))
+                        } else IconButton(onClick = onClose) { Icon(AppIcons.Close, tr("Fechar", "Close", "Cerrar")) }
+                    }
                 )
             }
-            if (filters.isEmpty()) {
+            val selectedFilter = displayedFilters.firstOrNull { it.id == editingId }
+            if (editing || selectedFilter != null) {
+                Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(12.dp)) {
+                    val save: (String) -> Unit = { value ->
+                        val storageKey = if (friends) SAVED_PEOPLE_FILTERS_KEY else SAVED_POKEMON_FILTERS_KEY
+                        if (selectedFilter != null) updateSavedFilter(context, storageKey, selectedFilter.id, value)
+                        else saveNewFilter(context, storageKey, value)
+                        displayedFilters = loadSavedFilters(context, storageKey)
+                        editingId = null; editing = false
+                    }
+                    androidx.compose.runtime.key(editingId, editing) {
+                        if (friends) PeopleFilterBuilder(context, language, onCopyFilter = onCopy,
+                            initialValue = selectedFilter?.value.orEmpty(), onSaveFilter = save, showSaved = false)
+                        else PokemonFilterBuilder(context, language, onCopyFilter = onCopy,
+                            initialValue = selectedFilter?.value.orEmpty(), onSaveFilter = save, showSaved = false)
+                    }
+                }
+            } else if (displayedFilters.isEmpty()) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(Icons.Default.List, contentDescription = null,
+                    Icon(AppIcons.List, contentDescription = null,
                         modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
                     Text(tr("Nenhum filtro salvo", "No saved filters", "No hay filtros guardados"),
                         style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                    Text(tr("Salve filtros desta categoria na tela Filtros do MewName.",
+                    Text(tr("Toque em + para criar um filtro aqui.",
                         "Save filters for this category on MewName’s Filters screen.",
                         "Guarda filtros de esta categoría en la pantalla Filtros de MewName."),
                         style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
@@ -64,18 +104,20 @@ internal fun SavedFiltersOverlay(
                 LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(16.dp)) {
-                    items(filters, key = { it.id }) { filter ->
+                    items(displayedFilters, key = { it.id }) { filter ->
                         AppSectionCard(Modifier.fillMaxWidth()) {
                             Row(Modifier.fillMaxWidth().clickable(
                                 role = Role.Button,
-                                onClickLabel = tr("Copiar filtro", "Copy filter", "Copiar filtro"),
-                                onClick = { onCopy(filter.value) }
+                                onClickLabel = tr("Ajustar filtro", "Edit filter", "Ajustar filtro"),
+                                onClick = { onQuickEdit(filter.value) }
                             ).heightIn(min = 56.dp).padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                                 Text(filter.value, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                                Icon(SavedFilterCopyIcon, contentDescription = null,
-                                    modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                IconButton(onClick = { onCopy(filter.value) }) { Icon(AppIcons.Copy, contentDescription = tr("Copiar", "Copy", "Copiar"), modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary) }
+                                IconButton(onClick = { editingId = filter.id }) {
+                                    Icon(AppIcons.Edit, tr("Ajustar filtro", "Edit filter", "Ajustar filtro"))
+                                }
                             }
                         }
                     }
@@ -84,13 +126,25 @@ internal fun SavedFiltersOverlay(
         }
     }
 }
-private val SavedFilterCopyIcon = materialIcon(name = "SavedFilterCopy") {
-    materialPath {
-        moveTo(16f, 1f); horizontalLineTo(4f); verticalLineTo(17f)
-        horizontalLineTo(6f); verticalLineTo(3f); horizontalLineTo(16f); close()
-        moveTo(8f, 5f); verticalLineTo(23f); horizontalLineTo(22f)
-        verticalLineTo(5f); close()
-        moveTo(10f, 7f); horizontalLineTo(20f); verticalLineTo(21f)
-        horizontalLineTo(10f); close()
+@Composable
+internal fun SavedFilterEditor(entry: SavedFilterEntry, onSave: (String) -> Unit, onClose: () -> Unit, inline: Boolean = false) {
+    val language = appLanguage()
+    fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
+    var value by rememberSaveable(entry.id) { mutableStateOf(entry.value) }
+    val content: @Composable () -> Unit = {
+        Surface(shape = RoundedCornerShape(26.dp), color = Color.Transparent) {
+            Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(LocalAppAppearance.current.background))
+                .padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppModalHeader(tr("Editar filtro salvo", "Edit saved filter", "Editar filtro guardado"), onClose = onClose)
+                AppGlassTextField(value, { value = it }, Modifier.fillMaxWidth(),
+                    label = { Text(tr("Filtro", "Filter", "Filtro")) })
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    AppActionButton(onClick = { onSave(value) }, enabled = value.isNotBlank()) {
+                        Text(tr("Salvar", "Save", "Guardar"))
+                    }
+                }
+            }
+        }
     }
+    if (inline) content() else androidx.compose.ui.window.Dialog(onDismissRequest = onClose) { content() }
 }

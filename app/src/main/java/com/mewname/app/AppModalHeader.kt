@@ -13,18 +13,18 @@ import androidx.compose.ui.unit.dp
 
 /** Shared modal convention: centered title and accessible close action at top right. */
 @Composable
-internal fun AppModalHeader(title: String, onClose: () -> Unit) {
+internal fun AppModalHeader(title: String, onClose: () -> Unit, closeEnabled: Boolean = true) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Text(title, Modifier.fillMaxWidth().padding(horizontal = 48.dp), textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Box(Modifier.align(Alignment.TopEnd)) { AppModalCloseButton(onClose) }
+        Box(Modifier.align(Alignment.TopEnd)) { AppModalCloseButton(onClose, closeEnabled) }
     }
 }
 
 @Composable
-internal fun AppModalCloseButton(onClose: () -> Unit) {
+internal fun AppModalCloseButton(onClose: () -> Unit, enabled: Boolean = true) {
     val language = appLanguage()
-    IconButton(onClick = onClose) {
-        Icon(Icons.Default.Close, lt(language, "Fechar", "Close", "Cerrar"))
+    IconButton(onClick = onClose, enabled = enabled) {
+        Icon(AppIcons.Close, lt(language, "Fechar", "Close", "Cerrar"))
     }
 }

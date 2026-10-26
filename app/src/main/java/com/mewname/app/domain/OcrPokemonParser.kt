@@ -198,7 +198,8 @@ class OcrPokemonParser {
 
         val normalizedRaw = rawText.replace("\n", " ")
         val normUpper = normalizeText(normalizedRaw)
-        val hasIvContext = OcrNumericReader.hasIvContext(normUpper, orderedLines, referenceBounds)
+        val detailWithoutAppraisal = OcrNumericReader.isDetailWithoutAppraisal(normalizedRaw, orderedLines, referenceBounds)
+        val hasIvContext = !detailWithoutAppraisal && OcrNumericReader.hasIvContext(normUpper, orderedLines, referenceBounds)
 
         step("Identificando IVs e CP")
 
@@ -278,11 +279,11 @@ class OcrPokemonParser {
         val detectedTypes = ocrDetectedTypes.ifEmpty { lookupPokemonTypesByName(context, name) }
         val typeFallbackUsed = ocrDetectedTypes.isEmpty() && detectedTypes.isNotEmpty()
         name = resolveRegionalMeowthName(name, detectedTypes)
-        if (ocrDetectedTypes.isNotEmpty()) {
-            val dex = name?.let { nameReader.findPokemonNameEntry(context, it)?.dex }
+        if (!hasIvContext && ocrDetectedTypes.isNotEmpty()) {
+            val dex = (name ?: detailCandy)?.let { nameReader.findPokemonNameEntry(context, it)?.dex }
             if (dex != null) {
                 val typeForms = nameReader.loadPokemonNames(context).filter { it.dex == dex }.filter {
-                    lookupPokemonTypesByName(context, it.name).toSet() == ocrDetectedTypes.toSet()
+                    detailPokemonTypes(context, it.name).toSet() == ocrDetectedTypes.toSet()
                 }
                 typeForms.singleOrNull()?.let { name = it.name }
             }
@@ -317,11 +318,38 @@ class OcrPokemonParser {
         step("Estimando nível")
 
         val displayedMaxHp = OcrNumericReader.extractDisplayedMaxHp(orderedLines, referenceBounds)
+        if (!hasIvContext && name == null && candyFamilyName != null && cp != null && displayedMaxHp != null) {
+            val compatible = familyMembers.filter { candidate ->
+                (ocrDetectedTypes.isEmpty() || detailPokemonTypes(context, candidate).toSet() == ocrDetectedTypes.toSet()) &&
+                    rankCalculator.resolveIvEvidence(context, candidate, cp, displayedMaxHp, knownLevel = ocrLevel).matches > 0
+            }
+            compatible.singleOrNull()?.let { name = it }
+        }
+        if (!hasIvContext) android.util.Log.d("DetailOcr", "name=$name; candy=$candyFamilyName; cp=$cp; hp=$displayedMaxHp; types=$ocrDetectedTypes")
         val evidenceName = name
-        val cpIvEvidence = if (evidenceName != null && cp != null && (displayedMaxHp != null || ocrLevel != null || listOf(att, def, sta).count { it != null } >= 2) &&
+        var cpIvEvidence = if (evidenceName != null && cp != null && (displayedMaxHp != null || ocrLevel != null || listOf(att, def, sta).count { it != null } >= 2) &&
             listOf(att, def, sta).any { it == null }) {
             rankCalculator.resolveIvEvidence(context, evidenceName, cp, displayedMaxHp, att, def, sta, ocrLevel)
         } else null
+        var detailArcNote: String? = null
+        if (!hasIvContext && bitmap != null && referenceBounds != null && cp != null && displayedMaxHp != null) {
+            val arc = OcrLevelArcReader.detect(bitmap)
+            val calibration = DetailArcCalibration(context, bitmap.width, bitmap.height)
+            val allowed = arc?.let { calibration.levels(it, rankCalculator.levelMultipliers()) }
+            if (arc != null && allowed != null && evidenceName != null) {
+                val constrained = rankCalculator.resolveIvEvidence(context, evidenceName, cp, displayedMaxHp,
+                    knownLevel = ocrLevel, allowedLevels = allowed)
+                if (constrained.matches > 0) cpIvEvidence = constrained
+                detailArcNote = if (constrained.matches > 0) "arco calibrado: faixa ${allowed.minOrNull()}–${allowed.maxOrNull()}, cruzada com PC/PS"
+                    else "arco e PC/PS divergentes; restrição visual descartada"
+            } else detailArcNote = if (arc == null) "arco não confiável/oculto; não restringiu nível"
+                else "arco detectado (${arc.fraction}); aguardando calibração por níveis exatos distintos"
+            // Calibrate only from the unconstrained numerical solution, never from our own arc result.
+            if (arc != null && evidenceName != null) {
+                val exact = rankCalculator.resolveIvEvidence(context, evidenceName, cp, displayedMaxHp)
+                exact.level?.let { calibration.observe(arc, it, rankCalculator.levelMultipliers()) }
+            }
+        }
         if (cpIvEvidence != null && cpIvEvidence.matches > 0) {
             // Only unanimous attributes are supplied. Keep any confirmed bar values.
             att = att ?: cpIvEvidence.attack
@@ -360,12 +388,20 @@ class OcrPokemonParser {
                 context = context,
                 pokemonNames = curveLevelCandidates,
                 observedHp = displayedMaxHp,
-                sta = sta
+                sta = sta,
+                observedCp = cp,
+                atk = att,
+                def = def
             )
         } else {
             null
         }
-        val curveAdjustedPokemonName = curveEstimate?.pokemonName
+        val partialCpDigits = OcrNumericReader.extractPartialCpDigits(orderedLines, referenceBounds)
+        val partialCpEstimate = if (hasIvContext && hpEstimate == null && name != null &&
+            displayedMaxHp != null && att != null && def != null && sta != null) {
+            rankCalculator.estimateLevelFromPartialCp(context, requireNotNull(name), displayedMaxHp, att, def, sta, partialCpDigits)
+        } else null
+        val curveAdjustedPokemonName = curveEstimate?.pokemonName?.takeIf { hasIvContext && partialCpEstimate == null }
             ?.takeIf { estimatedName -> name != null && !estimatedName.equals(name, ignoreCase = true) }
         if (curveAdjustedPokemonName != null) {
             name = curveAdjustedPokemonName
@@ -384,12 +420,14 @@ class OcrPokemonParser {
             curveHpMismatch >= 8.0
         val supportingLevel = when {
             cpIvEvidence?.level != null -> cpIvEvidence.level
+            partialCpEstimate != null -> partialCpEstimate.level
             preferHpOverCurve -> hpLevel
+            displayedMaxHp != null && att != null && def != null && sta != null && hpEstimate == null -> null
             curveLevel != null -> curveLevel
             else -> hpLevel
         }
         val levelMismatch = if (ocrLevel != null && supportingLevel != null) abs(ocrLevel - supportingLevel) else null
-        val level = when {
+        val level = if (!hasIvContext) cpIvEvidence?.level else when {
             ocrLevel != null && supportingLevel != null && levelMismatch != null && levelMismatch > 2.5 -> supportingLevel
             ocrLevel != null -> ocrLevel
             else -> supportingLevel
@@ -397,9 +435,11 @@ class OcrPokemonParser {
         val levelDebugInfo = LevelDebugInfo(
             source = when {
                 cpIvEvidence?.level != null -> "pc_hp_exatos"
+                !hasIvContext -> "indisponivel"
                 ocrLevel != null && (supportingLevel == null || (levelMismatch != null && levelMismatch <= 2.5)) -> "ocr"
+                partialCpEstimate != null -> "pc_parcial_hp_ivs"
                 preferHpOverCurve -> "hp"
-                curveLevel != null -> "curva_cp"
+                curveLevel != null && level == curveLevel -> "curva_cp"
                 hpLevel != null -> "hp"
                 else -> "indisponivel"
             },
@@ -414,9 +454,11 @@ class OcrPokemonParser {
             defenseIv = def,
             staminaIv = sta,
             notes = buildList {
+                partialCpEstimate?.let { add("Nível estimado por PC parcial ${partialCpDigits.joinToString()} + PS e IVs; candidato único: ${it.level}") }
+                detailArcNote?.let { add(it) }
                 cpIvNote?.let { add(it) }
                 if (ocrLevel != null && (supportingLevel == null || (levelMismatch != null && levelMismatch <= 2.5))) add("nível encontrado no texto OCR")
-                if (curveLevel != null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pela curva de CP")
+                if (curveLevel != null && level == curveLevel && partialCpEstimate == null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pela curva de CP")
                 if (hpLevel != null && curveLevel == null && (ocrLevel == null || (levelMismatch != null && levelMismatch > 2.5))) add("nível estimado pelo HP máximo")
                 if (preferHpOverCurve) add("estimativa por HP priorizada porque o CP lido parece truncado e divergiu fortemente da curva de HP")
                 if (curveAdjustedPokemonName != null) {
@@ -446,7 +488,7 @@ class OcrPokemonParser {
                 if (hpLevel == null && displayedMaxHp != null && (name == null || sta == null)) {
                     add("estimativa por HP exige espécie reconhecida e IV de PS")
                 }
-                if (ocrLevel == null && curveLevel == null && hpLevel == null) add("sem dados suficientes para estimar o nível")
+                if (level == null) add("sem dados suficientes para estimar o nível")
             }.joinToString("; ")
         )
 
@@ -525,6 +567,10 @@ class OcrPokemonParser {
         val favoriteRatio = bitmap?.let(visualReader::measureFavoriteStarYellowRatio)
         val isFavorite = favoriteRatio?.let { it >= 0.16 } ?: false
         val purifiedTextMatch = normalizedRaw.lowercase().let { it.contains("purified") || it.contains("purificado") }
+        val purifyAction = Regex("\\b(PURIFICAR|PURIFY|PURIFIER)\\b", RegexOption.IGNORE_CASE).containsMatchIn(normalizedRaw)
+        val purificationGlints = bitmap?.let(PurifiedAuraDetector::glints) ?: 0
+        val purifiedMatch = purifiedTextMatch || (!purifyAction && !backgroundDetection.second.shadowTextMatch && purificationGlints >= 3)
+
         val vivillonDetection = detectVivillonPattern(context, bitmap, name)
         val uniqueFormDetection = detectUniqueForm(context, bitmap, name, detectedTypes, unownLetter)
         val evolutionDetection = detectEvolutionFlags(
@@ -571,6 +617,7 @@ class OcrPokemonParser {
                     if (typeFallbackUsed) add("tipo preenchido pela base local a partir do nome")
                     if (isFavorite) add("estrela superior direita preenchida em amarelo")
                     if (purifiedTextMatch) add("texto de purificado encontrado")
+                    add("brilhos de purificação: $purificationGlints; ação purificar: $purifyAction; purificado: $purifiedMatch")
                 }.joinToString("; ")
             ),
             legacyDebugInfo = legacyDetection.second,
@@ -640,10 +687,9 @@ class OcrPokemonParser {
             selectedFastMove = recognizedMoves.fast,
             selectedChargedMove = recognizedMoves.charged,
             hasLegacyMove = hasLegacyMove,
-            isShadow = backgroundDetection.second.shadowTextMatch ||
-                backgroundDetection.second.shadowParticleMatch ||
-                backgroundDetection.second.shadowTextureMatch,
-            isPurified = purifiedTextMatch,
+            isShadow = !purifiedMatch && (purifyAction || backgroundDetection.second.shadowTextMatch ||
+                (backgroundDetection.second.shadowParticleMatch && backgroundDetection.second.shadowTextureMatch)),
+            isPurified = purifiedMatch,
             hasSpecialBackground = hasSpecialBackground,
             specialBackgroundType = backgroundDetection.second.detectedSpecialType,
             hasAdventureEffect = hasAdventureEffect,
@@ -994,6 +1040,25 @@ class OcrPokemonParser {
         }
 
         return detected.take(2) to centerStatsLines
+    }
+
+    private var detailTypesCache: Map<String, List<String>>? = null
+    private fun detailPokemonTypes(context: Context, name: String): List<String> {
+        val index = detailTypesCache ?: run {
+            val array = JSONArray(context.assets.open("catalogs/pokemon_types.json").bufferedReader().use { it.readText() })
+            buildMap<String, List<String>> {
+                for (i in 0 until array.length()) {
+                    val row = array.getJSONObject(i)
+                    val base = row.getString("pokemon_name")
+                    val form = row.optString("form").replace('_', ' ')
+                    val types = row.getJSONArray("type")
+                    val values = (0 until types.length()).map { types.getString(it).uppercase(Locale.US) }
+                    put(normalizeText("$base $form"), values)
+                    if (form.equals("Normal", true)) put(normalizeText(base), values)
+                }
+            }.also { detailTypesCache = it }
+        }
+        return index[normalizeText(name)] ?: lookupPokemonTypesByName(context, name)
     }
 
     private fun lookupPokemonTypesByName(context: Context, name: String?): List<String> {

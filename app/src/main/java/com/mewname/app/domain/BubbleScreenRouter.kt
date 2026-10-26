@@ -44,7 +44,7 @@ internal object BubbleScreenRouter {
         if (measured("perfil") { TrainerProfileParser.isTrainerScreen(text) }) return Target.Trainer
         if (measured("avaliacao") { AppraisalFooterReader.isAppraisal(text) }) return Target.Pokemon
         measured("catalogo") { CatalogScreenMatcher.detect(text) }?.let { return Target.Catalog(it) }
-        measured("filtros") { FilterScreenDetector.detect(text) }?.let { return Target.Filters(it) }
+        measured("filtros") { FilterScreenDetector.detect(text, positionedLines) }?.let { return Target.Filters(it) }
         measured("captura") { EncounterScreenReader.detect(positionedLines, text) }?.let { return Target.Encounter(it) }
         // Defer pixel analysis until the text actually describes a battle.
         val advice = measured("identificacao batalha") {
@@ -63,17 +63,22 @@ internal object BubbleScreenRouter {
             val level = measured("simbolos nivel") { raidLevel() }
             if (com.mewname.app.BuildConfig.DEBUG)
                 android.util.Log.d("RaidReadTiming", "detectedLevel=$level name=${advice.bossName}")
+            var cpCandidates = emptyList<RaidChoice>()
             val recovered = if (advice.bossName == null) measured("nome parcial catalogo") {
                 val repository = RaidCounterRepository(context.applicationContext)
                 val metadata = repository.metadata()
                 val catalog = runCatching { repository.catalog() }.getOrDefault(emptyList())
-                RaidBossResolver.resolveOccludedName(positionedLines, metadata, catalog, level)
-                    ?: RaidBossResolver.resolveBossCp(positionedLines, metadata, catalog, level)?.also {
+                cpCandidates = RaidBossResolver.bossCpCandidates(positionedLines, text, metadata, catalog, level,
+                    RaidBossCpIndex.load(context))
+                cpCandidates.singleOrNull()
+                    ?: RaidBossResolver.resolveOccludedName(positionedLines, metadata,
+                        cpCandidates.ifEmpty { catalog }, level)?.takeIf { cpCandidates.isEmpty() || it in cpCandidates }?.also {
                         if (com.mewname.app.BuildConfig.DEBUG)
                             android.util.Log.d("RaidReadTiming", "bossCp recovered=$it")
                     }
             } else null
-            advice.copy(bossName = advice.bossName ?: recovered?.id, raidLevel = level)
+            advice.copy(bossName = advice.bossName ?: recovered?.id, raidLevel = level,
+                raidBossCandidates = cpCandidates.map { it.id to it.tier })
         } else advice)
     }
 }

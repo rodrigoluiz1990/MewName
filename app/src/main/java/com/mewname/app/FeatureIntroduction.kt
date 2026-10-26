@@ -41,16 +41,16 @@ internal object FeatureIntroductionPreferences {
 internal fun FeatureIntroductionDialog(onDismiss: (doNotShowAgain: Boolean) -> Unit) {
     val language = appLanguage()
     var doNotShowAgain by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = { onDismiss(doNotShowAgain) },
-        title = {
-            Text(lt(language, "Conheça o MewName", "Meet MewName", "Conoce MewName"))
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = { onDismiss(doNotShowAgain) }) {
+        AppModalPanel(
+            title = lt(language, "Conheça o MewName", "Meet MewName", "Conoce MewName"),
+            onClose = { onDismiss(doNotShowAgain) },
+            actions = {
+                AppActionButton(onClick = { onDismiss(doNotShowAgain) }) {
+                    Text(lt(language, "Começar", "Get started", "Comenzar"))
+                }
+            }
+        ) {
                 Text(
                     lt(
                         language,
@@ -104,14 +104,8 @@ internal fun FeatureIntroductionDialog(onDismiss: (doNotShowAgain: Boolean) -> U
                     checked = doNotShowAgain,
                     onCheckedChange = { doNotShowAgain = it }
                 )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onDismiss(doNotShowAgain) }) {
-                Text(lt(language, "Começar", "Get started", "Comenzar"))
-            }
         }
-    )
+    }
 }
 
 @Composable

@@ -22,7 +22,7 @@ internal object RaidLevelIconDetector {
 
     // The small PC label sits below the top of its large digits. Using that label
     // includes part of the number in the icon crop and corrupts the symbol count.
-    internal fun cpAnchor(lines: List<BattleOcrLine>): BattleOcrLine? = lines.filter {
+    internal fun cpAnchor(lines: List<BattleOcrLine>): BattleOcrLine? = RaidBossResolver.bossCpLines(lines).filter {
         (it.top + it.bottom) / 2f in .13f.. .28f && it.left < .65f && it.right > .35f &&
             RaidBossResolver.parseBossCp(it.text) != null
     }.maxByOrNull { it.bottom - it.top }
@@ -72,7 +72,15 @@ internal object RaidLevelIconDetector {
         }
         val positive = smoothed.filter { it > 0 }.sorted()
         if (positive.size < smoothed.size / 12) return null
-        val percentile = positive[(positive.size * 0.62f).toInt().coerceIn(positive.indices)]
+        val counts = listOf(.62f, .45f, .30f).mapNotNull { quantile ->
+            projectionCount(bitmap, left, smoothed, positive, quantile)
+        }.distinct()
+        debug("levelProjectionConsensus counts=$counts")
+        return counts.singleOrNull()
+    }
+
+    private fun projectionCount(bitmap: Bitmap, left: Int, smoothed: IntArray, positive: List<Int>, quantile: Float): Int? {
+        val percentile = positive[(positive.size * quantile).toInt().coerceIn(positive.indices)]
         val threshold = max(2, percentile)
         val active = BooleanArray(smoothed.size) { smoothed[it] >= threshold }
         closeSmallGaps(active, max(2, (bitmap.width * 0.006f).toInt()))
@@ -96,6 +104,7 @@ internal object RaidLevelIconDetector {
         val count = centered.size
         debug("levelProjection count=$count runs=$centered")
         if (count !in 1..6) return null
+        if (abs(left + (centered.first().first + centered.last().last) / 2f - bitmap.width / 2f) > bitmap.width * .07f) return null
 
         val centers = centered.map { (it.first + it.last) / 2f }.sorted()
         if (centers.size >= 3) {
@@ -165,6 +174,11 @@ internal object RaidLevelIconDetector {
                 left + (component.left + component.right) / 2f in bitmap.width * 0.25f..bitmap.width * 0.75f
         }.sortedBy { it.left }
         if (candidates.size !in 1..6) return null
+        val heights = candidates.map { it.bottom - it.top + 1 }
+        val medianHeight = heights.sorted()[heights.size / 2].toFloat()
+        val verticalCenters = candidates.map { (it.top + it.bottom) / 2f }
+        if (verticalCenters.max() - verticalCenters.min() > medianHeight * .4f) return null
+        if (abs(left + (candidates.first().left + candidates.last().right) / 2f - bitmap.width / 2f) > bitmap.width * .07f) return null
         val widths = candidates.map { it.right - it.left + 1 }
         val medianWidth = widths.sorted()[widths.size / 2].toFloat()
         if (widths.any { abs(it - medianWidth) > medianWidth * 0.5f }) return null

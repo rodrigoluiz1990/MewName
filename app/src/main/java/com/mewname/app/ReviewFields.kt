@@ -317,12 +317,11 @@ internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonN
     val cost = sourceLevel?.let { powerUpCostBetweenLevels(it, previewLevel, isLucky, isShadow, isPurified) }
     ReviewModalCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)), modifier = Modifier.fillMaxWidth().widthIn(max = 320.dp)) {
             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (LocalGlassReviewStyle.current) ReviewModalHeader(lt(language, "Selecionar n\u00EDvel", "Select level", "Seleccionar nivel"), onDismiss)
-                else Text(lt(language, "Selecionar n\u00EDvel", "Select level", "Seleccionar nivel"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                AppModalHeader(lt(language, "Selecionar nível", "Select level", "Seleccionar nivel"), onDismiss)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { previewLevel = (previewLevel - 0.5).coerceAtLeast(1.0) }, enabled = previewLevel > 1.0) { Text("-") }
+                    TextButton(onClick = { previewLevel = (previewLevel - 0.5).coerceAtLeast(1.0) }, enabled = previewLevel > 1.0) { Icon(AppIcons.Minus, contentDescription = lt(language, "Diminuir nível", "Decrease level", "Disminuir nivel")) }
                     Text(lt(language, "N\u00EDvel ${previewLevel.formatLevelDebug()}", "Level ${previewLevel.formatLevelDebug()}", "Nivel ${previewLevel.formatLevelDebug()}"), modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    TextButton(onClick = { previewLevel = (previewLevel + 0.5).coerceAtMost(51.0) }, enabled = previewLevel < 51.0) { Text("+") }
+                    TextButton(onClick = { previewLevel = (previewLevel + 0.5).coerceAtMost(51.0) }, enabled = previewLevel < 51.0) { Icon(AppIcons.Add, contentDescription = null) }
                 }
                 Text(lt(language, "CP ${cp ?: "-"} \u2022 PS ${hp ?: "-"}", "CP ${cp ?: "-"} \u2022 HP ${hp ?: "-"}", "PC ${cp ?: "-"} \u2022 PS ${hp ?: "-"}"), style = MaterialTheme.typography.bodyMedium)
                 Text(
@@ -332,8 +331,7 @@ internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonN
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    TextButton(onClick = onDismiss) { Text(lt(language, "Cancelar", "Cancel", "Cancelar")) }
-                    TextButton(onClick = { onLevelSelected(previewLevel) }) { Text(lt(language, "Confirmar", "Confirm", "Confirmar")) }
+                    AppActionButton(onClick = { onLevelSelected(previewLevel) }) { Text(lt(language, "Confirmar", "Confirm", "Confirmar")) }
                 }
             }
     }

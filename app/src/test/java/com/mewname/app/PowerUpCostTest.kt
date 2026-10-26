@@ -53,4 +53,8 @@ class PowerUpCostTest {
         assertEquals(PowerUpCost(324000, 365), powerUpCostBetweenLevels(1.0, 40.0, isShadow = true))
         assertEquals(PowerUpCost(12000, 0, 12), powerUpCostBetweenLevels(40.0, 40.5, isShadow = true))
     }
+    @Test fun purifiedMoltresBulkPreviewMatchesDevice() {
+        assertEquals(106, powerUpCostBetweenLevels(35.0,40.0,isPurified=true).candy)
+        assertEquals(118, powerUpCostBetweenLevels(35.0,40.0).candy)
+    }
 }

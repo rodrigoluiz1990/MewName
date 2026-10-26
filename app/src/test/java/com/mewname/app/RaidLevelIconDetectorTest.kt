@@ -13,8 +13,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RaidLevelIconDetectorTest {
     @Test fun countsThreeAndFiveRepeatedRaidSymbols() {
-        assertEquals(3, RaidLevelIconDetector.detect(raidBitmap(3), cpTop = 240))
-        assertEquals(5, RaidLevelIconDetector.detect(raidBitmap(5), cpTop = 240))
+        for (count in 1..6) assertEquals(count, RaidLevelIconDetector.detect(raidBitmap(count), cpTop = 240))
     }
 
     @Test fun separatePcLabelDoesNotMoveSymbolCropDown() {
@@ -32,6 +31,14 @@ class RaidLevelIconDetectorTest {
         assertNull(RaidLevelIconDetector.cpAnchor(listOf(digits.copy(top=.05f, bottom=.09f))))
         assertNull(RaidLevelIconDetector.cpAnchor(listOf(digits.copy(text="0:53:394"))))
         assertNull(RaidLevelIconDetector.cpAnchor(listOf(digits.copy(text="PC"))))
+    }
+
+    @Test fun displacedPartialRowIsNotAValidStarCount() {
+        val original = raidBitmap(5)
+        val displaced = Bitmap.createBitmap(600, 1200, Bitmap.Config.ARGB_8888)
+        displaced.eraseColor(Color.rgb(115, 170, 205))
+        android.graphics.Canvas(displaced).drawBitmap(original, 120f, 0f, null)
+        assertNull(RaidLevelIconDetector.detect(displaced, cpTop = 240))
     }
 
     private fun raidBitmap(count: Int): Bitmap {

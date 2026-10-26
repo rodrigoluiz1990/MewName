@@ -98,6 +98,17 @@ class MasterIvBadgeCatalog {
         if (selected in setOf("LYCANROC", "LYCANROCNOTURNO")) {
             return listOfNotNull(catalog[selected])
         }
+        // Approved form-specific rules must not compete with another form in a candy family.
+        val formTarget = when {
+            selected?.startsWith("KYUREM") == true || selected?.startsWith("MINIOR") == true -> selected
+            selected?.startsWith("PUMPKABOO") == true -> selected.replaceFirst("PUMPKABOO", "GOURGEIST")
+            selected?.startsWith("GOURGEIST") == true -> selected
+            selected == "POLTCHAGEISTARTESAO" -> "SINISTCHAOBRAPRIMA"
+            selected == "POLTCHAGEISTFALSIFICADO" -> "SINISTCHACOMUM"
+            selected in setOf("SINISTCHAOBRAPRIMA", "SINISTCHACOMUM") -> selected
+            else -> null
+        }
+        if (formTarget != null) return listOfNotNull(catalog[formTarget])
         val hasRegionalBranches = (members + listOfNotNull(selected)).any { region(it) != null }
         val scoped = if (hasRegionalBranches) {
             // Do not infer a regional form from an ambiguous candy family.
@@ -120,6 +131,14 @@ class MasterIvBadgeCatalog {
     fun combinationFamilyName(familyMembers: List<String>, selectedPokemonName: String?): String {
         // Family assets are ordered by evolution; keep the selected regional branch.
         if (selectedPokemonName?.startsWith("Lycanroc", true) == true) return selectedPokemonName
+        val selected = selectedPokemonName?.let(::normalize)
+        if (selected?.startsWith("KYUREM") == true || selected?.startsWith("MINIOR") == true ||
+            selected?.startsWith("GOURGEIST") == true || selected?.startsWith("SINISTCHA") == true ||
+            selected?.startsWith("DARMANITAN") == true) return selectedPokemonName.orEmpty()
+        if (selected?.startsWith("PUMPKABOO") == true) {
+            val target = selected.replaceFirst("PUMPKABOO", "GOURGEIST")
+            return familyMembers.firstOrNull { normalize(it) == target } ?: selectedPokemonName.orEmpty()
+        }
         val branch = selectedPokemonName?.let(::regionalBranch)
         return familyMembers.lastOrNull { regionalBranch(it) == branch } ?: selectedPokemonName.orEmpty()
     }
@@ -193,7 +212,7 @@ class MasterIvBadgeCatalog {
     }
 
     private fun normalize(value: String): String {
-        val rawKey = Normalizer.normalize(value.replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
+        val rawKey = Normalizer.normalize(pokemonDisplayName(value).replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
             .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
             .uppercase(Locale.US)
             .replace(Regex("[^A-Z0-9]"), "")
@@ -208,6 +227,14 @@ class MasterIvBadgeCatalog {
             "LYCANROCFORMANOTURNA" -> "LYCANROCNOTURNO"
             "ZACIANHERO", "ZACIANCOROADO", "ZACIANCROWNEDSWORD" -> "ZACIAN"
             "ZAMAZENTAHERO", "ZAMAZENTACOROADO", "ZAMAZENTACROWNEDSHIELD" -> "ZAMAZENTA"
+            "KYUREMPRETO", "BLACKKYUREM" -> "KYUREMBLACK"
+            "KYUREMBRANCO", "WHITEKYUREM" -> "KYUREMWHITE"
+            "MINIORNUCLEO" -> "MINIORCORE"
+            "SINISTCHAMASTERPIECEFORM", "SINISTCHAMASTERPIECE" -> "SINISTCHAOBRAPRIMA"
+            "SINISTCHAUNREMARKABLEFORM", "SINISTCHAUNREMARKABLE" -> "SINISTCHACOMUM"
+            "POLTCHAGEISTARTISANFORM", "POLTCHAGEISTARTISAN" -> "POLTCHAGEISTARTESAO"
+            "POLTCHAGEISTCOUNTERFEITFORM", "POLTCHAGEISTCOUNTERFEIT" -> "POLTCHAGEISTFALSIFICADO"
+            "DARMANITANGALARIANZEN", "DARMANITANZENGALAR" -> "DARMANITANGALARZEN"
             else -> key
         }
     }
@@ -217,7 +244,7 @@ class MasterIvBadgeCatalog {
         val REGIONAL_PREFIXES = mapOf("ALOLAN" to "ALOLA", "GALARIAN" to "GALAR",
             "HISUIAN" to "HISUI", "PALDEAN" to "PALDEA")
         val REGIONAL_EVOLUTIONS = mapOf(
-            "PERRSERKER" to "GALAR", "SIRFETCHD" to "GALAR", "CURSOLA" to "GALAR",
+            "DARMANITANGALARZEN" to "GALAR", "PERRSERKER" to "GALAR", "SIRFETCHD" to "GALAR", "CURSOLA" to "GALAR",
             "OBSTAGOON" to "GALAR", "RUNERIGUS" to "GALAR", "MRRIME" to "GALAR",
             "SNEASLER" to "HISUI", "OVERQWIL" to "HISUI", "CLODSIRE" to "PALDEA"
         )

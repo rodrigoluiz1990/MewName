@@ -42,4 +42,12 @@ class RaidBossCpTest {
         assertNull(RaidBossResolver.resolveBossCp(listOf(line("53394", .5f)), meta, catalog, 5))
         assertNull(RaidBossResolver.bossCp(meta.pokemon.getValue(dialga.id), "RAID_LEVEL_6"))
     }
+    @Test fun joinsAdjacentDigitsButRejectsSeparateNumbers() {
+        val left = BattleOcrLine("53", .30f, .19f, .45f, .24f)
+        val right = BattleOcrLine("394", .46f, .19f, .70f, .24f)
+        assertEquals(dialga, RaidBossResolver.resolveBossCp(listOf(left,right), meta, catalog, 5))
+        assertNull(RaidBossResolver.resolveBossCp(listOf(left,right.copy(left=.6f)), meta, catalog, 5))
+        assertNull(RaidBossResolver.resolveBossCp(listOf(left,right.copy(top=.25f,bottom=.30f)), meta, catalog, 5))
+        assertEquals(.19f, RaidLevelIconDetector.cpAnchor(listOf(left,right))!!.top)
+    }
 }

@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -22,7 +23,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import coil.compose.AsyncImage
 import com.mewname.app.domain.*
 import kotlinx.coroutines.*
 import org.json.JSONArray
@@ -92,8 +92,8 @@ internal fun PvpTeamScreen(onBack: () -> Unit) {
     BackHandler { if (tab == 1) tab = 0 else onBack() }
     Scaffold(containerColor = Color.Transparent, topBar = {
         AppTopBar(title = { Text(tr("Equipe PvP", "PvP team", "Equipo PvP")) }, navigationIcon = {
-            IconButton(onClick = { if (tab == 1) tab = 0 else onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar", "Back", "Volver")) }
-        }, actions = { IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(Icons.Default.Refresh, tr("Atualizar", "Refresh", "Actualizar")) } })
+            IconButton(onClick = { if (tab == 1) tab = 0 else onBack() }) { Icon(AppIcons.Back, tr("Voltar", "Back", "Volver")) }
+        }, actions = { IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(AppIcons.Refresh, tr("Atualizar", "Refresh", "Actualizar")) } })
     }) { padding ->
         if (data == null) Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
             if (loading) CircularProgressIndicator() else Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -117,7 +117,7 @@ internal fun PvpTeamScreen(onBack: () -> Unit) {
                     val candidate = index[slot.id]
                     AppSectionCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(Modifier.fillMaxWidth().clickable { query = ""; picker = position }, verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(data?.portraits?.get(slot.id)?.sprite, null, Modifier.size(54.dp))
+                            PokedexSprite(data?.portraits?.get(slot.id)?.sprite, null, Modifier.size(64.dp))
                             Text("${position + 1}. " + if (slot.id.isEmpty()) tr("Selecionar Pokémon", "Select Pokémon", "Seleccionar Pokémon") else pokemonName(slot.id), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                             Text(tr("Trocar", "Change", "Cambiar"), style = MaterialTheme.typography.labelMedium)
                         }
@@ -158,7 +158,7 @@ internal fun PvpTeamScreen(onBack: () -> Unit) {
                 }
                 items(matchups, key = { it.opponent }) { row -> AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(data?.portraits?.get(row.opponent)?.sprite, null, Modifier.size(42.dp))
+                        PokedexSprite(data?.portraits?.get(row.opponent)?.sprite, null, Modifier.size(42.dp))
                         Column(Modifier.weight(1f)) {
                             Text(pokemonName(row.opponent), style = MaterialTheme.typography.labelLarge)
                             if (row.sharedThreat) Text(tr("Ameaça aos três", "Threat to all three", "Amenaza a los tres"), color = MaterialTheme.colorScheme.error)
@@ -185,20 +185,22 @@ internal fun PvpTeamScreen(onBack: () -> Unit) {
         }
     }
     picker?.let { position -> Dialog(onDismissRequest = { picker = null }) {
-        AppSectionCard(Modifier.fillMaxWidth().heightIn(max = 580.dp)) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.width(48.dp))
-                Text(tr("Selecionar Pokémon", "Select Pokémon", "Seleccionar Pokémon"), Modifier.weight(1f), textAlign = TextAlign.Center)
-                IconButton(onClick = { picker = null }) { Icon(Icons.Default.Close, tr("Fechar", "Close", "Cerrar")) }
-            }
+        Surface(Modifier.fillMaxWidth().heightIn(max = 580.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            color = LocalAppAppearance.current.background.first(), contentColor = LocalAppAppearance.current.text,
+            border = androidx.compose.foundation.BorderStroke(.75.dp, LocalAppAppearance.current.border)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AppModalHeader(tr("Selecionar Pokémon", "Select Pokémon", "Seleccionar Pokémon"), { picker = null })
             AppGlassTextField(query, { query = it }, Modifier.fillMaxWidth(), search = true, singleLine = true, label = { Text(tr("Nome ou nº da Pokédex", "Name or Pokédex number", "Nombre o n.º Pokédex")) })
             val taken = team.filterIndexed { i, _ -> i != position }.mapNotNull { index[it.id]?.dex }.toSet()
             val filtered = candidates.filter { c -> c.dex !in taken && (query.isBlank() || pokedexIdentity(pokemonName(c.id)).contains(pokedexIdentity(query)) || c.dex?.toString() == query.trim()) }
             if (filtered.isEmpty()) Text(tr("Nenhum Pokémon disponível neste ranking.", "No Pokémon available in this ranking.", "Ningún Pokémon disponible en este ranking."))
             LazyColumn(Modifier.weight(1f, fill = false)) { items(filtered, key = { it.id }) { candidate ->
                 Row(Modifier.fillMaxWidth().clickable { update(position, PvpTeamSlot(candidate.id, candidate.recommended)); picker = null }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AsyncImage(data?.portraits?.get(candidate.id)?.sprite, null, Modifier.size(48.dp))
+                    PokedexSprite(data?.portraits?.get(candidate.id)?.sprite, null, Modifier.size(64.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text(pokemonName(candidate.id), Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
                     candidate.dex?.let { Text("#$it", style = MaterialTheme.typography.labelSmall) }
                 }
             } }
@@ -212,9 +214,8 @@ private fun PvpTeamMoveDropdown(label: String, value: String, options: List<Stri
     val language = appLanguage()
     fun display(id: String) = if (id.isEmpty()) lt(language, "Nenhum", "None", "Ninguno") else name(id)
     Box {
-        AppActionButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(), secondary = true) { Text("$label: ${display(value)} ▾") }
-        DropdownMenu(expanded, { expanded = false }, Modifier.heightIn(max = 300.dp)) {
-            options.forEach { id -> DropdownMenuItem(text = { Text(display(id)) }, onClick = { expanded = false; onSelect(id) }) }
-        }
+        AppActionButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(), secondary = true) { Text("$label: ${display(value)}", Modifier.weight(1f))
+            Icon(AppIcons.Next, null, Modifier.size(18.dp).rotate(90f)) }
+        AppSelectionMenu(expanded, { expanded = false }, options, value, ::display, onSelect)
     }
 }

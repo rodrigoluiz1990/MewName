@@ -198,17 +198,20 @@ internal fun HomeTemperature() {
         var results by remember { mutableStateOf(emptyList<WeatherCity>()) }
         var searching by remember { mutableStateOf(false) }
         var message by remember { mutableStateOf<String?>(null) }
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(lt(language, "Temperatura", "Temperature", "Temperatura")) },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showDialog = false }) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalAppAppearance provides LocalAppAppearance.current.copy(atmosphericSurface = false)
+        ) {
+        AppModalPanel(
+            title = lt(language, "Temperatura", "Temperature", "Temperatura"),
+            onClose = { showDialog = false },
+            content = {
                     city?.let { Text(it.label, style = MaterialTheme.typography.bodyMedium) }
                     if (locationFailed) Text(lt(language,
                         "Não foi possível obter a localização. Verifique a permissão e a localização do aparelho ou escolha uma cidade.",
                         "Location is unavailable. Check permission and device location, or choose a city.",
                         "No se pudo obtener la ubicación. Revisa el permiso y la ubicación del dispositivo o elige una ciudad."))
-                    TextButton(enabled = !locating, onClick = {
+                    AppActionButton(secondary = true, modifier = Modifier.fillMaxWidth(), enabled = !locating, onClick = {
                         repository.automatic(true)
                         automatic = true
                         locationFailed = false
@@ -226,9 +229,9 @@ internal fun HomeTemperature() {
                         "No data right now. Try again.", "Sin datos ahora. Inténtalo de nuevo."))
                     Text(lt(language, "Escolha a cidade para consultar a temperatura.",
                         "Choose a city to check its temperature.", "Elige una ciudad para consultar la temperatura."))
-                    OutlinedTextField(value = query, onValueChange = { query = it },
+                    AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), search = true,
                         singleLine = true, label = { Text(lt(language, "Cidade", "City", "Ciudad")) })
-                    TextButton(enabled = query.trim().length >= 2 && !searching, onClick = {
+                    AppActionButton(secondary = true, modifier = Modifier.fillMaxWidth(), enabled = query.trim().length >= 2 && !searching, onClick = {
                         searching = true
                         results = emptyList()
                         message = null
@@ -270,14 +273,12 @@ internal fun HomeTemperature() {
                             "Data: Open-Meteo · Locations: GeoNames", "Datos: Open-Meteo · Lugares: GeoNames"),
                             style = MaterialTheme.typography.labelSmall)
                     }
-                }
             },
-            confirmButton = { TextButton(enabled = city != null, onClick = { repository.invalidate(); refresh++; showDialog = false }) {
+            actions = { AppActionButton(enabled = city != null, onClick = { repository.invalidate(); refresh++; showDialog = false }) {
                 Text(lt(language, "Atualizar", "Refresh", "Actualizar"))
-            } },
-            dismissButton = { TextButton(onClick = { showDialog = false }) {
-                Text(lt(language, "Fechar", "Close", "Cerrar"))
             } }
         )
+        }
+        }
     }
 }

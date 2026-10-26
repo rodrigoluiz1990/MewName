@@ -29,6 +29,7 @@ data class BattleAdvice(
     val copyText: String,
     val raidScreenText: String = "",
     val raidLevel: Int? = null,
+    val raidBossCandidates: List<Pair<String, String>> = emptyList(),
     val healerSuggestions: List<BattleSuggestionEntry> = emptyList()
 )
 

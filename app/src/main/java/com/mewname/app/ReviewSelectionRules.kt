@@ -293,7 +293,10 @@ internal fun powerUpCostBetweenLevels(
     }
     return PowerUpCost(
         kotlin.math.ceil(stardust * modifier * (if (isLucky) 0.5 else 1.0)).toInt(),
-        kotlin.math.ceil(candy * modifier).toInt(),
+        // Purified bulk preview rounds ordinary Candy to the nearest integer (half down).
+        // Device: Moltres 35 -> 40, 118 * 0.9 = 106.2, displayed cost 106.
+        if (isPurified && !isShadow && candy > 0) ((candy * 9 + 4) / 10).coerceAtLeast(1)
+        else kotlin.math.ceil(candy * modifier).toInt(),
         kotlin.math.ceil(candyXl * modifier).toInt()
     )
 }

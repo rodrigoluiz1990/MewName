@@ -42,6 +42,8 @@ class PvpRankCalculator {
         0.845300018787384
     )
 
+    internal fun levelMultipliers(): List<Pair<Double, Double>> = cpmTable.mapIndexed { index, value -> (1.0 + index * .5) to value }
+
     data class StatProduct(val atk: Int, val def: Int, val sta: Int, val product: Double, val cp: Int, val level: Double)
     data class LevelEstimate(val pokemonName: String, val level: Double, val cpDistance: Int)
     data class HpLevelEstimate(val pokemonName: String, val level: Double, val hpDistance: Int)
@@ -66,7 +68,7 @@ class PvpRankCalculator {
     /** Exact CP/maximum HP constraints. Ambiguous spreads must never become a guessed IV. */
     fun resolveIvEvidence(context: Context, pokemonName: String, cp: Int, maxHp: Int?,
         knownAttack: Int? = null, knownDefense: Int? = null, knownStamina: Int? = null,
-        knownLevel: Double? = null): CpIvEvidence {
+        knownLevel: Double? = null, allowedLevels: Set<Double>? = null): CpIvEvidence {
         val empty = CpIvEvidence(0, null, null, null, null)
         val knownIvCount = listOf(knownAttack, knownDefense, knownStamina).count { it != null }
         if (cp < 10 || (maxHp == null && knownLevel == null && knownIvCount < 2) || (maxHp != null && maxHp < 10)) return empty
@@ -85,6 +87,7 @@ class PvpRankCalculator {
             if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException("IV resolution cancelled")
             val level = 1.0 + i * 0.5
             if (knownLevel != null && level != knownLevel) continue
+            if (allowedLevels != null && level !in allowedLevels) continue
             val cpm = cpmTable[i]
             if (cp !in calculateCp(a, d, h, cpm)..calculateCp(a + 15, d + 15, h + 15, cpm)) continue
             for (sta in (knownStamina?.let { it..it } ?: 0..15)) {
@@ -195,18 +198,47 @@ class PvpRankCalculator {
         context: Context,
         pokemonNames: List<String>,
         observedHp: Int,
-        sta: Int
+        sta: Int,
+        observedCp: Int? = null,
+        atk: Int? = null,
+        def: Int? = null
     ): HpLevelEstimate? {
-        return pokemonNames
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .mapNotNull { pokemonName ->
-                val baseStats = loadBaseStats(context, pokemonName) ?: return@mapNotNull null
-                estimateLevelFromHpWithDistance(baseStats, observedHp, sta)?.copy(pokemonName = pokemonName)
+        val matches = pokemonNames.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            .flatMap { name ->
+                val stats = loadBaseStats(context, name) ?: return@flatMap emptyList()
+                cpmTable.mapIndexedNotNull { index, cpm ->
+                    val hp = floor((stats.getInt("stamina") + sta) * cpm).toInt().coerceAtLeast(10)
+                    if (hp != observedHp) return@mapIndexedNotNull null
+                    // A visible CP can disambiguate HP only with all three IVs known.
+                    if (observedCp != null && atk != null && def != null &&
+                        calculateCp(stats.getInt("attack") + atk, stats.getInt("defense") + def,
+                            stats.getInt("stamina") + sta, cpm) != observedCp) return@mapIndexedNotNull null
+                    HpLevelEstimate(name, 1.0 + index * 0.5, 0)
+                }
             }
-            .filter { it.hpDistance == 0 }
-            .minWithOrNull(compareBy<HpLevelEstimate> { it.hpDistance }.thenByDescending { it.level }.thenBy { it.pokemonName })
+        // HP rounding often gives the same value at adjacent half-levels.
+        // Never choose the highest tied level without additional evidence.
+        if (matches.map { it.level }.distinct().size != 1) return null
+        return matches.firstOrNull()
+    }
+
+    /** Infer only a unique level supported by exact HP, known IVs and every visible CP fragment. */
+    fun estimateLevelFromPartialCp(
+        context: Context, pokemonName: String, observedHp: Int,
+        atk: Int, def: Int, sta: Int, fragments: List<String>
+    ): HpLevelEstimate? {
+        if (listOf(atk, def, sta).any { it !in 0..15 } || observedHp <= 0 || fragments.isEmpty() ||
+            fragments.any { !it.matches(Regex("[0-9]{2,5}")) }) return null
+        val stats = loadBaseStats(context, pokemonName) ?: return null
+        val matches = cpmTable.mapIndexedNotNull { index, cpm ->
+            val hp = floor((stats.getInt("stamina") + sta) * cpm).toInt().coerceAtLeast(10)
+            if (hp != observedHp) return@mapIndexedNotNull null
+            val cp = calculateCp(stats.getInt("attack") + atk, stats.getInt("defense") + def,
+                stats.getInt("stamina") + sta, cpm).toString()
+            if (!fragments.all { cp.contains(it) }) return@mapIndexedNotNull null
+            HpLevelEstimate(pokemonName, 1.0 + index * 0.5, 0)
+        }
+        return matches.singleOrNull()
     }
 
     fun calculateRank(context: Context, pokemonName: String, atk: Int, def: Int, sta: Int, league: PvpLeague): Int? {
@@ -425,29 +457,6 @@ class PvpRankCalculator {
         return bestLevel?.let { LevelEstimate(pokemonName = "", level = it, cpDistance = bestDistance) }
     }
 
-    private fun estimateLevelFromHpWithDistance(
-        baseStats: JSONObject,
-        observedHp: Int,
-        sta: Int
-    ): HpLevelEstimate? {
-        val baseStamina = baseStats.getInt("stamina")
-        var bestLevel: Double? = null
-        var bestDistance = Int.MAX_VALUE
-
-        for (i in cpmTable.indices) {
-            val cpm = cpmTable[i]
-            val level = 1.0 + (i * 0.5)
-            val hp = floor((baseStamina + sta) * cpm).toInt().coerceAtLeast(10)
-            val distance = kotlin.math.abs(hp - observedHp)
-
-            if (distance < bestDistance || (distance == bestDistance && level > (bestLevel ?: 0.0))) {
-                bestDistance = distance
-                bestLevel = level
-            }
-        }
-
-        return bestLevel?.let { HpLevelEstimate(pokemonName = "", level = it, hpDistance = bestDistance) }
-    }
 
     private fun getBestStatProduct(
         base: JSONObject,

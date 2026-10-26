@@ -140,7 +140,11 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             closeBubbleForPermissionLoss(overlayPermissionLost = true, reason = reason)
         }
     }
-    private val dailyMissions by lazy { DailyMissionOverlay(this, ::addOverlayView, ::detachOverlay, ::updateOverlayViewLayout) }
+    private val dailyMissions by lazy { DailyMissionOverlay(this, ::addOverlayView, ::detachOverlay, ::updateOverlayViewLayout) {
+        floatingButton?.let { button ->
+            (button.layoutParams as? WindowManager.LayoutParams)?.let { updateOverlayViewLayout(button, it) }
+        }
+    } }
     private val captureSession by lazy {
         OverlayCaptureSession(this) { reason ->
             closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = reason)
@@ -252,8 +256,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private fun addOverlayView(view: View, params: WindowManager.LayoutParams): Boolean =
         overlayWindows.addOverlayView(view, params)
 
-    private fun updateOverlayViewLayout(view: View?, params: WindowManager.LayoutParams): Boolean =
-        overlayWindows.updateOverlayViewLayout(view, params)
+    private fun updateOverlayViewLayout(view: View?, params: WindowManager.LayoutParams): Boolean {
+        if (view != null && view === floatingButton) dailyMissions.followBubble(view, params)
+        return overlayWindows.updateOverlayViewLayout(view, params)
+    }
 
     private fun closeBubbleForPermissionLoss(overlayPermissionLost: Boolean, reason: String) {
         if (closingForPermissionLoss) return
@@ -354,7 +360,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
         })
 
-        floatingButton?.let { addOverlayView(it, params) }
+        floatingButton?.let { button ->
+            addOverlayView(button, params)
+            button.post { if (button === floatingButton) updateOverlayViewLayout(button, params) }
+        }
     }
 
     private fun hideBubbleActions() {
@@ -776,9 +785,22 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 Log.d(TAG, "OCR text: ${android.os.SystemClock.elapsedRealtime() - started}ms; lines=${ocrResult.blocks.sumOf { it.lines.size }}")
                 checkpoint("OCR principal")
                 updateLoadingStatus(request, detail = "Identificando tela e batalha")
-                val readTarget = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                var readTarget = kotlinx.coroutines.withContext(Dispatchers.IO) {
                     com.mewname.app.domain.BubbleScreenRouter.route(this@OverlayService, ocrResult) { stage, millis ->
                         Log.d(TAG, "Read[$readId] Route/$stage: ${millis}ms")
+                    }
+                }
+                val initialRaid = (readTarget as? com.mewname.app.domain.BubbleScreenRouter.Target.Battle)?.advice
+                if (initialRaid?.mode == com.mewname.app.domain.BattleMode.RAID &&
+                    (initialRaid.bossName == null || initialRaid.raidLevel == null)) {
+                    val cpRefined = withTimeoutOrNull(3000L) { ocrEngine.refineRaidCp(ocrResult) } ?: ocrResult
+                    val refined = withTimeoutOrNull(3000L) { ocrEngine.refineRaidName(cpRefined) } ?: cpRefined
+                    request.ensureCurrent()
+                    if (refined != null && refined != ocrResult) {
+                        ocrResult = refined
+                        readTarget = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            com.mewname.app.domain.BubbleScreenRouter.route(this@OverlayService, ocrResult)
+                        }
                     }
                 }
                 request.ensureCurrent()
@@ -831,6 +853,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 request.ensureCurrent()
                 checkpoint("Tamanho ($sizeRetries recortes)")
                 var stageName = "Preparando leitura"
+                ocrResult = withTimeoutOrNull(3000L) { ocrEngine.refinePokemonCp(ocrResult) } ?: ocrResult
+                request.ensureCurrent()
                 val parsed = withTimeoutOrNull(25_000L) {
                     kotlinx.coroutines.runInterruptible(Dispatchers.Default) {
                         parser.parse(this@OverlayService, ocrResult) { step ->
@@ -843,6 +867,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 } ?: throw IllegalStateException("Tempo limite ao analisar os dados da imagem")
                 request.ensureCurrent()
                 checkpoint(stageName)
+                if (BuildConfig.DEBUG) Log.d(TAG, "Pokemon level: name=${parsed.pokemonName}; cp=${parsed.levelDebugInfo?.cp}; level=${parsed.level}; evidence=${parsed.levelDebugInfo}")
                 updateLoadingStatus(request, detail = "Montando nomes sugeridos")
                 val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
                 lastCapturedData = merged
@@ -1061,7 +1086,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_DIM_BEHIND or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.CENTER; dimAmount = 0.5f }
+        ).apply { gravity = Gravity.CENTER; dimAmount = 0.5f; softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE }
         val view = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@OverlayService)
             setViewTreeViewModelStoreOwner(this@OverlayService)
@@ -1077,7 +1102,43 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     AppAppearanceTheme {
                         SavedFiltersOverlay(friends, filters, (metrics.heightPixels / metrics.density * 0.7f).dp,
                             onCopy = { value -> copyToClipboard(value); removeResultsOverlay() },
-                            onClose = { removeResultsOverlay() })
+                            onClose = { removeResultsOverlay() },
+                            onQuickEdit = { value -> showQuickFilterOverlay(value, screen) })
+                    }
+                }
+            }
+        }
+        if (addOverlayView(view, params)) resultsView = view
+    }
+
+    private fun showQuickFilterOverlay(value: String, screen: com.mewname.app.domain.FilterScreen) {
+        if (closingForPermissionLoss) return
+        removeResultsOverlay()
+        val metrics = resources.displayMetrics
+        val prefs = getSharedPreferences("mewname_prefs", 0)
+        val width = minOf(metrics.widthPixels - (24 * metrics.density).toInt(), (380 * metrics.density).toInt())
+        val params = WindowManager.LayoutParams(width, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            x = prefs.getInt("quick_filter_x", (metrics.widthPixels - width) / 2).coerceIn(0, (metrics.widthPixels - width).coerceAtLeast(0))
+            y = prefs.getInt("quick_filter_y", (metrics.heightPixels * .15f).toInt()).coerceIn(0, (metrics.heightPixels - (200 * metrics.density).toInt()).coerceAtLeast(0))
+        }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            setContent {
+                val language = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language) {
+                    AppAppearanceTheme {
+                        QuickFilterOverlay(value, onCopy = { copyToClipboard(it) },
+                            onMove = { dx, dy ->
+                                params.x = (params.x + dx.toInt()).coerceIn(0, (metrics.widthPixels - width).coerceAtLeast(0))
+                                params.y = (params.y + dy.toInt()).coerceIn(0, (metrics.heightPixels - height).coerceAtLeast(0))
+                                if (isAttachedToWindow) windowManager.updateViewLayout(this, params)
+                            }, onMoveFinished = { prefs.edit().putInt("quick_filter_x", params.x).putInt("quick_filter_y", params.y).apply() }, onBack = { showSavedFiltersOverlay(screen) }, onClose = { removeResultsOverlay() })
                     }
                 }
             }
@@ -1294,7 +1355,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         Box(Modifier.fillMaxSize().padding(horizontal=10.dp,vertical=24.dp),contentAlignment=androidx.compose.ui.Alignment.BottomCenter) {
                             androidx.compose.material3.Surface(Modifier.fillMaxWidth().fillMaxHeight(0.92f),
                                 shape=androidx.compose.foundation.shape.RoundedCornerShape(26.dp)) {
-                                RaidDetailsScreen(advice.bossName.orEmpty(), bubble=true, raidScreenText=advice.raidScreenText, detectedRaidLevel=advice.raidLevel, onBack={removeResultsOverlay()})
+                                RaidDetailsScreen(advice.bossName.orEmpty(), bubble=true, raidScreenText=advice.raidScreenText, detectedRaidLevel=advice.raidLevel, ocrCandidates=advice.raidBossCandidates.map { com.mewname.app.domain.RaidChoice(it.first, it.second) }, onBack={removeResultsOverlay()})
                             }
                         }
                     }

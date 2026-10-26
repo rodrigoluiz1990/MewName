@@ -1,0 +1,54 @@
+{
+  "extracted_on": "2026-10-25",
+  "source": "Installed Pokémon GO UnityCache",
+  "files": [
+    {
+      "name": "pm774.fGREEN.icon",
+      "width": 256,
+      "height": 256,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/964026de1ad686ab83d86255b610ea4d/22796cd38de7dbbd1a38f40e1560fa31/__data"
+    },
+    {
+      "name": "pm774.fGREEN.s.icon",
+      "width": 91,
+      "height": 94,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/964026de1ad686ab83d86255b610ea4d/22796cd38de7dbbd1a38f40e1560fa31/__data"
+    },
+    {
+      "name": "pm774.fGREEN.s.icon",
+      "width": 256,
+      "height": 256,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/964026de1ad686ab83d86255b610ea4d/22796cd38de7dbbd1a38f40e1560fa31/__data"
+    },
+    {
+      "name": "pm774.fGREEN.icon",
+      "width": 90,
+      "height": 93,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/964026de1ad686ab83d86255b610ea4d/22796cd38de7dbbd1a38f40e1560fa31/__data"
+    },
+    {
+      "name": "pm774.fMETEOR.icon",
+      "width": 90,
+      "height": 93,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/3d68062489ca10f87facca8d896b20d5/0ee34d6472f1ed75806ed7d13264b6db/__data"
+    },
+    {
+      "name": "pm774.fMETEOR.s.icon",
+      "width": 90,
+      "height": 93,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/3d68062489ca10f87facca8d896b20d5/0ee34d6472f1ed75806ed7d13264b6db/__data"
+    },
+    {
+      "name": "pm774.fMETEOR.icon",
+      "width": 256,
+      "height": 256,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/3d68062489ca10f87facca8d896b20d5/0ee34d6472f1ed75806ed7d13264b6db/__data"
+    },
+    {
+      "name": "pm774.fMETEOR.s.icon",
+      "width": 256,
+      "height": 256,
+      "source": "/sdcard/Android/data/com.nianticlabs.pokemongo/files/UnityCache/Shared/3d68062489ca10f87facca8d896b20d5/0ee34d6472f1ed75806ed7d13264b6db/__data"
+    }
+  ]
+}

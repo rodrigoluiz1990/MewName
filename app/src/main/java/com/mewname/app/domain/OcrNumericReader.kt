@@ -18,6 +18,22 @@ internal object OcrNumericReader {
         "APPRAISAL", "VALORACAO", "VALORAR", "ATTACK", "DEFENSE", "DEFESA", "HP", "ATAQUE"
     )
 
+    /** Only numeric fragments in the CP header, never dates, HP or candy amounts. */
+    fun partialCpDigits(text: String): String? =
+        Regex("""^(?:(?:PC|CP|PR|GP|OP|DP|P)\s*[:.-]?\s*)?(\d{2,5})$""", RegexOption.IGNORE_CASE)
+            .matchEntire(text.trim())?.groupValues?.get(1)
+
+    fun extractPartialCpDigits(lines: List<OcrTextLine>, bounds: Rect?): List<String> {
+        if (bounds == null) return emptyList()
+        return lines.mapNotNull { line ->
+            val box = line.boundingBox ?: return@mapNotNull null
+            val x = (box.centerX() - bounds.left).toFloat() / bounds.width()
+            val y = (box.centerY() - bounds.top).toFloat() / bounds.height()
+            if (x !in .25f.. .72f || y !in .035f.. .13f) return@mapNotNull null
+            partialCpDigits(line.text)
+        }.distinct()
+    }
+
     fun hasIvContext(normalizedRaw: String, lines: List<OcrTextLine>, referenceBounds: Rect?): Boolean {
         if (ivContextKeywords.any { normalizedRaw.contains(it) }) return true
 
@@ -27,6 +43,17 @@ internal object OcrNumericReader {
         }
 
         return keywordHits >= 2
+    }
+
+    /** Positive detail-screen anchors; never bypass a visible lower appraisal panel. */
+    fun isDetailWithoutAppraisal(raw: String, lines: List<OcrTextLine>, bounds: Rect?): Boolean {
+        if (bounds == null || extractCp(raw, lines, bounds) == null || extractDisplayedMaxHp(lines, bounds) == null) return false
+        val lower = normalizedLinesInRegion(lines, 0f, 1f, .55f, .98f, bounds)
+        val labels = lower.count { Regex("^(ATAQUE|ATTACK|DEFESA|DEFENSE|DEFENSA|PS|HP|SALUD)(?:$|[ :])").containsMatchIn(it.trim()) }
+        val appraisal = lower.any { text ->
+            listOf("APPRAISAL", "AVALIACAO", "VALORACION", "FOI PEGO", "FOI CAPTURADO", "WAS CAUGHT", "FUE CAPTURADO").any { text.contains(it) }
+        }
+        return labels < 2 && !appraisal
     }
 
     fun extractCp(normalizedRaw: String, lines: List<OcrTextLine>, referenceBounds: Rect?): Int? {

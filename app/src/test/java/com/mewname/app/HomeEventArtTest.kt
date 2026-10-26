@@ -101,4 +101,23 @@ class HomeEventArtTest {
         val invalid = seasonPage("January 1 to December 1, 2026, local time")
         assertNull(HomeEventArtParser.season(invalid, invalid, "en"))
     }
+    @Test fun recurringShowersUseSeparateWindowsAndNeverPrecedeDebut() {
+        val html = """<main><p>Introduction</p><p>Pokemon debut</p><p>Core colors</p><p>Details</p>
+            <p>Encounter Minior during the following meteor showers each year.</p>
+            <p>Orionids<br>October 19 at 5:00 p.m. to October 24 11:59 p.m. local time</p>
+            <p>Leonids<br>November 14 at 5:00 p.m. to November 19 11:59 p.m. local time</p>
+            <p>Geminids<br>December 11 at 5:00 p.m. to December 16 11:59 p.m. local time</p>
+            <p>Eta Aquariids<br>May 3 at 5:00 p.m. to May 8 11:59 p.m. local time</p>
+            <p>From 5:00 p.m. to 9:00 p.m. local time every day, stars appear.</p></main>"""
+        val item = news("minior-meteor-showers-2026")
+        val events = HomeEventArtParser.articles(item, html, 2026)
+        assertEquals(7, events.size)
+        assertEquals(1, HomeEventArtParser.active(events, LocalDate.of(2026,10,20)).size)
+        assertTrue(HomeEventArtParser.active(events, LocalDate.of(2026,10,25)).isEmpty())
+        assertTrue(HomeEventArtParser.active(events, LocalDate.of(2026,5,4)).isEmpty())
+        assertEquals(1, HomeEventArtParser.active(events, LocalDate.of(2027,5,4)).size)
+        val later = HomeEventArtParser.articles(item, html, 2028)
+        assertEquals(1, HomeEventArtParser.active(later, LocalDate.of(2028,10,20)).size)
+        assertTrue(HomeEventArtParser.articles(item, html.replace("each year", "once"), 2026).isEmpty())
+    }
 }

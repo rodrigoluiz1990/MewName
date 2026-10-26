@@ -15,13 +15,15 @@ enum class LeekSection(val path: String) { ROCKET("rocket-lineups"), EGGS("eggs"
     val url: String get() = "https://leekduck.com/$path/"
 }
 data class LeekPokemon(val name: String, val image: String, val shiny: Boolean = false,
-    val detail: String = "", val rarity: Int? = null)
+    val detail: String = "", val rarity: Int? = null, val types: List<String> = emptyList())
 data class LeekSlot(val position: Int, val encounter: Boolean, val pokemon: List<LeekPokemon>)
 data class LeekEntry(val id: String, val title: String, val group: String, val description: String = "",
     val image: String = "", val pokemon: List<LeekPokemon> = emptyList(), val slots: List<LeekSlot> = emptyList(),
     val code: String = "", val expires: Long? = null, val expired: Boolean = false,
     val unknownExpiry: Boolean = false)
 data class LeekCatalog(val entries: List<LeekEntry>, val sourceUpdated: String, val fetchedAt: Long)
+
+internal val rocketTypeNames = listOf("Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy")
 
 internal object LeekDuckParser {
     fun parse(section: LeekSection, html: String, fetchedAt: Long): LeekCatalog {
@@ -33,10 +35,13 @@ internal object LeekDuckParser {
                 attr("data-single-weaknesses").takeIf { it.isNotBlank() }).filterNotNull().joinToString("; ")
             return LeekPokemon(pokemonDisplayName(name), image(), selectFirst(".shiny-icon") != null,
                 selectFirst(".cp-range")?.text() ?: weak,
-                select(".rarity .mini-egg").size.takeIf { it > 0 })
+                select(".rarity .mini-egg").size.takeIf { it > 0 },
+                types = listOf(attr("data-type1"), attr("data-type2")).mapNotNull { raw ->
+                    rocketTypeNames.firstOrNull { it.equals(raw.trim(), ignoreCase = true) }
+                }.distinct())
         }
         val entries = when (section) {
-            LeekSection.ROCKET -> doc.select(".rocket-profile").mapIndexed { index, el ->
+            LeekSection.ROCKET -> doc.select(".rocket-profile").map { el ->
                 val title = el.selectFirst(".employee-info .name")?.text().orEmpty()
                 val role = el.selectFirst(".employee-info .title")?.text().orEmpty()
                 val slots = el.select(".lineup-info .slot").map { slot ->
@@ -45,8 +50,11 @@ internal object LeekDuckParser {
                         slot.select(".shadow-pokemon[data-pokemon]").map { it.pokemon() })
                 }
                 require(title.isNotBlank() && slots.size == 3 && slots.all { it.pokemon.isNotEmpty() }) { "Incomplete Rocket lineup" }
-                LeekEntry("rocket-$index", title, when { role.contains("Boss") -> "Giovanni"; role.contains("Leader") -> "Leaders"; else -> "Grunts" },
-                    el.selectFirst(".quote-text")?.text().orEmpty(), el.selectFirst(".employee-info")?.image().orEmpty(), slots = slots)
+                val quote = el.selectFirst(".quote-text")?.text().orEmpty()
+                val identity = listOf(title, role, quote).joinToString("") { "${it.length}:$it" }
+                val stableId = java.util.UUID.nameUUIDFromBytes(identity.toByteArray(Charsets.UTF_8))
+                LeekEntry("rocket-$stableId", title, when { role.contains("Boss") -> "Giovanni"; role.contains("Leader") -> "Leaders"; else -> "Grunts" },
+                    quote, el.selectFirst(".employee-info")?.image().orEmpty(), slots = slots)
             }
             LeekSection.EGGS -> doc.select(".egg-grid").mapIndexed { index, grid ->
                 val before = generateSequence(grid.previousElementSibling()) { it.previousElementSibling() }.toList()

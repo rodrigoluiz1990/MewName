@@ -48,4 +48,15 @@ class RaidCategoryOrderingTest {
         assertEquals("RAID_LEVEL_1", raidCategoryTier(merged.first()))
         assertEquals("PIKACHU", raidHistorySpriteId(max.items.single()))
     }
+    @Test fun currentCatalogExcludesFutureAndExpiredBossesWithinOrdinaryTiers() {
+        val data = JSONObject("""{"tiers":[{"tier":"RAID_LEVEL_5","type":"RAID_TYPE_RAID","raids":[
+          {"pokemonId":"CURRENT"},
+          {"pokemonId":"FUTURE","upcoming":true,"startDate":2000},
+          {"pokemonId":"UNKNOWN_FUTURE","upcoming":true},
+          {"pokemonId":"EXPIRED","endDate":1000},
+          {"pokemonId":"STARTED","upcoming":true,"startDate":1000},
+          {"pokemonId":"DATED_FUTURE","startDate":2000}
+        ]}]}""")
+        assertEquals(listOf("CURRENT", "STARTED"), raidCatalogChoices(data, false, 1000).map { it.id })
+    }
 }

@@ -39,6 +39,7 @@ internal fun MaxPokemonPortrait(pokemon: String?, modifier: Modifier = Modifier,
     }
     val request = remember(context, source, offline, refreshToken) {
         ImageRequest.Builder(context).data(source)
+            .transformations(CollectionSpriteTrim)
             .networkCachePolicy(if (offline && refreshToken == 0) CachePolicy.DISABLED else CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)

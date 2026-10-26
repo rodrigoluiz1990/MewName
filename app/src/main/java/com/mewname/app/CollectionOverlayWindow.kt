@@ -5,8 +5,9 @@ import android.view.WindowManager
 import android.graphics.PixelFormat
 
 internal object CollectionOverlayWindow {
-    const val HEADER_DP = 96
-    fun minimumHeight(density: Float) = (HEADER_DP * density).toInt()
+    const val HEADER_DP = 72
+    const val HANDLE_DP = 24
+    fun minimumHeight(density: Float) = (HANDLE_DP * density).toInt()
     fun clampHeight(height: Int, screenHeight: Int, density: Float): Int =
         height.coerceIn(minimumHeight(density), maxOf(minimumHeight(density), (screenHeight * 0.94f).toInt()))
 

@@ -29,7 +29,7 @@ internal fun AppGlassTextField(
         value = value, onValueChange = onValueChange, modifier = modifier,
         enabled = enabled, singleLine = singleLine,
         label = label, supportingText = supportingText,
-        leadingIcon = if (search) { { Icon(Icons.Default.Search, contentDescription = null) } } else null,
+        leadingIcon = if (search) { { Icon(AppIcons.Search, contentDescription = null) } } else null,
         shape = RoundedCornerShape(20.dp),
         textStyle = MaterialTheme.typography.bodyLarge,
         colors = appGlassInputColors()

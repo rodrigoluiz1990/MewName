@@ -21,6 +21,18 @@ class LeekDuckTest {
         assertTrue(giovanni.slots[2].encounter)
         assertTrue(entries.any { it.group == "Grunts" && it.description.isNotBlank() })
     }
+    @Test fun rocketIdentityDoesNotFollowListPositionOrOpponentChoices() {
+        val source = html(LeekSection.ROCKET)
+        val original = LeekDuckParser.parse(LeekSection.ROCKET, source, 10).entries
+        assertEquals(original.size, original.map { it.id }.toSet().size)
+        val profiles = org.jsoup.Jsoup.parse(source).select(".rocket-profile")
+        val reordered = profiles.reversed().joinToString("\n") { it.outerHtml() }
+        val updated = LeekDuckParser.parse(LeekSection.ROCKET, reordered, 20).entries
+        assertEquals(original.map { it.id }.reversed(), updated.map { it.id })
+        val changedLineup = source.replace("Persian", "Meowth")
+        val changed = LeekDuckParser.parse(LeekSection.ROCKET, changedLineup, 30).entries
+        assertEquals(original.map { it.id }, changed.map { it.id })
+    }
     @Test fun realEggPageKeepsDistanceOriginsRarityAndIncompleteNotes() {
         val entries = LeekDuckParser.parse(LeekSection.EGGS, html(LeekSection.EGGS), 10).entries
         assertEquals(9, entries.size)

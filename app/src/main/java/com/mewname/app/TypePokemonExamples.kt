@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.mewname.app.domain.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -60,8 +59,8 @@ internal fun TypePokemonExamples(selected: Set<String>) {
                 else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(examples, key = { it.first.name }) { (entry, sprite) ->
                         Column(Modifier.width(96.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (sprite != null) AsyncImage(sprite, null, Modifier.size(72.dp))
-                            else Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) { Text("?") }
+                            if (sprite != null) PokedexSprite(sprite, null, Modifier.size(64.dp))
+                            else Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) { Text("?") }
                             Text(entry.localizedName(language), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge)
                             Text("#${entry.number}", style = MaterialTheme.typography.labelSmall)
                         }

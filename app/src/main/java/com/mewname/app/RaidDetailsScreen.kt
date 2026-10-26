@@ -1,6 +1,11 @@
 package com.mewname.app
 
+import androidx.compose.ui.draw.rotate
+
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
@@ -31,7 +36,7 @@ import java.util.Date
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEVEL_5", bubble: Boolean = false, raidScreenText: String = "", detectedRaidLevel: Int? = null, shielded: Boolean = false, onBack: () -> Unit) {
+internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEVEL_5", bubble: Boolean = false, raidScreenText: String = "", detectedRaidLevel: Int? = null, shielded: Boolean = false, ocrCandidates: List<RaidChoice> = emptyList(), onBack: () -> Unit) {
     val context = LocalContext.current
     val navigationContentPadding = LocalNavigationContentPadding.current
     val language = appLanguage()
@@ -67,7 +72,10 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         try { withContext(Dispatchers.IO) {
             val identityStarted = android.os.SystemClock.elapsedRealtime()
             val loaded = repository.metadata()
-            val identity = if (bubble) repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel) else null
+            val identity = if (bubble && ocrCandidates.isNotEmpty()) {
+                val selected = ocrCandidates.singleOrNull() ?: ocrCandidates.singleOrNull { it.id == bossName }
+                RaidBossResolver.Result(selected, ocrCandidates, false)
+            } else if (bubble) repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel) else null
             val startingChoice = if (bubble) identity?.selected else loaded.resolve(bossName)?.let { RaidChoice(it.id, initialTier) }
             val startingLevel = startingChoice?.let { repository.initialLevel(it.id, it.tier) }
             android.util.Log.d("RaidReadTiming", "identity boss=$bossName selected=$startingChoice: ${android.os.SystemClock.elapsedRealtime() - identityStarted}ms")
@@ -158,7 +166,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             detectVerticalDragGestures(onDragStart={down=0f},onVerticalDrag={change,amount->change.consume();down+=amount},onDragEnd={if(down>60.dp.toPx())onBack()})
         }, contentAlignment=Alignment.Center) { Box(Modifier.size(42.dp,4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha=.4f),RoundedCornerShape(4.dp))) }
         AppTopBar(title={Text(tr("Detalhes da raid","Raid details","Detalles de la incursión"))}, navigationIcon={
-            IconButton(onClick=onBack) { Icon(if(bubble) Icons.Default.Close else Icons.Default.ArrowBack,tr("Fechar","Close","Cerrar")) }
+            IconButton(onClick=onBack) { Icon(if(bubble) AppIcons.Close else AppIcons.Back,tr("Fechar","Close","Cerrar")) }
         }, actions = {
             IconButton(
                 enabled = !identityLoading && !catalogRefreshing && (boss == null || (!loading && !trainersLoading)),
@@ -174,7 +182,9 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                                 val (loaded, identity) = withContext(Dispatchers.IO) {
                                     val metadata = repository.metadata()
                                     repository.catalog(refresh = true)
-                                    metadata to repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel)
+                                    metadata to if (ocrCandidates.isNotEmpty()) RaidBossResolver.Result(
+                                        ocrCandidates.singleOrNull(), ocrCandidates, false)
+                                    else repository.resolveBoss(bossName, raidScreenText, detectedRaidLevel)
                                 }
                                 meta = loaded
                                 inferredTier = true
@@ -199,7 +209,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                     }
                 }
             ) {
-                Icon(Icons.Default.Refresh, if (boss == null)
+                Icon(AppIcons.Refresh, if (boss == null)
                     tr("Atualizar raids disponíveis", "Refresh available raids", "Actualizar incursiones disponibles")
                 else tr("Atualizar", "Refresh", "Actualizar"))
             }
@@ -208,26 +218,44 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             if (catalogRefreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if(meta==null && !failed) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if(meta==null && failed) item { Text(tr("Não foi possível carregar os dados da raid.","Could not load raid data.","No se pudieron cargar los datos.")) }
-            if(meta!=null && boss==null) item { Text(if(formChoices.isNotEmpty()) tr("Chefe não identificado. Escolha uma raid atual deste nível.","Boss not identified. Choose a current raid at this level.","Jefe no identificado. Elige una incursión actual de este nivel.") else tr("Não foi possível identificar o chefe nem encontrar raids atuais deste nível.","The boss could not be identified and no current raids were found at this level.","No se pudo identificar al jefe ni encontrar incursiones actuales de este nivel.")) }
+            if(meta!=null && boss==null) item { Text(if(formChoices.isNotEmpty()) tr("Chefe não identificado. Escolha um dos candidatos deste nível.","Boss not identified. Choose a candidate at this level.","Jefe no identificado. Elige un candidato de este nivel.") else tr("Não foi possível identificar o chefe nem encontrar raids atuais deste nível.","The boss could not be identified and no current raids were found at this level.","No se pudo identificar al jefe ni encontrar incursiones actuales de este nivel.")) }
             if (catalogRefreshFailed) item {
                 Text(tr("Não foi possível atualizar as raids disponíveis. Os dados salvos foram preservados. Tente novamente.",
                     "Could not refresh available raids. Saved data was preserved. Try again.",
                     "No se pudieron actualizar las incursiones disponibles. Se conservaron los datos guardados. Inténtalo de nuevo."))
             }
-            if(boss==null && formChoices.isNotEmpty()) item {
-                RaidVariantSelector(tr("Selecionar raid","Select raid","Seleccionar incursión"),formChoices,
-                    label={"${name(it.id)} · ${raidLabel(it)}"},onSelect={selectedId=it.id; tier=it.tier})
+            if (boss == null) items(formChoices.distinct(), key = { "candidate:${it.id}:${it.tier}" }) { choice ->
+                AppSectionCard(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.fillMaxWidth().clickable(role = Role.Button) {
+                            selectedId = choice.id
+                            tier = choice.tier
+                        }.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Candidate selection must show portraits even before a raid report has been cached.
+                        RaidPortrait(choice.id, offline = false, Modifier.size(64.dp), refreshToken = refresh)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(name(choice.id), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(raidLabel(choice), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(AppIcons.Next, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
             boss?.let { b ->
                 item { AppSectionCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment=Alignment.CenterVertically) {
-                        RaidPortrait(b.id,bubble,Modifier.size(72.dp), refreshToken = refresh)
+                        RaidPortrait(b.id,bubble,Modifier.size(64.dp), refreshToken = refresh)
                         Column { Text(name(b.id),style=MaterialTheme.typography.titleLarge)
                             FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) { b.types.forEach { TypeBadge(it,language,showAssetIcon=true) } }
                         }
                     }
                     if(bubble && variantOptions.size > 1) {
-                        RaidVariantSelector(variantLabel(RaidChoice(b.id,tier)),variantOptions.map { it.choice },
+                        RaidVariantSelector(RaidChoice(b.id,tier),variantOptions.map { it.choice },
                             label={variantLabel(it)},onSelect={selectedId=it.id; tier=it.tier})
                     } else Text(raidLabel(RaidChoice(b.id,tier)),style=MaterialTheme.typography.labelMedium)
                     if (shielded || raidHasShields(tier)) Text(
@@ -321,7 +349,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                 }
                 items(report?.counters.orEmpty(),key={it.id}) { counter -> AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                        RaidPortrait(counter.id,bubble,Modifier.size(56.dp), refreshToken = refresh)
+                        RaidPortrait(counter.id,bubble,Modifier.size(64.dp), refreshToken = refresh)
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                             Text(name(counter.id),style=MaterialTheme.typography.titleSmall)
                             RaidMoveRow(counter.fast,tr("Rápido: ","Fast: ","Rápido: ")+moveLabel(counter.fast.id))
@@ -330,7 +358,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                     }
                 } }
                 report?.let { r -> item {
-                    Text(tr("★ Golpe especial","★ Special move","★ Ataque especial"),style=MaterialTheme.typography.bodySmall)
+                    Text(tr("${configuredLegacyMoveSymbol()} Golpe especial","${configuredLegacyMoveSymbol()} Special move","${configuredLegacyMoveSymbol()} Ataque especial"),style=MaterialTheme.typography.bodySmall)
                     Text("Pokébattler · " + DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT).format(Date(r.fetchedAt)),style=MaterialTheme.typography.bodySmall)
                     if(!bubble) TextButton(onClick={openExternalUrl(context,"https://www.pokebattler.com/raids/${b.id}")}) { Text(tr("Abrir Pokébattler ↗","Open Pokébattler ↗","Abrir Pokébattler ↗")) }
                 } }
@@ -363,7 +391,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
 @Composable internal fun RaidMoveRow(move: RaidMove, label: String) {
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
         if(move.type.isNotBlank()) AsyncImage("file:///android_asset/types/POKEMON_TYPE_${move.type.uppercase()}.png",localizedTypeLabel(move.type,appLanguage()),Modifier.size(20.dp))
-        Text(label + if(move.special) " ★" else "",style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))
+        Text(label + if(move.special) " ${configuredLegacyMoveSymbol()}" else "",style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))
     }
 }
 @Composable internal fun RaidPortrait(id: String, offline: Boolean, modifier: Modifier, refreshToken: Int = 0) {
@@ -373,6 +401,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     }
     val request = remember(context, url, offline, refreshToken) {
         ImageRequest.Builder(context).data(url)
+            .transformations(CollectionSpriteTrim)
             // Opening the overlay remains cache-only; an explicit raid refresh
             // also authorizes downloading missing portraits and saving them.
             .networkCachePolicy(if (offline && refreshToken == 0) CachePolicy.DISABLED else CachePolicy.ENABLED)
@@ -389,21 +418,18 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
 
 @Composable
 private fun RaidVariantSelector(
-    selectedLabel: String,
+    selected: RaidChoice,
     choices: List<RaidChoice>,
     label: (RaidChoice) -> String,
     onSelect: (RaidChoice) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick={expanded=true},contentPadding=PaddingValues(horizontal=0.dp)) {
-            Text(selectedLabel,style=MaterialTheme.typography.labelLarge)
-            Icon(Icons.Default.ArrowDropDown,contentDescription=null,modifier=Modifier.size(20.dp))
+        AppActionButton(onClick = { expanded = true }, secondary = true) {
+            Text(label(selected), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.width(8.dp))
+            Icon(AppIcons.Next, null, Modifier.size(18.dp).rotate(90f))
         }
-        DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
-            choices.distinct().forEach { choice ->
-                DropdownMenuItem(text={Text(label(choice))},onClick={expanded=false;onSelect(choice)})
-            }
-        }
+        AppSelectionMenu(expanded, { expanded = false }, choices.distinct(), selected, label, onSelect)
     }
 }

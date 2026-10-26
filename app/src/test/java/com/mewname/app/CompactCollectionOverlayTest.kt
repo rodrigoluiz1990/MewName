@@ -20,7 +20,7 @@ class CompactCollectionOverlayTest {
         assertEquals(0, params.flags and WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         assertNotEquals(0, params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
         CollectionOverlayWindow.resize(params, 0, 2000, 2f)
-        assertEquals(192, params.height)
+        assertEquals(48, params.height)
         assertNotEquals(0, params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         CollectionOverlayWindow.resize(params, 1437, 2000, 2f)
         assertEquals(1437, params.height)
@@ -32,7 +32,7 @@ class CompactCollectionOverlayTest {
     @Test fun dragTracksScreenCoordinatesWithoutSnappingAndClampsAtEdges() {
         assertEquals(1237, CollectionOverlayWindow.draggedHeight(1100, 900f, 763f, 2000, 2f))
         assertEquals(963, CollectionOverlayWindow.draggedHeight(1100, 900f, 1037f, 2000, 2f))
-        assertEquals(192, CollectionOverlayWindow.draggedHeight(1100, 900f, 4000f, 2000, 2f))
+        assertEquals(48, CollectionOverlayWindow.draggedHeight(1100, 900f, 4000f, 2000, 2f))
         assertEquals(1880, CollectionOverlayWindow.draggedHeight(1100, 900f, -4000f, 2000, 2f))
     }
 
@@ -55,6 +55,58 @@ class CompactCollectionOverlayTest {
             assertFalse(PersonalCollection.read(context).entries.containsKey(hisui.key))
             assertEquals(setOf(PersonalCollectionGroup.LUCKY), PersonalCollection.read(context).entries[normal.key]?.groups)
             assertTrue(collectionQuickTargets(species,PersonalCollectionGroup.MEGA,"").isEmpty())
+        } finally { prefs.edit().clear().commit() }
+    }
+
+    @Test fun compactRowsKeepOriginalBeforeRegionalsAndFilterExactTargets() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val species = CollectionDexCatalog.load(context)
+        val tauros = species.single { it.dex == 128 }
+        assertEquals("Tauros", tauros.name)
+        val rows = collectionCompactTargets(species, "Tauros").map { it.second }
+        assertEquals("Tauros", rows.first().label)
+        assertTrue(rows.any { it.label.contains("Paldea", true) })
+        val meowth = collectionCompactTargets(species, "Meowth").map { it.second }
+        assertEquals("Meowth", meowth.first().label)
+        assertTrue(meowth.any { it.label.contains("Alola", true) })
+        assertTrue(meowth.any { it.label.contains("Galar", true) })
+        val hisui = collectionCompactTargets(species, "Growlithe (Hisui)").map { it.second }
+        assertEquals(1, hisui.size)
+        assertEquals(hisui, collectionCompactTargets(species, "", setOf(hisui.single().key)).map { it.second })
+        val all = collectionCompactTargets(species, "")
+        assertEquals(all.size, all.map { it.second.key }.distinct().size)
+        assertTrue(all.none { it.second.key in it.first.costumeKeys })
+        assertEquals(all.map { it.first.dex }.sorted(), all.map { it.first.dex })
+    }
+
+    @Test fun regionalGameAliasesDoNotDuplicateCatalogAndPerrserkerHasSprite() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val catalog = CollectionDexCatalog.load(context)
+        val rows = collectionCompactTargets(catalog, "")
+        assertTrue(rows.none { it.second.key.contains("GALARIAN") })
+        assertEquals(1, rows.count { it.first.dex == 52 && it.second.label == "Meowth (Galar)" })
+        val perrserker = rows.single { it.first.dex == 863 }
+        assertEquals("Perrserker", perrserker.second.label)
+        assertTrue(PersonalCollectionImages(context).url(perrserker.second)?.contains("pm863.icon.png") == true)
+    }
+    @Test fun legacyGalarianFlagsMergeAndCanBeUnmarkedWithoutResurrecting() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = PersonalCollection.preferences(context)
+        prefs.edit().clear().commit()
+        val old = PersonalCollectionTarget("[\"MEOWTH\",\"GAME_FORM:MEOWTH_GALARIAN\"]", "Meowth · Galarian")
+        val canonical = PersonalCollectionTarget("[\"MEOWTH (GALAR)\",\"\"]", "Meowth (Galar)")
+        fun encoded(target: PersonalCollectionTarget, group: String) = org.json.JSONObject()
+            .put("key", target.key).put("label", target.label).put("groups", org.json.JSONArray(listOf(group))).toString()
+        try {
+            prefs.edit().putStringSet("entry_keys", setOf(old.key, canonical.key))
+                .putString("entry:" + old.key, encoded(old, "SHINY"))
+                .putString("entry:" + canonical.key, encoded(canonical, "LUCKY")).commit()
+            val snapshot = PersonalCollection.read(context)
+            assertEquals(setOf(canonical.key), snapshot.entries.keys)
+            assertEquals(setOf(PersonalCollectionGroup.SHINY, PersonalCollectionGroup.LUCKY), snapshot.entries[canonical.key]?.groups)
+            PersonalCollection.mark(context, canonical, PersonalCollectionGroup.SHINY, false)
+            assertEquals(setOf(PersonalCollectionGroup.LUCKY), PersonalCollection.read(context).entries[canonical.key]?.groups)
+            assertFalse(prefs.contains("entry:" + old.key))
         } finally { prefs.edit().clear().commit() }
     }
 }

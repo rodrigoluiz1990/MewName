@@ -156,11 +156,11 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
         LeekSection.CODES -> tr("Códigos promocionais", "Promo codes", "Códigos promocionales") }
     Scaffold(containerColor = Color.Transparent, topBar = {
         AppTopBar(title = { Text(title) }, navigationIcon = {
-            if (capture != null) IconButton(onClick = onBack) { Icon(Icons.Default.Close, contentDescription = tr("Fechar", "Close", "Cerrar")) }
-            else TextButton(onClick = onBack) { Text("‹", style = MaterialTheme.typography.headlineMedium) }
+            if (capture != null) IconButton(onClick = onBack) { Icon(AppIcons.Close, contentDescription = tr("Fechar", "Close", "Cerrar")) }
+            else TextButton(onClick = onBack) { Icon(AppIcons.Back, contentDescription = null) }
         }, actions = {
             if (capture == null) IconButton(onClick = { refresh++ }, enabled = !loading) {
-            Icon(Icons.Default.Refresh, contentDescription = tr("Atualizar", "Refresh", "Actualizar"))
+            Icon(AppIcons.Refresh, contentDescription = tr("Atualizar", "Refresh", "Actualizar"))
         } })
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -217,7 +217,8 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
             filtered.forEach { entry ->
               item(key = entry.id) {
                 AppSectionCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (section == LeekSection.ROCKET) RocketLineupCard(entry, entryTitle(entry), description(entry), offlineImages)
+                    else Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row {
                             if (entry.image.isNotBlank()) AsyncImage(leekImageRequest(entry.image, offlineImages), null, Modifier.size(56.dp))
                             Text(if(section == LeekSection.EGGS) entry.title.substringBefore(" km") + " km · " + groupLabel(eggOrigin(entry.title)) else entryTitle(entry),
@@ -225,7 +226,6 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
                         }
                         if (section == LeekSection.RESEARCH) Text(ResearchDisplayText.group(entry.group, language) + " · " + if (entry.description == "Event") tr("Evento", "Event", "Evento") else tr("Comum", "Regular", "Común"), style = MaterialTheme.typography.labelMedium)
                         if (section != LeekSection.CODES && section != LeekSection.RESEARCH && entry.description.isNotBlank()) Text(description(entry), style = MaterialTheme.typography.bodySmall)
-                        if (section == LeekSection.ROCKET && capture != null) RocketCounterBlock(entry)
                         for (slot in entry.slots) {
                             Text("${slot.position}" + if(slot.encounter) " · " + tr("Pode ser capturado", "Catchable", "Se puede capturar") else "", style = MaterialTheme.typography.labelLarge)
                             for (pokemon in slot.pokemon) LeekPokemonRow(pokemon, weakness = true, offline = offlineImages)
@@ -280,7 +280,7 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
 private fun LeekPokemonRow(pokemon: LeekPokemon, weakness: Boolean = false, offline: Boolean = false) {
     val language = appLanguage()
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AsyncImage(leekImageRequest(pokemon.image, offline), null, Modifier.size(48.dp))
+        AsyncImage(leekImageRequest(pokemon.image, offline, trimSprite = true), null, Modifier.size(64.dp))
         Column(Modifier.weight(1f)) {
             Text(pokemon.name + if (pokemon.shiny) " ✨" else "")
             if (pokemon.detail.isNotBlank()) Text((if (weakness) lt(language, "Fraquezas: ", "Weaknesses: ", "Debilidades: ") else "") + (if (weakness) Regex("[A-Za-z]+").replace(pokemon.detail) { localizedTypeLabel(it.value, language) } else pokemon.detail), style = MaterialTheme.typography.bodySmall)
@@ -296,16 +296,17 @@ private fun leekRocketTitle(title: String, language: AppLanguage): String {
     return lt(language, "Recruta", "Grunt", "Recluta") + " $gender · $type"
 }
 @Composable
-private fun leekImageRequest(url: String, offline: Boolean): coil.request.ImageRequest {
+internal fun leekImageRequest(url: String, offline: Boolean, trimSprite: Boolean = false): coil.request.ImageRequest {
     val context = LocalContext.current
-    return remember(context, url, offline) {
+    return remember(context, url, offline, trimSprite) {
         coil.request.ImageRequest.Builder(context).data(url)
+            .apply { if (trimSprite) transformations(CollectionSpriteTrim) }
             .networkCachePolicy(if (offline) coil.request.CachePolicy.DISABLED else coil.request.CachePolicy.ENABLED)
             .build()
     }
 }
 @Composable
-private fun RocketCounterBlock(entry: LeekEntry) {
+internal fun RocketCounterBlock(entry: LeekEntry) {
     val language = appLanguage()
     val clipboard = LocalClipboardManager.current
     val counters = remember(entry) { RocketCounterAdvisor.suggest(entry) }

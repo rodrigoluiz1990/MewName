@@ -479,12 +479,23 @@ class MainViewModel(
 
     fun removeConfig(context: Context, id: String) {
         _uiState.update { state ->
+            if (state.configs.size <= 1) return@update state
             val updatedConfigs = state.configs.filter { it.id != id }
             saveConfigs(context, updatedConfigs)
             state.copy(
                 configs = updatedConfigs,
                 generatedResults = state.parsedData?.let { generateAll(it, updatedConfigs) } ?: emptyList()
             )
+        }
+    }
+
+    fun reorderConfigs(context: Context, ids: List<String>) {
+        _uiState.update { state ->
+            val reordered = orderedNamingConfigs(state.configs, ids)
+            if (reordered == state.configs) return@update state
+            saveConfigs(context, reordered)
+            state.copy(configs = reordered,
+                generatedResults = state.parsedData?.let { generateAll(it, reordered) } ?: emptyList())
         }
     }
 

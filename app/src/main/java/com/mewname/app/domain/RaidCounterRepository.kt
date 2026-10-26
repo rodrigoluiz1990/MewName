@@ -182,7 +182,9 @@ internal class RaidCounterRepository(private val context: Context) {
     }
     fun catalogNeedsRefresh(): Boolean = runCatching {
         val cached = JSONObject(AtomicFile(File(directory, "catalog.json")).openRead().bufferedReader().use { it.readText() })
-        screenCacheExpired(cached.optLong("mewnameFetchedAt"), RAID_CATALOG_MAX_AGE)
+        val calendar = CalendarRepository(context).cached(java.time.LocalDate.now().year)
+        screenCacheExpired(cached.optLong("mewnameFetchedAt"), RAID_CATALOG_MAX_AGE) ||
+            calendar == null || screenCacheExpired(calendar.fetchedAt, RAID_CATALOG_MAX_AGE)
     }.getOrDefault(true)
 
     fun catalog(refresh: Boolean = false): List<RaidChoice> {
@@ -190,7 +192,10 @@ internal class RaidCounterRepository(private val context: Context) {
         val raw = if (refresh) get("raids") else runCatching { JSONObject(AtomicFile(target).openRead().bufferedReader().use { it.readText() }) }.getOrNull() ?: return emptyList()
         val entries = raidCatalogChoices(raw, saved = false)
         require(entries.isNotEmpty()); if (refresh) write(target,raw.put("mewnameFetchedAt", System.currentTimeMillis()))
-        return entries
+        val now = java.time.LocalDateTime.now()
+        val calendarRepository = CalendarRepository(context)
+        val calendar = if (refresh) calendarRepository.refresh(now.year) else calendarRepository.cached(now.year)
+        return scheduledRaidChoices(entries, calendar?.events.orEmpty(), now)
     }
     fun savedCatalog(): List<RaidChoice> = runCatching {
         val raw = AtomicFile(File(directory, "catalog.json")).openRead().bufferedReader()
@@ -250,7 +255,7 @@ private fun java.io.InputStream.readBytesLimited(limit: Int): ByteArray {
 }
 
 /** LEGACY is historical; FUTURE and UNSET are not records of past raids. */
-internal fun raidCatalogChoices(raw: JSONObject, saved: Boolean): List<RaidChoice> {
+internal fun raidCatalogChoices(raw: JSONObject, saved: Boolean, now: Long = System.currentTimeMillis()): List<RaidChoice> {
     val tiers = raw.getJSONArray("tiers")
     return (0 until tiers.length()).flatMap { index ->
         val tier = tiers.getJSONObject(index)
@@ -260,9 +265,15 @@ internal fun raidCatalogChoices(raw: JSONObject, saved: Boolean): List<RaidChoic
             "FUTURE" in id || "UNSET" in id || ("LEGACY" in id) != saved) emptyList()
         else {
             val raids = tier.getJSONArray("raids")
-            (0 until raids.length()).map { RaidChoice(
-                raids.getJSONObject(it).getString("pokemonId"), id.removeSuffix("_LEGACY")
-            ) }
+            (0 until raids.length()).mapNotNull {
+                val raid = raids.getJSONObject(it)
+                val start = raid.optLong("startDate", 0L)
+                val end = raid.optLong("endDate", 0L)
+                // Future encounters can be embedded in ordinary tiers, not only *_FUTURE.
+                if (!saved && ((start > now) || (end > 0 && end <= now) ||
+                    (raid.optBoolean("upcoming") && start <= 0))) null
+                else RaidChoice(raid.getString("pokemonId"), id.removeSuffix("_LEGACY"))
+            }
         }
     }.distinct()
 }

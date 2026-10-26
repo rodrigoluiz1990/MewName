@@ -91,6 +91,7 @@ internal fun TrainerProfileScreen(
     var showLayout by rememberSaveable { mutableStateOf(false) }
     var showBubbleOptions by rememberSaveable { mutableStateOf(false) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
+    var showMissionOverlay by rememberSaveable { mutableStateOf(false) }
     var showBackup by rememberSaveable { mutableStateOf(false) }
     var showUpdate by rememberSaveable { mutableStateOf(false) }
     var pictureRevision by remember { mutableStateOf(0) }
@@ -110,8 +111,9 @@ internal fun TrainerProfileScreen(
             }
         }
     }
-    fun closePage() { showBackup = false; showCollection = false; showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
+    fun closePage() { showMissionOverlay = false; showBackup = false; showCollection = false; showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
     val page = when {
+        showMissionOverlay -> "missions_overlay"
         showBackup -> "backup"
         showCollection -> "collection"
         showPvp -> "pvp"
@@ -207,6 +209,8 @@ internal fun TrainerProfileScreen(
                 ProfileMenuRow("Layout", onClick = { showLayout = true })
                 ProfileMenuRow(lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición"),
                     onClick = { showBubbleOptions = true })
+                ProfileMenuRow(lt(language, "Missões na sobreposição", "Overlay missions", "Misiones en superposición"),
+                    onClick = { showMissionOverlay = true })
                 ProfileMenuRow(lt(language, "Backup e restauração", "Backup and restore", "Copia y restauración"), onClick = { showBackup = true })
                 ProfileMenuRow(lt(language, "Ajuda", "Help", "Ayuda"), onClick = { showHelp = true })
                 ProfileMenuRow(lt(language, "Atualizar", "Update", "Actualizar"), onClick = { showUpdate = true })
@@ -226,6 +230,7 @@ internal fun TrainerProfileScreen(
         AppUpdateScreen(uiState = uiState, onBack = { closePage() }, onRefresh = onRefreshAppUpdate)
     } else {
         val title = when (destination) {
+            "missions_overlay" -> lt(language, "Missões na sobreposição", "Overlay missions", "Misiones en superposición")
             "backup" -> lt(language, "Backup e restauração", "Backup and restore", "Copia y restauración")
             "collection" -> "Coleção pessoal"
             "pvp" -> lt(language, "Cálculo PvP", "PvP calculation", "Cálculo PvP")
@@ -235,7 +240,7 @@ internal fun TrainerProfileScreen(
         }
         Scaffold(containerColor = appearance.background.first(), topBar = {
             AppTopBar(title = { Text(title) }, navigationIcon = {
-                IconButton(onClick = { closePage() }) { Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack, lt(language, "Voltar", "Back", "Volver")) }
+                IconButton(onClick = { closePage() }) { Icon(AppIcons.Back, lt(language, "Voltar", "Back", "Volver")) }
             })
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)
@@ -243,6 +248,7 @@ internal fun TrainerProfileScreen(
                 .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.padding(bottom = LocalNavigationContentPadding.current)),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (destination) {
+                    "missions_overlay" -> MissionOverlayPreferences()
                     "backup" -> BackupControls()
                     "collection" -> PersonalCollectionPreferences()
                     "pvp" -> PvpCalculationPreferences()

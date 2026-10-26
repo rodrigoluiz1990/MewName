@@ -99,9 +99,9 @@ internal fun MaxBattleSuggestionsScreen(
         topBar = {
             AppTopBar(
                 title = { Text(tr("Detalhes da Batalha Max", "Max Battle details", "Detalles del Combate Max")) },
-                actions = { IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(Icons.Default.Refresh, contentDescription = tr("Atualizar", "Refresh", "Actualizar")) } },
+                actions = { IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(AppIcons.Refresh, contentDescription = tr("Atualizar", "Refresh", "Actualizar")) } },
                 navigationIcon = { IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, tr("Fechar", "Close", "Cerrar"))
+                    Icon(AppIcons.Close, tr("Fechar", "Close", "Cerrar"))
                 } }
             )
         },
@@ -129,7 +129,7 @@ internal fun MaxBattleSuggestionsScreen(
                 AppSectionCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            MaxPokemonPortrait(bossSpriteId ?: advice.bossName, Modifier.size(72.dp), refreshToken = refresh)
+                            MaxPokemonPortrait(bossSpriteId ?: advice.bossName, Modifier.size(64.dp), refreshToken = refresh)
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(advice.bossName ?: tr("Chefe não identificado", "Boss not identified", "Jefe no identificado"),
                                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -169,7 +169,7 @@ internal fun MaxBattleSuggestionsScreen(
                 AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text((index + 1).toString(), Modifier.padding(end = 8.dp))
-                        MaxPokemonPortrait(entry.id, Modifier.size(56.dp), offline = false, refreshToken = refresh)
+                        MaxPokemonPortrait(entry.id, Modifier.size(64.dp), offline = false, refreshToken = refresh)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(raidName(entry.id), style = MaterialTheme.typography.titleSmall)
                             listOf(entry.fast, entry.charged).filter { it.id !in listOf("NONE", "MOVE_NONE", "") }.forEach { move ->

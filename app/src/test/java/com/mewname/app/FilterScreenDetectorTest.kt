@@ -2,6 +2,7 @@ package com.mewname.app
 
 import com.mewname.app.domain.FilterScreen
 import com.mewname.app.domain.FilterScreenDetector
+import com.mewname.app.domain.BattleOcrLine
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -28,5 +29,20 @@ class FilterScreenDetectorTest {
             "EU AMIGOS SOCIAL RodBlack001", "Amigos Pokémon Voltorb")) {
             assertNull(FilterScreenDetector.detect(text))
         }
+    }
+    @Test fun openCustomTagGridDoesNotRequireStorageTabs() {
+        assertEquals(FilterScreen.POKEMON,FilterScreenDetector.detect("Favorito Buscar PC3218 Moltres PC2700 Dragonite"))
+        assertEquals(FilterScreen.POKEMON,FilterScreenDetector.detect("Trade SEARCH CP3218 CP2700"))
+        assertNull(FilterScreenDetector.detect("Moltres PC3218 169/169 PS Buscar PC3465 FORTALECER"))
+    }
+    @Test fun populatedSearchCanBeRecognizedByCpGridWithoutSearchPlaceholder() {
+        val lines = listOf(
+            BattleOcrLine("PC3218", .08f, .23f, .26f, .26f),
+            BattleOcrLine("PC2404", .40f, .23f, .58f, .26f),
+            BattleOcrLine("PC1971", .08f, .39f, .26f, .42f)
+        )
+        assertEquals(FilterScreen.POKEMON, FilterScreenDetector.detect("Favoritos mol", lines))
+        assertNull(FilterScreenDetector.detect("Moltres FORTALECER", lines))
+        assertNull(FilterScreenDetector.detect("Favoritos mol", lines.take(2)))
     }
 }

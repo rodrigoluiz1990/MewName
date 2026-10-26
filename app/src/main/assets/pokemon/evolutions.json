@@ -23,6 +23,18 @@
                                        }
                   },
                   {
+                      "from":  "Venusaur",
+                      "to":  "Mega Venusaur",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm3.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Charmander",
                       "to":  "Charmeleon",
                       "candy":  25,
@@ -43,6 +55,30 @@
                                        }
                   },
                   {
+                      "from":  "Charizard",
+                      "to":  "Mega Charizard X",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm6.fMEGA_X.icon.png"
+                  },
+                  {
+                      "from":  "Charizard",
+                      "to":  "Mega Charizard Y",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm6.fMEGA_Y.icon.png"
+                  },
+                  {
                       "from":  "Squirtle",
                       "to":  "Wartortle",
                       "candy":  25,
@@ -61,6 +97,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Blastoise",
+                      "to":  "Mega Blastoise",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm9.fMEGA.icon.png"
                   },
                   {
                       "from":  "Caterpie",
@@ -103,6 +151,18 @@
                                        }
                   },
                   {
+                      "from":  "Beedrill",
+                      "to":  "Mega Beedrill",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm15.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Pidgey",
                       "to":  "Pidgeotto",
                       "candy":  12,
@@ -121,6 +181,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Pidgeot",
+                      "to":  "Mega Pidgeot",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm18.fMEGA.icon.png"
                   },
                   {
                       "from":  "Rattata",
@@ -171,6 +243,30 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Raichu",
+                      "to":  "Mega Raichu X",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm26.fMEGA_X.icon.png"
+                  },
+                  {
+                      "from":  "Raichu",
+                      "to":  "Mega Raichu Y",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm26.fMEGA_Y.icon.png"
                   },
                   {
                       "from":  "Sandshrew",
@@ -497,6 +593,18 @@
                                        }
                   },
                   {
+                      "from":  "Alakazam",
+                      "to":  "Mega Alakazam",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm65.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Machop",
                       "to":  "Machoke",
                       "candy":  25,
@@ -535,6 +643,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Victreebel",
+                      "to":  "Mega Victreebel",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm71.fMEGA.icon.png"
                   },
                   {
                       "from":  "Tentacool",
@@ -655,6 +775,18 @@
                                        }
                   },
                   {
+                      "from":  "Slowbro",
+                      "to":  "Mega Slowbro",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm80.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Magnemite",
                       "to":  "Magneton",
                       "candy":  25,
@@ -757,6 +889,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Gengar",
+                      "to":  "Mega Gengar",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm94.fMEGA.icon.png"
                   },
                   {
                       "from":  "Onix",
@@ -889,6 +1033,18 @@
                                        }
                   },
                   {
+                      "from":  "Kangaskhan",
+                      "to":  "Mega Kangaskhan",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm115.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Horsea",
                       "to":  "Seadra",
                       "candy":  25,
@@ -927,6 +1083,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Starmie",
+                      "to":  "Mega Starmie",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm121.fMEGA.icon.png"
                   },
                   {
                       "from":  "Mr. Mime (Galar)",
@@ -969,6 +1137,18 @@
                                        }
                   },
                   {
+                      "from":  "Pinsir",
+                      "to":  "Mega Pinsir",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm127.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Magikarp",
                       "to":  "Gyarados",
                       "candy":  400,
@@ -977,6 +1157,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Gyarados",
+                      "to":  "Mega Gyarados",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm130.fMEGA.icon.png"
                   },
                   {
                       "from":  "Eevee",
@@ -1107,6 +1299,18 @@
                                        }
                   },
                   {
+                      "from":  "Aerodactyl",
+                      "to":  "Mega Aerodactyl",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm142.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Dratini",
                       "to":  "Dragonair",
                       "candy":  25,
@@ -1125,6 +1329,42 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Dragonite",
+                      "to":  "Mega Dragonite",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm149.fMEGA.icon.png"
+                  },
+                  {
+                      "from":  "Mewtwo",
+                      "to":  "Mega Mewtwo X",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  7500,
+                      "spriteFile":  "pm150.fMEGA_X.icon.png"
+                  },
+                  {
+                      "from":  "Mewtwo",
+                      "to":  "Mega Mewtwo Y",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  7500,
+                      "spriteFile":  "pm150.fMEGA_Y.icon.png"
                   },
                   {
                       "from":  "Chikorita",
@@ -1317,6 +1557,18 @@
                                        }
                   },
                   {
+                      "from":  "Ampharos",
+                      "to":  "Mega Ampharos",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm181.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Marill",
                       "to":  "Azumarill",
                       "candy":  25,
@@ -1437,6 +1689,18 @@
                                        }
                   },
                   {
+                      "from":  "Steelix",
+                      "to":  "Mega Steelix",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm208.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Snubbull",
                       "to":  "Granbull",
                       "candy":  50,
@@ -1459,6 +1723,30 @@
                                                                 }
                                                             ]
                                        }
+                  },
+                  {
+                      "from":  "Scizor",
+                      "to":  "Mega Scizor",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm212.fMEGA.icon.png"
+                  },
+                  {
+                      "from":  "Heracross",
+                      "to":  "Mega Heracross",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm214.fMEGA.icon.png"
                   },
                   {
                       "from":  "Sneasel",
@@ -1556,6 +1844,18 @@
                                        }
                   },
                   {
+                      "from":  "Skarmory",
+                      "to":  "Mega Skarmory",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm227.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Houndour",
                       "to":  "Houndoom",
                       "candy":  50,
@@ -1564,6 +1864,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Houndoom",
+                      "to":  "Mega Houndoom",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm229.fMEGA.icon.png"
                   },
                   {
                       "from":  "Phanpy",
@@ -1666,6 +1978,18 @@
                                        }
                   },
                   {
+                      "from":  "Tyranitar",
+                      "to":  "Mega Tyranitar",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm248.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Treecko",
                       "to":  "Grovyle",
                       "candy":  25,
@@ -1684,6 +2008,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Sceptile",
+                      "to":  "Mega Sceptile",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm254.fMEGA.icon.png"
                   },
                   {
                       "from":  "Torchic",
@@ -1706,6 +2042,18 @@
                                        }
                   },
                   {
+                      "from":  "Blaziken",
+                      "to":  "Mega Blaziken",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm257.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Mudkip",
                       "to":  "Marshtomp",
                       "candy":  25,
@@ -1724,6 +2072,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Swampert",
+                      "to":  "Mega Swampert",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm260.fMEGA.icon.png"
                   },
                   {
                       "from":  "Poochyena",
@@ -1897,6 +2257,18 @@
                                        }
                   },
                   {
+                      "from":  "Gardevoir",
+                      "to":  "Mega Gardevoir",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm282.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Surskit",
                       "to":  "Masquerain",
                       "candy":  50,
@@ -2007,6 +2379,30 @@
                                        }
                   },
                   {
+                      "from":  "Sableye",
+                      "to":  "Mega Sableye",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm302.fMEGA.icon.png"
+                  },
+                  {
+                      "from":  "Mawile",
+                      "to":  "Mega Mawile",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm303.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Aron",
                       "to":  "Lairon",
                       "candy":  25,
@@ -2027,6 +2423,18 @@
                                        }
                   },
                   {
+                      "from":  "Aggron",
+                      "to":  "Mega Aggron",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm306.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Meditite",
                       "to":  "Medicham",
                       "candy":  50,
@@ -2037,6 +2445,18 @@
                                        }
                   },
                   {
+                      "from":  "Medicham",
+                      "to":  "Mega Medicham",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm308.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Electrike",
                       "to":  "Manectric",
                       "candy":  50,
@@ -2045,6 +2465,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Manectric",
+                      "to":  "Mega Manectric",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm310.fMEGA.icon.png"
                   },
                   {
                       "from":  "Roselia",
@@ -2077,6 +2509,18 @@
                                        }
                   },
                   {
+                      "from":  "Sharpedo",
+                      "to":  "Mega Sharpedo",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm319.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Wailmer",
                       "to":  "Wailord",
                       "candy":  400,
@@ -2095,6 +2539,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Camerupt",
+                      "to":  "Mega Camerupt",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm323.fMEGA.icon.png"
                   },
                   {
                       "from":  "Spoink",
@@ -2145,6 +2601,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Altaria",
+                      "to":  "Mega Altaria",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm334.fMEGA.icon.png"
                   },
                   {
                       "from":  "Barboach",
@@ -2222,6 +2690,18 @@
                                        }
                   },
                   {
+                      "from":  "Banette",
+                      "to":  "Mega Banette",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  100,
+                      "spriteFile":  "pm354.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Duskull",
                       "to":  "Dusclops",
                       "candy":  25,
@@ -2240,6 +2720,18 @@
                       "requirements":  {
                                            "evolutionItemRequirement":  "ITEM_GEN4_EVOLUTION_STONE"
                                        }
+                  },
+                  {
+                      "from":  "Absol",
+                      "to":  "Mega Absol",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm359.fMEGA.icon.png"
                   },
                   {
                       "from":  "Wynaut",
@@ -2271,6 +2763,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Glalie",
+                      "to":  "Mega Glalie",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm362.fMEGA.icon.png"
                   },
                   {
                       "from":  "Spheal",
@@ -2333,6 +2837,18 @@
                                        }
                   },
                   {
+                      "from":  "Salamence",
+                      "to":  "Mega Salamence",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm373.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Beldum",
                       "to":  "Metang",
                       "candy":  25,
@@ -2351,6 +2867,54 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Metagross",
+                      "to":  "Mega Metagross",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm376.fMEGA.icon.png"
+                  },
+                  {
+                      "from":  "Latias",
+                      "to":  "Mega Latias",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm380.fMEGA.icon.png"
+                  },
+                  {
+                      "from":  "Latios",
+                      "to":  "Mega Latios",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm381.fMEGA.icon.png"
+                  },
+                  {
+                      "from":  "Rayquaza",
+                      "to":  "Mega Rayquaza",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  400,
+                      "spriteFile":  "pm384.fMEGA.icon.png"
                   },
                   {
                       "from":  "Turtwig",
@@ -2553,6 +3117,18 @@
                                        }
                   },
                   {
+                      "from":  "Lopunny",
+                      "to":  "Mega Lopunny",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm428.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Glameow",
                       "to":  "Purugly",
                       "candy":  50,
@@ -2658,6 +3234,18 @@
                                        }
                   },
                   {
+                      "from":  "Garchomp",
+                      "to":  "Mega Garchomp",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm445.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Munchlax",
                       "to":  "Snorlax",
                       "candy":  50,
@@ -2676,6 +3264,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Lucario",
+                      "to":  "Mega Lucario",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm448.fMEGA.icon.png"
                   },
                   {
                       "from":  "Hippopotas",
@@ -2736,6 +3336,30 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Abomasnow",
+                      "to":  "Mega Abomasnow",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm460.fMEGA.icon.png"
+                  },
+                  {
+                      "from":  "Gallade",
+                      "to":  "Mega Gallade",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm475.fMEGA.icon.png"
                   },
                   {
                       "from":  "Snivy",
@@ -2951,6 +3575,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Audino",
+                      "to":  "Mega Audino",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  200,
+                      "spriteFile":  "pm531.fMEGA.icon.png"
                   },
                   {
                       "from":  "Timburr",
@@ -3521,6 +4157,18 @@
                                        }
                   },
                   {
+                      "from":  "Chesnaught",
+                      "to":  "Mega Chesnaught",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm652.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Fennekin",
                       "to":  "Braixen",
                       "candy":  25,
@@ -3541,6 +4189,18 @@
                                        }
                   },
                   {
+                      "from":  "Delphox",
+                      "to":  "Mega Delphox",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm655.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Froakie",
                       "to":  "Frogadier",
                       "candy":  25,
@@ -3559,6 +4219,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Greninja",
+                      "to":  "Mega Greninja",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm658.fMEGA.icon.png"
                   },
                   {
                       "from":  "Bunnelby",
@@ -3701,6 +4373,18 @@
                       "requirements":  {
                                            "onlyUpsideDown":  true
                                        }
+                  },
+                  {
+                      "from":  "Malamar",
+                      "to":  "Mega Malamar",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm687.fMEGA.icon.png"
                   },
                   {
                       "from":  "Binacle",
@@ -3851,6 +4535,18 @@
                       "requirements":  {
 
                                        }
+                  },
+                  {
+                      "from":  "Diancie",
+                      "to":  "Mega Diancie",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm719.fMEGA.icon.png"
                   },
                   {
                       "from":  "Rowlet",
@@ -4510,6 +5206,18 @@
                                        }
                   },
                   {
+                      "from":  "Falinks",
+                      "to":  "Mega Falinks",
+                      "candy":  null,
+                      "purified":  null,
+                      "tradeFree":  false,
+                      "requirements":  {
+
+                                       },
+                      "megaEnergy":  300,
+                      "spriteFile":  "pm870.fMEGA.icon.png"
+                  },
+                  {
                       "from":  "Snom",
                       "to":  "Frosmoth",
                       "candy":  400,
@@ -5011,714 +5719,6 @@
                       "requirements":  {
 
                                        }
-                  },
-                  {
-                      "from":  "Venusaur",
-                      "to":  "Mega Venusaur",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm3.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Charizard",
-                      "to":  "Mega Charizard X",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm6.fMEGA_X.icon.png"
-                  },
-                  {
-                      "from":  "Charizard",
-                      "to":  "Mega Charizard Y",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm6.fMEGA_Y.icon.png"
-                  },
-                  {
-                      "from":  "Blastoise",
-                      "to":  "Mega Blastoise",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm9.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Beedrill",
-                      "to":  "Mega Beedrill",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm15.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Pidgeot",
-                      "to":  "Mega Pidgeot",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm18.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Raichu",
-                      "to":  "Mega Raichu X",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm26.fMEGA_X.icon.png"
-                  },
-                  {
-                      "from":  "Raichu",
-                      "to":  "Mega Raichu Y",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm26.fMEGA_Y.icon.png"
-                  },
-                  {
-                      "from":  "Alakazam",
-                      "to":  "Mega Alakazam",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm65.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Victreebel",
-                      "to":  "Mega Victreebel",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm71.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Slowbro",
-                      "to":  "Mega Slowbro",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm80.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Gengar",
-                      "to":  "Mega Gengar",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm94.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Kangaskhan",
-                      "to":  "Mega Kangaskhan",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm115.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Starmie",
-                      "to":  "Mega Starmie",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm121.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Pinsir",
-                      "to":  "Mega Pinsir",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm127.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Gyarados",
-                      "to":  "Mega Gyarados",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm130.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Aerodactyl",
-                      "to":  "Mega Aerodactyl",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm142.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Dragonite",
-                      "to":  "Mega Dragonite",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm149.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Mewtwo",
-                      "to":  "Mega Mewtwo X",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  7500,
-                      "spriteFile":  "pm150.fMEGA_X.icon.png"
-                  },
-                  {
-                      "from":  "Mewtwo",
-                      "to":  "Mega Mewtwo Y",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  7500,
-                      "spriteFile":  "pm150.fMEGA_Y.icon.png"
-                  },
-                  {
-                      "from":  "Ampharos",
-                      "to":  "Mega Ampharos",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm181.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Steelix",
-                      "to":  "Mega Steelix",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm208.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Scizor",
-                      "to":  "Mega Scizor",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm212.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Heracross",
-                      "to":  "Mega Heracross",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm214.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Skarmory",
-                      "to":  "Mega Skarmory",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm227.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Houndoom",
-                      "to":  "Mega Houndoom",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm229.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Tyranitar",
-                      "to":  "Mega Tyranitar",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm248.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Sceptile",
-                      "to":  "Mega Sceptile",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm254.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Blaziken",
-                      "to":  "Mega Blaziken",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm257.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Swampert",
-                      "to":  "Mega Swampert",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm260.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Gardevoir",
-                      "to":  "Mega Gardevoir",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm282.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Sableye",
-                      "to":  "Mega Sableye",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm302.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Mawile",
-                      "to":  "Mega Mawile",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm303.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Aggron",
-                      "to":  "Mega Aggron",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm306.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Medicham",
-                      "to":  "Mega Medicham",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm308.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Manectric",
-                      "to":  "Mega Manectric",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm310.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Sharpedo",
-                      "to":  "Mega Sharpedo",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm319.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Camerupt",
-                      "to":  "Mega Camerupt",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm323.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Altaria",
-                      "to":  "Mega Altaria",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm334.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Banette",
-                      "to":  "Mega Banette",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  100,
-                      "spriteFile":  "pm354.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Absol",
-                      "to":  "Mega Absol",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm359.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Glalie",
-                      "to":  "Mega Glalie",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm362.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Salamence",
-                      "to":  "Mega Salamence",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm373.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Metagross",
-                      "to":  "Mega Metagross",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm376.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Latias",
-                      "to":  "Mega Latias",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm380.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Latios",
-                      "to":  "Mega Latios",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm381.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Rayquaza",
-                      "to":  "Mega Rayquaza",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  400,
-                      "spriteFile":  "pm384.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Lopunny",
-                      "to":  "Mega Lopunny",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm428.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Garchomp",
-                      "to":  "Mega Garchomp",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm445.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Lucario",
-                      "to":  "Mega Lucario",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm448.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Abomasnow",
-                      "to":  "Mega Abomasnow",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm460.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Gallade",
-                      "to":  "Mega Gallade",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm475.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Audino",
-                      "to":  "Mega Audino",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  200,
-                      "spriteFile":  "pm531.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Chesnaught",
-                      "to":  "Mega Chesnaught",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm652.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Delphox",
-                      "to":  "Mega Delphox",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm655.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Greninja",
-                      "to":  "Mega Greninja",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm658.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Malamar",
-                      "to":  "Mega Malamar",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm687.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Diancie",
-                      "to":  "Mega Diancie",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm719.fMEGA.icon.png"
-                  },
-                  {
-                      "from":  "Falinks",
-                      "to":  "Mega Falinks",
-                      "candy":  null,
-                      "purified":  null,
-                      "tradeFree":  false,
-                      "requirements":  {
-
-                                       },
-                      "megaEnergy":  300,
-                      "spriteFile":  "pm870.fMEGA.icon.png"
                   }
               ]
 }

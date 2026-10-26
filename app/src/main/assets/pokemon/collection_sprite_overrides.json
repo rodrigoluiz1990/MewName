@@ -1,0 +1,17 @@
+{
+  "[\"UNOWN\",\"!\"]": "pm201.fUNOWN_EXCLAMATION_POINT.icon.png",
+  "[\"UNOWN\",\"?\"]": "pm201.fUNOWN_QUESTION_MARK.icon.png",
+  "[\"ROTOM\",\"NORMAL\"]": "pm479.f.icon.png",
+  "[\"VIVILLON\",\"POKE_BALL\"]": "pm666.fPOKEBALL.icon.png",
+  "[\"NECROZMA (ULTRA)\",\"\"]": "",
+  "[\"DUDUNSPARCE\",\"\"]": "pm982.fTWO.icon.png",
+  "[\"DUDUNSPARCE THREE-SEGMENT FORM\",\"\"]": "pm982.fTHREE.icon.png",
+  "[\"MINIOR\",\"\"]": "pm774.fMETEOR.icon.png",
+  "[\"MINIOR\",\"GAME_FORM:MINIOR_GREEN\"]": "pm774.fGREEN.icon.png",
+  "[\"BURMY\",\"GAME_FORM:BURMY_PLANT\"]": "pm412.fBURMY_PLANT.icon.png",
+  "[\"BURMY\",\"GAME_FORM:BURMY_SANDY\"]": "pm412.fBURMY_SANDY.icon.png",
+  "[\"BURMY\",\"GAME_FORM:BURMY_TRASH\"]": "pm412.fBURMY_TRASH.icon.png",
+  "[\"WORMADAM\",\"GAME_FORM:WORMADAM_PLANT\"]": "pm413.fWORMADAM_PLANT.icon.png",
+  "[\"WORMADAM\",\"GAME_FORM:WORMADAM_SANDY\"]": "pm413.fWORMADAM_SANDY.icon.png",
+  "[\"WORMADAM\",\"GAME_FORM:WORMADAM_TRASH\"]": "pm413.fWORMADAM_TRASH.icon.png"
+}

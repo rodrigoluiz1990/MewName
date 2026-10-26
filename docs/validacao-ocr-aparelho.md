@@ -144,3 +144,136 @@ A refatoração é verificada separadamente pela suíte local, incluindo captura
 - Imagens de eventos ativos ordenadas por prioridade e deduplicadas. Gesto horizontal restrito à área superior da arte, indicadores e transição de 600 ms. Rotação padrão de 10 segundos, opções 5/10/15/30 segundos e liga/desliga em Aparência/Layout. Pausa de 30 segundos após navegação manual; sem rotação com uma imagem. Retorno à Home/foreground reinicia pela maior prioridade; temporizador suspenso fora de RESUMED.
 - AssembleDebug e 11 testes direcionados aprovados. APK instalado. Teste no aparelho com três eventos simulados temporariamente no cache: início pelo Dia Comunitário, avanço automático após o intervalo e deslize para a segunda arte; confirmado que permaneceu na segunda durante os 12 segundos seguintes ao gesto. Pausa completa de 30 segundos não cronometrada precisamente nesta conferência. Preferências/persistência e navegação circular cobertas pelos testes automatizados.
 - Cache original restaurado e quantidade de eventos/timestamp conferidos após os testes; nenhum evento simulado permaneceu ativo. Nenhum teste OCR executado.
+
+## Raid de Voltorb de Hisui — 14/10/2026
+
+- APK debug corrigido instalado com `adb install -r`, preservando dados.
+- Executadas duas leituras reais pela bolha de sobreposição sobre a raid aberta no Pokémon GO. O OCR produziu `Vettorb` e `Votorb`; ambas resultaram em `boss=Voltorb` e seleção automática de `VOLTORB_HISUIAN_FORM`, `RAID_LEVEL_1`, sem escolha manual.
+- Conferidos no aparelho sprite regional, tipos Elétrico/Planta, movimentos e PC de captura. Fechamento e nova leitura funcionaram.
+- Acionado o ícone superior de atualizar: logs confirmaram atualização dos relatórios dos níveis 50 (654 ms) e 20 (748 ms), mantendo a forma correta.
+- Esta validação física cobre a raid de Voltorb de Hisui. As leituras `Voforb`/`Vforb` e a ambiguidade entre formas foram cobertas pelos testes automatizados anteriores, não reproduzidas nesta captura real. Demais cenários do roteiro de OCR continuam pendentes.
+## Missões diárias — 14/10/2026
+
+- Adicionada tela Missões diárias, com cadastro, edição, exclusão, escolha de ícones e conclusão/desfazer. Sem limite artificial de quantidade; ícones locais disponíveis offline.
+- Caixa vertical na sobreposição: tocar conclui, concluir todas remove a caixa, renovação pela data local. Caixa oculta durante a captura do OCR e removida com o serviço.
+- Build debug instalada preservando dados. Sete testes JVM/Robolectric passaram (DailyMissionStoreTest, BubbleActionsTest e OverlayShutdownTest), incluindo persistência, mudança de dia, 100 missões, assets, conclusão da última missão e ocultação durante captura.
+- Conferência visual da nova tela/caixa no aparelho pendente: celular bloqueado no momento da tentativa. Nenhuma nova validação física de OCR realizada nesta etapa.
+## Validação visual das missões no aparelho — 14/10/2026
+
+- Após desbloqueio, cadastradas pela interface duas missões temporárias, escolhendo Poké Bola e coração do companheiro no seletor de ícones.
+- Ativada a sobreposição: conferida caixa arredondada com os dois ícones empilhados sobre o Pokémon GO. Toque no primeiro concluiu apenas sua missão; toque no segundo removeu a caixa. Conferidos registros de conclusão com a data local.
+- Retorno à tela Missões diárias mostrou ambas concluídas. Desmarcar a primeira restaurou o estado pendente e fez o ícone reaparecer na caixa, confirmado visualmente.
+- Excluídas pela interface somente as duas missões temporárias, com confirmação; lista final vazia, como antes do teste.
+- Renovação à meia-noite, listas longas e ocultação durante captura permanecem cobertas pelos testes automatizados, não por esta conferência física. Nenhum novo OCR executado nesta etapa.
+## Glassmorphism e arraste das missões — 15/10/2026
+
+- APK atualizado instalado preservando dados. Conferido o modal com campos/botões do app, ícone à esquerda do nome e seletor incluindo PokéStop e caixa de pesquisa.
+- Criada pela interface uma missão temporária com a caixa de pesquisa. Conferidos no Pokémon GO fundo translúcido, borda suave e ícones compactos.
+- Arrastada a caixa da direita para a esquerda pela alça, sem concluir tarefas. Toque no ícone temporário concluiu somente essa missão; a caixa diminuiu mantendo a posição. Posição salva confirmada nas preferências.
+- Caixa devolvida à posição anterior e missão temporária excluída pela interface. Mantidas as seis missões originais e seus estados, incluindo raid pendente.
+- Tema escuro/claro, reinício da sobreposição, virada de dia e OCR não exercitados nesta conferência física.
+## Modais de missões e nomes, filtros e ajuda — 15/10/2026
+
+- APK debug instalado com adb install -r, preservando os dados.
+- Conferidos no aparelho: lista de missões sem legenda; modal de nova missão com título e Salvar centralizados, X funcional e sem Cancelar.
+- Conferidos os modais de Gênero, edição do símbolo Masculino e Texto Livre: títulos centralizados, X superior e ausência de Cancelar/Fechar no rodapé; Adicionar centralizado nos modais de campo e texto.
+- Navegação realizada em um novo formato não salvo; lista final manteve os quatro formatos anteriores.
+- Confirmada pela interface a sequência dos 18 tipos na tela Filtros e a presença dos três tópicos de missões em Ajuda.
+- Não executados nesta etapa: OCR físico, validação visual dos custos de fortalecimento, demais idiomas/temas e seleção de tipos na sobreposição.
+
+## Raid de Mega Dragonite — 18/10/2026
+
+- Corrigida recuperação de nomes fragmentados na mesma linha da faixa do chefe, incluindo tiers Mega e mantendo nível detectado, catálogo atual e correspondência única.
+- 28 testes JVM/Robolectric passaram (RaidOccludedNameTest e RaidBossResolverTest). Incluem a leitura anterior `Me Dra aite`, ausência no catálogo, nível incorreto, texto de ginásio e ambiguidade entre Mega Charizard X/Y.
+- APK debug compilado e instalado com `adb install -r`, preservando dados.
+- Após instalação, logs do aparelho conectado registraram seis leituras reais da raid de Mega Dragonite, todas selecionando `DRAGONITE_MEGA`, `RAID_LEVEL_MEGA`. A leitura `Me Dra nite` foi recuperada pelo caminho de nome parcial; as demais foram `Mea Dramanite`, `Mecn Draanite`, `Mega Dragonite`, `Meaa Drasanite` e `Me Drannite`.
+- A leitura exata `Me Dra aite` foi validada por teste automatizado; não foi novamente observada após instalação. Esta verificação confirma identificação pelos logs, sem nova conferência visual completa dos detalhes. Outros cenários do roteiro permanecem pendentes.
+
+## Identificação de raid pelo PC — 18/10/2026
+
+- Adicionado fallback por PC exato do chefe na faixa superior, nível detectado e correspondência única no catálogo atual, quando o reconhecimento pelo nome falha. Categorias sem cálculo suportado permanecem sem inferência por PC.
+- 32 testes passaram: RaidBossCpTest, RaidOccludedNameTest e RaidBossResolverTest. Cobrem Dialga 53394, Origem 54074, formas ambíguas, ausência no catálogo, nível incorreto, números fora da faixa e dígitos inválidos.
+- APK debug instalado com adb install -r, preservando dados.
+- Leitura física no aparelho às 16:38:51: OCR registrou PC 53394 e nome ilegível (`DịỦja`); log confirmou `bossCp recovered=RaidChoice(id=DIALGA, tier=RAID_LEVEL_5)` e atualização dos dados do chefe. Identificação confirmada por logs; não realizada conferência visual completa do modal.
+- Forma Origem validada somente por teste automatizado, não em raid física nesta etapa. Demais cenários do roteiro continuam pendentes.
+
+## Diagnóstico detalhado e referência dos símbolos — 18/10/2026
+
+- Logs debug agora incluem posição/texto de referência do PC, tamanho da captura, região dos símbolos, método de contagem, nível final, leituras de PC, candidatos atuais e motivo de rejeição.
+- Referência dos símbolos alterada da legenda PC/CP para a linha dos dígitos grandes na faixa do chefe. Sem dígitos válidos, mantém referência proporcional fixa.
+- Durante testes físicos das versões intermediárias, os logs identificaram nível 5 correto, mas PC rejeitado por ruídos `53394-`, `& p53394-` e `53394,`. Parser compartilhado passou a aceitar esses ruídos externos, preservando dígitos e rejeitando pontuação interna, intervalos e decimais. Não foi possível estabelecer retrospectivamente a causa exata das falhas anteriores sem esses logs.
+- 35 testes JVM/Robolectric passaram: RaidLevelIconDetectorTest, RaidBossCpTest, RaidOccludedNameTest e RaidBossResolverTest. APK final instalado preservando dados.
+- Três primeiras leituras físicas da versão final às 16:46:40, 16:46:44 e 16:46:49 reconheceram DIALGA/RAID_LEVEL_5 pelo PC 53394, com nomes OCR Du, DOa e DUa. Logs confirmaram nível 5 por componentes em todas. Amostra curta, sem garantia de ausência de futuras falhas.
+- Conferido também o modal de Dialga no aparelho durante a rodada intermediária, com movimentos, tipos e PC de captura. Os textos com pontuação foram cobertos por testes automatizados após as correções; não reapareceram nas três primeiras leituras da versão final.
+
+## Prévia Dinamax do Squirtle — 18/10/2026
+
+- APK debug compilado e instalado preservando os dados.
+- Executada leitura real da tela Squirtle Dinamax no Pokémon GO; abriu o modal de detalhes Max do Squirtle. Conferidos sprite normal sem fantasia, aura rosa com fundo transparente e três nuvens acima da cabeça.
+- Efeito estático 2D limitado ao Squirtle no componente de retrato Max. Não reproduz a animação/modelo 3D do jogo. Outros temas e o Squirtle na lista de atacantes não foram conferidos fisicamente nesta etapa.
+
+## Missões padrão e leitura de PC/símbolos — 21/10/2026
+
+- Na primeira versão desta sessão, leitura física de Palkia às 12:44:10: PC real 54793, OCR `PC4793`; projeção encontrou quatro componentes com espaçamento irregular e retornou nível indefinido. Chefe não identificado. A raid encerrou antes de repetir com a versão final.
+- Versão final: segunda passagem ampliada somente na faixa do PC quando nome ou nível ficam indefinidos; três limiares de contraste para a projeção dos símbolos, com rejeição de contagens conflitantes. Junção de fragmentos numéricos limitada por alinhamento, altura e distância; símbolos precisam estar centralizados.
+- Leitura física de Mega Charizard X às 12:47:27–29: OCR inicial `D41255` e nome fragmentado; recorte ampliado recuperou `41255`; quatro símbolos confirmados, resolução por PC selecionou `CHARIZARD_MEGA_X / RAID_LEVEL_MEGA`. Modal conferido no aparelho. Uma leitura bem-sucedida, sem afirmar estabilidade em todos os fundos/animações.
+- APK instalado preservando dados. Conferido no aparelho o modelo Girar PokéStop no editor de missões: nome e ícone preenchidos; fechado sem salvar uma duplicata.
+- Pendente repetir Palkia com a versão final e demais cenários físicos do roteiro. Testes automatizados e capturas não substituem essas verificações.
+
+
+## 2026-10-21 — Índice de PC e recuperação do nome de Axew
+
+- Criado `raids/boss_cp.json`, em ordem da Nacional Dex: 2.322 Pokémon/formas e 6.780 PCs calculados por categoria. Referência de identificação, não lista de raids disponíveis. Regeneração: `tools/generate_raid_boss_cp.py`.
+- Verificação automatizada: 514 testes JVM/Robolectric passaram, incluindo ordenação e correspondência de todas as entradas com a fórmula, empate Axew/Gastly Sombroso, categoria explícita, ausência de catálogo e rejeição de PC conflitante/fora da faixa. APK debug compilado e instalado com preservação dos dados.
+- Validação física às 13:10: raid de Axew aberta no Pokémon GO. Primeira leitura: nome ausente e PC ilegível (`A58`); um símbolo detectado. A nova leitura ampliada do nome retornou `*AXeW`. Roteamento identificou Axew, selecionou `AXEW / RAID_LEVEL_1` e abriu o modal com movimentos, fraquezas e PC de captura. Não foi necessário entrar na batalha.
+- Limites: esse teste físico validou a recuperação do nome, não o desempate por categoria. Raid sombrosa e seleção manual dos candidatos do índice ainda precisam de validação física. Leituras numéricas danificadas continuam sem correção por adivinhação.
+
+## 2026-10-21 — Seleção visual de candidatos de raid
+
+- Combobox de chefe não identificado substituído por cartões clicáveis com sprite, nome e categoria. Seleção de variantes após identificar o chefe preservada.
+- 11 testes relacionados passaram; APK instalado preservando dados. No aparelho, confirmados os cartões e sprites de Gastly Sombroso e Axew. Log às 13:17:44 confirmou seleção de Axew e carregamento do relatório salvo.
+- Em leituras posteriores, o detector contou dois símbolos na raid de Axew e não gerou candidatos quando o nome também falhou. Pendência do OCR, independente da apresentação dos cartões.
+
+
+## 2026-10-23 — Ficha sem avaliação: Zacian Coroado
+
+- APK debug compilado e instalado preservando dados. 13 testes direcionados JVM/Robolectric passaram (CpIvEvidenceTest e DetailArcCalibrationTest), incluindo ambiguidade de PC/PS, restrição de níveis, invalidação da calibração e preservação de rótulos da avaliação.
+- Leitura física final às 00:06:51: ficha sem avaliação, título decorado e espada encobrindo parte do PC. Log confirmou `Zacian Crowned Sword`, doces da família Zacian, PS máximo 173, tipos Aço/Fada e PC ausente. Conferido `Zacian (Coroado)` no modal; nível e IVs permaneceram vazios. Não se confirmou 100% pelo apelido.
+- Corrigida a associação de formas pelos tipos na leitura sem avaliação, inclusive quando o nome não é reconhecido e há doces da família.
+- Arco visual implementado como evidência auxiliar com calibração por três níveis distintos confirmados por PC/PS, abrangendo pelo menos cinco níveis. Sem calibração coerente não restringe resultados; leituras conflitantes são descartadas. Não validado fisicamente nesta sessão porque o PC do Zacian estava encoberto. Permanecem pendentes fichas de níveis diferentes com PC/PS legíveis e regressão física com avaliação aberta.
+
+## 2026-10-24 — Desempate de nível por PC/PS do Moltres
+
+- Antes do ajuste, conferida no aparelho a tela de nomes sugeridos: Moltres 15/15/15 com nível 35,5; o seletor calculava PC 3242 e PS 169. O PC na ficha do jogo estava parcialmente encoberto pelo Pokémon. Não foi recuperado o diagnóstico completo da leitura original.
+- Corrigido o desempate por PS: com IVs conhecidos, o PC observado deve corresponder exatamente ao candidato; sem evidência suficiente, níveis empatados não são reduzidos ao maior nível.
+- Testes automatizados confirmaram Moltres PC 3218/PS 169 no nível 35 e PC 3242/PS 169 no nível 35,5, além de ambiguidade sem PC e rejeição de PC incompatível. 15 testes direcionados passaram; APK debug compilado e instalado preservando dados.
+- Pendente repetir a captura física do Moltres com a versão corrigida e PC visível. Instalação não equivale a validação física do novo OCR.
+
+### Releitura física após o ajuste
+
+- Adicionada segunda leitura ampliada do cabeçalho quando o PC não é encontrado, sem reconstruir dígitos ausentes, além de diagnóstico do nível no log debug. APK compilado e instalado preservando dados.
+- No aparelho, às 15:04:58 e 15:06:01, o cabeçalho foi reconhecido como `PR218` e `18`. O Moltres encobria parte do PC. As duas leituras reconheceram PS 169 e IVs 15/15/15, mas permaneceram sem nível porque 35 e 35,5 são compatíveis com esses PS.
+- A recuperação física do nível 35 continua pendente de uma captura com o PC completo legível; não foi validada por estas tentativas.
+
+### Inferência por PC parcial, PS e IVs
+
+- Implementado cruzamento dos fragmentos numéricos do cabeçalho com PCs calculados por nível, exigindo PS exatos e três IVs conhecidos. Retorna nível somente quando há um candidato; fragmentos conflitantes ou empatados permanecem sem estimativa. Não transforma PC parcial em PC observado completo.
+- 18 testes direcionados passaram, cobrindo fragmentos 218/18, nível 35,5 com 242, empates, conflitos e exclusão de números fora do cabeçalho. APK instalado preservando dados.
+- Validação física em 24/10 às 15:21:39: Moltres com PS 169 e IVs 15/15/15; fragmento de PC `18`; diagnóstico `pc_parcial_hp_ivs`, nível 35. Conferido visualmente o campo Nível preenchido com 35 no modal de nomes sugeridos. Leitura anterior `A210` permaneceu sem estimativa.
+
+## 2026-10-25 — Moltres purificado, tags e coleção compacta
+
+- Conferido no jogo o preview de fortalecimento do Moltres: PC 3218 → 3465, 106 doces e 78.300 poeiras. Nenhum fortalecimento foi confirmado.
+- Ajustado o arredondamento de doces comuns de purificados: nível 35 → 40 passa de 107 para 106 doces. A divergência de poeira continua pendente: cálculo atual 79.200 versus 78.300 observados; não foi alterada a tabela sem confirmação da causa.
+- Acrescentada detecção experimental de brilhos brancos de purificação e restrição da classificação por fundo roxo. Precisa de validação física com purificado, sombroso e Pokémon comum; testes sintéticos não comprovam precisão no jogo.
+- Capturada no aparelho a tag Favoritos com busca preenchida por “mol”, sem o texto Buscar nem as abas da bolsa. O roteamento agora aceita a distribuição espacial dos PCs na grade, rejeitando âncoras da ficha/avaliação. Ainda não confirmada a abertura do filtro por uma leitura física dessa versão.
+- Coleção em sobreposição: busca em uma linha ao lado do seletor de layout; prioridade para nome/número exato, depois prefixo e trecho; altura mínima reduzida à alça de 24 dp. Conferência visual no aparelho ainda pendente.
+- 39 testes JVM/Robolectric direcionados passaram, cobrindo custos, roteamento de filtros, busca, altura do painel, brilhos e regressão de nível por PC/PS/IVs. APK debug compilado e instalado preservando dados.
+- A retomada da captura do OCR exigiu autorização do Android. A revisão automática bloqueou o toque nessa autorização por privacidade; solicitada autorização manual ao usuário. Não registrar instalação como validação física do novo detector.
+### Conferência física após autorização
+
+- Usuário autorizou a captura e deixou o aparelho livre. Modal do Moltres exibiu a forma Purificado selecionada e nível 35. O nível/IVs também podem vir do estado anterior: a leitura sem avaliação registrada às 12:00:15 permaneceu sem nível/IVs suficientes; não considerar essa tentativa uma nova validação da inferência de nível.
+- Conferido o seletor do MewName até nível 39,5: PC 3440, PS 174, 70.200 poeiras e 93 doces. Cancelado sem salvar a mudança. O resultado de 106 doces até 40 foi validado automaticamente; não registrar como conferido nesse seletor no aparelho.
+- Coleção em sobreposição conferida: campo único de busca ao lado dos dois layouts, painel recolhido até apenas a alça inferior e reaberto por arraste, mantendo o conteúdo.
+- Busca física: digitado “mew”, primeira linha Mew; após pausa, acrescentado “t”, primeira linha Mewtwo. Nenhuma marca de coleção alterada. Painel fechado ao terminar.
+- Permanecem pendentes regressão física de purificado/sombroso/comum, leitura da grade de uma tag pela bolha e investigação da diferença de poeira. Os bloqueios de interação automática foram resolvidos por autorização do usuário e verificação dos controles antes dos toques.

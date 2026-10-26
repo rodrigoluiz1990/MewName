@@ -1,0 +1,16 @@
+{
+  "source": "Pokémon GO 0.433.0 — extração local do APK/cache do aparelho",
+  "files": {
+    "legendary.png": "interface-e-texturas/TodayView_Icon_Legendary_7a42d08144db.png",
+    "mythical.png": "icones/ic_mythical_55a0dc9358cd.png",
+    "ultra_beast.png": "batalhas-e-raids/raid_ultra_icon_8ad921df9f31.png",
+    "costume.png": "icones/ic_event_fdcd9adcdf04.png",
+    "unown.png": "pokemons/Unown_A_df0ce9fa1114.png",
+    "legendary_color.png": "pokemons/pm150.icon_016b1a4c2062.png",
+    "mythical_color.png": "pokemons/pm151.icon_5112510f69f9.png",
+    "costume_color.png": "pokemons/pm25.cSUMMER_2018.icon_eaadcf3eae23.png",
+    "no_icon_pikachu.png": "pokemons/pm25.icon_3826fdd1820a.png",
+    "favorite.png": "icones/ic_fav_pressed_eed6f55d26ab.png",
+    "favorite_empty.png": "icones/ic_fav_unpressed_51e4e2e57369.png"
+  }
+}

@@ -57,7 +57,7 @@ class OcrEngine internal constructor(
         return extract(bitmap)
     }
     suspend fun extract(bitmap: Bitmap): OcrResult {
-        return refineSizeBadges(extractText(bitmap))
+        return refineSizeBadges(refinePokemonCp(extractText(bitmap)))
     }
 
     /** Full-resolution OCR without Pokemon-only size retries, for screen routing. */
@@ -100,6 +100,82 @@ class OcrEngine internal constructor(
             }
         }
         return result
+    }
+
+    /** Retry only the detail CP header, requiring a complete labelled reading. */
+    suspend fun refinePokemonCp(original: OcrResult): OcrResult {
+        val bitmap = original.bitmap ?: return original
+        val bounds = android.graphics.Rect(0, 0, bitmap.width, bitmap.height)
+        val reader = com.mewname.app.domain.OcrNumericReader
+        if (reader.extractCp(original.fullText, original.blocks.flatMap { it.lines }, bounds) != null) return original
+        val rect = android.graphics.Rect((bitmap.width * .25f).toInt(), (bitmap.height * .035f).toInt(),
+            (bitmap.width * .72f).toInt(), (bitmap.height * .13f).toInt())
+        val detail = readSizeDetail(bitmap, rect) ?: return original
+        val candidates = detail.blocks.flatMap { it.lines }.mapNotNull { line ->
+            val match = reader.cpRegex.matchEntire(line.text.trim()) ?: return@mapNotNull null
+            val cp = match.groupValues[1].toIntOrNull()?.takeIf { it in 10..10000 } ?: return@mapNotNull null
+            val box = line.boundingBox ?: return@mapNotNull null
+            OcrTextLine("PC $cp", android.graphics.Rect(rect.left + box.left / 4, rect.top + box.top / 4,
+                rect.left + (box.right + 3) / 4, rect.top + (box.bottom + 3) / 4))
+        }
+        if (com.mewname.app.BuildConfig.DEBUG) android.util.Log.d("PokemonCpRead", "header=${detail.blocks.flatMap { it.lines }.map { it.text }}; accepted=${candidates.map { it.text }}")
+        if (candidates.map { it.text }.distinct().size != 1) {
+            val fragments = detail.blocks.flatMap { it.lines }.mapNotNull { line ->
+                if (reader.partialCpDigits(line.text) == null) return@mapNotNull null
+                val box = line.boundingBox ?: return@mapNotNull null
+                val mapped = android.graphics.Rect(rect.left + box.left / 4, rect.top + box.top / 4,
+                    rect.left + (box.right + 3) / 4, rect.top + (box.bottom + 3) / 4)
+                OcrTextBlock(line.text, mapped, listOf(OcrTextLine(line.text, mapped)))
+            }
+            // Preserve the observed fragment as evidence; never label it as a complete PC.
+            return original.copy(blocks = original.blocks + fragments)
+        }
+        val line = candidates.first()
+        val blocks = original.blocks + OcrTextBlock(line.text, line.boundingBox, listOf(line))
+        return original.copy(blocks = blocks, fullText = blocks.joinToString("\n") { it.text })
+    }
+
+    /** A bounded second pass on the boss digits, only requested after an uncertain raid reading. */
+    suspend fun refineRaidCp(original: OcrResult): OcrResult {
+        val bitmap = original.bitmap ?: return original
+        val rect = android.graphics.Rect((bitmap.width*.15f).toInt(), (bitmap.height*.16f).toInt(),
+            (bitmap.width*.88f).toInt(), (bitmap.height*.28f).toInt())
+        val detail = readSizeDetail(bitmap, rect) ?: return original
+        val candidates = detail.blocks.flatMap { it.lines }.mapNotNull { line ->
+            val bounds = line.boundingBox ?: return@mapNotNull null
+            val cp = com.mewname.app.domain.RaidBossResolver.parseBossCp(line.text) ?: return@mapNotNull null
+            OcrTextLine(cp.toString(), android.graphics.Rect(rect.left+bounds.left/4, rect.top+bounds.top/4,
+                rect.left+(bounds.right+3)/4, rect.top+(bounds.bottom+3)/4))
+        }
+        if (candidates.map { it.text }.distinct().size != 1) return original
+        val blocks = original.blocks.mapNotNull { block ->
+            val lines = block.lines.filterNot { line ->
+                val box = line.boundingBox
+                box != null && box.centerY() in rect.top..rect.bottom &&
+                    com.mewname.app.domain.RaidBossResolver.parseBossCp(line.text) != null
+            }
+            if (lines.isEmpty()) null else block.copy(text = lines.joinToString("\n") { it.text }, lines = lines)
+        } + OcrTextBlock(candidates.joinToString("\n") { it.text }, rect, candidates)
+        if (com.mewname.app.BuildConfig.DEBUG) android.util.Log.d("RaidReadTiming", "cpDetail readings=${candidates.map { it.text }} crop=$rect")
+        return original.copy(blocks = blocks, fullText = blocks.joinToString("\n") { it.text })
+    }
+
+    /** Retry the name independently of the digits; preserve original evidence on failure. */
+    suspend fun refineRaidName(original: OcrResult): OcrResult {
+        val bitmap = original.bitmap ?: return original
+        val rect = android.graphics.Rect((bitmap.width*.18f).toInt(), (bitmap.height*.26f).toInt(),
+            (bitmap.width*.82f).toInt(), (bitmap.height*.39f).toInt())
+        val detail = readSizeDetail(bitmap, rect) ?: return original
+        val lines = detail.blocks.flatMap { it.lines }.mapNotNull { line ->
+            val bounds = line.boundingBox ?: return@mapNotNull null
+            if (line.text.count { it.isLetter() } < 3) return@mapNotNull null
+            OcrTextLine(line.text, android.graphics.Rect(rect.left+bounds.left/4, rect.top+bounds.top/4,
+                rect.left+(bounds.right+3)/4, rect.top+(bounds.bottom+3)/4))
+        }
+        if (com.mewname.app.BuildConfig.DEBUG) android.util.Log.d("RaidReadTiming", "nameDetail lines=${lines.map { it.text }}")
+        if (lines.isEmpty()) return original
+        val blocks = original.blocks + OcrTextBlock(lines.joinToString("\n") { it.text }, rect, lines)
+        return original.copy(blocks=blocks, fullText=blocks.joinToString("\n") { it.text })
     }
 
     private suspend fun readSizeDetail(bitmap: Bitmap, rect: android.graphics.Rect): OcrResult? {

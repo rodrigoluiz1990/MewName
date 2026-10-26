@@ -1,5 +1,16 @@
 package com.mewname.app
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,9 +38,8 @@ import java.time.LocalDate
 @Composable
 internal fun DailyMissionsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val store = remember { DailyMissionStore(context) }
-    val icons = remember { missionIcons(context) }
     val language = appLanguage()
+    val store = remember { DailyMissionStore(context) }
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
     var missions by remember { mutableStateOf(store.all()) }
     var today by remember { mutableStateOf(LocalDate.now()) }
@@ -40,26 +50,90 @@ internal fun DailyMissionsScreen(onBack: () -> Unit) {
     }
     LaunchedEffect(Unit) { while (true) { today = LocalDate.now(); delay(1000) } }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleting by remember { mutableStateOf<DailyMission?>(null) }
     var editor by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var icon by rememberSaveable { mutableStateOf("mission_icons/pokeball_sprite.png") }
     var search by rememberSaveable { mutableStateOf("") }
-    var deleting by remember { mutableStateOf<DailyMission?>(null) }
+    val listState = rememberLazyListState()
+    var draggedId by remember { mutableStateOf<String?>(null) }
+    var draggedTop by remember { mutableFloatStateOf(0f) }
+    var draggedHeight by remember { mutableIntStateOf(0) }
+    var pointerY by remember { mutableFloatStateOf(0f) }
+    val edge = with(LocalDensity.current) { 64.dp.toPx() }
+    fun moveDraggedMission() {
+        val id = draggedId ?: return
+        val center = draggedTop + draggedHeight / 2f
+        val target = listState.layoutInfo.visibleItemsInfo.firstOrNull {
+            it.key != id && center >= it.offset && center < it.offset + it.size
+        } ?: return
+        val from = missions.indexOfFirst { it.id == id }
+        val to = missions.indexOfFirst { it.id == target.key }
+        if (from >= 0 && to >= 0 && from != to) {
+            store.move(id, to - from)
+            missions = store.all()
+        }
+    }
+    LaunchedEffect(draggedId) {
+        while (draggedId != null) {
+            val layout = listState.layoutInfo
+            val top = layout.viewportStartOffset + edge
+            val bottom = layout.viewportEndOffset - layout.afterContentPadding - edge
+            val speed = when {
+                pointerY < top -> -((top - pointerY) / edge).coerceIn(0f, 1f) * 20f
+                pointerY > bottom -> ((pointerY - bottom) / edge).coerceIn(0f, 1f) * 20f
+                else -> 0f
+            }
+            if (speed != 0f) { listState.scrollBy(speed); moveDraggedMission() }
+            delay(16)
+        }
+    }
     Scaffold(containerColor = androidx.compose.ui.graphics.Color.Transparent, topBar = {
         AppTopBar(title = { Text(tr("Missões diárias", "Daily missions", "Misiones diarias")) }, navigationIcon = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar", "Back", "Volver")) }
-        }, actions = { IconButton(onClick = {
+            IconButton(onClick = onBack) { Icon(AppIcons.Back, tr("Voltar", "Back", "Volver")) }
+        }, actions = {
+            IconButton(onClick = {
             editingId = null; name = ""; search = ""; icon = "mission_icons/pokeball_sprite.png"; editor = true
-        }) { Icon(Icons.Default.Add, tr("Adicionar missão", "Add mission", "Añadir misión")) } })
+        }) { Icon(AppIcons.Add, tr("Adicionar missão", "Add mission", "Añadir misión")) } })
     }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(
+        LazyColumn(Modifier.fillMaxSize().padding(padding).pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val held = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                val item = listState.layoutInfo.visibleItemsInfo.firstOrNull {
+                    held.position.y >= it.offset && held.position.y < it.offset + it.size
+                } ?: return@awaitEachGesture
+                draggedId = item.key as? String
+                draggedTop = item.offset.toFloat()
+                draggedHeight = item.size
+                pointerY = held.position.y
+                try {
+                    while (true) {
+                        // Claim movement before the list's ordinary scrolling recognizer.
+                        val change = awaitPointerEvent(PointerEventPass.Initial).changes
+                            .firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) { change.consume(); break }
+                        draggedTop += change.positionChange().y
+                        pointerY = change.position.y
+                        change.consume()
+                        moveDraggedMission()
+                    }
+                } finally { draggedId = null }
+            }
+        }, state = listState, contentPadding = PaddingValues(
             start = 16.dp, end = 16.dp, bottom = LocalNavigationContentPadding.current + 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (missions.isEmpty()) item { Text(tr("Adicione sua primeira missão no botão +.", "Add your first mission with +.", "Añade tu primera misión con +.")) }
             items(missions, key = { it.id }) { mission ->
-                AppSectionCard {
+                val dragging = draggedId == mission.id
+                AppSectionCard(Modifier.zIndex(if (dragging) 1f else 0f).graphicsLayer {
+                    translationY = if (dragging) draggedTop -
+                        (listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == mission.id }?.offset ?: draggedTop.toInt()) else 0f
+                    shadowElevation = if (dragging) 8.dp.toPx() else 0f
+                    alpha = if (dragging) .95f else 1f
+                }) {
                     Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage("file:///android_asset/${mission.icon}", mission.name, Modifier.size(48.dp))
+                        if (mission.icon.isNotBlank()) FilterTagIcon(mission.icon, Modifier.size(48.dp), mission.name)
                         Column(Modifier.weight(1f).clickable {
                             editingId = mission.id; name = mission.name; icon = mission.icon; search = ""; editor = true
                         }.padding(8.dp)) {
@@ -68,7 +142,7 @@ internal fun DailyMissionsScreen(onBack: () -> Unit) {
                                 else tr("Pendente", "Pending", "Pendiente"), style = MaterialTheme.typography.bodySmall)
                         }
                         AppToggle(mission.completed(today), { store.complete(mission.id, it) })
-                        IconButton(onClick = { deleting = mission }) { Icon(Icons.Default.Delete, tr("Excluir", "Delete", "Eliminar")) }
+                        IconButton(onClick = { deleting = mission }) { Icon(AppIcons.Delete, tr("Excluir", "Delete", "Eliminar")) }
                     }
                 }
             }
@@ -89,35 +163,19 @@ internal fun DailyMissionsScreen(onBack: () -> Unit) {
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         style = MaterialTheme.typography.titleLarge)
                     IconButton(onClick = { editor = false }, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Default.Close, tr("Fechar", "Close", "Cerrar"))
+                        Icon(AppIcons.Close, tr("Fechar", "Close", "Cerrar"))
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AsyncImage("file:///android_asset/$icon", missionIconLabel(icon), Modifier.size(40.dp))
+                    if (icon.isNotBlank()) FilterTagIcon(icon, Modifier.size(40.dp), filterIconLabel(icon))
                     AppGlassTextField(name, { name = it }, Modifier.weight(1f),
                         label = { Text(tr("Nome da missão", "Mission name", "Nombre de la misión")) }, singleLine = true)
                 }
                 AppGlassTextField(search, { search = it }, Modifier.fillMaxWidth(),
                     label = { Text(tr("Buscar ícone", "Find icon", "Buscar icono")) }, singleLine = true, search = true)
-                val filtered = icons.filter { missionIconLabel(it).contains(search, true) }
-                AppSectionCard(Modifier.fillMaxWidth().weight(1f)) {
-                    if (filtered.isEmpty()) Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                        Text(tr("Nenhum ícone encontrado", "No icons found", "No se encontraron iconos"))
-                    } else LazyVerticalGrid(GridCells.Adaptive(56.dp), Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(filtered, key = { it }) { path ->
-                            Surface(onClick = { icon = path },
-                                color = appControlFill(icon == path),
-                                border = if (icon == path) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) {
-                                AsyncImage("file:///android_asset/$path", missionIconLabel(path), Modifier.padding(8.dp).size(40.dp))
-                            }
-                        }
-                    }
-                }
+                SharedTaskIconPicker(icon, search, { icon = it.orEmpty() }, Modifier.fillMaxWidth().weight(1f))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    AppActionButton(enabled = name.isNotBlank() && icon.isNotBlank(), modifier = Modifier.widthIn(min = 140.dp), onClick = {
+                    AppActionButton(enabled = name.isNotBlank(), modifier = Modifier.widthIn(min = 140.dp), onClick = {
                         val old = missions.find { it.id == editingId }
                         store.save(old?.copy(name = name.trim(), icon = icon) ?: DailyMission(name = name.trim(), icon = icon))
                         editor = false
@@ -126,7 +184,18 @@ internal fun DailyMissionsScreen(onBack: () -> Unit) {
             }
         }
     }
-    deleting?.let { mission -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text(tr("Excluir missão?", "Delete mission?", "¿Eliminar misión?")) },
-        text = { Text(mission.name) }, confirmButton = { TextButton(onClick = { store.delete(mission.id); deleting = null }) { Text(tr("Excluir", "Delete", "Eliminar")) } },
-        dismissButton = { TextButton(onClick = { deleting = null }) { Text(tr("Cancelar", "Cancel", "Cancelar")) } }) }
+    deleting?.let { mission ->
+        androidx.compose.ui.window.Dialog(onDismissRequest = { deleting = null }) {
+            AppModalPanel(
+                title = tr("Excluir missão?", "Delete mission?", "¿Eliminar misión?"),
+                onClose = { deleting = null },
+                actions = {
+                    AppActionButton(onClick = { store.delete(mission.id); deleting = null }) {
+                        Text(tr("Excluir", "Delete", "Eliminar"))
+                    }
+                }
+            ) { Text(mission.name) }
+        }
+    }
+
 }

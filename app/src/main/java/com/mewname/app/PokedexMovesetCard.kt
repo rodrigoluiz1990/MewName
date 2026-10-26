@@ -53,7 +53,7 @@ internal fun PokedexMovesetCard(details: PokedexLocalDetails?, leagues: Map<Int,
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(tr("PvP: recomendações do PvPoke.", "PvP: PvPoke recommendations.", "PvP: recomendaciones de PvPoke."), style = MaterialTheme.typography.bodySmall)
-                Text(tr("★ indica golpe legado/especial.", "★ denotes a legacy/special move.", "★ indica ataque legado/especial."), style = MaterialTheme.typography.bodySmall)
+                Text(tr("${configuredLegacyMoveSymbol()} indica golpe legado/especial.", "${configuredLegacyMoveSymbol()} denotes a legacy/special move.", "${configuredLegacyMoveSymbol()} indica ataque legado/especial."), style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -77,6 +77,6 @@ private fun RecommendedMove(move: PokemonMove, details: PokedexLocalDetails?) {
     val stat = details?.moveStats?.get(pokedexIdentity(move.name))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         stat?.let { TypeIcon(it.type, language, Modifier.size(22.dp), framed = false) }
-        Text(move.localizedName + if (move.legacy) " ★" else "", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text(move.localizedName + if (move.legacy) " ${configuredLegacyMoveSymbol()}" else "", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
     }
 }

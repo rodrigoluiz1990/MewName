@@ -54,7 +54,7 @@ internal fun EncounterIvScreen(reading: EncounterReading, onClose: () -> Unit) {
     AppSectionCard(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().height(52.dp)) {
             Text("IVs possíveis na captura", Modifier.align(Alignment.Center).padding(horizontal = 48.dp), style = MaterialTheme.typography.titleMedium)
-            IconButton(onClose, Modifier.align(Alignment.CenterEnd)) { Icon(Icons.Default.Close, "Fechar") }
+            IconButton(onClose, Modifier.align(Alignment.CenterEnd)) { Icon(AppIcons.Close, "Fechar") }
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {

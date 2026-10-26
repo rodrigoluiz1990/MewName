@@ -8,3 +8,7 @@ Testes JVM/Robolectric e capturas salvas não substituem essa validação físic
 # Instalação para teste
 
 O usuário pediu para, sempre que possível, instalar no celular as alterações validadas. Após compilar e executar as verificações adequadas, confira a conexão ADB e instale o APK atualizado no aparelho disponível, preservando os dados. Não é necessário pedir novamente autorização para essa instalação. Informe separadamente a instalação e os testes realmente executados; se não houver aparelho disponível, registre essa limitação na resposta.
+
+# Procedimento de release
+
+Sempre que o usuário solicitar preparar, gerar ou finalizar uma release, leia e siga `docs/guia-release.md` antes de alterar versão, preparar commits ou publicar tags. O guia reúne escopo, economia de tokens, changelog, versionamento, exclusões experimentais, validações e publicação. Instruções posteriores do usuário prevalecem; mantenha o guia atualizado quando esses parâmetros mudarem. A existência do guia não é uma solicitação de publicação.

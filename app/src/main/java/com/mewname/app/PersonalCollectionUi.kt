@@ -39,6 +39,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -110,7 +112,7 @@ private fun PersonalCollectionGroups(target: PersonalCollectionTarget, snapshot:
                 selected = checked,
                 onClick = { mark(target,group,!checked) },
                 label = { Text(group.shortLabel,fontSize = 11.sp) },
-                leadingIcon = if (checked) { { Icon(Icons.Default.Check,contentDescription = null,modifier = Modifier.size(14.dp)) } } else null,
+                leadingIcon = if (checked) { { Icon(AppIcons.Selected,contentDescription = null,modifier = Modifier.size(14.dp)) } } else null,
                 modifier = Modifier.semantics { contentDescription = "${group.label}: ${if (checked) "já coletado" else "não coletado"}. ${target.label}" }
             )
         }
@@ -230,7 +232,7 @@ private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Bool
                 },
                 maxLines = 1)
         }
-        if (checked) Icon(Icons.Default.Check,contentDescription = null,
+        if (checked) Icon(AppIcons.Selected,contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,modifier = Modifier.align(Alignment.BottomEnd).size(9.dp))
     }
 }
@@ -381,15 +383,27 @@ internal fun PersonalCollectionScreen(
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
     val snapshot = rememberPersonalCollection()
+    var section by rememberSaveable { mutableStateOf(0) }
+    var compactRows by rememberSaveable { mutableStateOf(
+        context.getSharedPreferences("mewname_prefs", android.content.Context.MODE_PRIVATE)
+            .getBoolean("collection_overlay_compact_rows", false)) }
+    val layoutToggle: @Composable () -> Unit = {
+        if (overlay && (section == 0 || section == 3)) CollectionLayoutToggle(compactRows) {
+            compactRows = it
+            context.getSharedPreferences("mewname_prefs", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean("collection_overlay_compact_rows", it).apply()
+        }
+    }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var backgroundFiltersActive by remember { mutableStateOf(false) }
+    var stickerFiltersActive by remember { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var onlyCollected by rememberSaveable { mutableStateOf(false) }
-    var section by rememberSaveable { mutableStateOf(0) }
     var quickGroupName by rememberSaveable { mutableStateOf<String?>(PersonalCollectionGroup.NORMAL.name) }
-    val quickGroup = if (panel) PersonalCollectionGroup.entries.firstOrNull { it.name == quickGroupName } else null
+    val quickGroup = if (section == 3) PersonalCollectionGroup.NORMAL else if (panel) PersonalCollectionGroup.entries.firstOrNull { it.name == quickGroupName } else null
     var selectedDex by rememberSaveable { mutableStateOf<Int?>(null) }
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    val compactListState = androidx.compose.foundation.lazy.rememberLazyListState()
     SideEffect { registerBackAction?.invoke { if (selectedDex != null) selectedDex = null else onBack() } }
     // Quick marks only change flags on targets already present in this catalog.
     // Keep its seed stable during the panel session instead of reparsing all assets per tap.
@@ -401,63 +415,82 @@ internal fun PersonalCollectionScreen(
     val images by produceState<com.mewname.app.domain.PersonalCollectionImages?>(null) {
         value = withContext(Dispatchers.IO) { com.mewname.app.domain.PersonalCollectionImages(context.applicationContext) }
     }
-    val entries = remember(species, snapshot.entries, query, onlyCollected) {
+    val entries = remember(species, snapshot.entries, onlyCollected) {
         species.orEmpty().filter { entry ->
-            (entry.dex.toString().contains(query.trim()) || entry.name.contains(query.trim(), true) || entry.targets.any { it.label.contains(query.trim(), true) }) &&
-                (!onlyCollected || entry.targets.any { snapshot.entries[it.key]?.groups?.isNotEmpty() == true })
+            !onlyCollected || entry.targets.any { snapshot.entries[it.key]?.groups?.isNotEmpty() == true }
         }
+    }
+    val compactTargets = remember(species, onlyCollected, snapshot.entries, section) {
+        com.mewname.app.domain.collectionCompactTargets(species.orEmpty(), "",
+            if (onlyCollected) snapshot.entries.filterValues { it.groups.isNotEmpty() }.keys else null, costumesOnly = section == 3)
     }
     val obtainedForGroup = remember(snapshot.entries, quickGroup, onlyCollected) {
         if (onlyCollected) snapshot.entries.filterValues { quickGroup in it.groups }.keys else null
     }
-    val quickTargets = remember(species, quickGroup, query, obtainedForGroup) {
-        quickGroup?.let { com.mewname.app.domain.collectionQuickTargets(species.orEmpty(), it, query, obtainedForGroup) }.orEmpty()
+    val quickTargets = remember(species, quickGroup, obtainedForGroup, section) {
+        quickGroup?.let { com.mewname.app.domain.collectionQuickTargets(species.orEmpty(), it, "", obtainedForGroup, costumesOnly = section == 3) }.orEmpty()
+    }
+    // Search navigates within the full list. Do not restart it on marks or returning from details.
+    LaunchedEffect(query, species, compactRows, quickGroup, onlyCollected, section) {
+        val search = query.trim()
+        if (search.isEmpty() || (section != 0 && section != 3) || species == null) return@LaunchedEffect
+        kotlinx.coroutines.delay(300)
+        val candidates = when {
+            overlay && compactRows -> compactTargets.map { it.first.dex to it.second.label }
+            quickGroup != null -> quickTargets.map { it.first.dex to it.second.label }
+            else -> entries.map { it.dex to it.name }
+        }
+        val index = collectionSearchIndex(search, candidates)
+        if (index >= 0) {
+            if (overlay && compactRows) compactListState.scrollToItem(index)
+            else gridState.scrollToItem(index)
+        }
     }
     if (!overlay || selectedDex == null) Scaffold(topBar = {
         if (!panel) AppTopBar(title = { Text("Coleções") }, navigationIcon = {
-            if (!overlay) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
+            if (!overlay) IconButton(onClick = onBack) { Icon(AppIcons.Back, "Voltar") }
         }, actions = {
-            AppFilterToggle(showFilters, if (section == 1) backgroundFiltersActive else query.isNotBlank() || onlyCollected,
+            AppFilterToggle(showFilters, if (section == 1) backgroundFiltersActive else if (section == 2) stickerFiltersActive else query.isNotBlank() || onlyCollected,
                 { showFilters = it })
-            if (overlay) IconButton(onClick = onBack) { Icon(Icons.Default.Close, "Fechar coleção") }
+            layoutToggle()
+            if (overlay) IconButton(onClick = onBack) { Icon(AppIcons.Close, "Fechar coleção") }
         })
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            AppPillTabRow(selectedTabIndex = section, edgePadding = 0.dp, divider = {}) {
-                listOf("Pokémon", "Fundos especiais").forEachIndexed { index, title ->
+            AppPillTabRow(selectedTabIndex = listOf(0, 3, 1, 2).indexOf(section), edgePadding = 0.dp, divider = {}) {
+                listOf(0 to "Pokémon", 3 to "Fantasias", 1 to "Fundos especiais", 2 to "Adesivos").forEach { (index, title) ->
                     AppPillTab(selected = section == index, onClick = { section = index }, text = { Text(title) })
                 }
             }
-            if (panel) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                AppFilterToggle(showFilters, if (section == 1) backgroundFiltersActive else query.isNotBlank() || onlyCollected || quickGroupName != PersonalCollectionGroup.NORMAL.name,
+            if (panel) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                if (section == 0 || section == 3) {
+                    AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        label = { Text("Ir até Pokémon", maxLines = 1) }, singleLine = true)
+                    layoutToggle()
+                } else AppFilterToggle(showFilters, if (section == 1) backgroundFiltersActive else stickerFiltersActive,
                     { showFilters = it })
             }
-            if (section == 1) CollectionBackgroundsContent(inlinePreview = overlay, showFilters = showFilters, onFilterActive = { backgroundFiltersActive = it }) else {
-                if (panel && showFilters) {
-                    AppFilterPanel(query.isNotBlank() || onlyCollected || quickGroupName != PersonalCollectionGroup.NORMAL.name,
-                        onClear = { query = ""; onlyCollected = false; quickGroupName = PersonalCollectionGroup.NORMAL.name }) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.weight(1f),
-                            search = true, label = { Text("Buscar Pokémon ou forma") }, singleLine = true)
-                        AppChoiceChip(selected = onlyCollected, onClick = { onlyCollected = !onlyCollected }, label = { Text("Pegos") })
-                    }
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        AppChoiceChip(selected = quickGroup == null, onClick = { quickGroupName = null }, label = { Text("Formas") })
-                        (listOf(PersonalCollectionGroup.NORMAL) + snapshot.order.filter { it in snapshot.enabled }).distinct().forEach { group ->
-                            AppChoiceChip(selected = quickGroup == group, onClick = { quickGroupName = group.name }, label = { Text(group.label) })
-                        }
-                    }
-                    }
-                } else if (!panel && showFilters) {
+            if (section == 2) StickerCollectionContent(showFilters) { stickerFiltersActive = it }
+            else if (section == 1) CollectionBackgroundsContent(inlinePreview = overlay, showFilters = showFilters, onFilterActive = { backgroundFiltersActive = it }) else {
+                if (!panel && showFilters) {
                     AppFilterPanel(query.isNotBlank() || onlyCollected, onClear = { query = ""; onlyCollected = false }) {
                         AppGlassTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-                            search = true, label = { Text("Buscar Pokémon, forma ou número") }, singleLine = true)
+                            search = true, label = { Text("Ir até Pokémon, forma ou número") }, singleLine = true)
                         AppToggleRow("Mostrar somente coletados", onlyCollected, { onlyCollected = it })
                     }
                 }
                 if (species == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-                LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
+                if (overlay && compactRows) {
+                    LazyColumn(Modifier.weight(1f), state = compactListState, verticalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(bottom = 12.dp)) {
+                        if (species != null && compactTargets.isEmpty()) item { Text("Nenhum Pokémon encontrado.") }
+                        items(compactTargets, key = { it.second.key }) { (entry, target) ->
+                            CollectionSpeciesRow(target, images, snapshot, mark) {
+                                keyboard?.hide(); focus.clearFocus(); selectedDex = entry.dex
+                            }
+                        }
+                    }
+                } else LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(96.dp), modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationContentPadding.current)) {
                     if (quickGroup == null && species != null && entries.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum Pokémon encontrado.") }
@@ -465,22 +498,11 @@ internal fun PersonalCollectionScreen(
                         if (species != null && quickTargets.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("Nenhum Pokémon encontrado.") }
                         gridItems(quickTargets, key = { it.second.key }) { (entry, target) ->
                             val obtained = quickGroup in snapshot.entries[target.key]?.groups.orEmpty()
-                            AppSectionCard(Modifier.fillMaxWidth().combinedClickable(
-                                onClick = {
-                                    keyboard?.hide(); focus.clearFocus()
-                                    mark( target, quickGroup, !obtained)
-                                }, onLongClick = { keyboard?.hide(); focus.clearFocus(); selectedDex = entry.dex }
-                            ).semantics {
-                                contentDescription = "${target.label}, ${quickGroup.label}: ${if (obtained) "coletado" else "não coletado"}"
-                                toggleableState = if (obtained) ToggleableState.On else ToggleableState.Off
-                            }) {
-                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                    PersonalCollectionPortrait(target, images, quickGroup, compact = true)
-                                    if (obtained) Icon(Icons.Default.Check, "Coletado", Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp),
-                                        tint = MaterialTheme.colorScheme.primary)
-                                }
-                                Text(target.label, Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, minLines = 2)
+                            CollectionTile(target.label, obtained, onClick = {
+                                keyboard?.hide(); focus.clearFocus()
+                                mark(target, quickGroup, !obtained)
+                            }, onLongClick = { keyboard?.hide(); focus.clearFocus(); selectedDex = entry.dex }) {
+                                PersonalCollectionPortrait(target, images, quickGroup, compact = true)
                             }
                         }
                     } else gridItems(entries, key = { it.dex }) { entry ->
@@ -507,12 +529,12 @@ internal fun PersonalCollectionScreen(
                     if (overlay) {
                         Box(Modifier.fillMaxWidth()) {
                             IconButton(onClick = { selectedDex = null }, modifier = Modifier.align(Alignment.CenterStart)) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar à lista")
+                                Icon(AppIcons.Back, "Voltar à lista")
                             }
                             Text(entry.name, Modifier.align(Alignment.Center).padding(horizontal = 48.dp),
                                 textAlign = TextAlign.Center, style = MaterialTheme.typography.titleLarge)
                             if (!panel) IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterEnd)) {
-                                Icon(Icons.Default.Close, "Fechar coleção")
+                                Icon(AppIcons.Close, "Fechar coleção")
                             }
                         }
                     } else AppModalHeader(entry.name, onClose = { selectedDex = null })
@@ -564,7 +586,7 @@ internal fun PersonalCollectionScreen(
                                 }) {
                                     Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
                                         PersonalCollectionPortrait(target, images, PersonalCollectionGroup.NORMAL, silhouette = obtained.isEmpty())
-                                        if (obtained.isNotEmpty()) Icon(Icons.Default.Check, null,
+                                        if (obtained.isNotEmpty()) Icon(AppIcons.Selected, null,
                                             Modifier.align(Alignment.TopEnd).padding(4.dp).size(16.dp))
                                     }
                                 }
@@ -589,7 +611,6 @@ internal fun PersonalCollectionPortrait(target: PersonalCollectionTarget, images
             value = withContext(Dispatchers.IO) { images?.urls(target, group).orEmpty() }
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (images != null && urls.isEmpty()) Text("Imagem indisponível", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
             urls.ifEmpty { listOf("") }.forEach { url ->
                 val request = remember(url, context) {
                     coil.request.ImageRequest.Builder(context).data(url.takeIf { it.isNotBlank() })
@@ -604,11 +625,11 @@ internal fun PersonalCollectionPortrait(target: PersonalCollectionTarget, images
                     modifier = Modifier.size(when (group) {
                         PersonalCollectionGroup.XXS -> if (compact) 36.dp else 48.dp
                         PersonalCollectionGroup.XXL -> if (compact) 60.dp else 76.dp
-                        else -> if (compact) 52.dp else 64.dp
+                        else -> 64.dp
                     }),
                     contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                    placeholder = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery),
-                    error = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery)
+                    placeholder = collectionPlaceholder(),
+                    error = collectionPlaceholder()
                 )
                 }
             }
@@ -647,5 +668,75 @@ internal object CollectionSpriteTrim : coil.transform.Transformation {
         }
         return if (right >= left && bottom >= top)
             android.graphics.Bitmap.createBitmap(input, left, top, right - left + 1, bottom - top + 1) else input
+    }
+}
+
+@Composable
+private fun CollectionLayoutToggle(compact: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.clip(RoundedCornerShape(14.dp)).background(appControlFill(false)).selectableGroup()) {
+        listOf(false, true).forEach { rows ->
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                .background(if (compact == rows) appControlFill(true) else androidx.compose.ui.graphics.Color.Transparent)
+                .selectable(selected = compact == rows, role = Role.RadioButton, onClick = { onChange(rows) }),
+                contentAlignment = Alignment.Center) {
+                Icon(if (rows) androidx.compose.ui.graphics.vector.rememberVectorPainter(AppIcons.List) else androidx.compose.ui.res.painterResource(R.drawable.fa_table_cells_large),
+                    if (rows) "Lista compacta por espécie" else "Grade de Pokémon", Modifier.size(22.dp), tint = appControlInk())
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollectionSpeciesRow(
+    target: PersonalCollectionTarget,
+    images: com.mewname.app.domain.PersonalCollectionImages?,
+    snapshot: PersonalCollectionSnapshot,
+    mark: (PersonalCollectionTarget, PersonalCollectionGroup, Boolean) -> Unit,
+    onDetails: () -> Unit
+) {
+    val context = LocalContext.current
+    val url by produceState<String?>(null, target.key, images) {
+        value = withContext(Dispatchers.IO) { images?.urls(target, PersonalCollectionGroup.NORMAL)?.firstOrNull() }
+    }
+    val request = remember(url, context) {
+        coil.request.ImageRequest.Builder(context).data(url).transformations(CollectionSpriteTrim).build()
+    }
+    val obtained = snapshot.entries[target.key]?.groups.orEmpty()
+    AppSectionCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            coil.compose.AsyncImage(request, "${target.label}: abrir formas",
+                Modifier.size(40.dp).clickable(onClick = onDetails),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                placeholder = collectionPlaceholder(),
+                error = collectionPlaceholder())
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                snapshot.order.filter { it in snapshot.enabled && PersonalCollection.supports(target, it) }.forEach { group ->
+                    PersonalCollectionIcon(group, group in obtained, true, target.label) {
+                        mark(target, group, group !in obtained)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Small bundled silhouette: no network access while a sprite loads or is unavailable. */
+@Composable
+private fun collectionPlaceholder(): androidx.compose.ui.graphics.painter.Painter {
+    val context = LocalContext.current
+    val bitmap = remember(context) {
+        context.assets.open("filter_icons/no_icon_pikachu.png").use { BitmapFactory.decodeStream(it).asImageBitmap() }
+    }
+    val tint = appControlInk().copy(alpha = .55f)
+    return remember(bitmap, tint) {
+        object : androidx.compose.ui.graphics.painter.Painter() {
+            override val intrinsicSize = androidx.compose.ui.geometry.Size(bitmap.width.toFloat(), bitmap.height.toFloat())
+            override fun androidx.compose.ui.graphics.drawscope.DrawScope.onDraw() {
+                drawImage(bitmap, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(tint))
+            }
+        }
     }
 }

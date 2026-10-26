@@ -26,7 +26,7 @@ internal fun PokedexCostumeCard(costume: PokedexCostume, modifier: Modifier = Mo
     AppSectionCard(modifier) {
         Column(Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            AsyncImage(request, costume.label, Modifier.size(100.dp), contentScale = ContentScale.Fit,
+            AsyncImage(request, costume.label, Modifier.size(64.dp), contentScale = ContentScale.Fit,
                 placeholder = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery),
                 error = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery))
             Text(costume.label, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)

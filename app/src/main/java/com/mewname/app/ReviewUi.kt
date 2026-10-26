@@ -409,11 +409,7 @@ fun ReviewEditorCard(
             }
         }
     }
-    val legacyMoveSymbol = remember(configs) {
-        configs.firstNotNullOfOrNull { config ->
-            config.symbols["LEGACY"]?.takeIf { it.isNotBlank() }
-        } ?: com.mewname.app.model.defaultSymbols()["LEGACY"].orEmpty()
-    }
+    val legacyMoveSymbol = remember(configs) { legacyMoveSymbol(configs) }
     LaunchedEffect(selectedPvpSpecies, moveSetState) {
         if (moveSetState !is LoadState.Success && moveSetState !is LoadState.Empty) return@LaunchedEffect
         val nextFastMove = draft.selectedFastMove?.takeIf { selected ->
@@ -1995,7 +1991,7 @@ private fun SuggestedNamesBlock(
                         }
                     }
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Close, contentDescription = lt(language, "Cancelar", "Cancel", "Cancelar"), modifier = Modifier.size(22.dp))
+                        Icon(AppIcons.Close, contentDescription = lt(language, "Cancelar", "Cancel", "Cancelar"), modifier = Modifier.size(22.dp))
                     }
                 }
             }

@@ -41,4 +41,31 @@ class FilterOrderTest {
         assertEquals("friendlevel3,friendlevel4&Ana,Beto", buildOrderedFilter(
             listOf("token:levels", "name:Ana", "name:Beto"), groups))
     }
+    @Test fun sequentialSelectionAndDragMatchVisibleBlocksAndSavedText() {
+        var order = emptyList<String>()
+        val groups = mutableMapOf<String, List<FilterExpression>>()
+        listOf("token:shiny", "type:Fire", "token:shadow").forEach { key ->
+            groups[key] = listOf(FilterExpression(key.substringAfter(":")))
+            // Simulate a state map whose iteration differs from the click order.
+            order = reconcileFilterOrder(order, groups.keys.sorted().toSet())
+        }
+        assertEquals(listOf("token:shiny", "type:Fire", "token:shadow"), order)
+        order = listOf("token:shadow", "token:shiny", "type:Fire")
+        groups["token:shiny"] = listOf(FilterExpression("!shiny", ","))
+        assertEquals(order, reconcileFilterOrder(order, groups.keys))
+        val blocks = order.mapIndexed { index, key ->
+            filterGroupPreview(key, groups.getValue(key), order.getOrNull(index - 1))
+        }
+        val savedValue = buildOrderedFilter(order, groups)
+        assertEquals("shadow,!shiny&Fire", savedValue)
+        assertEquals(savedValue, blocks.joinToString(""))
+        assertEquals(savedValue, buildQuickFilter(parseQuickFilter(savedValue)))
+    }
+    @Test fun savedFilterRestoresConditionsOrderAndUnknownTerms() {
+        val original = "!favorite,shiny&25;!favorite&@Surf"
+        val restored = restoreFilterTerms(original, mapOf("token:shiny" to "shiny", "token:favorite" to "favorite"))
+        assertEquals(listOf("token:favorite", "token:shiny", "imported:2", "imported:3", "imported:4"), restored.keys.toList())
+        assertEquals(original, buildOrderedFilter(restored.keys.toList(), restored.mapValues { listOf(it.value) }))
+        assertEquals(emptyMap<String, FilterExpression>(), restoreFilterTerms("", emptyMap()))
+    }
 }

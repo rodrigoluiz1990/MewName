@@ -1,0 +1,82 @@
+{
+  "checkedOn": "2026-10-22",
+  "events": [
+    {
+      "id": "dynamax-uxie-mesprit-azelf-max-battle-day-2026",
+      "start": "2026-10-24",
+      "end": "2026-10-24",
+      "file": "dynamax-uxie-mesprit-azelf-max-battle-day-2026.jpg",
+      "source": "https://leekduck.com/events/dynamax-uxie-mesprit-azelf-max-battle-day-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-10-24-dynamax-uxie-mesprit-azelf-max-battle-day-2026/dynamax-uxie-mesprit-azelf-max-battle-day.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "41dd6fb846d4302a939f022360abdfb1033b5ad20475f14eecbe4b567632bfc4"
+    },
+    {
+      "id": "halloween-2026-part-1",
+      "start": "2026-10-27",
+      "end": "2026-11-01",
+      "file": "halloween-2026-part-1.jpg",
+      "source": "https://leekduck.com/events/halloween-2026-part-1/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-10-27-halloween-2026-part-1/halloween-2026-part-1.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "47b3aeba27bdff3f16b14a768e575b864b244ba51b75a7e35940073646b9a81e"
+    },
+    {
+      "id": "chandelure-super-mega-raid-day-2026",
+      "start": "2026-10-31",
+      "end": "2026-10-31",
+      "file": "chandelure-super-mega-raid-day-2026.jpg",
+      "source": "https://leekduck.com/events/chandelure-super-mega-raid-day-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/chandelure-super-mega-raid-day-2026.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "261d56b376f4c7ac74c7d3c3cb0c4be7a8bc1d6f644cd93b3043aaeff6207368"
+    },
+    {
+      "id": "halloween-2026-part-2",
+      "start": "2026-11-01",
+      "end": "2026-11-05",
+      "file": "halloween-2026-part-2.jpg",
+      "source": "https://leekduck.com/events/halloween-2026-part-2/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-01-halloween-2026-part-2/halloween-2026-part-2.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "7f1d297554e53e8ad0d2a3c3160e2863953a51e80446539027db7bf6f72636bf"
+    },
+    {
+      "id": "into-the-wild-2026",
+      "start": "2026-11-09",
+      "end": "2026-11-13",
+      "file": "into-the-wild-2026.jpg",
+      "source": "https://leekduck.com/events/into-the-wild-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-09-into-the-wild-2026/into-the-wild-2026.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "cdf59a0ec1ee404f229bea35c735ab0bc64f996e46e291043a11017436182210"
+    },
+    {
+      "id": "pokemon-go-wild-area-2026-global",
+      "start": "2026-11-14",
+      "end": "2026-11-15",
+      "file": "pokemon-go-wild-area-2026-global.jpg",
+      "source": "https://leekduck.com/events/pokemon-go-wild-area-2026-global/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-14-pokemon-go-wild-area-2026-global/key-art.jpg",
+      "width": 1600,
+      "height": 828,
+      "sha256": "8685e87e31ca36049dd350cec09d9ab5106c88b5c2405a8eb3da63598fbb3ebc"
+    },
+    {
+      "id": "november-communityday2026",
+      "start": "2026-11-21",
+      "end": "2026-11-21",
+      "file": "november-communityday2026.jpg",
+      "source": "https://leekduck.com/events/november-communityday2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-21-november-communityday2026/pawniard-november-cd-2026.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "a931924494a7f62a4c18968e6c4340acbd23d36bbde0518e379e51efea3e8acf"
+    }
+  ]
+}
