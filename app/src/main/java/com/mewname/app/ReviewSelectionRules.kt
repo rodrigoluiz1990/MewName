@@ -303,8 +303,8 @@ internal fun powerUpCostBetweenLevels(
 
 internal fun normalizeReviewKey(text: String): String {
     return Normalizer.normalize(text.trim(), Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-        .replace(Regex("[^A-Za-z0-9]+"), " ")
+        .replace(COMBINING_DIACRITICS, "")
+        .replace(NON_ALPHANUMERIC_RUNS, " ")
         .trim()
         .uppercase(Locale.US)
 }

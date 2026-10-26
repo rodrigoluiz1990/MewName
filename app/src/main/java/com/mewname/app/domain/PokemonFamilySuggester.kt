@@ -7,8 +7,6 @@ import java.text.Normalizer
 import java.util.Locale
 
 class PokemonFamilySuggester {
-    @Volatile
-    private var familyMap: Map<String, List<String>>? = null
 
     fun suggestionsFor(context: Context, candyFamilyName: String?, currentName: String?): List<String> =
         familyMembersFor(context, candyFamilyName, currentName)
@@ -24,7 +22,7 @@ class PokemonFamilySuggester {
 
     private fun loadFamilyMap(context: Context): Map<String, List<String>> {
         familyMap?.let { return it }
-        synchronized(this) {
+        synchronized(familyMapLock) {
             familyMap?.let { return it }
             val loaded = runCatching {
                 val jsonString = context.assets.open(AssetPaths.POKEMON_FAMILIES).bufferedReader().use { it.readText() }
@@ -75,15 +73,22 @@ class PokemonFamilySuggester {
                     }
                 }
             }.getOrElse { emptyMap() }
-            familyMap = loaded
+            // A failed load is not kept, so the next reader retries it.
+            if (loaded.isNotEmpty()) familyMap = loaded
             return loaded
         }
     }
 
     private fun normalize(text: String): String {
         return Normalizer.normalize(pokemonDisplayName(text), Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(COMBINING_DIACRITICS, "")
             .uppercase(Locale.US)
             .trim()
+    }
+
+    private companion object {
+        // Bundled catalog, identical for every instance; screens create a new instance per read.
+        @Volatile var familyMap: Map<String, List<String>>? = null
+        val familyMapLock = Any()
     }
 }

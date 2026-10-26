@@ -481,9 +481,9 @@ object BattleAdvisor {
 
     private fun normalizeName(text: String): String {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(COMBINING_DIACRITICS, "")
             .uppercase(Locale.US)
-            .replace(Regex("[^A-Z0-9]+"), " ")
+            .replace(NON_UPPER_ALPHANUMERIC_RUNS, " ")
             .replace(Regex("\\s+"), " ")
             .trim()
     }

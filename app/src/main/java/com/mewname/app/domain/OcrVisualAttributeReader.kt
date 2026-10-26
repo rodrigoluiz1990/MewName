@@ -73,7 +73,16 @@ internal class OcrVisualAttributeReader {
         val textMatch = specialBackgroundKeywords.any { normalizedRaw.contains(it) }
         val topRegionMatch = (topVisualLines + bottomMetaLines)
             .any { normalized -> specialBackgroundKeywords.any { normalized.contains(it) } }
+        var lapStart = android.os.SystemClock.elapsedRealtime()
+        // Debug-only split of the background check, to locate which detector dominates its time.
+        fun lap(label: String) {
+            if (!com.mewname.app.BuildConfig.DEBUG) return
+            val now = android.os.SystemClock.elapsedRealtime()
+            android.util.Log.d("MewNameReadTiming", "    fundo especial > $label: ${now - lapStart}ms")
+            lapStart = now
+        }
         val eventBadgeVisualMatch = bitmap?.let(::detectEventBadgeVisual) ?: false
+        lap("selo de evento")
         val shadowTextMatch = sequenceOf(normalizedRaw)
             .plus(midInfoLines.asSequence())
             .plus(bottomMetaLines.asSequence())
@@ -91,11 +100,16 @@ internal class OcrVisualAttributeReader {
                     normalized.contains("LUCKY")
             }
         val luckyVisualMatch = bitmap?.let(::detectLuckyBackgroundVisual) ?: false
+        lap("sortudo")
         val luckyMatch = luckyTextMatch || luckyVisualMatch
         val shinyParticleMatch = bitmap?.let(::detectShinyParticles) ?: false
+        lap("brilhante")
         val shadowParticleMatch = bitmap?.let(::detectShadowParticles) ?: false
+        lap("partículas de sombra")
         val shadowTextureMatch = bitmap?.let { detectShadowTexture(context, it) } ?: false
+        lap("textura de sombra")
         val referenceDebug = bitmap?.let { backgroundReferenceMatcher.debugSpecialBackground(context, it) }
+        lap("referências de fundo")
         val referenceMatch = referenceDebug?.isSpecial
         val bestNormalDistance = referenceDebug?.bestNormalDistance ?: Double.MAX_VALUE
         val typeNormalReferenceMatch = referenceDebug?.bestNormalReferenceName
@@ -113,6 +127,7 @@ internal class OcrVisualAttributeReader {
         val strongNormalReference = referenceMatch == false &&
             normalReferenceClearlyBetter
         val colorMatch = bitmap?.let { analyzeColorsForSpecialBackground(it) } ?: false
+        lap("paleta de cores")
         val referenceUnknownOrSpecial = referenceMatch != false
         val referenceVeryDifferentFromNormal = bestNormalDistance.isFinite() &&
             bestNormalDistance >= 4.25

@@ -48,10 +48,19 @@ class PvpRankCalculator {
     data class LevelEstimate(val pokemonName: String, val level: Double, val cpDistance: Int)
     data class HpLevelEstimate(val pokemonName: String, val level: Double, val hpDistance: Int)
 
-    private data class RankTable(
-        val byIv: Map<String, StatProduct>,
-        val productsDescending: List<Double>
-    )
+    private class RankTable(
+        val byIv: Array<StatProduct?>,
+        val productsDescending: DoubleArray
+    ) {
+        // Value equality over every spread and product, as the former data class over maps provided.
+        override fun equals(other: Any?): Boolean = other is RankTable &&
+            byIv.contentEquals(other.byIv) && productsDescending.contentEquals(other.productsDescending)
+
+        override fun hashCode(): Int = 31 * byIv.contentHashCode() + productsDescending.contentHashCode()
+    }
+
+    // Squares computed exactly as calculateCp does, so cached values match it bit for bit.
+    private val cpmSquared = DoubleArray(cpmTable.size) { cpmTable[it].pow(2.0) }
 
     @Volatile
     private var baseStatsRoot: JSONObject? = null
@@ -337,7 +346,7 @@ class PvpRankCalculator {
         val cap = leagueCap(league)
         val stadiumUrl = buildStadiumUrl(pokemonName, atk, def, sta, league, options)
         val rankTable = getRankTable(baseStats, pokemonName, league, options)
-        val currentBest = rankTable.byIv[ivKey(atk, def, sta)]
+        val currentBest = if (atk in 0..15 && def in 0..15 && sta in 0..15) rankTable.byIv[ivIndex(atk, def, sta)] else null
 
         if (currentBest == null) {
             val minCp = minimumCpAtLowestLevel(baseStats, atk, def, sta)
@@ -458,26 +467,36 @@ class PvpRankCalculator {
     }
 
 
+    // Entry point checked against the exhaustive level search in PvpRankingOptimizationTest.
+    @Suppress("unused")
+    private fun getBestStatProduct(base: JSONObject, ivAtk: Int, ivDef: Int, ivSta: Int, cap: Int, maxLevel: Double): StatProduct? =
+        getBestStatProduct(base.getInt("attack"), base.getInt("defense"), base.getInt("stamina"), ivAtk, ivDef, ivSta, cap,
+            minOf(cpmTable.lastIndex, floor((maxLevel - 1.0) * 2.0).toInt()))
+
     private fun getBestStatProduct(
-        base: JSONObject,
+        bAtk: Int,
+        bDef: Int,
+        bSta: Int,
         ivAtk: Int,
         ivDef: Int,
         ivSta: Int,
         cap: Int,
-        maxLevel: Double
+        highestIndex: Int
     ): StatProduct? {
-        val bAtk = base.getInt("attack")
-        val bDef = base.getInt("defense")
-        val bSta = base.getInt("stamina")
+        val atk = bAtk + ivAtk
+        val def = bDef + ivDef
+        val sta = bSta + ivSta
+        // Same operation order as calculateCp, with the level-independent part hoisted out of the search.
+        val cpBase = atk * sqrt(def.toDouble()) * sqrt(sta.toDouble())
 
         // CP and stat product are monotonic for positive stats. Find the last legal
         // half-level instead of evaluating every level for all 4,096 IV spreads.
         var low = 0
-        var high = minOf(cpmTable.lastIndex, floor((maxLevel - 1.0) * 2.0).toInt())
+        var high = highestIndex
         var bestIndex = -1
         while (low <= high) {
             val mid = (low + high) ushr 1
-            val cp = calculateCp(bAtk + ivAtk, bDef + ivDef, bSta + ivSta, cpmTable[mid])
+            val cp = floor(cpBase * cpmSquared[mid] / 10.0).toInt().coerceAtLeast(10)
             if (cp <= cap) {
                 bestIndex = mid
                 low = mid + 1
@@ -487,11 +506,11 @@ class PvpRankCalculator {
         }
         if (bestIndex < 0) return null
         val cpm = cpmTable[bestIndex]
-        val effectiveHp = floor((bSta + ivSta) * cpm).toInt().coerceAtLeast(10)
+        val effectiveHp = floor(sta * cpm).toInt().coerceAtLeast(10)
         // Preserve the original multiplication order and exact ties.
-        val statFactors = (bAtk + ivAtk).toDouble() * (bDef + ivDef) * effectiveHp
-        return StatProduct(ivAtk, ivDef, ivSta, statFactors * cpm.pow(2.0),
-            calculateCp(bAtk + ivAtk, bDef + ivDef, bSta + ivSta, cpm), 1.0 + bestIndex * 0.5)
+        val statFactors = atk.toDouble() * def * effectiveHp
+        return StatProduct(ivAtk, ivDef, ivSta, statFactors * cpmSquared[bestIndex],
+            floor(cpBase * cpmSquared[bestIndex] / 10.0).toInt().coerceAtLeast(10), 1.0 + bestIndex * 0.5)
     }
 
     private fun getRankTable(baseStats: JSONObject, pokemonName: String, league: PvpLeague, options: PvpCalculationOptions): RankTable {
@@ -500,25 +519,29 @@ class PvpRankCalculator {
             rankTableCache[cacheKey]?.let { return it }
         }
 
-        val byIv = mutableMapOf<String, StatProduct>()
-        val products = mutableListOf<Double>()
+        val bAtk = baseStats.getInt("attack")
+        val bDef = baseStats.getInt("defense")
+        val bSta = baseStats.getInt("stamina")
+        val byIv = arrayOfNulls<StatProduct>(16 * 16 * 16)
+        val products = DoubleArray(byIv.size)
+        var productCount = 0
         val cap = leagueCap(league)
-        val maxLevel = options.effectiveMaxLevel
+        val highestIndex = minOf(cpmTable.lastIndex, floor((options.effectiveMaxLevel - 1.0) * 2.0).toInt())
         for (a in 0..15) {
             if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException("Ranking cancelled")
             for (d in 0..15) {
                 for (s in 0..15) {
-                    val best = getBestStatProduct(baseStats, a, d, s, cap, maxLevel)
+                    val best = getBestStatProduct(bAtk, bDef, bSta, a, d, s, cap, highestIndex)
                     if (best != null) {
-                        byIv[ivKey(a, d, s)] = best
-                        products += best.product
+                        byIv[ivIndex(a, d, s)] = best
+                        products[productCount++] = best.product
                     }
                 }
             }
         }
-        products.sortDescending()
+        val descending = products.copyOf(productCount).apply { sort(); reverse() }
 
-        val table = RankTable(byIv = byIv, productsDescending = products)
+        val table = RankTable(byIv = byIv, productsDescending = descending)
         synchronized(rankTableCache) {
             // Another worker may have filled this key while we calculated outside the lock.
             rankTableCache[cacheKey]?.let { return it }
@@ -527,7 +550,7 @@ class PvpRankCalculator {
         return table
     }
 
-    private fun ivKey(atk: Int, def: Int, sta: Int): String = "$atk/$def/$sta"
+    private fun ivIndex(atk: Int, def: Int, sta: Int): Int = (atk * 16 + def) * 16 + sta
 
     private fun calculateCp(atk: Int, def: Int, sta: Int, cpm: Double): Int {
         return floor(atk * sqrt(def.toDouble()) * sqrt(sta.toDouble()) * cpm.pow(2.0) / 10.0).toInt().coerceAtLeast(10)
@@ -599,7 +622,7 @@ class PvpRankCalculator {
 
     private fun normalizeKey(text: String): String {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(COMBINING_DIACRITICS, "")
             .uppercase(Locale.US)
             .trim()
     }
@@ -669,6 +692,16 @@ class PvpRankCalculator {
 }
 
 /** First equal product preserves competition ranking for ties. */
+internal fun rankInDescendingProducts(products: DoubleArray, product: Double): Int {
+    var low = 0
+    var high = products.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (products[mid] > product) low = mid + 1 else high = mid
+    }
+    return if (low < products.size && products[low] == product) low + 1 else 0
+}
+
 internal fun rankInDescendingProducts(products: List<Double>, product: Double): Int {
     var low = 0
     var high = products.size

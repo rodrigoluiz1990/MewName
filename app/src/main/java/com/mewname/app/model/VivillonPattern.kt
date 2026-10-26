@@ -1,5 +1,7 @@
 package com.mewname.app.model
 
+import com.mewname.app.domain.NON_UPPER_ALPHANUMERIC_RUNS
+import com.mewname.app.domain.COMBINING_DIACRITICS
 import java.text.Normalizer
 import java.util.Locale
 
@@ -31,11 +33,11 @@ enum class VivillonPattern(
     companion object {
         fun fromAssetName(name: String): VivillonPattern? {
             val normalized = Normalizer.normalize(name.substringBeforeLast('.'), Normalizer.Form.NFD)
-                .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+                .replace(COMBINING_DIACRITICS, "")
                 .substringBeforeLast('.')
                 .trim()
                 .uppercase(Locale.US)
-                .replace(Regex("[^A-Z0-9]+"), "_")
+                .replace(NON_UPPER_ALPHANUMERIC_RUNS, "_")
                 .trim('_')
                 .replace(Regex("^\\d+_?"), "")
                 .removePrefix("VIVILLON_")

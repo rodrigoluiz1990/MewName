@@ -3,9 +3,12 @@ package com.mewname.app.domain
 import java.text.Normalizer
 import java.util.Locale
 
+private val CATALOG_MARKS = Regex("\\p{M}+")
+private val CATALOG_SEPARATORS = Regex("[^a-z0-9]+")
+
 internal fun catalogText(text: String): String = Normalizer.normalize(text, Normalizer.Form.NFD)
-    .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
-    .replace(Regex("[^a-z0-9]+"), " ").trim()
+    .replace(CATALOG_MARKS, "").lowercase(Locale.ROOT)
+    .replace(CATALOG_SEPARATORS, " ").trim()
 
 internal data class CatalogCapture(val section: LeekSection, val text: String)
 
@@ -34,10 +37,9 @@ data class ResearchTemplate(val english: String, val localized: String, val term
 }
 
 internal object CatalogScreenMatcher {
-    private fun containsPhrase(text: String, phrase: String): Boolean {
-        val key = catalogText(phrase)
-        return key.length >= 5 && " ${catalogText(text)} ".contains(" $key ")
-    }
+    /** [paddedText] is catalogText(text) wrapped in spaces; [key] is an already normalized phrase. */
+    private fun containsPhraseKey(paddedText: String, key: String): Boolean =
+        key.length >= 5 && paddedText.contains(" $key ")
     fun distances(text: String): Set<Int> = Regex("/\\s*(2|5|7|10|12)\\s*km\\b", RegexOption.IGNORE_CASE)
         .findAll(text).map { it.groupValues[1].toInt() }.toSet()
 
@@ -51,7 +53,7 @@ internal object CatalogScreenMatcher {
             listOf("tags", "etiquetas", "estoque bonus", "bonus storage", "almacenamiento adicional")
                 .any { key.contains(" $it ") } && distances(text).isNotEmpty()
         if (eggs) return CatalogCapture(LeekSection.EGGS, text)
-        if (quotes.any { containsPhrase(text, it.localized) || containsPhrase(text, it.english) })
+        if (quotes.any { containsPhraseKey(key, it.localizedKey) || containsPhraseKey(key, it.englishKey) })
             return CatalogCapture(LeekSection.ROCKET, text)
         return null
     }
@@ -65,9 +67,13 @@ internal object CatalogScreenMatcher {
                 catalog.entries.filter { Regex("^(\\d+)\\s*km", RegexOption.IGNORE_CASE)
                     .find(it.title)?.groupValues?.get(1)?.toIntOrNull() in distances }
             }
-            LeekSection.ROCKET -> catalog.entries.filter { entry ->
-                containsPhrase(capture.text, entry.description) || quotes.any {
-                    catalogText(it.english) == catalogText(entry.description) && containsPhrase(capture.text, it.localized)
+            LeekSection.ROCKET -> {
+                val textKey = " ${catalogText(capture.text)} "
+                catalog.entries.filter { entry ->
+                    val descriptionKey = catalogText(entry.description)
+                    containsPhraseKey(textKey, descriptionKey) || quotes.any {
+                        it.englishKey == descriptionKey && containsPhraseKey(textKey, it.localizedKey)
+                    }
                 }
             }
             LeekSection.RESEARCH -> {

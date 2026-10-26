@@ -47,14 +47,21 @@ internal object OcrNumericReader {
 
     /** Positive detail-screen anchors; never bypass a visible lower appraisal panel. */
     fun isDetailWithoutAppraisal(raw: String, lines: List<OcrTextLine>, bounds: Rect?): Boolean {
-        if (bounds == null || extractCp(raw, lines, bounds) == null || extractDisplayedMaxHp(lines, bounds) == null) return false
+        if (bounds == null || extractDisplayedMaxHp(lines, bounds) == null) return false
         val lower = normalizedLinesInRegion(lines, 0f, 1f, .55f, .98f, bounds)
-        val labels = lower.count { Regex("^(ATAQUE|ATTACK|DEFESA|DEFENSE|DEFENSA|PS|HP|SALUD)(?:$|[ :])").containsMatchIn(it.trim()) }
+        val labels = lower.count { appraisalLabel.containsMatchIn(it.trim()) }
         val appraisal = lower.any { text ->
             listOf("APPRAISAL", "AVALIACAO", "VALORACION", "FOI PEGO", "FOI CAPTURADO", "WAS CAUGHT", "FUE CAPTURADO").any { text.contains(it) }
         }
-        return labels < 2 && !appraisal
+        if (labels >= 2 || appraisal) return false
+        if (extractCp(raw, lines, bounds) != null) return true
+        // Large artwork can hide the CP header. The appraisal panel covers the power-up and move buttons,
+        // so either of them still confirms a detail screen; otherwise "NEW ATTACK" alone was read as appraisal.
+        return lower.any { text -> detailOnlyButtons.any { button -> text.contains(button) } }
     }
+
+    private val appraisalLabel = Regex("^(ATAQUE|ATTACK|DEFESA|DEFENSE|DEFENSA|PS|HP|SALUD)(?:$|[ :])")
+    private val detailOnlyButtons = listOf("FORTALECER", "POWER UP", "MAS PODER", "NOVO ATAQUE", "NEW ATTACK", "NUEVO ATAQUE")
 
     fun extractCp(normalizedRaw: String, lines: List<OcrTextLine>, referenceBounds: Rect?): Int? {
         val hasBoundedLines = lines.any { it.boundingBox != null }

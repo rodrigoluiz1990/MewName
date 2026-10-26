@@ -14,7 +14,7 @@ internal data class TrainerProfileLine(val text: String, val left: Float, val to
 
 internal object TrainerProfileParser {
     fun isTrainerScreen(text: String): Boolean {
-        val normalized = Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").lowercase()
+        val normalized = Normalizer.normalize(text, Normalizer.Form.NFD).replace(COMBINING_MARKS, "").lowercase()
         val friendship = Regex("""codigo\s+(?:de\s+)?(?:treinador|entrenador)|trainer\s+code""").containsMatchIn(normalized) &&
             Regex("""codigo\s+qr|qr\s+code|compartilhar\s+codigo|share\s+code|compartir\s+codigo""").containsMatchIn(normalized)
         val profile = Regex("""\b(eu|me|yo)\b""").containsMatchIn(normalized) &&
@@ -25,7 +25,7 @@ internal object TrainerProfileParser {
     fun parse(text: String, regions: List<TrainerProfileLine> = emptyList()): TrainerProfileDraft {
         val lines = text.lines().map(String::trim).filter(String::isNotEmpty)
         val normalized = Normalizer.normalize(text, Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
+            .replace(COMBINING_MARKS, "")
         fun labeled(labels: String, value: String): String? =
             Regex("(?im)^\\s*(?:$labels)\\s*[:：]?\\s*($value)\\s*$")
                 .find(normalized)?.groupValues?.get(1)?.trim()
@@ -82,7 +82,7 @@ internal object TrainerProfileParser {
     }
     private fun parseTotalExperience(text: String, regions: List<TrainerProfileLine>): Long? {
         fun normalize(value: String) = Normalizer.normalize(value, Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "").trim().uppercase(java.util.Locale.ROOT)
+            .replace(COMBINING_MARKS, "").trim().uppercase(java.util.Locale.ROOT)
         val normalized = normalize(text)
         if (!isTrainerScreen(text) && !Regex("NOME(?: DO TREINADOR)?|TRAINER NAME|NOMBRE(?: DEL ENTRENADOR)?").containsMatchIn(normalized)) return null
         val label = Regex("""(?:(?:(?:PE|XP|EXP)\s+)?TOTAL\s+(?:DE\s+)?(?:EXPERIENCIA|EXPERIENCE|EXP|XP|PE)|(?:EXPERIENCIA|EXPERIENCE|EXP|XP|PE)\s+TOTAL)""")

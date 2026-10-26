@@ -185,13 +185,22 @@ class OcrPokemonParser {
     ): PokemonScreenData {
         var previousStep = "Preparando catálogos"
         var previousTime = android.os.SystemClock.elapsedRealtime()
+        var markTime = previousTime
         fun step(label: String) {
             if (Thread.currentThread().isInterrupted) throw java.util.concurrent.CancellationException("Reading cancelled")
             val now = android.os.SystemClock.elapsedRealtime()
             android.util.Log.d("MewNameReadTiming", "$previousStep: ${now - previousTime}ms")
             previousStep = label
             previousTime = now
+            markTime = now
             onAnalysisStep?.invoke(label)
+        }
+        // Debug-only split of a stage, to locate which detector dominates its time.
+        fun mark(label: String) {
+            if (!com.mewname.app.BuildConfig.DEBUG) return
+            val now = android.os.SystemClock.elapsedRealtime()
+            android.util.Log.d("MewNameReadTiming", "  $previousStep > $label: ${now - markTime}ms")
+            markTime = now
         }
         IvCombinationTable.ensureLoaded(context)
         val referenceBounds = bitmap?.let { Rect(0, 0, it.width, it.height) }
@@ -206,6 +215,7 @@ class OcrPokemonParser {
         val cp = OcrNumericReader.extractCp(normalizedRaw, orderedLines, referenceBounds)
         var ivPercent = OcrNumericReader.extractIvPercent(orderedLines, referenceBounds)
         val ivPercentFromOcr = ivPercent
+        mark("PC e % de IV no texto")
 
         val ivComb = if (hasIvContext) ivCombinationRegex.find(normalizedRaw) else null
         val rawAtt = ivComb?.groupValues?.getOrNull(1)?.toIntOrNull()
@@ -219,6 +229,7 @@ class OcrPokemonParser {
         var sta = if (hasValidIvCombination) rawSta else null
 
         val ivBarDetection = if (hasIvContext) bitmap?.let { ivBarReader.detectIvBars(it, orderedLines) } else null
+        mark("barras de IV")
         val canUseIvBars = hasIvContext && (ivBarDetection?.isReliable == true)
         val barSnappedIv = if (canUseIvBars) {
             IvCombinationTable.nearestFromRatios(
@@ -265,6 +276,7 @@ class OcrPokemonParser {
             ivPercent = IvCombinationTable.fromValues(att, def, sta)?.ivPercent ?: ((att + def + sta) * 100 / 45)
         }
 
+        mark("tabela de IV")
         step("Reconhecendo Pokémon")
 
         val ocrLevel = OcrNumericReader.extractOcrLevel(orderedLines, referenceBounds)
@@ -326,11 +338,13 @@ class OcrPokemonParser {
             compatible.singleOrNull()?.let { name = it }
         }
         if (!hasIvContext) android.util.Log.d("DetailOcr", "name=$name; candy=$candyFamilyName; cp=$cp; hp=$displayedMaxHp; types=$ocrDetectedTypes")
+        mark("PS e espécie por PC/PS")
         val evidenceName = name
         var cpIvEvidence = if (evidenceName != null && cp != null && (displayedMaxHp != null || ocrLevel != null || listOf(att, def, sta).count { it != null } >= 2) &&
             listOf(att, def, sta).any { it == null }) {
             rankCalculator.resolveIvEvidence(context, evidenceName, cp, displayedMaxHp, att, def, sta, ocrLevel)
         } else null
+        mark("evidência de IV por PC/PS")
         var detailArcNote: String? = null
         if (!hasIvContext && bitmap != null && referenceBounds != null && cp != null && displayedMaxHp != null) {
             val arc = OcrLevelArcReader.detect(bitmap)
@@ -366,6 +380,7 @@ class OcrPokemonParser {
                 else -> "PC/HP ambíguos: ${it.matches} combinações de IV/nível; somente atributos unânimes preenchidos"
             }
         }
+        mark("arco de nível")
         val curveLevelCandidates = nameReader.curveLevelCandidatesFor(context, name, familyMembers).let { candidates ->
             if (ocrDetectedTypes.isEmpty()) candidates else candidates.filter {
                 lookupPokemonTypesByName(context, it).toSet() == ocrDetectedTypes.toSet()
@@ -397,6 +412,7 @@ class OcrPokemonParser {
             null
         }
         val partialCpDigits = OcrNumericReader.extractPartialCpDigits(orderedLines, referenceBounds)
+        mark("curva de PC e PS")
         val partialCpEstimate = if (hasIvContext && hpEstimate == null && name != null &&
             displayedMaxHp != null && att != null && def != null && sta != null) {
             rankCalculator.estimateLevelFromPartialCp(context, requireNotNull(name), displayedMaxHp, att, def, sta, partialCpDigits)
@@ -557,22 +573,29 @@ class OcrPokemonParser {
 
         val backgroundDetection = visualReader.detectSpecialBackground(context, normUpper, orderedLines, bitmap, referenceBounds, detectedTypes)
         val hasSpecialBackground = backgroundDetection.first
+        mark("fundo especial")
         val adventureDetection = detectAdventureEffect(context, name, moves, normUpper, orderedLines, referenceBounds)
         val hasAdventureEffect = adventureDetection.first
+        mark("efeito de aventura")
         val sizeDetection = detectSize(normUpper, orderedLines, referenceBounds, bitmap)
         val size = sizeDetection.first
+        mark("tamanho")
         val legacyDetection = detectLegacyMove(context, name, familyMembers, moves, orderedLines, loadLegacyMoves(context), detectedTypes, referenceBounds)
         val hasLegacyMove = legacyDetection.first
+        mark("golpe legado")
 
         val favoriteRatio = bitmap?.let(visualReader::measureFavoriteStarYellowRatio)
         val isFavorite = favoriteRatio?.let { it >= 0.16 } ?: false
+        mark("favorito")
         val purifiedTextMatch = normalizedRaw.lowercase().let { it.contains("purified") || it.contains("purificado") }
         val purifyAction = Regex("\\b(PURIFICAR|PURIFY|PURIFIER)\\b", RegexOption.IGNORE_CASE).containsMatchIn(normalizedRaw)
         val purificationGlints = bitmap?.let(PurifiedAuraDetector::glints) ?: 0
         val purifiedMatch = purifiedTextMatch || (!purifyAction && !backgroundDetection.second.shadowTextMatch && purificationGlints >= 3)
 
         val vivillonDetection = detectVivillonPattern(context, bitmap, name)
+        mark("purificado e Vivillon")
         val uniqueFormDetection = detectUniqueForm(context, bitmap, name, detectedTypes, unownLetter)
+        mark("forma única")
         val evolutionDetection = detectEvolutionFlags(
             normalizedRaw = normUpper,
             lines = orderedLines,
@@ -582,6 +605,7 @@ class OcrPokemonParser {
             masterIvBestMatch = masterIvBadgeResult.isBestMatch == true
         )
 
+        mark("marcadores de evolução")
         val recognizedMoves = try {
             PokemonMoveRecognition.read(context, name,
                 rawLinesInRegion(orderedLines, 0.0f, 1.0f, moveRegionTop, moveRegionBottom, referenceBounds)
@@ -593,6 +617,7 @@ class OcrPokemonParser {
             RecognizedPokemonMoves()
         }
 
+        mark("golpes")
         step("Finalizando dados detectados")
 
         return PokemonScreenData(

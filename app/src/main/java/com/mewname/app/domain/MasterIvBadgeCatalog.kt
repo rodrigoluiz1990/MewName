@@ -19,8 +19,6 @@ class MasterIvBadgeCatalog {
         val combinations: Map<Int, Triple<Int, Int, Int>>
     )
 
-    @Volatile
-    private var familyMap: Map<String, FamilyEntry>? = null
 
     fun resolve(
         context: Context,
@@ -148,7 +146,7 @@ class MasterIvBadgeCatalog {
         REGIONAL_EVOLUTIONS[key] ?: REGIONS.firstOrNull { key.endsWith(it) }
     private fun loadFamilyMap(context: Context): Map<String, FamilyEntry> {
         familyMap?.let { return it }
-        synchronized(this) {
+        synchronized(familyMapLock) {
             familyMap?.let { return it }
             val loaded = runCatching {
                 val json = context.assets.open(AssetPaths.PVP_MASTER_IV_TABLE).bufferedReader().use { it.readText() }
@@ -178,7 +176,8 @@ class MasterIvBadgeCatalog {
                     }
                 }
             }.getOrElse { emptyMap() }
-            familyMap = loaded
+            // A failed load is not kept, so the next reader retries it.
+            if (loaded.isNotEmpty()) familyMap = loaded
             return loaded
         }
     }
@@ -213,9 +212,9 @@ class MasterIvBadgeCatalog {
 
     private fun normalize(value: String): String {
         val rawKey = Normalizer.normalize(pokemonDisplayName(value).replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(COMBINING_DIACRITICS, "")
             .uppercase(Locale.US)
-            .replace(Regex("[^A-Z0-9]"), "")
+            .replace(NON_UPPER_ALPHANUMERIC_RUNS, "")
             .trim()
         val prefix = REGIONAL_PREFIXES.entries.firstOrNull { rawKey.startsWith(it.key) }
         val key = if (prefix != null) rawKey.removePrefix(prefix.key) + prefix.value else rawKey
@@ -240,6 +239,9 @@ class MasterIvBadgeCatalog {
     }
 
     private companion object {
+        // Bundled catalog, identical for every instance; screens create a new instance per read.
+        @Volatile var familyMap: Map<String, FamilyEntry>? = null
+        val familyMapLock = Any()
         val REGIONS = listOf("ALOLA", "GALAR", "HISUI", "PALDEA")
         val REGIONAL_PREFIXES = mapOf("ALOLAN" to "ALOLA", "GALARIAN" to "GALAR",
             "HISUIAN" to "HISUI", "PALDEAN" to "PALDEA")

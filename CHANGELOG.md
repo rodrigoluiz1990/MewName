@@ -1,5 +1,31 @@
 # Histórico de alterações
 
+## 1.0.34 - 2026-10-26
+
+Alterações acumuladas desde a release 1.0.33.
+
+### Desempenho da leitura pela sobreposição
+
+- Captura usa o primeiro quadro composto sem o botão (cerca de 60 ms) em vez da espera fixa de 260 ms; a espera completa é mantida quando uma janela do app acabou de ser fechada.
+- Falas da Equipe GO Rocket preparadas ao ligar a sobreposição e guardadas por versão do app; a verificação de cada leitura não reprocessa mais as tabelas de texto do jogo, e cargas simultâneas da mesma tabela foram eliminadas.
+- Assinaturas das referências de fundo compartilhadas entre leituras e guardadas por versão; modelo de OCR e referências preparados em segundo plano ao ligar a sobreposição.
+- Ranking PvP, barras de IV, detecção de gênero e emblemas da revisão calculados com menos alocações e leituras de pixel, mantendo resultados idênticos.
+- Catálogos de famílias e de IV Master compartilhados entre leituras; expressões de normalização de texto compiladas uma única vez.
+
+### Telas do aplicativo
+
+- Ficha da Pokédex não trava mais ao montar a família e as evoluções.
+- Ícones de assets em cache compartilhado e logo reduzido na barra de navegação e no botão flutuante, com abertura do app mais rápida.
+
+### Reconhecimento
+
+- Tela de detalhe com o PC encoberto pelo Pokémon passa a identificar a espécie pelos doces, inclusive com apelido; antes o botão "Novo ataque" era tomado como avaliação e a leitura podia indicar outro Pokémon.
+
+### Manutenção
+
+- Removida a dependência ML Kit Language ID, sem uso no app.
+- Logs de depuração detalham o tempo das subetapas de IV, nível e fundo.
+
 ## 1.0.33 - 2026-10-25
 
 Alterações acumuladas desde a release 1.0.32.

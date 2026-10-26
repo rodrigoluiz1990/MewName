@@ -45,7 +45,7 @@ internal object PokemonMoveRecognition {
     }
 
     private fun normalize(text: String): String = Normalizer.normalize(text, Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "")
+        .replace(COMBINING_MARKS, "")
         .uppercase(Locale.ROOT)
-        .replace(Regex("[^A-Z0-9]+"), " ").trim()
+        .replace(NON_UPPER_ALPHANUMERIC_RUNS, " ").trim()
 }

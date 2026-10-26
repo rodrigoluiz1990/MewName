@@ -1,4 +1,5 @@
 package com.mewname.app
+import com.mewname.app.domain.COMBINING_DIACRITICS
 import androidx.compose.runtime.produceState
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -1389,7 +1390,7 @@ private fun moveCatalogIndex(entries: List<MoveCatalogEntry>): Map<String, MoveC
 
 internal fun normalizeMoveLookup(value: String): String {
     return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .replace(COMBINING_DIACRITICS, "")
         .uppercase(java.util.Locale.US)
         .trim()
 }

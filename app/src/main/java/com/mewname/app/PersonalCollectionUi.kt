@@ -145,6 +145,9 @@ internal fun PersonalCollectionReview(data: PokemonScreenData) {
     }
 }
 
+/** Trimmed category emblems, shared by every collection row and review card in the process. */
+private val trimmedCollectionIcons = java.util.concurrent.ConcurrentHashMap<String, androidx.compose.ui.graphics.ImageBitmap>()
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Boolean, enabled: Boolean, pokemon: String, onClick: () -> Unit) {
@@ -184,13 +187,16 @@ private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Bool
             else -> null
         }
         if (asset != null) {
-            val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, asset) {
-                value = withContext(Dispatchers.IO) {
+            val bitmap by produceState(trimmedCollectionIcons[asset], asset) {
+                value = trimmedCollectionIcons[asset] ?: withContext(Dispatchers.IO) {
                 context.assets.open("collection/$asset").use { input ->
                     val source = requireNotNull(BitmapFactory.decodeStream(input))
+                    // One bulk read: the per-pixel scan ran for every icon of every review.
+                    val pixels = IntArray(source.width * source.height)
+                    source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
                     var left = source.width; var top = source.height; var right = -1; var bottom = -1
                     for (y in 0 until source.height) for (x in 0 until source.width) {
-                        if ((source.getPixel(x,y) ushr 24) > 16) {
+                        if ((pixels[y * source.width + x] ushr 24) > 16) {
                             left = minOf(left,x); top = minOf(top,y)
                             right = maxOf(right,x); bottom = maxOf(bottom,y)
                         }
@@ -199,7 +205,7 @@ private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Bool
                         android.graphics.Bitmap.createBitmap(source,left,top,right-left+1,bottom-top+1) else source
                     if (trimmed !== source) source.recycle()
                     trimmed.asImageBitmap()
-                }
+                }.also { trimmedCollectionIcons[asset] = it }
             }
             }
             bitmap?.let { loaded ->
@@ -727,7 +733,7 @@ private fun CollectionSpeciesRow(
 private fun collectionPlaceholder(): androidx.compose.ui.graphics.painter.Painter {
     val context = LocalContext.current
     val bitmap = remember(context) {
-        context.assets.open("filter_icons/no_icon_pikachu.png").use { BitmapFactory.decodeStream(it).asImageBitmap() }
+        requireNotNull(AssetBitmapCache.get(context, "filter_icons/no_icon_pikachu.png"))
     }
     val tint = appControlInk().copy(alpha = .55f)
     return remember(bitmap, tint) {

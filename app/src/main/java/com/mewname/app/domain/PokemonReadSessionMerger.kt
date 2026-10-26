@@ -193,9 +193,9 @@ class PokemonReadSessionMerger {
     private fun normalize(value: String?): String? {
         if (value.isNullOrBlank()) return null
         return Normalizer.normalize(value, Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(COMBINING_DIACRITICS, "")
             .uppercase(Locale.US)
-            .replace(Regex("[^A-Z0-9]"), "")
+            .replace(NON_UPPER_ALPHANUMERIC_RUNS, "")
             .ifBlank { null }
     }
 

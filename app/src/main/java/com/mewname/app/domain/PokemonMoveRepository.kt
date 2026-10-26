@@ -211,8 +211,8 @@ object PokemonMoveRepository {
 
     private fun normalizeMoveKey(text: String): String {
         return Normalizer.normalize(pokemonDisplayName(text).trim().replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-            .replace(Regex("[^A-Za-z0-9]+"), " ")
+            .replace(COMBINING_DIACRITICS, "")
+            .replace(NON_ALPHANUMERIC_RUNS, " ")
             .trim()
             .uppercase(Locale.US)
     }

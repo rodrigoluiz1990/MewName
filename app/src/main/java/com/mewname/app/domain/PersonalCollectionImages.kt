@@ -114,7 +114,7 @@ internal class PersonalCollectionImages(context: Context) {
     private fun shinyFile(file: String) = if (file.endsWith(".icon.png"))
         file.removeSuffix(".icon.png") + ".s.icon.png" else file.removeSuffix(".png") + "_shiny.png"
     private fun key(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .replace(COMBINING_DIACRITICS, "")
         .uppercase(Locale.ROOT).replace("'", "").replace("♀", " FEMALE").replace("♂", " MALE")
-        .replace(Regex("[^A-Z0-9]+"), " ").trim()
+        .replace(NON_UPPER_ALPHANUMERIC_RUNS, " ").trim()
 }

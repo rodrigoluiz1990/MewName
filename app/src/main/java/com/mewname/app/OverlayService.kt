@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.unit.dp
@@ -46,9 +47,12 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.mewname.app.domain.AppLanguage
+import com.mewname.app.domain.BackgroundReferenceMatcher
 import com.mewname.app.domain.BattleAdvice
 import com.mewname.app.domain.BattleAdvisor
 import com.mewname.app.domain.BattleMode
+import com.mewname.app.domain.GameTextRepository
 import com.mewname.app.domain.NameGenerator
 import com.mewname.app.domain.OcrPokemonParser
 import com.mewname.app.domain.PokemonReadSessionMerger
@@ -92,6 +96,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val isBubbleActive: kotlinx.coroutines.flow.StateFlow<Boolean> = bubbleActive
         private const val TAG = "OverlayService"
         private const val CAPTURE_AFTER_HIDE_DELAY_MS = 260L
+        private const val CAPTURE_HIDE_SETTLE_FRAMES = 3
+        private const val CAPTURE_CLOSING_WINDOW_EXTRA_MS = 100L
+        private const val CAPTURE_RECENT_CLOSE_MS = 600L
         private const val OVERLAY_PERMISSION_CHECK_INTERVAL_MS = 2_500L
         const val ACTION_CAPTURE_PERMISSION_INVALID = "com.mewname.app.action.CAPTURE_PERMISSION_INVALID"
         const val ACTION_OVERLAY_PERMISSION_INVALID = "com.mewname.app.action.OVERLAY_PERMISSION_INVALID"
@@ -125,6 +132,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private var bubbleMenuView: View? = null
     private var profileFeedbackView: View? = null
     private var resultsView: View? = null
+    private var lastOverlayDetachedAt = 0L
     private var isCaptureInProgress = false
     private var closingForPermissionLoss = false
     private var loadingView: View? = null
@@ -206,6 +214,22 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         if (!closingForPermissionLoss) dailyMissions.start()
         bubbleActive.value = !closingForPermissionLoss && floatingButton in attachedOverlays
         if (!closingForPermissionLoss) mainHandler.post(overlayPermissionWatchdog)
+        // The first read used to pay for the OCR model, the Rocket quote tables and the background
+        // references (several seconds in total); prepare them while the user switches to the game.
+        serviceScope.launch(Dispatchers.IO) {
+            AppLanguage.entries.forEach { GameTextRepository.rocketQuotes(applicationContext, it) }
+        }
+        serviceScope.launch(Dispatchers.Default) {
+            runCatching { BackgroundReferenceMatcher().warmUp(applicationContext) }
+        }
+        serviceScope.launch(Dispatchers.Default) {
+            val blank = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            try {
+                runCatching { ocrEngine.extractText(blank) }
+            } finally {
+                blank.recycle()
+            }
+        }
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (closingForPermissionLoss) return START_NOT_STICKY
@@ -408,7 +432,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 when (icon) {
                     "capture" -> {
-                        setImageResource(R.drawable.ic_launcher)
+                        setImageResource(R.drawable.mewname_logo)
                         background = GradientDrawable().apply {
                             shape = GradientDrawable.OVAL; setColor(Color.WHITE)
                         }
@@ -423,9 +447,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         })
                         setPadding(dp(9), dp(9), dp(9), dp(9))
                     }
-                    else -> assets.open("menu/glass/$icon.png").use {
-                        setImageBitmap(BitmapFactory.decodeStream(it))
-                    }
+                    else -> setImageBitmap(AssetBitmapCache.get(this@OverlayService, "menu/glass/$icon.png")?.asAndroidBitmap())
                 }
             }, LinearLayout.LayoutParams(dp(32), dp(32)))
             item.addView(TextView(this).apply {
@@ -480,7 +502,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         val bubbleIconSize = resources.getDimensionPixelSize(R.dimen.overlay_bubble_icon_size)
         val bubblePadding = resources.getDimensionPixelSize(R.dimen.overlay_bubble_padding)
         val center = ImageView(this).apply {
-            setImageResource(R.drawable.ic_launcher)
+            setImageResource(R.drawable.mewname_logo)
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
             clipToOutline = true
             contentDescription = lt(language, "Fechar menu ou arrastar sobreposição",
@@ -732,20 +754,25 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         removeResultsOverlay()
         captureSession.drainPendingFrames(reader)
         setBubbleHiddenForCapture(true)
-        mainHandler.postDelayed({
-            val image = try {
-                reader.acquireLatestImage()
-            } catch (e: Exception) {
-                Log.e(TAG, "Falha ao obter imagem da sessao ativa", e)
-                null
-            }
+        // A removed window keeps playing its exit animation on screen. That includes a review closed by
+        // the very touch on the bubble and the windows closed just above, so check the removal time.
+        val closingAppWindow = android.os.SystemClock.elapsedRealtime() - lastOverlayDetachedAt < CAPTURE_RECENT_CLOSE_MS
+        // Hiding the bubble reaches the composed screen within a couple of vsyncs; accept the first
+        // frame composed after that. A closing review/menu window animates out, so it keeps the full delay.
+        val settleNanos = if (closingAppWindow) CAPTURE_AFTER_HIDE_DELAY_MS * 1_000_000L
+            else CAPTURE_HIDE_SETTLE_FRAMES * displayFrameIntervalNanos()
+        val hiddenAfter = System.nanoTime() + settleNanos
+        val timeoutMs = if (closingAppWindow) CAPTURE_AFTER_HIDE_DELAY_MS + CAPTURE_CLOSING_WINDOW_EXTRA_MS
+            else CAPTURE_AFTER_HIDE_DELAY_MS
+        captureSession.acquireFrameAfter(reader, hiddenAfter, timeoutMs, mainHandler) { image ->
             setBubbleHiddenForCapture(false)
 
             if (image == null) {
                 isCaptureInProgress = false
                 Toast.makeText(this, "Falha momentanea na captura. Tente novamente.", Toast.LENGTH_SHORT).show()
-                return@postDelayed
+                return@acquireFrameAfter
             }
+            Log.d(TAG, "Capture frame after hide: ${(image.timestamp - hiddenAfter) / 1_000_000}ms past settle; waited ${android.os.SystemClock.elapsedRealtime() - captureStarted}ms")
 
             try {
                 val bitmap = captureSession.copyBitmap(image)
@@ -758,8 +785,15 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             } finally {
                 image.close()
             }
-        }, CAPTURE_AFTER_HIDE_DELAY_MS)
+        }
     }
+
+    private fun displayFrameIntervalNanos(): Long {
+        val refreshRate = (getSystemService(DISPLAY_SERVICE) as android.hardware.display.DisplayManager)
+            .getDisplay(android.view.Display.DEFAULT_DISPLAY)?.refreshRate?.takeIf { it >= 30f } ?: 60f
+        return (1_000_000_000L / refreshRate).toLong()
+    }
+
     private fun processCapturedBitmap(bitmap: Bitmap, captureStarted: Long) {
         captureProcessingTask.launch(serviceScope) { request ->
             showLoadingOverlay()
@@ -2074,7 +2108,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         closeBubbleForPermissionLoss(overlayPermissionLost = false, reason = "Permissao de captura indisponivel")
     }
 
-    private fun detachOverlay(view: View) = overlayWindows.detachOverlay(view)
+    private fun detachOverlay(view: View) {
+        overlayWindows.detachOverlay(view)
+        lastOverlayDetachedAt = android.os.SystemClock.elapsedRealtime()
+    }
 
     private fun shutdownOverlays() {
         closingForPermissionLoss = true

@@ -8,7 +8,7 @@ internal enum class FilterScreen { FRIENDS, POKEMON }
 internal object FilterScreenDetector {
     fun detect(text: String, lines: List<BattleOcrLine> = emptyList()): FilterScreen? {
         val normalized = Normalizer.normalize(text, Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "").uppercase(Locale.ROOT)
+            .replace(COMBINING_MARKS, "").uppercase(Locale.ROOT)
             .replace(Regex("\\s+"), " ")
         fun has(pattern: String) = Regex("\\b(?:$pattern)\\b").containsMatchIn(normalized)
         val search = has("BUSCAR|SEARCH|RECHERCHER")

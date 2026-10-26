@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,6 +57,8 @@ internal fun PokedexMatchupCards(matchups: List<TypeMatchupEntry>) {
 
 @Composable
 internal fun PokedexFamilyCards(details: PokedexLocalDetails, entries: List<PokedexCatalogEntry>, onSelect: (String) -> Unit) {
+    // Index once: scanning every entry and alias per family member froze the screen for over a second.
+    val entryFor = remember(entries) { pokedexEntryLookup(entries) }
     // Merge paths by their shared prefix so branching never repeats the ancestors.
     Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -64,18 +67,26 @@ internal fun PokedexFamilyCards(details: PokedexLocalDetails, entries: List<Poke
                 Text(lt(appLanguage(), "Forma regional / alternativa", "Regional / alternative form", "Forma regional / alternativa"),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            PokedexFamilyBranch(paths, details, entries, onSelect)
+            PokedexFamilyBranch(paths, details, entryFor, onSelect)
         }
     }
 }
 
+/** Same result as the first entry matching by name, then the first matching by alias. */
+private fun pokedexEntryLookup(entries: List<PokedexCatalogEntry>): (String) -> PokedexCatalogEntry? {
+    val byName = HashMap<String, PokedexCatalogEntry>()
+    val byAlias = HashMap<String, PokedexCatalogEntry>()
+    entries.forEach { byName.putIfAbsent(pokedexIdentity(it.name), it) }
+    entries.forEach { entry -> entry.aliases.forEach { byAlias.putIfAbsent(pokedexIdentity(it), entry) } }
+    return { member -> pokedexIdentity(member).let { byName[it] ?: byAlias[it] } }
+}
+
 @Composable
 private fun PokedexFamilyBranch(paths: List<PokedexEvolutionPath>, details: PokedexLocalDetails,
-    entries: List<PokedexCatalogEntry>, onSelect: (String) -> Unit) {
+    entryFor: (String) -> PokedexCatalogEntry?, onSelect: (String) -> Unit) {
     val language = appLanguage()
     val member = paths.first().members.first()
-    val entry = entries.firstOrNull { pokedexIdentity(it.name) == pokedexIdentity(member) }
-        ?: entries.firstOrNull { e -> e.aliases.any { pokedexIdentity(it) == pokedexIdentity(member) } }
+    val entry = entryFor(member)
     val branches = paths.filter { it.members.size > 1 }.groupBy { it.members[1] }.values.toList()
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Column(Modifier.width(96.dp).clickable(enabled = entry != null, role = Role.Button) { entry?.let { onSelect(it.name) } }
@@ -107,7 +118,7 @@ private fun PokedexFamilyBranch(paths: List<PokedexEvolutionPath>, details: Poke
                             modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
                     }
                     PokedexFamilyBranch(branch.map { PokedexEvolutionPath(it.members.drop(1), it.steps.drop(1)) },
-                        details, entries, onSelect)
+                        details, entryFor, onSelect)
                 }
             }
         }

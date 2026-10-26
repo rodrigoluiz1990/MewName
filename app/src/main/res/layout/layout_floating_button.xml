@@ -9,7 +9,7 @@
         android:layout_width="@dimen/overlay_bubble_icon_size"
         android:layout_height="@dimen/overlay_bubble_icon_size"
         android:background="@android:drawable/btn_default"
-        android:src="@drawable/ic_launcher"
+        android:src="@drawable/mewname_logo"
         android:scaleType="centerCrop"
         android:padding="6dp"
         android:contentDescription="MewName Capture" />

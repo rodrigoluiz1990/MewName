@@ -10,8 +10,11 @@ fun pokemonDisplayName(name: String): String = when (name.trim().uppercase(Local
     "ZAMAZENTA CROWNED SHIELD", "CROWNED SHIELD ZAMAZENTA", "ZAMAZENTA ESCUDO COROADO", "ZAMAZENTA (COROADO)" -> "Zamazenta (Coroado)"
     else -> regionalPokemonDisplayName(name)
 }
+// Called for every catalog entry while families load; compiling it per call dominated that load.
+private val REGIONAL_PREFIX_NAME = Regex("^(Alolan|Galarian|Hisuian|Paldean)\\s+(.+)$", RegexOption.IGNORE_CASE)
+
 private fun regionalPokemonDisplayName(name: String): String {
-    val match = Regex("^(Alolan|Galarian|Hisuian|Paldean)\\s+(.+)$", RegexOption.IGNORE_CASE).matchEntire(name.trim()) ?: return name
+    val match = REGIONAL_PREFIX_NAME.matchEntire(name.trim()) ?: return name
     val region = when (match.groupValues[1].lowercase(Locale.ROOT)) {
         "alolan" -> "Alola"
         "galarian" -> "Galar"

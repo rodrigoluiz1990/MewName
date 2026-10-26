@@ -66,6 +66,42 @@ internal class OverlayCaptureSession(
         }
     }
 
+    /**
+     * Delivers the first frame composed after [afterNanos] (System.nanoTime base).
+     * When none arrives within [timeoutMs], delivers the latest frame seen, as the old fixed delay did.
+     */
+    fun acquireFrameAfter(reader: ImageReader, afterNanos: Long, timeoutMs: Long, handler: Handler, onResult: (Image?) -> Unit) {
+        var pending: Image? = null
+        var done = false
+        // Frames are taken one at a time while the newest one is held, which stays within maxImages.
+        fun takeNext(): Image? = try { reader.acquireNextImage() } catch (_: Exception) { null }
+        val timeout = Runnable {
+            if (done) return@Runnable
+            done = true
+            reader.setOnImageAvailableListener(null, null)
+            while (true) {
+                val next = takeNext() ?: break
+                pending?.close()
+                pending = next
+            }
+            onResult(pending)
+        }
+        reader.setOnImageAvailableListener({ source ->
+            while (!done) {
+                val image = takeNext() ?: break
+                pending?.close()
+                pending = image
+                if (image.timestamp > afterNanos) {
+                    done = true
+                    handler.removeCallbacks(timeout)
+                    source.setOnImageAvailableListener(null, null)
+                    onResult(image)
+                }
+            }
+        }, handler)
+        handler.postDelayed(timeout, timeoutMs)
+    }
+
     fun copyBitmap(image: Image): Bitmap {
         val plane = image.planes[0]
         return copyCaptureBitmap(image.width, image.height, plane.pixelStride, plane.rowStride, plane.buffer)
@@ -92,6 +128,7 @@ internal fun copyCaptureBitmap(width: Int, height: Int, pixelStride: Int, rowStr
     val raw = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888)
     try {
         raw.copyPixelsFromBuffer(buffer)
+        if (rowPadding == 0) return raw
         val cropped = Bitmap.createBitmap(raw, 0, 0, width, height)
         if (cropped !== raw) raw.recycle()
         return cropped

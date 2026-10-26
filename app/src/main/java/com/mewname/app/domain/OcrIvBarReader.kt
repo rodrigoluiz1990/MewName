@@ -533,10 +533,12 @@ internal class OcrIvBarReader {
         var maxX = Int.MIN_VALUE
         var maxY = Int.MIN_VALUE
         var hitCount = 0
+        // Over half a million pixels: resolve the per-thread class cache once, not per pixel.
+        val classes = pixelClasses.get()!!
 
         for (y in searchRect.top until searchRect.bottom) {
             for (x in searchRect.left until searchRect.right) {
-                if (isAppraisalPanelPixel(bitmap.getPixel(x, y))) {
+                if (classes.of(bitmap.getPixel(x, y)) and APPRAISAL_PANEL != 0) {
                     hitCount++
                     if (x < minX) minX = x
                     if (y < minY) minY = y
@@ -1005,50 +1007,15 @@ internal class OcrIvBarReader {
         return Rect(rect.left, top, rect.right, bottom)
     }
 
-    private fun isIvBarCoreFillPixel(colorInt: Int): Boolean {
-        val hsv = FloatArray(3)
-        Color.colorToHSV(colorInt, hsv)
-        val hue = hsv[0]
-        val saturation = hsv[1]
-        val value = hsv[2]
+    private fun isIvBarCoreFillPixel(colorInt: Int): Boolean = pixelClasses.get()!!.of(colorInt) and CORE_FILL != 0
 
-        val isOrangeRed = (hue in 0f..45f) || (hue in 340f..360f)
-        return isOrangeRed && saturation >= 0.22f && value in 0.24f..0.88f
-    }
+    private fun isIvBarMeasuredFillPixel(colorInt: Int): Boolean = pixelClasses.get()!!.of(colorInt) and MEASURED_FILL != 0
 
-    private fun isIvBarMeasuredFillPixel(colorInt: Int): Boolean {
-        val hsv = FloatArray(3)
-        Color.colorToHSV(colorInt, hsv)
-        val hue = hsv[0]
-        val saturation = hsv[1]
-        val value = hsv[2]
+    private fun isIvBarWarmTailPixel(colorInt: Int): Boolean = pixelClasses.get()!!.of(colorInt) and WARM_TAIL != 0
 
-        val isOrangeRed = (hue in 0f..45f) || (hue in 340f..360f)
-        return isOrangeRed && saturation >= 0.18f && value in 0.22f..0.88f
-    }
+    private fun isIvBarSeparatorPixel(colorInt: Int): Boolean = pixelClasses.get()!!.of(colorInt) and SEPARATOR != 0
 
-    private fun isIvBarWarmTailPixel(colorInt: Int): Boolean {
-        val hsv = FloatArray(3)
-        Color.colorToHSV(colorInt, hsv)
-        val hue = hsv[0]
-        val saturation = hsv[1]
-        val value = hsv[2]
-
-        val isOrangeRed = (hue in 0f..45f) || (hue in 340f..360f)
-        return isOrangeRed && saturation >= 0.18f && value > 0.86f
-    }
-
-    private fun isIvBarSeparatorPixel(colorInt: Int): Boolean {
-        val hsv = FloatArray(3)
-        Color.colorToHSV(colorInt, hsv)
-        return hsv[1] <= 0.18f && hsv[2] >= 0.70f
-    }
-
-    private fun isIvBarTrackPixel(colorInt: Int): Boolean {
-        val hsv = FloatArray(3)
-        Color.colorToHSV(colorInt, hsv)
-        return hsv[1] <= 0.18f && hsv[2] in 0.45f..0.88f
-    }
+    private fun isIvBarTrackPixel(colorInt: Int): Boolean = pixelClasses.get()!!.of(colorInt) and TRACK != 0
 
     private fun isDarkFullBar(bitmap: IvPixels, rect: Rect, ratio: Float): Boolean {
         if (ratio < 0.82f || rect.width() < 8 || rect.height() < 2) return false
@@ -1072,10 +1039,49 @@ internal class OcrIvBarReader {
 
     private fun Float.formatDebug(): String = String.format(Locale.US, "%.3f", this)
 
-    private fun isAppraisalPanelPixel(colorInt: Int): Boolean {
-        val hsv = FloatArray(3)
-        Color.colorToHSV(colorInt, hsv)
-        return hsv[1] <= 0.10f && hsv[2] >= 0.93f
+    private fun isAppraisalPanelPixel(colorInt: Int): Boolean = pixelClasses.get()!!.of(colorInt) and APPRAISAL_PANEL != 0
+
+    /**
+     * Pixel classes for each distinct color. The appraisal panel and bars reuse a few colors over
+     * hundreds of thousands of pixels, so converting each color to HSV once replaces most native calls.
+     */
+    private class PixelClassCache {
+        private val colors = IntArray(SLOTS)
+        private val classes = IntArray(SLOTS)
+        private val hsv = FloatArray(3)
+
+        fun of(color: Int): Int {
+            val slot = (color * -0x61c88647) ushr (32 - SLOT_BITS)
+            val cached = classes[slot]
+            if (cached != 0 && colors[slot] == color) return cached
+            Color.colorToHSV(color, hsv)
+            val hue = hsv[0]
+            val saturation = hsv[1]
+            val value = hsv[2]
+            val isOrangeRed = (hue in 0f..45f) || (hue in 340f..360f)
+            var result = CLASSIFIED
+            if (isOrangeRed && saturation >= 0.22f && value in 0.24f..0.88f) result = result or CORE_FILL
+            if (isOrangeRed && saturation >= 0.18f && value in 0.22f..0.88f) result = result or MEASURED_FILL
+            if (isOrangeRed && saturation >= 0.18f && value > 0.86f) result = result or WARM_TAIL
+            if (saturation <= 0.18f && value >= 0.70f) result = result or SEPARATOR
+            if (saturation <= 0.18f && value in 0.45f..0.88f) result = result or TRACK
+            if (saturation <= 0.10f && value >= 0.93f) result = result or APPRAISAL_PANEL
+            colors[slot] = color
+            classes[slot] = result
+            return result
+        }
     }
 
+    private companion object {
+        const val SLOT_BITS = 12
+        const val SLOTS = 1 shl SLOT_BITS
+        const val CLASSIFIED = 1
+        const val CORE_FILL = 1 shl 1
+        const val MEASURED_FILL = 1 shl 2
+        const val WARM_TAIL = 1 shl 3
+        const val SEPARATOR = 1 shl 4
+        const val TRACK = 1 shl 5
+        const val APPRAISAL_PANEL = 1 shl 6
+        val pixelClasses: ThreadLocal<PixelClassCache> = ThreadLocal.withInitial { PixelClassCache() }
+    }
 }

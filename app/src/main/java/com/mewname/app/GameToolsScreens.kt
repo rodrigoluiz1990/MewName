@@ -1,5 +1,7 @@
 package com.mewname.app
 
+import com.mewname.app.domain.NON_UPPER_ALPHANUMERIC_RUNS
+import com.mewname.app.domain.COMBINING_DIACRITICS
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -3425,7 +3427,7 @@ private fun addSavedFilter(
 private fun pokemonCollectionId(name: String): String {
     return normalizeSearch(name)
         .uppercase(Locale.US)
-        .replace(Regex("[^A-Z0-9]+"), "_")
+        .replace(NON_UPPER_ALPHANUMERIC_RUNS, "_")
         .trim('_')
 }
 
@@ -3534,7 +3536,7 @@ private fun appendLineSeparatedValue(current: String, value: String): String {
 
 private fun normalizeSearch(text: String): String {
     return java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .replace(COMBINING_DIACRITICS, "")
         .lowercase(Locale.US)
         .trim()
 }

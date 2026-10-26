@@ -12,8 +12,10 @@ enum class AppLanguage {
 object GameTextRepository {
     private val textCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, Map<String, String>>()
     private val researchTemplateCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, List<ResearchTemplate>>()
-    private val moveCache = mutableMapOf<AppLanguage, Map<Int, String>>()
-    private val pokemonCache = mutableMapOf<AppLanguage, Map<Int, String>>()
+    private val moveCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, Map<Int, String>>()
+    private val pokemonCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, Map<Int, String>>()
+    private val rocketQuoteCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, List<RocketQuote>>()
+    private val pokemonResourceId = Regex("""\d{4}""")
 
     private val researchIndexes = java.util.concurrent.ConcurrentHashMap<AppLanguage, ResearchTranslationIndex>()
     @Synchronized
@@ -27,12 +29,15 @@ object GameTextRepository {
             researchIndexes.clear()
             moveCache.clear()
             pokemonCache.clear()
+            rocketQuoteCache.clear()
         } else {
             textCache.remove(language)
             researchTemplateCache.remove(language)
             researchIndexes.remove(language)
             moveCache.remove(language)
             pokemonCache.remove(language)
+            // Quotes pair EN with each language, so an EN reload invalidates all of them.
+            if (language == AppLanguage.EN) rocketQuoteCache.clear() else rocketQuoteCache.remove(language)
         }
     }
 
@@ -65,7 +70,7 @@ object GameTextRepository {
         val translations = loadTextTable(context, language)
             .mapNotNull { (resourceId, value) ->
                 val resource = resourceId.removePrefix("pokemon_name_")
-                if (!Regex("""\d{4}""").matches(resource)) return@mapNotNull null
+                if (!pokemonResourceId.matches(resource)) return@mapNotNull null
                 resource.toIntOrNull()?.let { it to value }
             }
             .toMap()
@@ -73,15 +78,19 @@ object GameTextRepository {
         return translations
     }
 
-    fun rocketQuotes(context: Context, language: AppLanguage): List<RocketQuote> {
-        val english = loadTextTable(context, AppLanguage.EN)
-        val localized = loadTextTable(context, language)
-        return english.filterKeys { it.startsWith("combat_") && it.contains("quote") }.mapNotNull { (id, text) ->
-            localized[id]?.takeIf { it.isNotBlank() }?.let { RocketQuote(text, it, when {
-                id.contains("__female_speaker") -> "Female"
-                id.contains("__male_speaker") -> "Male"
-                else -> null
-            }) }
+    // Screen routing checks these on every Pokemon read. They are a few hundred phrases out of ~12 MB of
+    // text tables, so they are also stored per app version and later starts skip parsing the tables.
+    fun rocketQuotes(context: Context, language: AppLanguage): List<RocketQuote> = rocketQuoteCache.getOrPut(language) {
+        readStoredRocketQuotes(context, language) ?: run {
+            val english = loadTextTable(context, AppLanguage.EN)
+            val localized = loadTextTable(context, language)
+            english.filterKeys { it.startsWith("combat_") && it.contains("quote") }.mapNotNull { (id, text) ->
+                localized[id]?.takeIf { it.isNotBlank() }?.let { RocketQuote(text, it, when {
+                    id.contains("__female_speaker") -> "Female"
+                    id.contains("__male_speaker") -> "Male"
+                    else -> null
+                }) }
+            }.also { storeRocketQuotes(context, language, it) }
         }
     }
 
@@ -118,13 +127,52 @@ object GameTextRepository {
     }
     private fun loadTextTable(context: Context, language: AppLanguage): Map<String, String> {
         textCache[language]?.let { return it }
-        val assetPath = when (language) {
-            AppLanguage.EN -> AssetPaths.TEXT_EN
-            AppLanguage.PT_BR -> AssetPaths.TEXT_PT_BR
-            AppLanguage.ES -> AssetPaths.TEXT_ES
+        // Each table is ~4 MB: a caller arriving during a load waits for it instead of parsing it again.
+        synchronized(textLoadLocks.getValue(language)) {
+            textCache[language]?.let { return it }
+            val assetPath = when (language) {
+                AppLanguage.EN -> AssetPaths.TEXT_EN
+                AppLanguage.PT_BR -> AssetPaths.TEXT_PT_BR
+                AppLanguage.ES -> AssetPaths.TEXT_ES
+            }
+            val table = context.assets.open(assetPath).bufferedReader().use { GameTextFileReader.read(it) }
+            textCache[language] = table
+            return table
         }
-        val table = context.assets.open(assetPath).bufferedReader().use { GameTextFileReader.read(it) }
-        textCache[language] = table
-        return table
     }
+
+    private val textLoadLocks = AppLanguage.entries.associateWith { Any() }
+
+    private fun storedRocketQuotesFile(context: Context, language: AppLanguage): java.io.File =
+        java.io.File(context.filesDir, "$ROCKET_QUOTE_STORE_DIR/${com.mewname.app.BuildConfig.VERSION_CODE}/${language.name}.json")
+
+    private fun readStoredRocketQuotes(context: Context, language: AppLanguage): List<RocketQuote>? = runCatching {
+        val file = storedRocketQuotesFile(context, language)
+        if (!file.isFile) return null
+        val array = org.json.JSONArray(file.readText())
+        List(array.length()) { index ->
+            val item = array.getJSONObject(index)
+            RocketQuote(item.getString("english"), item.getString("localized"),
+                item.optString("speaker").takeIf { item.has("speaker") })
+        }
+    }.getOrNull()
+
+    private fun storeRocketQuotes(context: Context, language: AppLanguage, quotes: List<RocketQuote>) {
+        if (quotes.isEmpty()) return
+        runCatching {
+            val file = storedRocketQuotesFile(context, language)
+            file.parentFile?.parentFile?.listFiles()?.filter { it != file.parentFile }?.forEach { it.deleteRecursively() }
+            file.parentFile?.mkdirs()
+            val array = org.json.JSONArray()
+            quotes.forEach { quote ->
+                array.put(org.json.JSONObject().put("english", quote.english).put("localized", quote.localized)
+                    .apply { quote.speaker?.let { put("speaker", it) } })
+            }
+            val temp = java.io.File(file.path + ".tmp")
+            temp.writeText(array.toString())
+            check(temp.renameTo(file))
+        }
+    }
+
+    private const val ROCKET_QUOTE_STORE_DIR = "rocket-quotes"
 }

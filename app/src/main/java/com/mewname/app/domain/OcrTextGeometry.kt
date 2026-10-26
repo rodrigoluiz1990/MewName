@@ -31,7 +31,7 @@ internal object OcrTextGeometry {
 
     fun normalizeText(text: String): String {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(COMBINING_DIACRITICS, "")
             .uppercase(Locale.US)
             .trim()
     }

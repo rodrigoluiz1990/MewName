@@ -1,11 +1,12 @@
 package com.mewname.app
 
+import com.mewname.app.domain.COMBINING_MARKS
 import java.text.Normalizer
 import java.util.Locale
 
 internal fun collectionSearchIndex(query: String, candidates: List<Pair<Int, String>>): Int {
     fun clean(s: String) = Normalizer.normalize(s, Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT).trim()
+        .replace(COMBINING_MARKS, "").lowercase(Locale.ROOT).trim()
     val search = clean(query)
     if (search.isBlank()) return -1
     val labels = candidates.map { clean(it.second) }

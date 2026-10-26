@@ -110,7 +110,7 @@ internal fun HomeGlassNavigation(
                         Size(size.width * 0.7f, size.height * 0.7f), CornerRadius(2.dp.toPx()))
                 }
             } else {
-                Image(painterResource(R.drawable.ic_launcher), contentDescription = null,
+                Image(painterResource(R.drawable.mewname_logo), contentDescription = null,
                     modifier = Modifier.fillMaxSize().clip(CircleShape))
             }
         }

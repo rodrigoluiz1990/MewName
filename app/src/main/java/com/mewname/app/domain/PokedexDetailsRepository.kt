@@ -148,11 +148,17 @@ internal class PokedexDetailsRepository(private val context: Context) {
     companion object { private val cacheLock = Any() }
 }
 
+private val HISUI_WORD = Regex("\\bhisui\\b")
+private val GALAR_WORD = Regex("\\bgalar\\b")
+private val ALOLA_WORD = Regex("\\balola\\b")
+private val PALDEA_WORD = Regex("\\bpaldea\\b")
+private val NON_IDENTITY_CHARS = Regex("[^a-z0-9]")
+
 internal fun pokedexIdentity(text: String): String = Normalizer.normalize(text.replace("♀", "female").replace("♂", "male"), Normalizer.Form.NFD)
-    .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
-    .replace(Regex("\\bhisui\\b"), "hisuian").replace(Regex("\\bgalar\\b"), "galarian")
-    .replace(Regex("\\balola\\b"), "alolan").replace(Regex("\\bpaldea\\b"), "paldean")
-    .replace(Regex("[^a-z0-9]"), "")
+    .replace(COMBINING_MARKS, "").lowercase(Locale.ROOT)
+    .replace(HISUI_WORD, "hisuian").replace(GALAR_WORD, "galarian")
+    .replace(ALOLA_WORD, "alolan").replace(PALDEA_WORD, "paldean")
+    .replace(NON_IDENTITY_CHARS, "")
 
 internal fun matchPvpokeSpecies(pokemon: JSONArray, entry: PokedexCatalogEntry): JSONObject? {
     val keys = (entry.aliases + entry.name).map(::pokedexIdentity).toSet()

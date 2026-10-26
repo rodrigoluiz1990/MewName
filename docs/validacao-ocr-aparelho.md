@@ -277,3 +277,12 @@ A refatoração é verificada separadamente pela suíte local, incluindo captura
 - Coleção em sobreposição conferida: campo único de busca ao lado dos dois layouts, painel recolhido até apenas a alça inferior e reaberto por arraste, mantendo o conteúdo.
 - Busca física: digitado “mew”, primeira linha Mew; após pausa, acrescentado “t”, primeira linha Mewtwo. Nenhuma marca de coleção alterada. Painel fechado ao terminar.
 - Permanecem pendentes regressão física de purificado/sombroso/comum, leitura da grade de uma tag pela bolha e investigação da diferença de poeira. Os bloqueios de interação automática foram resolvidos por autorização do usuário e verificação dos controles antes dos toques.
+
+## Desempenho e PC encoberto — 26/10/2026
+
+- Aparelho 2412DPC0AG (POCO X7 Pro), Android 16, 1220 × 2712, ADB por Wi-Fi. APK debug 1.0.33→1.0.34 assinado com a chave local; os dados foram copiados por `run-as`, o app reinstalado e os dados restaurados, com o backup automático do app preservado.
+- Leituras reais pela sobreposição no Pokémon GO (Charmander, Pikachu, Zapdos, Ponyta, Venusaur, Regice, Mewtwo, Pinsir, Grimmsnarl, Impidimp, Zamazenta, Necrozma), com e sem avaliação, e raids/Max Battles (Woobat, Axew, Sableye, Drapion, Raichu). Tempos conferidos pelos logs `Read[...]` e por perfil `simpleperf`.
+- Captura: 130–200 ms (antes 340–404 ms); leitura de Pokémon aquecida com mediana de ~0,9 s (antes 1,2–1,4 s); primeira leitura após religar a sobreposição ~2,2 s com falas Rocket lidas do disco.
+- Zapdos com apelido e PC encoberto pela imagem: a versão anterior indicava Altaria ou nenhum nome; após a correção, 20 leituras seguidas resultaram em Zapdos. Quadro da gravação de tela incluído como teste `HiddenCpDetailScreenTest`.
+- Abertura das telas medida por `atrace`; ficha da Pokédex deixou de travar (pior quadro de 1,3–1,8 s para ~150 ms).
+- Suíte local: 574 testes aprovados. Continuam pendentes a regressão física completa de fundos especiais, formas regionais, timeout forçado e memória prolongada.

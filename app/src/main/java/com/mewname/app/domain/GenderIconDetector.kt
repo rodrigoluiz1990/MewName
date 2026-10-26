@@ -15,10 +15,11 @@ internal object GenderIconDetector {
     private val maleTemplate by lazy { template(true) }
     private val femaleTemplate by lazy { template(false) }
 
+    private val hpText = Regex("""\d+\s*/\s*\d+\s*(PS|HP)\b""", RegexOption.IGNORE_CASE)
+
     fun detect(bitmap: Bitmap, lines: List<OcrTextLine> = emptyList()): Result {
         val hpLine = lines.firstOrNull {
-            Regex("""\d+\s*/\s*\d+\s*(PS|HP)\b""", RegexOption.IGNORE_CASE)
-                .containsMatchIn(it.text) && it.boundingBox?.let { box ->
+            hpText.containsMatchIn(it.text) && it.boundingBox?.let { box ->
                     box.centerY().toFloat() / bitmap.height in .3f.. .65f &&
                         box.centerX().toFloat() / bitmap.width in .2f.. .8f
                 } == true
@@ -41,16 +42,25 @@ internal object GenderIconDetector {
         if (w < 3 || h < 3) return Result(Gender.UNKNOWN, notes = "Image too small")
         val mask = BooleanArray(w * h)
         val radius = max(4, (bitmap.width * .018).toInt())
+        // One bulk read of the sampled area plus the background radius instead of five getPixel calls per sample.
+        val areaLeft = (left - radius).coerceAtLeast(0)
+        val areaTop = (top - radius).coerceAtLeast(0)
+        val areaRight = (left + (w - 1) * step + radius).coerceAtMost(bitmap.width - 1)
+        val areaBottom = (top + (h - 1) * step + radius).coerceAtMost(bitmap.height - 1)
+        val areaWidth = areaRight - areaLeft + 1
+        val area = IntArray(areaWidth * (areaBottom - areaTop + 1))
+        bitmap.getPixels(area, 0, areaWidth, areaLeft, areaTop, areaWidth, areaBottom - areaTop + 1)
+        fun pixelAt(x: Int, y: Int) = area[(y - areaTop) * areaWidth + (x - areaLeft)]
         var foreground = 0
         for (y in 0 until h) for (x in 0 until w) {
-            val pixel = bitmap.getPixel(left + x * step, top + y * step)
-            val r = Color.red(pixel); val g = Color.green(pixel); val b = Color.blue(pixel)
             val px = left + x * step; val py = top + y * step
+            val pixel = pixelAt(px, py)
+            val r = Color.red(pixel); val g = Color.green(pixel); val b = Color.blue(pixel)
             val localBackground = maxOf(
-                Color.green(bitmap.getPixel((px - radius).coerceAtLeast(0), py)),
-                Color.green(bitmap.getPixel((px + radius).coerceAtMost(bitmap.width - 1), py)),
-                Color.green(bitmap.getPixel(px, (py - radius).coerceAtLeast(0))),
-                Color.green(bitmap.getPixel(px, (py + radius).coerceAtMost(bitmap.height - 1))))
+                Color.green(pixelAt((px - radius).coerceAtLeast(0), py)),
+                Color.green(pixelAt((px + radius).coerceAtMost(bitmap.width - 1), py)),
+                Color.green(pixelAt(px, (py - radius).coerceAtLeast(0))),
+                Color.green(pixelAt(px, (py + radius).coerceAtMost(bitmap.height - 1))))
             mask[y * w + x] = r in 40..225 && g in r..min(245, r + 45) &&
                 b in r..min(245, r + 50) && abs(g - b) <= 25 && localBackground - g >= 14
             if (mask[y * w + x]) foreground++

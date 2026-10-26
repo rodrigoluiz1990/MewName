@@ -1,5 +1,6 @@
 package com.mewname.app
 
+import com.mewname.app.domain.NON_UPPER_ALPHANUMERIC_RUNS
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -17,7 +18,7 @@ internal fun maxPortraitId(value: String?): String {
     val name = value.orEmpty().trim().uppercase(Locale.US)
     val gigantamax = Regex("^(GIGANTAMAX|GIGAMAX)\\s+").containsMatchIn(name)
     val id = name.replace(Regex("^(GIGANTAMAX|GIGAMAX|DYNAMAX|DINAMAX)\\s+"), "")
-        .replace("'", "").replace(Regex("[^A-Z0-9]+"), "_").trim('_')
+        .replace("'", "").replace(NON_UPPER_ALPHANUMERIC_RUNS, "_").trim('_')
     return when {
         gigantamax -> "${id.removeSuffix("_GIGANTAMAX")}_GIGANTAMAX"
         id == "ZACIAN_CROWNED_SWORD" || id == "ZAMAZENTA_CROWNED_SHIELD" -> "${id}_FORM"

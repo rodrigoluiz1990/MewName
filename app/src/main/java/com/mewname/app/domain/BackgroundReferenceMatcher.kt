@@ -41,9 +41,6 @@ class BackgroundReferenceMatcher {
         val saturationMultiplier: Float = 1f
     )
 
-    @Volatile
-    private var cachedNormalReferences: List<ReferenceSignature>? = null
-    @Volatile private var cachedSpecialReferences: List<ReferenceSignature>? = null
     fun isSpecialBackground(context: Context, bitmap: Bitmap): Boolean? {
         return debugSpecialBackground(context, bitmap).isSpecial
     }
@@ -64,10 +61,7 @@ class BackgroundReferenceMatcher {
         val rankedNormal = rankReferences(normalReferences, candidateSignatures)
         val bestNormal = rankedNormal.firstOrNull()
         val bestNormalDistance = bestNormal?.second
-        val specialReferences = cachedSpecialReferences ?: synchronized(this) {
-            cachedSpecialReferences ?: (loadReferenceSet(context, SpecialBackgroundCatalog.PATH) +
-                loadReferenceSet(context, "background_refs/calibration")).also { cachedSpecialReferences = it }
-        }
+        val specialReferences = loadSpecialReferences(context)
         val rankedSpecial = rankReferences(specialReferences, candidateSignatures)
         val bestSpecial = rankedSpecial.firstOrNull()
         val specialType = bestSpecial?.let { best ->
@@ -109,14 +103,68 @@ class BackgroundReferenceMatcher {
         }.sortedBy { it.second }
     }
 
-    private fun loadNormalReferences(context: Context): List<ReferenceSignature> {
-        cachedNormalReferences?.let { return it }
-        synchronized(this) {
-            cachedNormalReferences?.let { return it }
+    private fun loadNormalReferences(context: Context): List<ReferenceSignature> =
+        cachedReferences(context, NORMAL_REFS_PATH)
 
-            val loaded = loadReferenceSet(context, NORMAL_REFS_PATH)
-            cachedNormalReferences = loaded
+    private fun loadSpecialReferences(context: Context): List<ReferenceSignature> =
+        cachedReferences(context, SpecialBackgroundCatalog.PATH) + cachedReferences(context, CALIBRATION_REFS_PATH)
+
+    /** Loads every reference set ahead of the first read, which otherwise pays for decoding ~180 images. */
+    fun warmUp(context: Context) {
+        loadNormalReferences(context)
+        loadSpecialReferences(context)
+    }
+
+    // Signatures depend only on the bundled assets, so they are shared by every matcher in the
+    // process and stored on disk per app version; a restart then skips decoding the images.
+    private fun cachedReferences(context: Context, path: String): List<ReferenceSignature> {
+        referenceCache[path]?.let { return it }
+        synchronized(referenceCache) {
+            referenceCache[path]?.let { return it }
+            val loaded = readStoredReferences(context, path)
+                ?: loadReferenceSet(context, path).also { storeReferences(context, path, it) }
+            referenceCache[path] = loaded
             return loaded
+        }
+    }
+
+    private fun storedReferencesFile(context: Context, path: String): java.io.File =
+        java.io.File(context.filesDir, "$SIGNATURE_STORE_DIR/${com.mewname.app.BuildConfig.VERSION_CODE}/${path.replace('/', '_')}.bin")
+
+    private fun readStoredReferences(context: Context, path: String): List<ReferenceSignature>? = runCatching {
+        val file = storedReferencesFile(context, path)
+        if (!file.isFile) return null
+        java.io.DataInputStream(file.inputStream().buffered()).use { input ->
+            check(input.readInt() == SIGNATURE_STORE_FORMAT)
+            List(input.readInt()) {
+                val name = input.readUTF()
+                val pixels = IntArray(input.readInt()) { input.readByte().toInt() }
+                val mask = BooleanArray(input.readInt()) { input.readBoolean() }
+                ReferenceSignature(name, SignatureSample(pixels, mask))
+            }
+        }
+    }.getOrNull()
+
+    private fun storeReferences(context: Context, path: String, references: List<ReferenceSignature>) {
+        // An empty set usually means a failed load; keep retrying it instead of persisting it.
+        if (references.isEmpty()) return
+        runCatching {
+            val file = storedReferencesFile(context, path)
+            file.parentFile?.parentFile?.listFiles()?.filter { it != file.parentFile }?.forEach { it.deleteRecursively() }
+            file.parentFile?.mkdirs()
+            val temp = java.io.File(file.path + ".tmp")
+            java.io.DataOutputStream(temp.outputStream().buffered()).use { output ->
+                output.writeInt(SIGNATURE_STORE_FORMAT)
+                output.writeInt(references.size)
+                references.forEach { reference ->
+                    output.writeUTF(reference.sourceName)
+                    output.writeInt(reference.signature.pixels.size)
+                    reference.signature.pixels.forEach { output.writeByte(it) }
+                    output.writeInt(reference.signature.mask.size)
+                    reference.signature.mask.forEach { output.writeBoolean(it) }
+                }
+            }
+            check(temp.renameTo(file))
         }
     }
 
@@ -318,6 +366,10 @@ class BackgroundReferenceMatcher {
 
     private companion object {
         const val NORMAL_REFS_PATH = "background_refs/normal"
+        const val CALIBRATION_REFS_PATH = "background_refs/calibration"
+        const val SIGNATURE_STORE_DIR = "background-signatures"
+        const val SIGNATURE_STORE_FORMAT = 1
+        val referenceCache = java.util.concurrent.ConcurrentHashMap<String, List<ReferenceSignature>>()
         const val SIGNATURE_SIZE = 14
         const val NORMAL_CONFIDENCE_THRESHOLD = 3.25
         const val SPECIAL_OUTLIER_THRESHOLD = 4.25

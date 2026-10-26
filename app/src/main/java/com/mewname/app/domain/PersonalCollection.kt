@@ -31,7 +31,7 @@ object PersonalCollection {
     private val names = PvpRankCalculator()
     fun preferences(context: Context) = context.getSharedPreferences("personal_collection_v1", Context.MODE_PRIVATE)
     private fun normalized(value: String) = Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "").uppercase(Locale.ROOT)
+        .replace(COMBINING_DIACRITICS, "").uppercase(Locale.ROOT)
 
     fun target(context: Context, data: PokemonScreenData): PersonalCollectionTarget? {
         val name = data.pokemonName?.trim()?.takeIf { it.isNotEmpty() } ?: return null

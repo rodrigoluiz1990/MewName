@@ -1,5 +1,6 @@
 package com.mewname.app
 
+import com.mewname.app.domain.COMBINING_DIACRITICS
 import android.content.Context
 import android.util.Log
 import com.mewname.app.domain.GameInfoRepository
@@ -32,7 +33,7 @@ internal suspend fun loadRaidCatalog(context: Context): Result<List<RaidHistoryC
 
 private fun normalizeRaidSearchName(text: String): String =
     java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .replace(COMBINING_DIACRITICS, "")
         .lowercase(java.util.Locale.US).trim()
 
 private fun normalizeRaidHistoryName(text: String): String =

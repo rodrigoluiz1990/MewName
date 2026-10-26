@@ -9,9 +9,9 @@ import java.text.Normalizer
 internal data class CollectionSpecies(val dex: Int, val name: String, val targets: List<PersonalCollectionTarget>, val costumeKeys: Set<String> = emptySet())
 internal object CollectionDexCatalog {
     private fun id(text: String) = Normalizer.normalize(text, Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "").uppercase(java.util.Locale.ROOT)
+        .replace(COMBINING_DIACRITICS, "").uppercase(java.util.Locale.ROOT)
         .replace("GALARIAN_STANDARD", "GALAR").replace("GALARIAN", "GALAR").replace("ALOLAN", "ALOLA").replace("HISUIAN", "HISUI").replace("PALDEAN", "PALDEA")
-        .replace(Regex("[^A-Z0-9]"), "")
+        .replace(NON_UPPER_ALPHANUMERIC_RUNS, "")
     fun load(context: Context, saved: Collection<PersonalCollectionTarget> = emptyList()): List<CollectionSpecies> {
         val names = JSONArray(context.assets.open("pokemon/names.json").bufferedReader().use { it.readText() })
         val game = JSONArray(context.assets.open("pokemon/collection_game_forms.json").bufferedReader().use { it.readText() })
