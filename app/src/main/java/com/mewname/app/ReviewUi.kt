@@ -211,6 +211,7 @@ fun ReviewEditorCard(
     var pokemonExpanded by remember { mutableStateOf(false) }
     var activeIvPicker by remember { mutableStateOf<String?>(null) }
     var showLevelPicker by remember { mutableStateOf(false) }
+    var powerUpCaptureLevel by remember(initialData, draft.pokemonName) { mutableStateOf<Int?>(null) }
     var showIvHelp by remember { mutableStateOf(false) }
     var showPokemonHelp by remember { mutableStateOf(false) }
     var showAdventureHelp by remember { mutableStateOf(false) }
@@ -1617,6 +1618,8 @@ fun ReviewEditorCard(
                 pokemonName = draft.pokemonName ?: draft.candyFamilyName,
                 level = draft.level,
                 sourceLevel = initialData.level,
+                captureLevel = powerUpCaptureLevel,
+                onCaptureLevelSelected = { powerUpCaptureLevel = it },
                 isLucky = draft.isLucky,
                 isShadow = draft.isShadow,
                 isPurified = draft.isPurified,

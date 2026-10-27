@@ -309,12 +309,12 @@ internal fun SelectionModalDialog(
     }
 }
 @Composable
-internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonName: String?, level: Double?, sourceLevel: Double?, isLucky: Boolean, isShadow: Boolean, isPurified: Boolean, attack: Int?, defense: Int?, stamina: Int?, rankCalculator: PvpRankCalculator, onDismiss: () -> Unit, onLevelSelected: (Double) -> Unit) {
+internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonName: String?, level: Double?, sourceLevel: Double?, captureLevel: Int?, onCaptureLevelSelected: (Int?) -> Unit, isLucky: Boolean, isShadow: Boolean, isPurified: Boolean, attack: Int?, defense: Int?, stamina: Int?, rankCalculator: PvpRankCalculator, onDismiss: () -> Unit, onLevelSelected: (Double) -> Unit) {
     val initialLevel = level ?: 1.0
     var previewLevel by remember(level) { mutableStateOf(initialLevel) }
     val cp = if (pokemonName != null && attack != null && defense != null && stamina != null) rankCalculator.estimateCpAtLevel(context, pokemonName, attack, defense, stamina, previewLevel) else null
     val hp = if (pokemonName != null && stamina != null) rankCalculator.estimateHpAtLevel(context, pokemonName, stamina, previewLevel) else null
-    val cost = sourceLevel?.let { powerUpCostBetweenLevels(it, previewLevel, isLucky, isShadow, isPurified) }
+    val cost = sourceLevel?.let { powerUpCostBetweenLevels(it, previewLevel, isLucky, isShadow, isPurified, captureLevel) }
     ReviewModalCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)), modifier = Modifier.fillMaxWidth().widthIn(max = 320.dp)) {
             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppModalHeader(lt(language, "Selecionar nível", "Select level", "Seleccionar nivel"), onDismiss)
@@ -330,6 +330,42 @@ internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonN
                         if (cost.candyXl > 0) lt(language, " • Doces XL ${cost.candyXl}", " • Candy XL ${cost.candyXl}", " • Caramelos XL ${cost.candyXl}") else "",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (isShadow || isPurified) {
+                    var captureMenuExpanded by remember { mutableStateOf(false) }
+                    // Weather-boosted and unboosted captures share the same cost profile
+                    // within each of these two groups. Keep the technical levels out of the UI.
+                    val options = listOf<Int?>(null, 8, 20)
+                    val captureLabel: (Int?) -> String = { value ->
+                        when (value) {
+                            8, 13 -> lt(language, "Recruta/Giovanni", "Grunt/Giovanni", "Recluta/Giovanni")
+                            20, 25 -> lt(language, "Raid", "Raid", "Incursión")
+                            else -> lt(language, "Não sei — estimativa", "Unknown — estimate", "No sé — estimación")
+                        }
+                    }
+                    Box(Modifier.fillMaxWidth()) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                lt(language, "Origem da captura", "Catch origin", "Origen de captura"),
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            CompactSelectableField(
+                                value = captureLabel(captureLevel),
+                                active = captureMenuExpanded,
+                                onClick = { captureMenuExpanded = true },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        AppSelectionMenu(
+                            expanded = captureMenuExpanded,
+                            onDismiss = { captureMenuExpanded = false },
+                            options = options, selected = captureLevel,
+                            label = captureLabel, onSelect = onCaptureLevelSelected
+                        )
+                    }
+                }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     AppActionButton(onClick = { onLevelSelected(previewLevel) }) { Text(lt(language, "Confirmar", "Confirm", "Confirmar")) }
                 }

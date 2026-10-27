@@ -270,19 +270,28 @@ internal fun powerUpCostBetweenLevels(
     targetLevel: Double,
     isLucky: Boolean = false,
     isShadow: Boolean = false,
-    isPurified: Boolean = false
+    isPurified: Boolean = false,
+    captureLevel: Int? = null
 ): PowerUpCost {
     if (!currentLevel.isFinite() || !targetLevel.isFinite() ||
         currentLevel < 1.0 || targetLevel <= currentLevel) return PowerUpCost(0, 0)
     var stardust = 0
     var candy = 0
     var candyXl = 0
+    val modifiedCandy = isShadow || isPurified
     var level = currentLevel
     val target = targetLevel.coerceAtMost(50.0)
     while (level < target) {
-        val cost = powerUpCostAtLevel(level)
+        val lookupLevel = if (modifiedCandy) powerUpCostLookupLevel(level, captureLevel) else level
+        val cost = powerUpCostAtLevel(lookupLevel)
         stardust += cost.stardust
-        candy += cost.candy
+        // Round modified ordinary Candy costs up for each half-level.
+        // Device previews: Kyogre 35 -> 40 = 108; Tyranitar/Entei 30 -> 40 = 172.
+        candy += when {
+            isShadow -> (cost.candy * 6 + 4) / 5
+            isPurified -> (cost.candy * 9 + 9) / 10
+            else -> cost.candy
+        }
         candyXl += cost.candyXl
         level += 0.5
     }
@@ -293,10 +302,7 @@ internal fun powerUpCostBetweenLevels(
     }
     return PowerUpCost(
         kotlin.math.ceil(stardust * modifier * (if (isLucky) 0.5 else 1.0)).toInt(),
-        // Purified bulk preview rounds ordinary Candy to the nearest integer (half down).
-        // Device: Moltres 35 -> 40, 118 * 0.9 = 106.2, displayed cost 106.
-        if (isPurified && !isShadow && candy > 0) ((candy * 9 + 4) / 10).coerceAtLeast(1)
-        else kotlin.math.ceil(candy * modifier).toInt(),
+        if (modifiedCandy) candy else kotlin.math.ceil(candy * modifier).toInt(),
         kotlin.math.ceil(candyXl * modifier).toInt()
     )
 }
