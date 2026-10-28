@@ -113,6 +113,7 @@ internal fun FilterTagEditor(title: String, initialName: String, initialValue: S
 }
 
 /** Explicit reorder mode keeps drag gestures separate from long-press favorites. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun FilterTagReorder(ids: List<String>, label: (String) -> String, onOrder: (List<String>) -> Unit) {
     val state = rememberLazyGridState()
@@ -140,7 +141,8 @@ internal fun FilterTagReorder(ids: List<String>, label: (String) -> String, onOr
             delay(16)
         }
     }
-    LazyVerticalGrid(columns = GridCells.Fixed(3), state = state,
+    // The grid's own scroll sees pointer events before this modifier and would take a vertical drag.
+    LazyVerticalGrid(columns = GridCells.Fixed(3), state = state, userScrollEnabled = dragged == null,
         modifier = Modifier.fillMaxWidth().height((((ids.size + 2) / 3).coerceIn(1, 3) * 54 - 6).dp).pointerInput(Unit) {
             detectDragGesturesAfterLongPress(onDragStart = { point ->
                 val item = state.layoutInfo.visibleItemsInfo.firstOrNull { point.x >= it.offset.x && point.x < it.offset.x+it.size.width && point.y >= it.offset.y && point.y < it.offset.y+it.size.height }
@@ -156,10 +158,14 @@ internal fun FilterTagReorder(ids: List<String>, label: (String) -> String, onOr
                 border = androidx.compose.foundation.BorderStroke(if (active) 1.5.dp else .75.dp,
                     appControlInk().copy(alpha = if (active) .8f else .30f)),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-                modifier = Modifier.zIndex(if (active) 1f else 0f).graphicsLayer {
+                // The others slide to their new place; the held tag follows the finger instead.
+                modifier = (if (active) Modifier else Modifier.animateItemPlacement()).zIndex(if (active) 1f else 0f).graphicsLayer {
                     val item = state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == id }
                     translationX = if (active && item != null) offset.x-item.offset.x else 0f
                     translationY = if (active && item != null) offset.y-item.offset.y else 0f
+                    val scale = if (active) 1.06f else 1f
+                    scaleX = scale; scaleY = scale
+                    shadowElevation = if (active) 8.dp.toPx() else 0f
                 }) {
                 Box(Modifier.height(48.dp).padding(6.dp), contentAlignment = Alignment.Center) {
                     Text(label(id), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)

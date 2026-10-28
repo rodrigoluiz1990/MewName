@@ -48,6 +48,7 @@ internal object BubbleActionSettings {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun BubbleActionPreferences() {
     val context = LocalContext.current
@@ -87,7 +88,9 @@ internal fun BubbleActionPreferences() {
             reorderAtPointer()
         }
     }
+    // The list's own scroll sees pointer events before this modifier and would take the drag after the long press.
     LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalNavigationContentPadding.current), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp),
+        userScrollEnabled = dragged == null,
         modifier = Modifier.fillMaxSize().pointerInput(listState) {
             detectDragGesturesAfterLongPress(
                 onDragStart = { point ->
@@ -133,9 +136,12 @@ internal fun BubbleActionPreferences() {
                 return true
             }
             AppToggleRow(label = label, checked = key in selected, enabled = enabled, onCheckedChange = change,
-                modifier = Modifier.zIndex(if (isDragging) 1f else 0f).graphicsLayer {
+                // The others slide to their new place; the held row follows the finger instead.
+                modifier = (if (isDragging) Modifier else Modifier.animateItemPlacement()).zIndex(if (isDragging) 1f else 0f).graphicsLayer {
                     translationY = if (isDragging) dragTop - offset else 0f
-                    shadowElevation = if (isDragging) 8.dp.toPx() else 0f
+                    val scale = if (isDragging) 1.03f else 1f
+                    scaleX = scale; scaleY = scale
+                    shadowElevation = if (isDragging) 12.dp.toPx() else 0f
                 }.semantics {
                     customActions = listOf(
                         CustomAccessibilityAction(lt(language, "Mover para cima", "Move up", "Mover arriba")) { move(-1) },

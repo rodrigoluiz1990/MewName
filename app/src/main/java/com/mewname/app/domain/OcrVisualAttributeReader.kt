@@ -65,8 +65,9 @@ internal class OcrVisualAttributeReader {
                 minY = 0.05f,
                 maxY = 0.40f
             )
+            // ~2.4 MB per read at 1080x2400: release it as soon as the palette is computed.
             val part = Bitmap.createBitmap(bitmap, region.left, region.top, region.width(), region.height())
-            val palette = Palette.from(part).generate()
+            val palette = try { Palette.from(part).generate() } finally { if (part !== bitmap) part.recycle() }
             val standardColors = listOf(
                 Color.parseColor("#76c84d"),
                 Color.parseColor("#509bf2"),

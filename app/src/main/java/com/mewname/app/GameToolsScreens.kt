@@ -82,13 +82,22 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -626,7 +635,8 @@ fun FilterBuilderScreen(onBack: () -> Unit) {
                 onCopy = { copyPlainText(context, it.value, language) },
                 onRemove = { entry -> persistSavedFilters(context, storageKey, filters.filterNot { it.id == entry.id }); revision++ },
                 onEdit = { _, _ -> },
-                onOpenEditor = { entry -> editingId = entry.id; initialFilter = entry.value }
+                onOpenEditor = { entry -> editingId = entry.id; initialFilter = entry.value },
+                onReorder = { ordered -> persistSavedFilters(context, storageKey, ordered); revision++ }
             )
         }
     }
@@ -1009,28 +1019,18 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
                 .toList()
         }
     }
-    val costumeEntries = remember(spriteMapState.value, entriesState.value, language) {
-        val species = entriesState.value.distinctBy { it.number }.sortedByDescending { pokemonCollectionId(it.pokemonName).length }
-        spriteMapState.value.asSequence()
-            .filter { (id, _) -> isCostumePokemonId(id) }
-            .mapNotNull { (id, fileName) ->
-                val pokemon = species.firstOrNull { entry ->
-                    val baseId = pokemonCollectionId(entry.pokemonName)
-                    id == baseId || id.startsWith("${baseId}_")
-                } ?: return@mapNotNull null
-                val baseId = pokemonCollectionId(pokemon.pokemonName)
-                CollectionCostumeEntry(
-                    id = id,
-                    dexNumber = pokemon.number,
-                    localizedPokemonName = pokemon.localizedPokemonName,
-                    costumeName = costumeCollectionDisplayName(id.removePrefix("${baseId}_").removeSuffix("_FORM")),
-                    normalImageUrl = POKEMON_IMAGE_BASE_URL + fileName,
-                    shinyImageUrl = POKEMON_IMAGE_BASE_URL + shinyPokemonImageFile(fileName)
-                )
-            }
-            .distinctBy { it.id }
-            .sortedWith(compareBy<CollectionCostumeEntry> { it.dexNumber }.thenBy { it.costumeName })
-            .toList()
+    // ~2,300 sprite ids against ~1,000 species: computed off the main thread, with each species id normalised once
+    // instead of on every comparison (it froze the screen on opening and on every language change).
+    val costumeState = produceState(emptyList<CollectionCostumeEntry>(), spriteMapState.value, entriesState.value, language) {
+        val sprites = spriteMapState.value
+        val entries = entriesState.value
+        value = withContext(Dispatchers.Default) { collectionCostumes(sprites, entries) }
+    }
+    val costumeEntries = costumeState.value
+    val searchableEntries = remember(entriesState.value) {
+        entriesState.value.map { entry ->
+            entry to listOf(entry.localizedPokemonName, entry.pokemonName, entry.formName).map(::normalizeSearch)
+        }
     }
     val obtained = remember {
         mutableStateMapOf<String, Boolean>().apply {
@@ -1042,12 +1042,9 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
         persistCollectionObtained(context, obtained.keys.toList())
     }
     val normalizedQuery = remember(query) { normalizeSearch(query) }
-    val filteredEntries = remember(entriesState.value, normalizedQuery) {
-        if (normalizedQuery.isBlank()) entriesState.value else entriesState.value.filter { entry ->
-            normalizeSearch(entry.localizedPokemonName).contains(normalizedQuery) ||
-                normalizeSearch(entry.pokemonName).contains(normalizedQuery) ||
-                normalizeSearch(entry.formName).contains(normalizedQuery)
-        }
+    val filteredEntries = remember(searchableEntries, normalizedQuery) {
+        if (normalizedQuery.isBlank()) entriesState.value
+        else searchableEntries.filter { (_, terms) -> terms.any { it.contains(normalizedQuery) } }.map { it.first }
     }
     val filteredCostumes = remember(costumeEntries, normalizedQuery) {
         if (normalizedQuery.isBlank()) costumeEntries else costumeEntries.filter { entry ->
@@ -1067,11 +1064,13 @@ internal fun LegacyCollectionsScreen(onBack: () -> Unit) {
         1 -> filteredCostumes.size
         else -> 0
     }
+    // The list only composes visible rows; the staged reveal keeps the first frame light. One row per frame took
+    // ~16 s to reach the end of 1,000+ forms and restarted on every keystroke.
     LaunchedEffect(tabIndex, normalizedQuery, progressivePokemonTotal) {
-        visiblePokemonCount = 0
+        visiblePokemonCount = minOf(progressivePokemonTotal, COLLECTION_FIRST_BATCH)
         while (visiblePokemonCount < progressivePokemonTotal) {
-            visiblePokemonCount++
             delay(16)
+            visiblePokemonCount = minOf(progressivePokemonTotal, visiblePokemonCount + COLLECTION_REVEAL_STEP)
         }
     }
     val visibleEntries = remember(filteredEntries, visiblePokemonCount) {
@@ -1412,6 +1411,10 @@ internal fun PokemonFilterBuilder(
             onRemove = { entry ->
                 savedFilters.remove(entry)
                 persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, savedFilters)
+            },
+            onReorder = { ordered ->
+                savedFilters.clear(); savedFilters.addAll(ordered)
+                persistSavedFilters(context, SAVED_POKEMON_FILTERS_KEY, ordered)
             }
         )
         importedTerms.toMap().forEach { (id, expression) ->
@@ -1685,6 +1688,10 @@ internal fun PeopleFilterBuilder(
             onRemove = { entry ->
                 savedFilters.remove(entry)
                 persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, savedFilters)
+            },
+            onReorder = { ordered ->
+                savedFilters.clear(); savedFilters.addAll(ordered)
+                persistSavedFilters(context, SAVED_PEOPLE_FILTERS_KEY, ordered)
             }
         )
         importedTerms.toMap().forEach { (id, expression) ->
@@ -2692,22 +2699,21 @@ private fun SavedFiltersSection(
     onCopy: (SavedFilterEntry) -> Unit,
     onRemove: (SavedFilterEntry) -> Unit,
     onEdit: (SavedFilterEntry, String) -> Unit,
-    onOpenEditor: ((SavedFilterEntry) -> Unit)? = null
+    onOpenEditor: ((SavedFilterEntry) -> Unit)? = null,
+    onReorder: ((List<SavedFilterEntry>) -> Unit)? = null
 ) {
     if (filters.isEmpty()) return
-    val editLabel = t(appLanguage(), "Editar filtro salvo", "Edit saved filter", "Editar filtro guardado")
+    val language = appLanguage()
+    val editLabel = t(language, "Editar filtro salvo", "Edit saved filter", "Editar filtro guardado")
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     filters.firstOrNull { it.id == editingId }?.let { entry ->
         SavedFilterEditor(entry, onSave = { value -> onEdit(entry, value); editingId = null },
             onClose = { editingId = null })
     }
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        filters.forEach { entry ->
-            AppSectionCard(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        SavedFilterReorderList(filters, onReorder) { entry, modifier ->
+            AppSectionCard(modifier = modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3391,7 +3397,7 @@ private fun copyPlainText(context: Context, value: String, language: AppLanguage
 
 internal fun loadSavedFilters(context: Context, key: String): List<SavedFilterEntry> {
     val prefs = context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE)
-    return prefs.getStringSet(key, emptySet()).orEmpty()
+    val entries = prefs.getStringSet(key, emptySet()).orEmpty()
         .mapNotNull { raw ->
             val separator = raw.indexOf('|')
             if (separator <= 0 || separator == raw.lastIndex) {
@@ -3403,10 +3409,20 @@ internal fun loadSavedFilters(context: Context, key: String): List<SavedFilterEn
                 )
             }
         }
-        .sortedByDescending { it.id }
+    return orderSavedFilters(entries, prefs.getString(key + SAVED_FILTER_ORDER_SUFFIX, null))
 }
 
-private fun persistSavedFilters(
+/**
+ * The entries live in a string set, which keeps no order, so the user's order is stored beside it. Entries missing
+ * from it (saved before ordering existed) keep the previous id order ahead of the ordered ones.
+ */
+internal fun orderSavedFilters(entries: List<SavedFilterEntry>, storedOrder: String?): List<SavedFilterEntry> {
+    val position = storedOrder.orEmpty().split('\n').filter { it.isNotEmpty() }.withIndex().associate { it.value to it.index }
+    val (ordered, unordered) = entries.partition { it.id in position }
+    return unordered.sortedByDescending { it.id } + ordered.sortedBy { position.getValue(it.id) }
+}
+
+internal fun persistSavedFilters(
     context: Context,
     key: String,
     filters: List<SavedFilterEntry>
@@ -3415,8 +3431,15 @@ private fun persistSavedFilters(
     context.getSharedPreferences(FILTER_PREFS, Context.MODE_PRIVATE)
         .edit()
         .putStringSet(key, encoded)
+        .putString(key + SAVED_FILTER_ORDER_SUFFIX, filters.joinToString("\n") { it.id })
         .apply()
 }
+
+private const val SAVED_FILTER_ORDER_SUFFIX = "_order"
+
+/** Index where [dragged] lands: past every other card whose middle lies above its current [center]. */
+internal fun savedFilterDropIndex(order: List<String>, dragged: String, center: Float, middle: (String) -> Float?): Int =
+    order.count { id -> id != dragged && (middle(id) ?: Float.MAX_VALUE) < center }
 
 private fun addSavedFilter(
     filters: MutableList<SavedFilterEntry>,
@@ -3433,6 +3456,33 @@ private fun addSavedFilter(
     )
     return filters
 }
+
+/** Costume sprites matched to their species; the longest species id wins (MR_MIME before MR). */
+private fun collectionCostumes(sprites: Map<String, String>, entries: List<CollectionFormEntry>): List<CollectionCostumeEntry> {
+    val species = entries.distinctBy { it.number }
+        .map { it to pokemonCollectionId(it.pokemonName) }
+        .sortedByDescending { (_, baseId) -> baseId.length }
+    return sprites.asSequence()
+        .filter { (id, _) -> isCostumePokemonId(id) }
+        .mapNotNull { (id, fileName) ->
+            val (pokemon, baseId) = species.firstOrNull { (_, baseId) -> id == baseId || id.startsWith("${baseId}_") }
+                ?: return@mapNotNull null
+            CollectionCostumeEntry(
+                id = id,
+                dexNumber = pokemon.number,
+                localizedPokemonName = pokemon.localizedPokemonName,
+                costumeName = costumeCollectionDisplayName(id.removePrefix("${baseId}_").removeSuffix("_FORM")),
+                normalImageUrl = POKEMON_IMAGE_BASE_URL + fileName,
+                shinyImageUrl = POKEMON_IMAGE_BASE_URL + shinyPokemonImageFile(fileName)
+            )
+        }
+        .distinctBy { it.id }
+        .sortedWith(compareBy<CollectionCostumeEntry> { it.dexNumber }.thenBy { it.costumeName })
+        .toList()
+}
+
+private const val COLLECTION_FIRST_BATCH = 40
+private const val COLLECTION_REVEAL_STEP = 80
 
 private fun pokemonCollectionId(name: String): String {
     return normalizeSearch(name)

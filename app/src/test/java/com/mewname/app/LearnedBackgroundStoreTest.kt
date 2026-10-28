@@ -96,6 +96,15 @@ class LearnedBackgroundStoreTest {
         assertTrue(!legacy.exists())
     }
 
+    @Test fun restoreInterruptedAfterMovingCropsAsideRecoversThem() {
+        LearnedBackgroundStore.replaceAll(context, mapOf("go_fest/learned_1.png" to java.io.ByteArrayOutputStream().also {
+            capture().compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()))
+        val root = LearnedBackgroundStore.root(context)
+        // State left by a process death between moving the folder aside and putting the new one in place.
+        assertTrue(root.renameTo(File(root.parentFile, root.name + ".old")))
+        assertEquals(listOf("${LearnedBackgroundStore.SOURCE_PREFIX}go_fest/learned_1.png"), learned())
+    }
+
     @Test fun cardMarkedInReviewIsLearned() {
         // The app missed the card and the user marked it before copying.
         val read = special.copy(hasSpecialBackground = false, specialBackgroundType = null)

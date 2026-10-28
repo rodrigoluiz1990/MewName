@@ -79,7 +79,7 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
             // Publish every available league before the first network request.
             val saved = withContext(Dispatchers.IO) {
                 repository.cachedOnline("gamemaster.json")?.let { snapshot ->
-                    val matched = matchPvpokeSpecies(JSONObject(snapshot.json).getJSONArray("pokemon"), entry)
+                    val matched = matchPvpokeSpecies(repository.gamemasterPokemon(snapshot), entry)
                     val cachedLeagues = if (matched == null) emptyList() else listOf(500, 1500, 2500, 10000).mapNotNull { cap ->
                         repository.cachedOnline("rankings-$cap.json")?.let { parsePokedexLeague(cap, matched.getString("speciesId"), it) }
                     }
@@ -92,7 +92,7 @@ internal fun PokedexDetailsScreen(initial: PokedexCatalogEntry, entries: List<Po
             }
             val snapshot = withContext(Dispatchers.IO) { repository.online("gamemaster.json", refresh > 0) }
             profileSnapshot = snapshot
-            val matched = withContext(Dispatchers.Default) { matchPvpokeSpecies(JSONObject(snapshot.json).getJSONArray("pokemon"), entry) }
+            val matched = withContext(Dispatchers.Default) { matchPvpokeSpecies(repository.gamemasterPokemon(snapshot), entry) }
             if (profile?.optString("speciesId") != matched?.optString("speciesId")) leagues.clear()
             profile = matched
             if (matched != null) supervisorScope {

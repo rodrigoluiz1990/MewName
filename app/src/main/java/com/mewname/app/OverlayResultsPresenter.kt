@@ -69,7 +69,7 @@ internal class OverlayResultsPresenter(private val context: Context) {
                 setBackgroundResource(android.R.drawable.list_selector_background)
                 setOnClickListener {
                     onCopy(generatedName)
-                    Toast.makeText(context, "Copiado!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, lt(savedAppLanguage(context), "Copiado!", "Copied!", "¡Copiado!"), Toast.LENGTH_SHORT).show()
                     onClose()
                 }
             }

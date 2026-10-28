@@ -24,8 +24,8 @@ class UniquePokemonReferenceMatcher {
         val mask: BooleanArray
     )
 
-    @Volatile
-    private var cache: MutableMap<String, List<ReferenceSignature>> = mutableMapOf()
+    // Read outside the lock in references(), so it must tolerate a concurrent write.
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, List<ReferenceSignature>>()
 
     fun detect(
         context: Context,
@@ -144,8 +144,13 @@ class UniquePokemonReferenceMatcher {
         }
     }
 
-    private fun labelForFile(spec: UniquePokemonSpec, fileName: String): String? {
+    internal fun labelForFile(spec: UniquePokemonSpec, fileName: String): String? {
         val normalized = fileName.substringBeforeLast('.').lowercase()
+        // Substring matching on single letters or two-digit codes mislabelled these: every Unown from O to Z
+        // contains the "n" of "unown", and every pm0327 Spinda file contains "03".
+        when (spec.assetFolder) {
+            "unown", "spinda", "furfrou" -> return uniqueFormLabel(spec, normalized)
+        }
         return spec.options.firstOrNull { option ->
             normalized.contains(option.label.lowercase().replace(" ", "_")) ||
                 normalized.contains(option.label.lowercase().replace(" ", "")) ||
@@ -168,8 +173,20 @@ class UniquePokemonReferenceMatcher {
                 "wash" in normalized || "lavagem" in normalized -> "Lavagem"
                 else -> null
             }
-            "furfrou" -> spec.options.firstOrNull { normalized.contains(it.label.lowercase().replace(" ", "_")) }?.label
-            "spinda" -> when {
+            else -> null
+        }
+    }
+
+    /** Labels for folders whose file names carry a token (letter, Spinda pattern, Furfrou trim in English). */
+    private fun uniqueFormLabel(spec: UniquePokemonSpec, normalized: String): String? = when (spec.assetFolder) {
+        "unown" -> when (val token = normalized.substringAfterLast('-').substringAfterLast('_')) {
+            "qm", "qu", "question" -> "?"
+            "em", "ex", "exclamation" -> "!"
+            else -> token.takeIf { it.length == 1 && it[0] in 'a'..'z' }?.uppercase()
+        }
+        "spinda" -> Regex("""^spinda-(\d{2})$""").find(normalized)?.groupValues?.get(1)
+            ?.let { code -> spec.options.firstOrNull { it.code == code }?.label }
+            ?: when {
                 "line1" in normalized -> "Spinda #1"
                 "heart" in normalized && "pachiaa" in normalized -> "Spinda #3"
                 "pachiaa" in normalized -> "Spinda #2"
@@ -178,13 +195,10 @@ class UniquePokemonReferenceMatcher {
                 "pachibd" in normalized -> "Spinda #6"
                 else -> null
             }
-            "unown" -> when {
-                "qm" in normalized || "qu" in normalized || "question" in normalized -> "?"
-                "em" in normalized || "ex" in normalized || "exclamation" in normalized -> "!"
-                else -> Regex("""(?:^|[-_])([a-z])$""").find(normalized)?.groupValues?.getOrNull(1)?.uppercase()
-            }
-            else -> null
-        }
+        "furfrou" -> FURFROU_TRIM_CODES.entries
+            .firstOrNull { (trim, _) -> normalized.removePrefix("furfrou-").removeSuffix("_icon") == trim }
+            ?.let { (_, code) -> spec.options.firstOrNull { it.code == code }?.label }
+        else -> null
     }
 
     private fun referenceKindForFile(fileName: String): ReferenceKind {
@@ -388,3 +402,10 @@ class UniquePokemonReferenceMatcher {
         }
     }
 }
+
+/** English trim names in the Furfrou reference files, mapped to the option codes; the natural form uses a Poké Ball icon. */
+private val FURFROU_TRIM_CODES = mapOf(
+    "dandy" to "DAN", "debutante" to "DEB", "diamond" to "DIA", "heart" to "HRT", "kabuki" to "KAB",
+    "la-reine" to "LR", "la_reine" to "LR", "matron" to "MAT", "pharaoh" to "PHA", "natural" to "PB",
+    "pokeball" to "PB", "star" to "STR"
+)

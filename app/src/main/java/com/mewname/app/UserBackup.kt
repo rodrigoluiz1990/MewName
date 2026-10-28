@@ -16,12 +16,18 @@ internal object UserBackup {
     const val MAX_BYTES = 32 * 1024 * 1024
     private const val LEARNED_BACKGROUNDS = "learnedBackgrounds"
 
+    /**
+     * OCR diagnostics such as `last_read_log`. Matching "log" anywhere also dropped collection entries keyed by
+     * species name ("entry:OINKOLOGNE…"), so their marks were lost on restore.
+     */
+    internal fun isDiagnosticKey(key: String) = key.equals("log", true) || key.endsWith("_log", true)
+
     fun export(context: Context): String {
         val data = JSONObject()
         stores.forEach { store ->
             val values = JSONObject()
             context.getSharedPreferences(store, 0).all.forEach { (key, value) ->
-                if (!key.contains("log", true) && value != null) {
+                if (!isDiagnosticKey(key) && value != null) {
                     val type = when (value) {
                         is String -> "string"; is Boolean -> "boolean"; is Int -> "int"
                         is Long -> "long"; is Float -> "float"; is Set<*> -> "set"
@@ -94,8 +100,11 @@ internal object UserBackup {
         val root = JSONObject(text)
         require(root.getString("app") == "MewName" && root.getInt("version") == 1)
         val data = root.getJSONObject("preferences")
-        require(data.keys().asSequence().toSet() == stores) { "Incomplete backup" }
-        val prefs = stores.associateWith { name ->
+        // Sections from another app version are skipped and missing ones left untouched, so adding a store does not
+        // invalidate every existing backup in either direction.
+        val known = data.keys().asSequence().filter { it in stores }.toSet()
+        require(known.isNotEmpty()) { "Incomplete backup" }
+        val prefs = known.associateWith { name ->
             val obj = data.getJSONObject(name)
             obj.keys().asSequence().associateWith { key ->
                 val entry = obj.getJSONObject(key)
@@ -149,7 +158,7 @@ internal object UserBackup {
         data.preferences.forEach { (name, values) ->
             val prefs = context.getSharedPreferences(name, 0)
             // Preserve diagnostics that are intentionally outside the backup.
-            val logs = prefs.all.filterKeys { it.contains("log", true) }
+            val logs = prefs.all.filterKeys(::isDiagnosticKey)
             val editor = prefs.edit().clear()
             (values + logs).forEach { (key, value) ->
                 when (value) {

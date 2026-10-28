@@ -42,6 +42,7 @@ internal fun orderedNamingConfigs(configs: List<NamingConfig>, ids: List<String>
     return ids.map { byId.getValue(it) }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun PresetOrderList(configs: List<NamingConfig>, onOrder: (List<String>) -> Unit,
     modifier: Modifier, content: @Composable (NamingConfig, Modifier) -> Unit) {
@@ -55,13 +56,13 @@ internal fun PresetOrderList(configs: List<NamingConfig>, onOrder: (List<String>
     val edge = with(LocalDensity.current) { 64.dp.toPx() }
     fun moveDraggedPreset() {
         val id = draggedId ?: return
-        val center = draggedTop + draggedHeight / 2f
-        val target = listState.layoutInfo.visibleItemsInfo.firstOrNull {
-            it.key != id && center >= it.offset && center < it.offset + it.size
+        val visible = listState.layoutInfo.visibleItemsInfo
+        val ids = ordered.map { it.id }
+        val to = reorderStepTarget(ids, id, draggedTop + draggedHeight / 2f) { key ->
+            visible.firstOrNull { it.key == key }?.let { it.offset + it.size / 2f }
         } ?: return
-        val from = ordered.indexOfFirst { it.id == id }
-        val to = ordered.indexOfFirst { it.id == target.key }
-        if (from >= 0 && to >= 0 && from != to) {
+        val from = ids.indexOf(id)
+        if (from >= 0 && from != to) {
             ordered = ordered.toMutableList().apply { add(to, removeAt(from)) }
         }
     }
@@ -108,10 +109,13 @@ internal fun PresetOrderList(configs: List<NamingConfig>, onOrder: (List<String>
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(ordered, key = { it.id }) { config ->
                 val dragging = draggedId == config.id
-                content(config, Modifier.zIndex(if (dragging) 1f else 0f).graphicsLayer {
+                // The others slide to their new place; the held card follows the finger instead.
+                content(config, (if (dragging) Modifier else Modifier.animateItemPlacement()).zIndex(if (dragging) 1f else 0f).graphicsLayer {
                     translationY = if (dragging) draggedTop -
                         (listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == config.id }?.offset ?: draggedTop.toInt()) else 0f
-                    shadowElevation = if (dragging) 8.dp.toPx() else 0f
+                    val scale = if (dragging) 1.03f else 1f
+                    scaleX = scale; scaleY = scale
+                    shadowElevation = if (dragging) 12.dp.toPx() else 0f
                     alpha = if (dragging) .95f else 1f
                 })
             }

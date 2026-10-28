@@ -246,7 +246,8 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
         if (newProjectionData != null) {
             captureSession.initialize(newProjectionData)
-            launchPokemonGo()
+            // A failed start already closed the service with an error; opening the game would hide it.
+            if (!closingForPermissionLoss && captureSession.imageReader != null) launchPokemonGo()
         }
         
         return START_NOT_STICKY
@@ -841,7 +842,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 checkpoint("Roteamento")
                 Log.d(TAG, "Read[$readId] target=${readTarget.javaClass.simpleName}")
                 if (readTarget == com.mewname.app.domain.BubbleScreenRouter.Target.Trainer) {
-                    val profile = TrainerScreenReader.parse(this@OverlayService, ocrResult)
+                    val profile = kotlinx.coroutines.withContext(Dispatchers.Default) {
+                        TrainerScreenReader.parse(this@OverlayService, ocrResult)
+                    }
                     val experienceSaved = TrainerScreenReader.save(this@OverlayService, profile)
                     val qrSaved = if (profile.friendCode != null) TrainerScreenReader.saveQr(this@OverlayService, ocrResult) else false
                     val log = profileReadDiagnostics(ocrResult, "sobreposição_perfil",
@@ -881,11 +884,14 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                     return@runCatching
                 }
                 var sizeRetries = 0
-                ocrResult = withTimeoutOrNull(14_000L) {
+                // Optional refinement: the full-screen OCR already succeeded, so a slow size confirmation keeps it
+                // instead of discarding the whole read, as the CP refinement below does.
+                val refinedSize = withTimeoutOrNull(14_000L) {
                     ocrEngine.refineSizeBadges(ocrResult) { sizeRetries++ }
-                } ?: throw IllegalStateException("Tempo limite ao confirmar tamanho")
+                }
+                if (refinedSize != null) ocrResult = refinedSize
                 request.ensureCurrent()
-                checkpoint("Tamanho ($sizeRetries recortes)")
+                checkpoint(if (refinedSize != null) "Tamanho ($sizeRetries recortes)" else "Tamanho (tempo limite)")
                 var stageName = "Preparando leitura"
                 ocrResult = withTimeoutOrNull(3000L) { ocrEngine.refinePokemonCp(ocrResult) } ?: ocrResult
                 request.ensureCurrent()
@@ -905,20 +911,25 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 updateLoadingStatus(request, detail = "Montando nomes sugeridos")
                 val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
                 lastCapturedData = merged
-                com.mewname.app.domain.LearnedBackgroundStore.remember(bitmap, parsed, merged)
-                val savedConfigs = loadSavedConfigs()
-                val generatedResults = savedConfigs.mapNotNull { config ->
-                    val generatedName = generator.generate(merged, config).trim()
-                    generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
+                val finalOcr = ocrResult
+                // Background crop, preset decoding, naming and battle data stay off the main thread.
+                val (savedConfigs, generatedResults, battleAdvice) = kotlinx.coroutines.withContext(Dispatchers.Default) {
+                    com.mewname.app.domain.LearnedBackgroundStore.remember(bitmap, parsed, merged)
+                    val configs = loadSavedConfigs()
+                    val results = configs.mapNotNull { config ->
+                        val generatedName = generator.generate(merged, config).trim()
+                        generatedName.takeIf { it.isNotEmpty() }?.let { config.name to it }
+                    }
+                    Triple(configs, results, BattleAdvisor.adviceFor(
+                        context = this@OverlayService,
+                        data = merged,
+                        rawText = finalOcr.fullText
+                    ))
                 }
+                request.ensureCurrent()
 
                 val reviewFields = ReviewPolicy.reviewableFields(savedConfigs)
                 val needsReview = ReviewPolicy.shouldOpenReview(merged, reviewFields)
-                val battleAdvice = BattleAdvisor.adviceFor(
-                    context = this@OverlayService,
-                    data = merged,
-                    rawText = ocrResult.fullText
-                )
                 checkpoint("Nomes e sugestoes")
                 lastBubbleLogSnapshot = BubbleLogSnapshot(
                     capturedAtMillis = System.currentTimeMillis(),
@@ -1072,7 +1083,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         captureProcessingTask.cancel()
         isCaptureInProgress = false
         removeLoadingOverlay()
-        Toast.makeText(this, "Processo cancelado.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, lt(savedAppLanguage(this), "Processo cancelado.", "Process cancelled.", "Proceso cancelado."), Toast.LENGTH_SHORT).show()
     }
 
     private fun removeLoadingOverlay() {
@@ -1112,7 +1123,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 com.mewname.app.domain.LearnedBackgroundStore.onNameCopied(this, data, name, loadSavedConfigs())
             }
         }, ::removeResultsOverlay, onOpenReview)
-        if (addOverlayView(layout, presenter.layoutParams())) resultsView = layout
+        val params = presenter.layoutParams()
+        val root = closeOnBack(layout, params)
+        if (addOverlayView(root, params)) resultsView = root
     }
 
     private fun showSavedFiltersOverlay(screen: com.mewname.app.domain.FilterScreen) {
@@ -1120,6 +1133,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         removeResultsOverlay()
         val friends = screen == com.mewname.app.domain.FilterScreen.FRIENDS
         val filters = loadSavedFilters(this, if (friends) SAVED_PEOPLE_FILTERS_KEY else SAVED_POKEMON_FILTERS_KEY)
+        var filtersBack: () -> Unit = { removeResultsOverlay() }
         val metrics = resources.displayMetrics
         val params = WindowManager.LayoutParams(
             minOf(metrics.widthPixels - (32 * metrics.density).toInt(), (560 * metrics.density).toInt()),
@@ -1143,12 +1157,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         SavedFiltersOverlay(friends, filters, (metrics.heightPixels / metrics.density * 0.7f).dp,
                             onCopy = { value -> copyToClipboard(value); removeResultsOverlay() },
                             onClose = { removeResultsOverlay() },
-                            onQuickEdit = { value -> showQuickFilterOverlay(value, screen) })
+                            onQuickEdit = { value -> showQuickFilterOverlay(value, screen) },
+                            registerBackAction = { filtersBack = it })
                     }
                 }
             }
         }
-        if (addOverlayView(view, params)) resultsView = view
+        closeOnBack(view, params) { filtersBack() }.let { root -> if (addOverlayView(root, params)) resultsView = root }
     }
 
     private fun showQuickFilterOverlay(value: String, screen: com.mewname.app.domain.FilterScreen) {
@@ -1271,15 +1286,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
             isClickable = true
             isFocusable = true
-            setOnClickListener {
-                detachOverlay(layout)
-                resultsView = null
-            }
+            setOnClickListener { removeResultsOverlay() }
         }
         layout.addView(closeButton)
 
-        addOverlayView(layout, params)
-        resultsView = layout
+        // A refused add (service closing, permission lost) must not leave resultsView blocking the bubble menu.
+        val root = closeOnBack(layout, params)
+        if (addOverlayView(root, params)) resultsView = root
     }
 
     private fun showCalendarOverlay() {
@@ -1312,15 +1325,29 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
         }
-        if (addOverlayView(view, params)) resultsView = view
+        closeOnBack(view, params).let { root -> if (addOverlayView(root, params)) resultsView = root }
+    }
+
+    /**
+     * Height from the bottom of the display up to the status bar. The window is anchored to the bottom over the
+     * navigation bar, so the display metrics height (without both bars) stopped it short of the top.
+     */
+    private fun collectionAvailableHeight(): Int {
+        if (android.os.Build.VERSION.SDK_INT < 30) return resources.displayMetrics.heightPixels
+        val windowMetrics = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics
+        val top = windowMetrics.windowInsets.getInsetsIgnoringVisibility(
+            android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.displayCutout()).top
+        return windowMetrics.bounds.height() - top
     }
 
     private fun showCollectionOverlay() {
         if (closingForPermissionLoss) return
         removeResultsOverlay()
         val metrics = resources.displayMetrics
-        val params = CollectionOverlayWindow.params(metrics.heightPixels, metrics.density)
+        val available = collectionAvailableHeight()
+        val params = CollectionOverlayWindow.params(available, metrics.density)
         var backAction: () -> Unit = { removeResultsOverlay() }
+        var root: View? = null
         val view = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@OverlayService)
             setViewTreeViewModelStoreOwner(this@OverlayService)
@@ -1340,10 +1367,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                                 true
                             } else false
                         }) {
-                            CollectionOverlayPanel(metrics.heightPixels,
+                            CollectionOverlayPanel(available,
                                 onResize = { size ->
-                                    CollectionOverlayWindow.resize(params, size, metrics.heightPixels, metrics.density)
-                                    updateOverlayViewLayout(this@apply, params)
+                                    CollectionOverlayWindow.resize(params, size, available, metrics.density)
+                                    root?.let { updateOverlayViewLayout(it, params) }
                                 }, onClose = { removeResultsOverlay() },
                                 registerBackAction = { backAction = it })
                         }
@@ -1351,7 +1378,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
         }
-        if (addOverlayView(view, params)) resultsView = view
+        closeOnBack(view, params) { backAction() }.let { wrapper ->
+            root = wrapper
+            if (addOverlayView(wrapper, params)) resultsView = wrapper
+        }
     }
 
     private fun showEncounterIvOverlay(reading: com.mewname.app.domain.EncounterReading) {
@@ -1377,7 +1407,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
         }
-        if(addOverlayView(view,params)) resultsView=view
+        closeOnBack(view, params).let { root -> if (addOverlayView(root, params)) resultsView = root }
     }
     private fun showRaidDetailsOverlay(advice: BattleAdvice) {
         removeResultsOverlay()
@@ -1402,7 +1432,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
         }
-        if(addOverlayView(view,params)) resultsView=view
+        closeOnBack(view, params).let { root -> if (addOverlayView(root, params)) resultsView = root }
     }
     private fun showBattleSuggestionsOverlay(advice: BattleAdvice) {
         if (advice.mode == BattleMode.RAID) {
@@ -1445,7 +1475,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                                     showLogAction = LogOptionsSettings.enabled(this@OverlayService),
                                     onCopy = { filter ->
                                         copyToClipboard(filter)
-                                        Toast.makeText(this@OverlayService, "Filtro copiado!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(this@OverlayService, lt(language, "Filtro copiado!", "Filter copied!", "¡Filtro copiado!"), Toast.LENGTH_SHORT).show()
                                     },
                                     onExportLog = { exportBattleLog() },
                                     onClose = { removeResultsOverlay() }
@@ -1456,7 +1486,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
         }
-        if (addOverlayView(composeView, params)) resultsView = composeView
+        closeOnBack(composeView, params).let { root -> if (addOverlayView(root, params)) resultsView = root }
     }
     private fun showCatalogOverlay(capture: com.mewname.app.domain.CatalogCapture) {
         if (closingForPermissionLoss) return
@@ -1488,7 +1518,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
             }
         }
-        if (addOverlayView(view, params)) resultsView = view
+        closeOnBack(view, params).let { root -> if (addOverlayView(root, params)) resultsView = root }
     }
     private fun showReviewOverlay(
         parsed: com.mewname.app.model.PokemonScreenData,
@@ -1557,9 +1587,33 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             }
         }
 
-        addOverlayView(composeView, params)
-        resultsView = composeView
+        closeOnBack(composeView, params).let { root -> if (addOverlayView(root, params)) resultsView = root }
     }
+
+    /**
+     * Window root that closes on Back when nothing inside handled it. Overlay windows have no Activity back
+     * dispatcher, and a key listener on the content only runs when the content itself holds focus.
+     */
+    private fun closeOnBack(content: View, params: WindowManager.LayoutParams, onBack: () -> Unit = ::removeResultsOverlay): View =
+        object : android.widget.FrameLayout(this) {
+            // Handled before the content: Compose consumes Back to move its own focus, so waiting for the
+            // content to decline it left the window open. The keyboard still closes first (IME stage).
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
+                if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) onBack()
+                return true
+            }
+        }.apply {
+            // Compose creates its recomposer from the window root, so the wrapper needs the owners too.
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            // Fill the window rather than copying its size: windows resized later (Collection) must not
+            // leave the content at the size they opened with. Wrapping windows keep wrapping their content.
+            fun fill(size: Int) = if (size == WindowManager.LayoutParams.WRAP_CONTENT) size
+                else android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            addView(content, android.widget.FrameLayout.LayoutParams(fill(params.width), fill(params.height)))
+        }
 
     private fun removeResultsOverlay() {
         resultsView?.let {

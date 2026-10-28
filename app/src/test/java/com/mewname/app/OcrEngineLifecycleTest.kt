@@ -73,6 +73,7 @@ class OcrEngineLifecycleTest {
         val line = OcrTextLine("XS", Rect(800, 1000, 850, 1030))
         val original = OcrResult("XS", bitmap, listOf(OcrTextBlock("XS", line.boundingBox, listOf(line))))
         val cropRead = launch(start = CoroutineStart.UNDISPATCHED) { engine.refineSizeBadges(original) }
+        awaitSubmitted(client, 1)
         val crop = client.images[0].bitmapInternal!!
         cropRead.cancelAndJoin()
         assertFalse(crop.isRecycled)
@@ -98,6 +99,7 @@ class OcrEngineLifecycleTest {
         val line = OcrTextLine("XL", Rect(800, 1000, 850, 1030))
         val original = OcrResult("XL", bitmap, listOf(OcrTextBlock("XL", line.boundingBox, listOf(line))))
         val read = async(start = CoroutineStart.UNDISPATCHED) { engine.refineSizeBadges(original) }
+        awaitSubmitted(client, 1)
         val crop = client.images[0].bitmapInternal!!
         client.tasks[0].setException(IllegalStateException("Test failure"))
         shadowOf(Looper.getMainLooper()).idle()
@@ -106,5 +108,10 @@ class OcrEngineLifecycleTest {
         assertFalse(bitmap.isRecycled)
         engine.close()
         assertEquals(1, client.closes)
+    }
+
+    // Detail crops are prepared on Dispatchers.Default before reaching the recognizer.
+    private suspend fun awaitSubmitted(client: Client, count: Int) {
+        kotlinx.coroutines.withTimeout(5_000) { while (client.images.size < count) kotlinx.coroutines.delay(1) }
     }
 }

@@ -33,7 +33,7 @@ class CompactCollectionOverlayTest {
         assertEquals(1237, CollectionOverlayWindow.draggedHeight(1100, 900f, 763f, 2000, 2f))
         assertEquals(963, CollectionOverlayWindow.draggedHeight(1100, 900f, 1037f, 2000, 2f))
         assertEquals(48, CollectionOverlayWindow.draggedHeight(1100, 900f, 4000f, 2000, 2f))
-        assertEquals(1880, CollectionOverlayWindow.draggedHeight(1100, 900f, -4000f, 2000, 2f))
+        assertEquals(2000, CollectionOverlayWindow.draggedHeight(1100, 900f, -4000f, 2000, 2f))
     }
 
     @Test fun quickMarkingKeepsRegionalFormsSeparateAndFiltersByTheSelectedGroup() {

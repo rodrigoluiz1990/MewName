@@ -70,7 +70,9 @@ internal object AutomaticBackup {
             runCatching { store.delete(fresh) }
             throw error
         }
-        old.forEach(store::delete)
+        // The new copy is verified, so a stale one that cannot be removed now is retried next time. Failing here made
+        // the job report failure and retry, writing another full snapshot each time.
+        old.forEach { id -> runCatching { store.delete(id) } }
     }
     @Synchronized fun read(context: Context): String = if (folder(context) != null)
         requireNotNull(latest(storage(context))) { "No valid backup" }

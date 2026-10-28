@@ -120,7 +120,7 @@ class MainViewModelReviewFlowTest {
         shadowOf(Looper.getMainLooper()).idle()
         val state = viewModel.uiState.value
         assertEquals(false, state.isProcessing)
-        assertEquals("Processo cancelado.", state.error)
+        assertEquals(lt(state.appLanguage, "Processo cancelado.", "Process cancelled.", "Proceso cancelado."), state.error)
         assertNull(state.processingStatusMessage)
         assertNull(state.pendingReview)
     }

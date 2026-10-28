@@ -3,8 +3,6 @@ package com.mewname.app
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
@@ -38,7 +36,8 @@ internal fun SavedFiltersOverlay(
     maxHeight: Dp,
     onCopy: (String) -> Unit,
     onClose: () -> Unit,
-    onQuickEdit: (String) -> Unit
+    onQuickEdit: (String) -> Unit,
+    registerBackAction: ((() -> Unit) -> Unit)? = null
 ) {
     val context = LocalContext.current
     var editing by rememberSaveable { mutableStateOf(false) }
@@ -47,6 +46,16 @@ internal fun SavedFiltersOverlay(
     var displayedFilters by remember { mutableStateOf(filters) }
     val language = appLanguage()
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
+    // Android Back leaves the editor first, like the top bar arrow, and only then closes the window.
+    SideEffect {
+        registerBackAction?.invoke {
+            if (editing || editingId != null) {
+                editingId = null
+                editing = false
+                displayedFilters = loadSavedFilters(context, if (friends) SAVED_PEOPLE_FILTERS_KEY else SAVED_POKEMON_FILTERS_KEY)
+            } else onClose()
+        }
+    }
     Surface(Modifier.fillMaxWidth().heightIn(max = maxHeight).then(if (editing || editingId != null) Modifier.height(maxHeight) else Modifier), shape = RoundedCornerShape(26.dp), color = Color.Transparent) {
         Column(Modifier.background(Brush.verticalGradient(LocalAppAppearance.current.background))) {
             CompositionLocalProvider(LocalProfilePanel provides true) {
@@ -101,11 +110,16 @@ internal fun SavedFiltersOverlay(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(16.dp)) {
-                    items(displayedFilters, key = { it.id }) { filter ->
-                        AppSectionCard(Modifier.fillMaxWidth()) {
+                var dragging by remember { mutableStateOf(false) }
+                val storageKey = if (friends) SAVED_PEOPLE_FILTERS_KEY else SAVED_POKEMON_FILTERS_KEY
+                // Hold a card to reorder it, as on the Filters screen; scrolling pauses while it is held.
+                Column(Modifier.fillMaxWidth().weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState(), enabled = !dragging).padding(16.dp)) {
+                    SavedFilterReorderList(displayedFilters, onReorder = { reordered ->
+                        persistSavedFilters(context, storageKey, reordered)
+                        displayedFilters = reordered
+                    }, spacing = 12.dp, onDraggingChange = { dragging = it }) { filter, modifier ->
+                        AppSectionCard(modifier) {
                             Row(Modifier.fillMaxWidth().clickable(
                                 role = Role.Button,
                                 onClickLabel = tr("Ajustar filtro", "Edit filter", "Ajustar filtro"),

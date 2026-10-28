@@ -93,15 +93,27 @@ internal class PokedexDetailsRepository(private val context: Context) {
     /** Disk only: publish this before starting any network request. */
     fun cachedOnline(fileName: String): PokedexOnlineSnapshot? {
         require(fileName in setOf("gamemaster.json", "rankings-500.json", "rankings-1500.json", "rankings-2500.json", "rankings-10000.json"))
+        val base = File(context.filesDir, "pokedex-online-v1/$fileName")
+        // Opening a Pokédex entry read and parsed these multi-MB files several times; keep the validated snapshot
+        // while the file on disk is unchanged.
+        memory[fileName]?.takeIf { it.modified == base.lastModified() && it.size == base.length() }?.let { return it.snapshot }
         return runCatching {
             val cached = synchronized(cacheLock) {
-                JSONObject(AtomicFile(File(context.filesDir, "pokedex-online-v1/$fileName")).openRead().bufferedReader().use { it.readText() })
+                JSONObject(AtomicFile(base).openRead().bufferedReader().use { it.readText() })
             }
             val data = cached.getString("data")
-            if (fileName == "gamemaster.json") require(JSONObject(data).getJSONArray("pokemon").length() > 0)
+            val snapshot = PokedexOnlineSnapshot(data, cached.optLong("fetchedAt"), false)
+            if (fileName == "gamemaster.json") require(gamemasterPokemon(snapshot).length() > 0)
             else require(JSONArray(data).length() > 0)
-            PokedexOnlineSnapshot(data, cached.optLong("fetchedAt"), false)
+            memory[fileName] = MemorySnapshot(base.lastModified(), base.length(), snapshot)
+            snapshot
         }.getOrNull()
+    }
+
+    /** The gamemaster's "pokemon" array, parsed once per downloaded version. Treat it as read-only. */
+    fun gamemasterPokemon(snapshot: PokedexOnlineSnapshot): JSONArray {
+        parsedGamemaster?.takeIf { it.first == snapshot.fetchedAt }?.let { return it.second }
+        return JSONObject(snapshot.json).getJSONArray("pokemon").also { parsedGamemaster = snapshot.fetchedAt to it }
     }
 
     /** Fresh data for 24h; a failed refresh never replaces a good file. Call on Dispatchers.IO. */
@@ -130,22 +142,29 @@ internal class PokedexDetailsRepository(private val context: Context) {
                     String(output.toByteArray(), Charsets.UTF_8)
                 }
             } finally { connection.disconnect() }
-            if (fileName == "gamemaster.json") require(JSONObject(data).getJSONArray("pokemon").length() > 0)
-            else require(JSONArray(data).length() > 0)
             val now = System.currentTimeMillis()
+            val fresh = PokedexOnlineSnapshot(data, now, false)
+            if (fileName == "gamemaster.json") require(gamemasterPokemon(fresh).length() > 0)
+            else require(JSONArray(data).length() > 0)
             synchronized(cacheLock) {
                 file.baseFile.parentFile?.mkdirs()
                 val stream = file.startWrite()
                 try { stream.write(JSONObject().put("fetchedAt", now).put("data", data).toString().toByteArray()); file.finishWrite(stream) }
                 catch (error: Exception) { file.failWrite(stream); throw error }
+                memory[fileName] = MemorySnapshot(file.baseFile.lastModified(), file.baseFile.length(), fresh)
             }
-            return PokedexOnlineSnapshot(data, now, false)
+            return fresh
         } catch (error: Exception) {
             if (cached != null) return cached.copy(stale = true)
             throw error
         }
     }
-    companion object { private val cacheLock = Any() }
+    private data class MemorySnapshot(val modified: Long, val size: Long, val snapshot: PokedexOnlineSnapshot)
+    companion object {
+        private val cacheLock = Any()
+        private val memory = java.util.concurrent.ConcurrentHashMap<String, MemorySnapshot>()
+        @Volatile private var parsedGamemaster: Pair<Long, JSONArray>? = null
+    }
 }
 
 private val HISUI_WORD = Regex("\\bhisui\\b")

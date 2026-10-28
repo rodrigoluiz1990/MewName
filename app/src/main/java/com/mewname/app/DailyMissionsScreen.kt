@@ -34,7 +34,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun DailyMissionsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -63,13 +63,13 @@ internal fun DailyMissionsScreen(onBack: () -> Unit) {
     val edge = with(LocalDensity.current) { 64.dp.toPx() }
     fun moveDraggedMission() {
         val id = draggedId ?: return
-        val center = draggedTop + draggedHeight / 2f
-        val target = listState.layoutInfo.visibleItemsInfo.firstOrNull {
-            it.key != id && center >= it.offset && center < it.offset + it.size
+        val visible = listState.layoutInfo.visibleItemsInfo
+        val ids = missions.map { it.id }
+        val to = reorderStepTarget(ids, id, draggedTop + draggedHeight / 2f) { key ->
+            visible.firstOrNull { it.key == key }?.let { it.offset + it.size / 2f }
         } ?: return
-        val from = missions.indexOfFirst { it.id == id }
-        val to = missions.indexOfFirst { it.id == target.key }
-        if (from >= 0 && to >= 0 && from != to) {
+        val from = ids.indexOf(id)
+        if (from >= 0 && from != to) {
             store.move(id, to - from)
             missions = store.all()
         }
@@ -126,10 +126,13 @@ internal fun DailyMissionsScreen(onBack: () -> Unit) {
             if (missions.isEmpty()) item { Text(tr("Adicione sua primeira missão no botão +.", "Add your first mission with +.", "Añade tu primera misión con +.")) }
             items(missions, key = { it.id }) { mission ->
                 val dragging = draggedId == mission.id
-                AppSectionCard(Modifier.zIndex(if (dragging) 1f else 0f).graphicsLayer {
+                // The others slide to their new place; the held card follows the finger instead.
+                AppSectionCard((if (dragging) Modifier else Modifier.animateItemPlacement()).zIndex(if (dragging) 1f else 0f).graphicsLayer {
                     translationY = if (dragging) draggedTop -
                         (listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == mission.id }?.offset ?: draggedTop.toInt()) else 0f
-                    shadowElevation = if (dragging) 8.dp.toPx() else 0f
+                    val scale = if (dragging) 1.03f else 1f
+                    scaleX = scale; scaleY = scale
+                    shadowElevation = if (dragging) 12.dp.toPx() else 0f
                     alpha = if (dragging) .95f else 1f
                 }) {
                     Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {

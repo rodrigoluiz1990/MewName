@@ -146,7 +146,8 @@ object GameInfoRepository {
     @Volatile
     private var pokemonDexOrderCache: Map<String, Int>? = null
 
-    private val localizedPokemonSearchTermCache = mutableMapOf<AppLanguage, Map<String, String>>()
+    // Read outside the lock below, so it must tolerate a concurrent write or clear.
+    private val localizedPokemonSearchTermCache = java.util.concurrent.ConcurrentHashMap<AppLanguage, Map<String, String>>()
 
     fun clearCache(language: AppLanguage? = null) {
         synchronized(this) {

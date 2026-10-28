@@ -106,6 +106,9 @@ class MainViewModel(
 
         val payload = runCatching { decodeSavedPresets(jsonString) }.getOrElse { error ->
             CatalogLoadFeedback.reportFailure(CatalogLoadArea.PRESETS, error)
+            // The next edit saves the defaults over saved_presets; keep the unreadable text (for example from a newer
+            // version's backup) so it can still be recovered.
+            prefs.edit().putString(SAVED_PRESETS_UNREADABLE_KEY, jsonString).commit()
             val fallbackConfigs = defaultNamingConfigs()
             _uiState.update { state ->
                 state.copy(
@@ -169,8 +172,10 @@ class MainViewModel(
                         latestAppUpdate = latest,
                         appUpdateAvailable = hasUpdate,
                         appUpdateStatusMessage = when {
-                            hasUpdate && forceFeedback -> "Atualização disponível: ${latest.tagName}"
-                            !hasUpdate && forceFeedback -> "Seu app já está na versão mais recente."
+                            hasUpdate && forceFeedback -> lt(it.appLanguage, "Atualização disponível: ", "Update available: ",
+                                "Actualización disponible: ") + latest.tagName
+                            !hasUpdate && forceFeedback -> lt(it.appLanguage, "Seu app já está na versão mais recente.",
+                                "Your app is already up to date.", "Tu app ya está en la versión más reciente.")
                             else -> null
                         },
                         appUpdateError = null
@@ -275,7 +280,7 @@ class MainViewModel(
             it.copy(
                 isProcessing = false,
                 processingStatusMessage = null,
-                error = "Processo cancelado."
+                error = lt(it.appLanguage, "Processo cancelado.", "Process cancelled.", "Proceso cancelado.")
             )
         }
     }

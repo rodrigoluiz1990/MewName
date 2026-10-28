@@ -187,10 +187,13 @@ class OcrEngine internal constructor(
             if (cropped !== bitmap) cropped?.recycle()
         }
         return try {
-            cropped = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
-            enlarged = Bitmap.createScaledBitmap(cropped, rect.width() * 4, rect.height() * 4, true)
+            // The 4x filtered scale costs tens of milliseconds; keep it off the caller's (main) thread.
+            withContext(Dispatchers.Default) {
+                cropped = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
+                enlarged = Bitmap.createScaledBitmap(cropped!!, rect.width() * 4, rect.height() * 4, true)
+            }
             handedToRecognizer = true
-            extractRaw(enlarged, ::recycleDetail).copy(bitmap = null)
+            extractRaw(enlarged!!, ::recycleDetail).copy(bitmap = null)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (_: Exception) {

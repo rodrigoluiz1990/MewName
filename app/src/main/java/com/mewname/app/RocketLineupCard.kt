@@ -72,6 +72,6 @@ internal fun RocketLineupCard(entry: LeekEntry, title: String, quote: String, of
             }
         }
         val selected = entry.slots.mapIndexed { i, slot -> slot.pokemon.firstOrNull { it.name == selectedNames.getOrNull(i) } }
-        RocketMovesetSuggestions(selected.filterNotNull(), offline)
+        RocketMovesetSuggestions(selected.filterNotNull())
     }
 }

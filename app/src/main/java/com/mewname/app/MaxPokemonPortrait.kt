@@ -6,8 +6,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
-import coil.request.CachePolicy
-import coil.request.ImageRequest
 import com.mewname.app.domain.RaidCounterRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,7 +25,7 @@ internal fun maxPortraitId(value: String?): String {
 }
 
 @Composable
-internal fun MaxPokemonPortrait(pokemon: String?, modifier: Modifier = Modifier, offline: Boolean = true, refreshToken: Int = 0) {
+internal fun MaxPokemonPortrait(pokemon: String?, modifier: Modifier = Modifier, refreshToken: Int = 0) {
     val context = LocalContext.current
     val id = remember(pokemon) { maxPortraitId(pokemon) }
     val source by produceState<String?>(null, id, context, refreshToken) {
@@ -38,15 +36,10 @@ internal fun MaxPokemonPortrait(pokemon: String?, modifier: Modifier = Modifier,
             else RaidCounterRepository(context.applicationContext).image(id)
         }
     }
-    val request = remember(context, source, offline, refreshToken) {
-        ImageRequest.Builder(context).data(source)
-            .transformations(CollectionSpriteTrim)
-            .networkCachePolicy(if (offline && refreshToken == 0) CachePolicy.DISABLED else CachePolicy.ENABLED)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
+    val request = remember(context, source, refreshToken) {
+        PortraitDownloadPolicy.request(context, source, refreshToken, CollectionSpriteTrim)
     }
-    // An explicit refresh retries failed/missing sprites, including the offline boss.
+    // A missing sprite is downloaded once; after a failure only the explicit refresh retries it.
     // Bundled sprites and successfully cached images remain available without downloading again.
     key(id, refreshToken) {
         AsyncImage(

@@ -206,7 +206,8 @@ class PokemonReadSessionMerger {
 
     private fun normalize(value: String?): String? {
         if (value.isNullOrBlank()) return null
-        return Normalizer.normalize(value, Normalizer.Form.NFD)
+        // Keep the gender symbol: stripping it made Nidoran♀ and Nidoran♂ the same name, as MasterIvBadgeCatalog avoids.
+        return Normalizer.normalize(value.replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
             .replace(COMBINING_DIACRITICS, "")
             .uppercase(Locale.US)
             .replace(NON_UPPER_ALPHANUMERIC_RUNS, "")
@@ -220,6 +221,9 @@ class PokemonReadSessionMerger {
             source = current.source.ifBlank { previous.source },
             ocrLevel = current.ocrLevel ?: previous.ocrLevel,
             curveLevel = current.curveLevel ?: previous.curveLevel,
+            // Max HP identifies the Pokémon when its CP is hidden (isSameIndividual); dropping it broke that path.
+            hpLevel = current.hpLevel ?: previous.hpLevel,
+            maxHp = current.maxHp ?: previous.maxHp,
             finalLevel = current.finalLevel ?: previous.finalLevel,
             pokemonName = current.pokemonName ?: previous.pokemonName,
             cp = current.cp ?: previous.cp,

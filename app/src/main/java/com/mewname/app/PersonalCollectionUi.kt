@@ -147,6 +147,7 @@ internal fun PersonalCollectionReview(data: PokemonScreenData) {
 
 /** Trimmed category emblems, shared by every collection row and review card in the process. */
 private val trimmedCollectionIcons = java.util.concurrent.ConcurrentHashMap<String, androidx.compose.ui.graphics.ImageBitmap>()
+@Volatile private var shadowAuraFrame: androidx.compose.ui.graphics.ImageBitmap? = null
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -256,6 +257,7 @@ internal val personalCollectionTabs = listOf(
     PersonalCollectionTab("Mega", setOf(PersonalCollectionGroup.MEGA))
 )
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun PersonalCollectionPreferences() {
     val context = LocalContext.current
@@ -302,6 +304,8 @@ internal fun PersonalCollectionPreferences() {
     LazyColumn(
         contentPadding = PaddingValues(bottom = LocalNavigationContentPadding.current),
         state = listState,
+        // The list's own scroll sees pointer events before this modifier and would take the drag after the long press.
+        userScrollEnabled = dragged == null,
         modifier = Modifier.fillMaxSize().pointerInput(listState) {
             detectDragGesturesAfterLongPress(
                 onDragStart = { point ->
@@ -348,10 +352,13 @@ internal fun PersonalCollectionPreferences() {
             val offset = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == group.name }?.offset ?: 0
             AppToggleRow(group.label, group in snapshot.enabled,
                 { PersonalCollection.setEnabled(context, group, it) },
-                modifier = Modifier.zIndex(if (isDragging) 1f else 0f)
+                // The others slide to their new place; the held row follows the finger instead.
+                modifier = (if (isDragging) Modifier else Modifier.animateItemPlacement()).zIndex(if (isDragging) 1f else 0f)
                     .graphicsLayer {
                         translationY = if (isDragging) dragTop - offset else 0f
-                        shadowElevation = if (isDragging) 8.dp.toPx() else 0f
+                        val scale = if (isDragging) 1.03f else 1f
+                        scaleX = scale; scaleY = scale
+                        shadowElevation = if (isDragging) 12.dp.toPx() else 0f
                     }.semantics {
                         customActions = listOf(
                             CustomAccessibilityAction("Mover para cima") {
@@ -645,15 +652,16 @@ internal fun PersonalCollectionPortrait(target: PersonalCollectionTarget, images
 @Composable
 internal fun CollectionShadowAura() {
     val context = LocalContext.current
-    val frame by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null) {
-        value = withContext(Dispatchers.IO) {
+    // Shared by every shadow tile: decoding the whole sheet per tile churned memory while scrolling.
+    val frame by produceState(shadowAuraFrame) {
+        value = shadowAuraFrame ?: withContext(Dispatchers.IO) {
             context.assets.open("collection/shadow_flame_sheet.png").use { stream ->
                 val sheet = requireNotNull(BitmapFactory.decodeStream(stream))
                 val frame = android.graphics.Bitmap.createBitmap(sheet, sheet.width / 4, sheet.height / 4, sheet.width / 4, sheet.height / 4)
                 sheet.recycle()
                 frame.asImageBitmap()
             }
-        }
+        }.also { shadowAuraFrame = it }
     }
     frame?.let { Image(it, null, Modifier.size(80.dp),
         colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(androidx.compose.ui.graphics.Color(0xFF8042BC)), alpha = 0.8f) }

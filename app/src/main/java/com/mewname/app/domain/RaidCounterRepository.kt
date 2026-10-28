@@ -187,9 +187,20 @@ internal class RaidCounterRepository(private val context: Context) {
             calendar == null || screenCacheExpired(calendar.fetchedAt, RAID_CATALOG_MAX_AGE)
     }.getOrDefault(true)
 
+    /**
+     * catalog.json parsed once per version on disk: each raid read used to parse it twice (catalog and
+     * savedCatalog), and Max battles twice more. Read-only for callers.
+     */
+    private fun storedCatalog(): JSONObject? {
+        val target = File(directory, "catalog.json")
+        storedCatalogCache?.takeIf { it.first == target.lastModified() to target.length() }?.let { return it.second }
+        return runCatching { JSONObject(AtomicFile(target).openRead().bufferedReader().use { it.readText() }) }.getOrNull()
+            ?.also { storedCatalogCache = (target.lastModified() to target.length()) to it }
+    }
+
     fun catalog(refresh: Boolean = false): List<RaidChoice> {
         val target = File(directory, "catalog.json")
-        val raw = if (refresh) get("raids") else runCatching { JSONObject(AtomicFile(target).openRead().bufferedReader().use { it.readText() }) }.getOrNull() ?: return emptyList()
+        val raw = if (refresh) get("raids") else storedCatalog() ?: return emptyList()
         val entries = raidCatalogChoices(raw, saved = false)
         require(entries.isNotEmpty()); if (refresh) write(target,raw.put("mewnameFetchedAt", System.currentTimeMillis()))
         val now = java.time.LocalDateTime.now()
@@ -198,9 +209,7 @@ internal class RaidCounterRepository(private val context: Context) {
         return scheduledRaidChoices(entries, calendar?.events.orEmpty(), now)
     }
     fun savedCatalog(): List<RaidChoice> = runCatching {
-        val raw = AtomicFile(File(directory, "catalog.json")).openRead().bufferedReader()
-            .use { JSONObject(it.readText()) }
-        raidCatalogChoices(raw, saved = true)
+        raidCatalogChoices(requireNotNull(storedCatalog()), saved = true)
     }.getOrDefault(emptyList())
     fun updateMetadata() {
         val all = get("pokemon").getJSONArray("pokemon")
@@ -242,6 +251,7 @@ internal class RaidCounterRepository(private val context: Context) {
     }
     companion object {
         private val lock = Any(); private val writeLock = Any(); private var shared: RaidMetadata? = null; private var images: JSONObject? = null
+        @Volatile private var storedCatalogCache: Pair<Pair<Long, Long>, JSONObject>? = null
         private val choiceIndexes = object : LinkedHashMap<String, Pair<List<Triple<String, Long, Long>>, List<RaidChoice>>>(4, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<List<Triple<String, Long, Long>>, List<RaidChoice>>>?) = size > 4
         }

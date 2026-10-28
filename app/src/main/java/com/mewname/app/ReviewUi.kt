@@ -2021,7 +2021,7 @@ private fun SuggestedNamesBlock(
                                 .fillMaxWidth()
                                 .clickable {
                                     clipboard.setText(AnnotatedString(generatedName))
-                                    Toast.makeText(context, "Copiado!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, lt(language, "Copiado!", "Copied!", "¡Copiado!"), Toast.LENGTH_SHORT).show()
                                     onSuggestionSelected(generatedName)
                                 },
                             shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) 14.dp else 8.dp),

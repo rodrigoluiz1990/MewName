@@ -2114,7 +2114,9 @@ fun PresetEditScreen(config: NamingConfig, onBack: () -> Unit, onUpdate: (Naming
             AppSectionCard(Modifier.fillMaxWidth()) {
               Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(lt(language, "Padrao do Nome", "Name Pattern", "Patron del Nombre"), style = sectionTitleStyle, fontWeight = FontWeight.Bold)
-                NamingPatternReorder(draftConfig.effectiveBlocks()) { blocks ->
+                // Blocks derived from legacy fields get new ids on every call; keep them stable while dragging.
+                val patternBlocks = remember(draftConfig.blocks, draftConfig.fields) { draftConfig.effectiveBlocks() }
+                NamingPatternReorder(patternBlocks) { blocks ->
                     draftConfig = draftConfig.copy(blocks = blocks)
                 }
               }

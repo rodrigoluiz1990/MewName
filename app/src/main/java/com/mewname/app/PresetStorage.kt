@@ -8,6 +8,8 @@ import org.json.JSONTokener
 
 const val SAVED_PRESETS_KEY = "saved_presets"
 const val SAVED_PRESETS_BACKUP_KEY = "saved_presets_backup"
+/** Presets text that could not be decoded, kept before the defaults replace it. */
+const val SAVED_PRESETS_UNREADABLE_KEY = "saved_presets_unreadable"
 private const val PRESET_SCHEMA_VERSION = 1
 
 data class SavedPresetPayload(

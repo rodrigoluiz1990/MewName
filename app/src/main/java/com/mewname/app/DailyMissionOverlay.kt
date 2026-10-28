@@ -121,7 +121,10 @@ internal class DailyMissionOverlay(
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key -> if (key == "missions" || key == MissionPlacement.KEY) render() }
     private val midnight = Runnable { render(); schedule() }
     private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) { render(); schedule() }
+        override fun onReceive(context: Context?, intent: Intent?) {
+            // Screen-on and clock broadcasts are frequent; rebuild the windows only when their content changed.
+            render(force = intent?.action == Intent.ACTION_CONFIGURATION_CHANGED); schedule()
+        }
     }
     private fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
     fun start() {
@@ -146,10 +149,14 @@ internal class DailyMissionOverlay(
         windows.forEach { it.view.visibility = if (value) View.INVISIBLE else View.VISIBLE }
         backdrop?.visibility = if (value) View.INVISIBLE else View.VISIBLE
     }
-    private fun render() {
+    private var rendered: Any? = null
+    private fun render(force: Boolean = true) {
+        val pending = if (started) store.all().filterNot { it.completed() } else emptyList()
+        val content = Triple(pending, placement(), appearancePreferences.getString("style", null))
+        if (!force && started && content == rendered) return
+        rendered = content
         clearWindows()
         if (!started) return
-        val pending = store.all().filterNot { it.completed() }
         if (pending.isEmpty()) return
         if (placement() != MissionPlacement.FREE) createBackdrop()
         val (above, below) = placement().split(pending)

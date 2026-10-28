@@ -8,8 +8,9 @@ internal object CollectionOverlayWindow {
     const val HEADER_DP = 72
     const val HANDLE_DP = 24
     fun minimumHeight(density: Float) = (HANDLE_DP * density).toInt()
+    // Up to the whole usable height; the system keeps the window below the status bar, so the handle stays reachable.
     fun clampHeight(height: Int, screenHeight: Int, density: Float): Int =
-        height.coerceIn(minimumHeight(density), maxOf(minimumHeight(density), (screenHeight * 0.94f).toInt()))
+        height.coerceIn(minimumHeight(density), maxOf(minimumHeight(density), screenHeight))
 
     fun draggedHeight(startHeight: Int, startY: Float, currentY: Float, screenHeight: Int, density: Float): Int =
         clampHeight((startHeight + startY - currentY).toInt(), screenHeight, density)

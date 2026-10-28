@@ -22,6 +22,7 @@ import androidx.compose.ui.zIndex
 import com.mewname.app.model.NamingBlock
 import kotlinx.coroutines.delay
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun NamingPatternReorder(blocks: List<NamingBlock>, onChange: (List<NamingBlock>) -> Unit) {
     val language = appLanguage()
@@ -35,13 +36,13 @@ internal fun NamingPatternReorder(blocks: List<NamingBlock>, onChange: (List<Nam
     val edge = with(LocalDensity.current) { 36.dp.toPx() }
     fun reorder() {
         val id = dragged ?: return
-        val center = left + width / 2f
-        val target = state.layoutInfo.visibleItemsInfo.firstOrNull {
-            it.key != id && center >= it.offset && center < it.offset + it.size
-        }?.key as? String ?: return
-        val from = current.indexOfFirst { it.id == id }
-        val to = current.indexOfFirst { it.id == target }
-        if (from >= 0 && to >= 0) update(current.toMutableList().apply { add(to, removeAt(from)) })
+        val visible = state.layoutInfo.visibleItemsInfo
+        val ids = current.map { it.id }
+        val to = reorderStepTarget(ids, id, left + width / 2f) { key ->
+            visible.firstOrNull { it.key == key }?.let { it.offset + it.size / 2f }
+        } ?: return
+        val from = ids.indexOf(id)
+        update(current.toMutableList().apply { add(to, removeAt(from)) })
     }
     LaunchedEffect(dragged) {
         while (dragged != null) {
@@ -60,7 +61,9 @@ internal fun NamingPatternReorder(blocks: List<NamingBlock>, onChange: (List<Nam
             Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.labelLarge, color = appControlInk())
         return
     }
-    LazyRow(state = state, modifier = Modifier.fillMaxWidth().height(48.dp).pointerInput(Unit) {
+    // The row's own scroll handles pointer events before this modifier; left on, it takes the drag after the long
+    // press and cancels the move. Edge auto-scroll keeps long patterns reachable while dragging.
+    LazyRow(state = state, userScrollEnabled = dragged == null, modifier = Modifier.fillMaxWidth().height(48.dp).pointerInput(Unit) {
         detectDragGesturesAfterLongPress(onDragStart = { point ->
             val item = state.layoutInfo.visibleItemsInfo.firstOrNull { point.x >= it.offset && point.x < it.offset + it.size }
             dragged = item?.key as? String
@@ -74,9 +77,13 @@ internal fun NamingPatternReorder(blocks: List<NamingBlock>, onChange: (List<Nam
             Surface(color = appControlFill(selected = true), contentColor = appControlInk(), shape = RoundedCornerShape(14.dp),
                 border = androidx.compose.foundation.BorderStroke(if (active) 1.5.dp else .75.dp,
                     appControlInk().copy(alpha = if (active) .8f else .30f)),
-                modifier = Modifier.zIndex(if (active) 1f else 0f).graphicsLayer {
+                // The others slide to their new place; the held chip follows the finger instead.
+                modifier = (if (active) Modifier else Modifier.animateItemPlacement()).zIndex(if (active) 1f else 0f).graphicsLayer {
                     val item = state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == block.id }
                     translationX = if (active && item != null) left - item.offset else 0f
+                    val scale = if (active) 1.06f else 1f
+                    scaleX = scale; scaleY = scale
+                    shadowElevation = if (active) 8.dp.toPx() else 0f
                 }) {
                 Row(Modifier.padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(block.localizedLabel(language), Modifier.widthIn(max = 160.dp), maxLines = 1,

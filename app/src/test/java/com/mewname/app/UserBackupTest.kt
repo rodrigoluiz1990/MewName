@@ -90,6 +90,31 @@ class UserBackupTest {
         assertTrue(runCatching { UserBackup.validate(backup.toString()) }.isFailure)
     }
 
+    @Test fun preferencesWhoseKeyContainsLogAreBackedUp() {
+        // Collection entries are keyed by species; Oinkologne used to be dropped as if it were a diagnostic log.
+        val prefs = context.getSharedPreferences("personal_collection_v1", 0)
+        prefs.edit().clear().putString("entry:OINKOLOGNE", "marks").commit()
+        val trainer = context.getSharedPreferences("trainer_profile", 0)
+        trainer.edit().putString("last_read_log", "diagnostic").commit()
+        val backup = JSONObject(UserBackup.export(context)).getJSONObject("preferences")
+        assertTrue(backup.getJSONObject("personal_collection_v1").has("entry:OINKOLOGNE"))
+        assertFalse(backup.getJSONObject("trainer_profile").has("last_read_log"))
+    }
+
+    @Test fun backupFromAnotherStoreListStillRestores() {
+        val missions = context.getSharedPreferences("daily_missions", 0)
+        val prefs = context.getSharedPreferences("mewname_prefs", 0)
+        prefs.edit().putString("name", "saved").commit()
+        missions.edit().putString("missions", "kept").commit()
+        val backup = JSONObject(UserBackup.export(context))
+        // Older backup without a store, plus one a newer version added.
+        backup.getJSONObject("preferences").apply { remove("daily_missions"); put("home_weather", JSONObject()) }
+        prefs.edit().putString("name", "changed").commit()
+        UserBackup.restore(context, backup.toString())
+        assertEquals("saved", prefs.getString("name", null))
+        assertEquals("kept", missions.getString("missions", null))
+    }
+
     @Test fun emptyDocumentIsRejectedBeforeRestore() {
         val file = java.io.File(context.cacheDir, "empty-backup.json").apply { writeText("") }
         assertTrue(runCatching { UserBackup.readDocument(context, android.net.Uri.fromFile(file)) }.isFailure)

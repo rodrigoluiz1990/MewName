@@ -169,7 +169,7 @@ internal fun MaxBattleSuggestionsScreen(
                 AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text((index + 1).toString(), Modifier.padding(end = 8.dp))
-                        MaxPokemonPortrait(entry.id, Modifier.size(64.dp), offline = false, refreshToken = refresh)
+                        MaxPokemonPortrait(entry.id, Modifier.size(64.dp), refreshToken = refresh)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(raidName(entry.id), style = MaterialTheme.typography.titleSmall)
                             listOf(entry.fast, entry.charged).filter { it.id !in listOf("NONE", "MOVE_NONE", "") }.forEach { move ->

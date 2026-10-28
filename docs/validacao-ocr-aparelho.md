@@ -304,3 +304,12 @@ A refatoração é verificada separadamente pela suíte local, incluindo captura
 - Fundos aprendidos pela cópia do nome com a tag: 13 recortes salvos (GO Fest, Líder, Temporadas) e reaproveitados nas leituras seguintes do mesmo Pokémon com a categoria certa (0,5–1,3); todos mostram o cartão especial (conferido pelos recortes no backup do usuário, que já os incluía). O usuário conferiu a categoria aprendida também em leituras posteriores. A pasta legível pelo cabo e a restauração de backup com recortes não foram conferidas no aparelho, só nos testes.
 - Ataques: Mewtwo com Contra-atacar no ataque rápido, conferido pelo usuário após completar `current_moves.json` com o Game Master (86 combinações).
 - Suíte local: 616 testes aprovados; validação de catálogos, lint debug/release e build de release sem erros. Continua pendente a leitura sem barra de IV, Pokémon sem nome lido (Dragão/Aço), cartões muito parecidos com o fundo do tipo (Gengar) e sombrosos lidos sem prova de sombroso.
+## Correções da revisão e sprites de raid — 28/10/2026
+
+- POCO X7 Pro, Android 16, build `benchmark` instalado por cima preservando os dados, por USB.
+- Leituras pela sobreposição quebravam ao abrir a janela de resultado (`ViewTreeLifecycleOwner not found`, visto no log de falhas): o envoltório do botão Voltar não tinha os donos de ciclo de vida do Compose. Após a correção, o usuário voltou a fazer leituras pela sobreposição.
+- Raid de Giratina Origem lida pela sobreposição sem relatório salvo (`hit=false` no log `RaidReadTiming`): antes não baixava os atacantes; após a mudança, o usuário conferiu atacantes e sprites carregados na primeira abertura.
+- Conferidos pelo usuário: leitura do perfil de treinador pela sobreposição, botões das missões diárias e rolagem completa das Coleções sem travar. Nas Coleções, o Rockruff comum aparecia com o sprite do Crepúsculo (mapeamento corrigido em `images.json` e `collection_game_forms.json`; correção ainda não conferida no aparelho).
+- A janela de filtros da sobreposição não tinha arraste para reordenar; passou a usar o mesmo componente da tela Filtros, ainda não conferido no aparelho.
+- Não conferidos fisicamente: gesto Voltar do Android nas janelas, falha de download aguardando o botão Atualizar, sprites das 14 formas acrescentadas, demais telas com drag-and-drop, Pokédex e Spinda/Furfrou. A identificação das letras do Unown fica para uma etapa própria.
+- Suíte local: 633 testes aprovados; lint debug/release sem erros.

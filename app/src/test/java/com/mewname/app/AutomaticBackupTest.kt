@@ -54,8 +54,13 @@ class AutomaticBackupTest {
         val text = UserBackup.export(context)
         AutomaticBackup.replace(store, text)
         store.failDelete = true
-        assertTrue(runCatching { AutomaticBackup.replace(store, text) }.isFailure)
+        // The verified new copy counts as success; the stale one stays until a later run can remove it.
+        AutomaticBackup.replace(store, text)
         assertNotNull(AutomaticBackup.latest(store))
+        assertEquals(2, store.files.size)
+        store.failDelete = false
+        AutomaticBackup.replace(store, text)
+        assertEquals(1, store.files.size)
     }
     @Test fun freshInstallDoesNotScheduleUntilFolderIsChosen() {
         context.getSharedPreferences("automatic_backup", 0).edit().clear().commit()

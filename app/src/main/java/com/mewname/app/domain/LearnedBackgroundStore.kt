@@ -31,8 +31,9 @@ object LearnedBackgroundStore {
     private class Pending(val crop: Bitmap, val read: PokemonScreenData, val mergedSpecial: Boolean)
 
     @Volatile private var pending: Pending? = null
-    @Volatile var version = 0
-        private set
+    private val changes = java.util.concurrent.atomic.AtomicInteger()
+    /** Bumped on every save or restore, so the matcher reloads its learned references. */
+    val version: Int get() = changes.get()
 
     /** Keeps the background of the latest read until its nickname is copied. */
     fun remember(bitmap: Bitmap, read: PokemonScreenData, merged: PokemonScreenData) {
@@ -84,6 +85,9 @@ object LearnedBackgroundStore {
      */
     fun root(context: Context): File {
         val root = File(context.getExternalFilesDir(null) ?: context.filesDir, DIR)
+        // A restore interrupted after moving the old crops aside: put them back.
+        val aside = File(root.parentFile, "$DIR.old")
+        if (!root.exists() && aside.isDirectory) aside.renameTo(root)
         val legacy = File(context.filesDir, DIR)
         if (legacy != root && legacy.isDirectory) {
             legacy.walkTopDown().filter { it.isFile }.forEach { file ->
@@ -115,20 +119,28 @@ object LearnedBackgroundStore {
             ENTRY_FILE.matches(name.substringAfter('/'))
     }
 
-    /** Replaces every learned crop with [entries], as restored from a backup. */
+    /**
+     * Replaces every learned crop with [entries], as restored from a backup. The current folder is only moved aside
+     * once the new one is complete, and deleted after the swap, so an interruption never leaves the store empty.
+     */
     @Synchronized fun replaceAll(context: Context, entries: Map<String, ByteArray>) {
         require(entries.keys.all(::isEntryName))
         val root = root(context)
-        val staging = File(root.parentFile, "$DIR.restore").apply { deleteRecursively() }
+        val staging = File(root.parentFile, "$DIR.restore").apply { deleteRecursively(); mkdirs() }
+        val aside = File(root.parentFile, "$DIR.old").apply { deleteRecursively() }
         entries.forEach { (name, bytes) -> File(staging, name).apply { parentFile?.mkdirs() }.writeBytes(bytes) }
-        root.deleteRecursively()
-        if (entries.isNotEmpty()) check(staging.renameTo(root)) { "Could not restore learned backgrounds" }
-        staging.deleteRecursively()
+        if (root.exists()) check(root.renameTo(aside)) { "Could not restore learned backgrounds" }
+        if (!staging.renameTo(root)) {
+            aside.renameTo(root)
+            error("Could not restore learned backgrounds")
+        }
+        aside.deleteRecursively()
         pending = null
-        version++
+        changes.incrementAndGet()
     }
 
-    private fun save(context: Context, crop: Bitmap, type: SpecialBackgroundType) {
+    // Synchronized with replaceAll, so a crop saved during a restore never lands in the folder being swapped.
+    @Synchronized private fun save(context: Context, crop: Bitmap, type: SpecialBackgroundType) {
         runCatching {
             val folder = File(root(context), SpecialBackgroundCatalog.folder(type)).apply { mkdirs() }
             val file = File(folder, "learned_${System.currentTimeMillis()}.webp")
@@ -139,7 +151,7 @@ object LearnedBackgroundStore {
             temp.outputStream().use { check(crop.compress(format, 85, it)) }
             check(temp.renameTo(file))
             files(context).map { it.second }.sortedBy { it.lastModified() }.dropLast(MAX_FILES).forEach { it.delete() }
-            version++
+            changes.incrementAndGet()
             Log.d(TAG, "learned ${file.parentFile?.name}/${file.name}")
         }.onFailure { Log.w(TAG, "could not save learned background", it) }
     }

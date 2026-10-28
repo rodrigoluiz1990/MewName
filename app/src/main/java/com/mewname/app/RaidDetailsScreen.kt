@@ -26,8 +26,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.request.CachePolicy
-import coil.request.ImageRequest
 import com.mewname.app.domain.*
 import kotlinx.coroutines.*
 import org.json.JSONArray
@@ -115,7 +113,17 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             weakness=withContext(Dispatchers.Default) { runCatching {
                 GameInfoRepository.matchupAgainst(context.applicationContext,selected.types).filter { it.multiplier > 1 }
             }.getOrDefault(emptyList()) }
-            if ((!bubble && screenCacheExpired(report?.fetchedAt, BATTLE_DATA_MAX_AGE)) || refresh > 0) report=withContext(Dispatchers.IO) { repository.refresh(selected.id,tier,level) }
+            // The bubble keeps saved suggestions; missing ones are downloaded once, like the portraits,
+            // and a failed download waits for the explicit refresh.
+            val attempt = "raid-counters:${selected.id}:$tier:$level"
+            val missing = report == null && PortraitDownloadPolicy.allowsNetwork(context, attempt, refresh)
+            if ((!bubble && screenCacheExpired(report?.fetchedAt, BATTLE_DATA_MAX_AGE)) || refresh > 0 || missing) {
+                report = try {
+                    withContext(Dispatchers.IO) { repository.refresh(selected.id,tier,level) }
+                        .also { PortraitDownloadPolicy.recordResult(context, attempt, downloaded = true) }
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) { PortraitDownloadPolicy.recordResult(context, attempt, downloaded = false); throw e }
+            }
         } catch(e: CancellationException) { throw e }
         catch(_: Exception) { failed=true }
         finally { loading=false }
@@ -235,7 +243,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Candidate selection must show portraits even before a raid report has been cached.
-                        RaidPortrait(choice.id, offline = false, Modifier.size(64.dp), refreshToken = refresh)
+                        RaidPortrait(choice.id, Modifier.size(64.dp), refreshToken = refresh)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(name(choice.id), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text(raidLabel(choice), style = MaterialTheme.typography.bodySmall,
@@ -249,7 +257,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
             boss?.let { b ->
                 item { AppSectionCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment=Alignment.CenterVertically) {
-                        RaidPortrait(b.id,bubble,Modifier.size(64.dp), refreshToken = refresh)
+                        RaidPortrait(b.id, Modifier.size(64.dp), refreshToken = refresh)
                         Column { Text(name(b.id),style=MaterialTheme.typography.titleLarge)
                             FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) { b.types.forEach { TypeBadge(it,language,showAssetIcon=true) } }
                         }
@@ -349,7 +357,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                 }
                 items(report?.counters.orEmpty(),key={it.id}) { counter -> AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                        RaidPortrait(counter.id,bubble,Modifier.size(64.dp), refreshToken = refresh)
+                        RaidPortrait(counter.id, Modifier.size(64.dp), refreshToken = refresh)
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                             Text(name(counter.id),style=MaterialTheme.typography.titleSmall)
                             RaidMoveRow(counter.fast,tr("Rápido: ","Fast: ","Rápido: ")+moveLabel(counter.fast.id))
@@ -394,20 +402,14 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
         Text(label + if(move.special) " ${configuredLegacyMoveSymbol()}" else "",style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))
     }
 }
-@Composable internal fun RaidPortrait(id: String, offline: Boolean, modifier: Modifier, refreshToken: Int = 0) {
+@Composable internal fun RaidPortrait(id: String, modifier: Modifier, refreshToken: Int = 0) {
     val context = LocalContext.current
     val url by produceState<String?>(null, id, refreshToken) {
         value = withContext(Dispatchers.IO) { RaidCounterRepository(context.applicationContext).image(id) }
     }
-    val request = remember(context, url, offline, refreshToken) {
-        ImageRequest.Builder(context).data(url)
-            .transformations(CollectionSpriteTrim)
-            // Opening the overlay remains cache-only; an explicit raid refresh
-            // also authorizes downloading missing portraits and saving them.
-            .networkCachePolicy(if (offline && refreshToken == 0) CachePolicy.DISABLED else CachePolicy.ENABLED)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
+    // A missing portrait is downloaded once; after a failure only the explicit refresh retries it.
+    val request = remember(context, url, refreshToken) {
+        PortraitDownloadPolicy.request(context, url, refreshToken, CollectionSpriteTrim)
     }
     // Recreate the painter even when the URL is unchanged, so a previous failed
     // request is retried on every press. Successful cached images are reused.

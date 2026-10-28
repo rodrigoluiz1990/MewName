@@ -19,7 +19,7 @@ import kotlinx.coroutines.*
 import java.util.Locale
 
 @Composable
-internal fun RocketMovesetSuggestions(selected: List<LeekPokemon>, offline: Boolean) {
+internal fun RocketMovesetSuggestions(selected: List<LeekPokemon>) {
     if (selected.isEmpty()) return
     val context = LocalContext.current.applicationContext
     val language = appLanguage()
@@ -66,7 +66,7 @@ internal fun RocketMovesetSuggestions(selected: List<LeekPokemon>, offline: Bool
             AppSectionCard(Modifier.weight(1f)) {
                 Column(Modifier.fillMaxWidth().padding(6.dp), horizontalAlignment=Alignment.CenterHorizontally,
                     verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                    RaidPortrait(suggestion.pokemon.name.uppercase(Locale.ROOT).replace(' ', '_'), offline, Modifier.size(64.dp))
+                    RaidPortrait(suggestion.pokemon.name.uppercase(Locale.ROOT).replace(' ', '_'), Modifier.size(64.dp))
                     Text(suggestion.pokemon.localizedName(language), style=MaterialTheme.typography.labelLarge,
                         textAlign=TextAlign.Center)
                     RocketSuggestedMove(suggestion.fast, suggestion.fastType)
