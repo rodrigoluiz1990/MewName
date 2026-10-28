@@ -2,6 +2,7 @@ package com.mewname.app
 
 import android.content.Context
 import android.util.Base64
+import com.mewname.app.domain.LearnedBackgroundStore
 import org.json.JSONObject
 import org.json.JSONArray
 import java.io.File
@@ -13,6 +14,7 @@ internal object UserBackup {
         "pvp_calculation", "raid_counter_preferences")
     private val pictures = setOf("profile-avatar.png", "profile-qr.png")
     const val MAX_BYTES = 32 * 1024 * 1024
+    private const val LEARNED_BACKGROUNDS = "learnedBackgrounds"
 
     fun export(context: Context): String {
         val data = JSONObject()
@@ -36,8 +38,14 @@ internal object UserBackup {
             val file = File(context.filesDir, name)
             if (file.isFile) images.put(name, Base64.encodeToString(file.readBytes(), Base64.NO_WRAP))
         }
+        val learned = JSONObject()
+        LearnedBackgroundStore.export(context).forEach { (name, bytes) ->
+            learned.put(name, Base64.encodeToString(bytes, Base64.NO_WRAP))
+        }
+        // Optional section: older versions ignore it, and backups without it keep the crops already learned.
         return JSONObject().put("app", "MewName").put("version", 1)
-            .put("createdAt", System.currentTimeMillis()).put("preferences", data).put("pictures", images).toString()
+            .put("createdAt", System.currentTimeMillis()).put("preferences", data).put("pictures", images)
+            .put(LEARNED_BACKGROUNDS, learned).toString()
             .also { require(it.toByteArray().size <= MAX_BYTES) { "Backup too large" } }
     }
 
@@ -69,7 +77,18 @@ internal object UserBackup {
         return bytes.toString(Charsets.UTF_8).also(::validate)
     }
 
-    private data class Decoded(val preferences: Map<String, Map<String, Any>>, val pictures: Map<String, ByteArray>)
+    private data class Decoded(
+        val preferences: Map<String, Map<String, Any>>,
+        val pictures: Map<String, ByteArray>,
+        /** Null for backups made before learned backgrounds existed. */
+        val learnedBackgrounds: Map<String, ByteArray>?
+    )
+
+    private fun requireImage(bytes: ByteArray, maxSide: Int) {
+        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+        require(options.outWidth in 1..maxSide && options.outHeight in 1..maxSide)
+    }
     private fun decode(text: String): Decoded {
         require(text.toByteArray().size <= MAX_BYTES)
         val root = JSONObject(text)
@@ -99,12 +118,19 @@ internal object UserBackup {
             require(name in pictures)
             Base64.decode(imageData.getString(name), Base64.DEFAULT).also {
                 require(it.size <= 8 * 1024 * 1024)
-                val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size, options)
-                require(options.outWidth in 1..8192 && options.outHeight in 1..8192)
+                requireImage(it, 8192)
             }
         }
-        return Decoded(prefs, images)
+        val learned = root.optJSONObject(LEARNED_BACKGROUNDS)?.let { section ->
+            section.keys().asSequence().associateWith { name ->
+                require(LearnedBackgroundStore.isEntryName(name)) { "Invalid learned background" }
+                Base64.decode(section.getString(name), Base64.DEFAULT).also {
+                    require(it.size <= 1024 * 1024)
+                    requireImage(it, 2048)
+                }
+            }
+        }
+        return Decoded(prefs, images, learned)
     }
 
     fun validate(text: String) { decode(text) }
@@ -148,5 +174,6 @@ internal object UserBackup {
                 catch (error: Exception) { atomic.failWrite(output); throw error }
             }
         }
+        data.learnedBackgrounds?.let { LearnedBackgroundStore.replaceAll(context, it) }
     }
 }

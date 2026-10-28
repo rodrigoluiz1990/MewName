@@ -21,6 +21,10 @@ class PokemonReadSessionMerger {
             current = current.masterIvBadgeMatch,
             previous = previous.masterIvBadgeMatch
         )
+        // The game alternates special cards with the type background, so one read may catch either state. Family
+        // alone is too weak to carry it: a wing hiding the CP made every following Regidrago inherit the card.
+        val carryBackground = !current.hasSpecialBackground && previous.hasSpecialBackground &&
+            isSameIndividual(current, previous)
 
         return current.copy(
             pokemonName = mergePokemonName(current, previous),
@@ -54,7 +58,8 @@ class PokemonReadSessionMerger {
             isShiny = current.isShiny || previous.isShiny,
             isShadow = current.isShadow || previous.isShadow,
             isPurified = current.isPurified || previous.isPurified,
-            hasSpecialBackground = if (current.backgroundDebugInfo != null) current.hasSpecialBackground else current.hasSpecialBackground || previous.hasSpecialBackground,
+            hasSpecialBackground = current.hasSpecialBackground || carryBackground,
+            specialBackgroundType = if (carryBackground) previous.specialBackgroundType else current.specialBackgroundType,
             hasAdventureEffect = if (current.adventureEffectDebugInfo != null) current.hasAdventureEffect else current.hasAdventureEffect || previous.hasAdventureEffect,
             size = if (current.sizeDebugInfo != null || current.size != PokemonSize.NORMAL) current.size else previous.size,
             sizeDebugInfo = current.sizeDebugInfo ?: previous.sizeDebugInfo,
@@ -98,6 +103,15 @@ class PokemonReadSessionMerger {
         mergedLegacyMove && current.hasLegacyMove -> current.legacyDebugInfo ?: previous.legacyDebugInfo
         mergedLegacyMove && previous.hasLegacyMove -> previous.legacyDebugInfo ?: current.legacyDebugInfo
         else -> current.legacyDebugInfo ?: previous.legacyDebugInfo
+    }
+
+    /** Both reads show the same CP, or the same max HP and appraisal IVs. */
+    private fun isSameIndividual(current: PokemonScreenData, previous: PokemonScreenData): Boolean {
+        if (current.cp != null && current.cp == previous.cp) return true
+        val currentHp = current.levelDebugInfo?.maxHp
+        return currentHp != null && currentHp == previous.levelDebugInfo?.maxHp &&
+            hasTrustedIvRead(current) && hasTrustedIvRead(previous) &&
+            current.attIv == previous.attIv && current.defIv == previous.defIv && current.staIv == previous.staIv
     }
 
     private fun hasTrustedIvRead(data: PokemonScreenData): Boolean {

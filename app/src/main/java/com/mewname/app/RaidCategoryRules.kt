@@ -31,7 +31,7 @@ internal fun orderedRaidCategories(categories: List<RaidHistoryCategory>): List<
         }
     }
     fun level(category: RaidHistoryCategory) =
-        Regex("^RAID_LEVEL_(?:MEGA_)?(\\d+(?:_\\d+)?)").find(tier(category))
+        RAID_LEVEL_NUMBER.find(tier(category))
             ?.groupValues?.get(1)?.replace('_', '.')?.toDoubleOrNull() ?: 0.0
     return categories.sortedWith(compareBy<RaidHistoryCategory> { group(it) }
         .thenBy { if (group(it) == 1 && tier(it) == "RAID_LEVEL_MEGA") 0 else 1 }
@@ -51,10 +51,13 @@ private val heavyMegaBosses = setOf(
     "GROUDON_PRIMAL", "KYOGRE_PRIMAL", "LATIAS_MEGA", "LATIOS_MEGA",
     "RAYQUAZA_MEGA", "MEWTWO_MEGA_X", "MEWTWO_MEGA_Y"
 )
+private val RAID_LEVEL_NUMBER = Regex("^RAID_LEVEL_(?:MEGA_)?(\\d+(?:_\\d+)?)")
+private val RAID_TIER_IN_URL = Regex("RAID_LEVEL_[A-Z0-9_]+")
+
 internal fun raidHasShields(tier: String) = "MEGA_ENHANCED" in tier.uppercase(Locale.US)
 
 internal fun raidBattleTier(item: com.mewname.app.domain.RaidHistoryItem, category: RaidHistoryCategory): String =
-    item.battleTier ?: Regex("RAID_LEVEL_[A-Z0-9_]+").find(item.url)?.value
+    item.battleTier ?: RAID_TIER_IN_URL.find(item.url)?.value
         ?: if (raidHistorySpriteId(item) in heavyMegaBosses) "RAID_LEVEL_MEGA_5"
         else if (category.id.equals("megaSuper", true)) "RAID_LEVEL_MEGA"
         else raidCategoryTier(category)

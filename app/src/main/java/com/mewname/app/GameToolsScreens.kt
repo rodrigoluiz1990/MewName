@@ -115,6 +115,7 @@ import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -716,9 +717,16 @@ fun RaidPlannerScreen(
             }
         }
     }
-    val displayCategories = remember(live, savedRaids, loaded, catalogLoading) {
-        sortRaidCategoriesByDex(normalizeRaidCategories(live, saved = false) +
-            mergeSavedRaidCategories(loaded?.getOrNull().orEmpty(), savedRaids), counterRepository.metadata())
+    // Regrouping the whole history on every progressive snapshot janked the main thread; keep only the latest pending one.
+    val displayCategories by androidx.compose.runtime.produceState(emptyList<RaidHistoryCategory>(), counterRepository) {
+        androidx.compose.runtime.snapshotFlow { Triple(live, savedRaids, loaded) }
+            .conflate()
+            .collect { (current, saved, result) ->
+                value = withContext(Dispatchers.Default) {
+                    sortRaidCategoriesByDex(normalizeRaidCategories(current, saved = false) +
+                        mergeSavedRaidCategories(result?.getOrNull().orEmpty(), saved), counterRepository.metadata())
+                }
+            }
     }
     if (selectedBoss != null) {
         RaidDetailsScreen(selectedBoss!!, selectedTier, shielded = selectedShields, onBack = { selectedBoss = null })
@@ -2422,8 +2430,10 @@ internal fun raidCategoryGroup(category: RaidHistoryCategory): RaidCategoryGroup
 internal fun isMaxRaidCategory(category: RaidHistoryCategory): Boolean {
     val id = category.id.uppercase(Locale.US)
     return "DYNAMAX" in id || "DINAMAX" in id || "GIGANTAMAX" in id || "GIGAMAX" in id ||
-        Regex("RAID_LEVEL_.+_MAX").containsMatchIn(id)
+        MAX_RAID_TIER.containsMatchIn(id)
 }
+
+private val MAX_RAID_TIER = Regex("RAID_LEVEL_.+_MAX")
 
 internal fun sortRaidCategoriesByDex(
     categories: List<RaidHistoryCategory>,
@@ -2446,7 +2456,7 @@ private fun RaidHistorySection(
     onSelectMaxBoss: (RaidHistoryItem, RaidHistoryCategory) -> Unit
 ) {
     if (categories.isEmpty()) return
-    val groupedCategories = orderedRaidCategories(categories).groupBy(::raidCategoryGroup)
+    val groupedCategories = remember(categories) { orderedRaidCategories(categories).groupBy(::raidCategoryGroup) }
     val groups = listOf(
         RaidCategoryGroup.CURRENT to t(language, "Atuais", "Current", "Actuales"),
         RaidCategoryGroup.SAVED to t(language, "Salvas", "Saved", "Guardadas")

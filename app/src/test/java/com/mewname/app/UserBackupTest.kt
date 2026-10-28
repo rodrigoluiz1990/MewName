@@ -2,13 +2,16 @@ package com.mewname.app
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.mewname.app.domain.LearnedBackgroundStore
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class UserBackupTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     @Test fun roundTripPreservesTypesAndReplacesUserData() {
@@ -58,6 +61,35 @@ class UserBackupTest {
         UserBackup.restore(context, text)
         assertEquals("saved missions", context.getSharedPreferences("daily_missions", 0).getString("missions", null))
     }
+    private fun crop(): ByteArray = java.io.ByteArrayOutputStream().also {
+        android.graphics.Bitmap.createBitmap(32, 20, android.graphics.Bitmap.Config.ARGB_8888)
+            .compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+    }.toByteArray()
+
+    private fun learnedNames() = LearnedBackgroundStore.export(context).keys
+
+    @Test fun learnedBackgroundsTravelWithTheBackup() {
+        LearnedBackgroundStore.replaceAll(context, mapOf("go_fest/learned_1.png" to crop()))
+        val backup = UserBackup.export(context)
+        LearnedBackgroundStore.replaceAll(context, mapOf("wild_area/learned_2.png" to crop()))
+        UserBackup.restore(context, backup)
+        assertEquals(setOf("go_fest/learned_1.png"), learnedNames())
+    }
+
+    @Test fun backupWithoutLearnedBackgroundsKeepsTheCurrentOnes() {
+        LearnedBackgroundStore.replaceAll(context, mapOf("go_fest/learned_1.png" to crop()))
+        val older = JSONObject(UserBackup.export(context)).apply { remove("learnedBackgrounds") }
+        UserBackup.restore(context, older.toString())
+        assertEquals(setOf("go_fest/learned_1.png"), learnedNames())
+    }
+
+    @Test fun rejectsLearnedBackgroundPathsOutsideTheStore() {
+        val backup = JSONObject(UserBackup.export(context))
+        backup.getJSONObject("learnedBackgrounds")
+            .put("../outside/learned_1.png", android.util.Base64.encodeToString(crop(), android.util.Base64.NO_WRAP))
+        assertTrue(runCatching { UserBackup.validate(backup.toString()) }.isFailure)
+    }
+
     @Test fun emptyDocumentIsRejectedBeforeRestore() {
         val file = java.io.File(context.cacheDir, "empty-backup.json").apply { writeText("") }
         assertTrue(runCatching { UserBackup.readDocument(context, android.net.Uri.fromFile(file)) }.isFailure)

@@ -59,6 +59,20 @@ internal object SpecialBackgroundCatalog {
             else -> BackgroundCategory.SPECIAL
         }
     }
+    /** Folder that [category] reads back as [type], for references saved at run time. */
+    fun folder(type: SpecialBackgroundType): String = when (type) {
+        SpecialBackgroundType.LOCATION -> "localidades"
+        SpecialBackgroundType.ANNIVERSARY -> "aniversario"
+        SpecialBackgroundType.COMMUNITY_DAY -> "dia_da_comunidade"
+        SpecialBackgroundType.GO_FEST -> "go_fest"
+        SpecialBackgroundType.GO_TOUR -> "go_tour"
+        SpecialBackgroundType.MEGA_EVOLUTION -> "mega_evolucao"
+        SpecialBackgroundType.WILD_AREA -> "wild_area"
+        SpecialBackgroundType.SEASON -> "temporadas"
+        SpecialBackgroundType.TEAM_LEADER -> "lideres_de_equipe"
+        SpecialBackgroundType.SPECIAL -> "eventos_especiais"
+    }
+
     fun type(file: String): SpecialBackgroundType =
         if (file.substringAfterLast('/').equals("sb_GoTour2026_mega.png", true)) SpecialBackgroundType.MEGA_EVOLUTION
         else category(file).type

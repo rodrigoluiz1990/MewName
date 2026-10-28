@@ -18,7 +18,11 @@ class BackgroundReferenceMatcher {
         val bestNormalDistance: Double? = null,
         val bestSpecialReferenceName: String? = null,
         val bestSpecialDistance: Double? = null,
-        val specialType: com.mewname.app.model.SpecialBackgroundType? = null
+        val specialType: com.mewname.app.model.SpecialBackgroundType? = null,
+        /** Best distance to each type background, keyed by lowercase English type ("psychic"). */
+        val typeDistances: Map<String, Double> = emptyMap(),
+        /** Best distance to a special reference of another category than the closest one. */
+        val otherCategoryDistance: Double? = null
     )
 
     private data class SignatureSample(
@@ -58,17 +62,21 @@ class BackgroundReferenceMatcher {
         }
 
         val candidateSignatures = cropBackgroundCandidates(bitmap).map(::createScreenshotSignature)
-        val rankedNormal = rankReferences(normalReferences, candidateSignatures)
+        val rankedAllNormal = rankReferences(normalReferences, candidateSignatures)
+        // The shadow background is normal only for shadow Pokémon; the caller weighs it with its own evidence.
+        val rankedNormal = rankedAllNormal.filterNot { (reference, _) -> SHADOW_REFERENCE_MARKER in reference.sourceName }
         val bestNormal = rankedNormal.firstOrNull()
         val bestNormalDistance = bestNormal?.second
         val specialReferences = loadSpecialReferences(context)
         val rankedSpecial = rankReferences(specialReferences, candidateSignatures)
         val bestSpecial = rankedSpecial.firstOrNull()
+        val bestSpecialType = bestSpecial?.let { SpecialBackgroundCatalog.type(it.first.sourceName) }
+        val competing = rankedSpecial.firstOrNull { SpecialBackgroundCatalog.type(it.first.sourceName) != bestSpecialType }?.second
         val specialType = bestSpecial?.let { best ->
-            val type = SpecialBackgroundCatalog.type(best.first.sourceName)
-            val competing = rankedSpecial.firstOrNull { SpecialBackgroundCatalog.type(it.first.sourceName) != type }?.second ?: Double.MAX_VALUE
             // Conservative gate: a named category needs positive evidence, not only dissimilarity to normal.
-            type.takeIf { best.second <= 1.8 && best.second + 0.8 < (bestNormalDistance ?: 0.0) && best.second + 0.8 < competing }
+            bestSpecialType.takeIf {
+                best.second <= 1.8 && best.second + 0.8 < (bestNormalDistance ?: 0.0) && best.second + 0.8 < (competing ?: Double.MAX_VALUE)
+            }
         }
         val isSpecial = when {
             specialType != null -> true
@@ -88,7 +96,11 @@ class BackgroundReferenceMatcher {
             bestNormalDistance = bestNormalDistance,
             bestSpecialReferenceName = bestSpecial?.first?.sourceName,
             bestSpecialDistance = bestSpecial?.second,
-            specialType = specialType
+            specialType = specialType,
+            typeDistances = rankedAllNormal
+                .groupBy { (reference, _) -> reference.sourceName.substringAfterLast("details_type_bg_").substringBefore('.') }
+                .mapValues { (_, ranked) -> ranked.minOf { it.second } },
+            otherCategoryDistance = competing
         )
     }
 
@@ -107,7 +119,24 @@ class BackgroundReferenceMatcher {
         cachedReferences(context, NORMAL_REFS_PATH)
 
     private fun loadSpecialReferences(context: Context): List<ReferenceSignature> =
-        cachedReferences(context, SpecialBackgroundCatalog.PATH) + cachedReferences(context, CALIBRATION_REFS_PATH)
+        cachedReferences(context, SpecialBackgroundCatalog.PATH) + cachedReferences(context, CALIBRATION_REFS_PATH) +
+            learnedReferences(context)
+
+    /** Crops this device learned from copied nicknames; reloaded whenever the store saves a new one. */
+    private fun learnedReferences(context: Context): List<ReferenceSignature> {
+        val version = LearnedBackgroundStore.version
+        learnedCache?.takeIf { it.first == version }?.let { return it.second }
+        val loaded = LearnedBackgroundStore.files(context).flatMap { (name, file) ->
+            val bitmap = BitmapFactory.decodeFile(file.path) ?: return@flatMap emptyList()
+            try {
+                REFERENCE_VARIANTS.map { variant -> ReferenceSignature(name, createReferenceSignature(bitmap, variant)) }
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        learnedCache = version to loaded
+        return loaded
+    }
 
     /** Loads every reference set ahead of the first read, which otherwise pays for decoding ~180 images. */
     fun warmUp(context: Context) {
@@ -367,9 +396,11 @@ class BackgroundReferenceMatcher {
     private companion object {
         const val NORMAL_REFS_PATH = "background_refs/normal"
         const val CALIBRATION_REFS_PATH = "background_refs/calibration"
+        const val SHADOW_REFERENCE_MARKER = "details_type_bg_shadow"
         const val SIGNATURE_STORE_DIR = "background-signatures"
         const val SIGNATURE_STORE_FORMAT = 1
         val referenceCache = java.util.concurrent.ConcurrentHashMap<String, List<ReferenceSignature>>()
+        @Volatile var learnedCache: Pair<Int, List<ReferenceSignature>>? = null
         const val SIGNATURE_SIZE = 14
         const val NORMAL_CONFIDENCE_THRESHOLD = 3.25
         const val SPECIAL_OUTLIER_THRESHOLD = 4.25

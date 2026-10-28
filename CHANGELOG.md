@@ -1,5 +1,44 @@
 # Histórico de alterações
 
+## 1.0.35 - 2026-10-28
+
+Alterações acumuladas desde a release 1.0.34.
+
+### Fundos especiais
+
+- Detecção revisada: o cartão é reconhecido quando fica claramente mais perto de uma referência especial ou longe do fundo do próprio tipo; nas capturas de referência passou de 9 para 37 de 41 cartões, sem novos falsos positivos.
+- Pokémon sombrosos: o fundo de sombroso conta como comum e os cartões especiais deles (como o Ho-Oh) passam a ser reconhecidos.
+- O teste visual de sortudo, que confundia cartões dourados e vermelhos, deixa de bloquear o fundo especial quando o custo de Fortalecer ou o sombroso descartam sortudo, ou quando a referência especial é muito próxima.
+- Novas referências recortadas de capturas, com categoria: Ancients Recovered (Regis), Pokémon Gold do GO Tour (Ho-Oh), GO Wild Area 2025 e Líder Valor.
+- O app aprende fundos no próprio aparelho: ao copiar um nome com a tag de fundo especial, o recorte daquela leitura é guardado com a categoria do nome, se não parecer o fundo comum. Os recortes entram no backup.
+- O cartão visto numa leitura só passa para a seguinte quando é o mesmo Pokémon (mesmo PC, ou mesmos PS e IVs); antes, Pokémon da mesma família com o PC encoberto herdavam o fundo.
+
+### Purificado, sombroso e sortudo
+
+- Origem identificada pelo custo de Fortalecer (purificado, sombroso, sortudo), substituindo a detecção de brilhos que marcava purificado em excesso; custos ambíguos ficam sem marca.
+- Texto "sombroso" reconhecido sem confundir com ataques como Bola Sombria.
+- Corrigido o arredondamento dos doces de Fortalecer e os custos por origem de captura.
+
+### Reconhecimento e ataques
+
+- Apelido com nome impossível para o PC/PS escolhe o membro compatível da família.
+- Lista de ataques completada com o Game Master: 86 combinações, incluindo Contra-atacar (Elite) do Mewtwo.
+
+### Nomes
+
+- Siglas padrão de fundo especial: ★AN (Aniversário), ★TP (Temporadas), ★LE (Líder de Equipe) e ★ME (Mega Evolução). Configurações já salvas mantêm as próprias siglas.
+
+### Desempenho e tamanho
+
+- Build release com R8 e Baseline Profile: APK de 246 para 129 MB e abertura a frio de ~360 para ~270 ms.
+- Figurinhas e imagens de eventos recomprimidas.
+- Tela de Raids monta a lista fora da linha principal, sem engasgos ao rolar.
+- Detectores visuais leem os pixels por linha.
+
+### Manutenção
+
+- A release publica o `mapping.txt` do R8; build `benchmark` e módulo `baselineprofile` para medir e regenerar o perfil (`docs/baseline-profile.md`).
+
 ## 1.0.34 - 2026-10-26
 
 Alterações acumuladas desde a release 1.0.33.

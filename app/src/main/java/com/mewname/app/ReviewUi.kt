@@ -177,7 +177,9 @@ fun ReviewEditorCard(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     useLogSelectionModal: Boolean = false,
-    glassStyle: Boolean = false
+    glassStyle: Boolean = false,
+    /** A suggested name was copied, with the reviewed data it was generated from. */
+    onNameCopied: ((PokemonScreenData, String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val language = appLanguage()
@@ -493,8 +495,10 @@ fun ReviewEditorCard(
         }
     }
     val maxCardHeight = (LocalConfiguration.current.screenHeightDp.dp - 32.dp).coerceAtLeast(360.dp)
-    val confirmReviewedData = {
-        onConfirm(reviewData.recalculateIvPercent().normalizeReviewData())
+    val confirmReviewedData = { copiedName: String ->
+        val reviewed = reviewData.recalculateIvPercent().normalizeReviewData()
+        onNameCopied?.invoke(reviewed, copiedName)
+        onConfirm(reviewed)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -535,7 +539,7 @@ fun ReviewEditorCard(
                 SuggestedNamesBlock(
                     suggestions = generatedSuggestions,
                     language = language,
-                    onSuggestionSelected = { confirmReviewedData() },
+                    onSuggestionSelected = { name -> confirmReviewedData(name) },
                     onCancel = onCancel,
                     onExportLog = onExportLog?.let { export -> {
                         if (useLogSelectionModal) {

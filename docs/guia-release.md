@@ -60,7 +60,7 @@ Também excluir temporários, APKs gerados localmente, logs, capturas, caches, e
 1. Revisar conteúdo staged, exclusões, dependências, versão e notas. Fazer commit com mensagem curta e representativa do escopo final.
 2. Enviar o commit para a branch/remoto apropriados, sem force push. Se houver divergências remotas, resolver preservando o trabalho existente e revalidar o que mudou.
 3. Criar a tag inédita `vX.Y.Z` no commit validado e enviá-la explicitamente. Não mover ou reutilizar tag publicada e não enviar outras tags por acidente.
-4. O workflow atual `Release APK` é disparado pelo push de tags `v*`; ele publica `RELEASE_NOTES.md` e o asset `MewName-vX.Y.Z.apk`. Não duplicar a publicação manualmente.
+4. O workflow atual `Release APK` é disparado pelo push de tags `v*`; ele publica `RELEASE_NOTES.md`, o asset `MewName-vX.Y.Z.apk` e o `MewName-vX.Y.Z-mapping.txt` do R8. Não duplicar a publicação manualmente. O build release usa R8 e Baseline Profile; ver `docs/baseline-profile.md` para regenerar o perfil e para medir o build com a chave local.
 5. Acompanhar os workflows de verificação e release até o resultado. Confirmar que a release e o APK pertencem à tag/commit esperados. Conferir a situação da assinatura; o workflow pode produzir APK sem assinatura de produção quando os secrets estão ausentes.
 6. Conferir o estado local final. Mudanças experimentais excluídas podem continuar pendentes; não limpá-las.
 

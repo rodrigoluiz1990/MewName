@@ -188,6 +188,10 @@ data class BackgroundDebugInfo(
     val referenceDistance: Double? = null,
     val specialReferenceName: String? = null,
     val specialReferenceDistance: Double? = null,
+    /** Distance to the background of the Pokémon's own type(s), which the game draws for normal ones. */
+    val ownTypeDistance: Double? = null,
+    /** Distance to the shadow background, which the game draws instead of the type one for shadow Pokémon. */
+    val shadowBackgroundDistance: Double? = null,
     val colorFallbackMatch: Boolean = false,
     val topRegionLines: List<String> = emptyList(),
     val bottomRegionLines: List<String> = emptyList(),

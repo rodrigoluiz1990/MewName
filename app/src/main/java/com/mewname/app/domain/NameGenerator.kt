@@ -160,7 +160,7 @@ class NameGenerator {
             NamingField.LUCKY -> if (data.isLucky) config.symbols["LUCKY"] else null
             NamingField.SHADOW -> if (data.isShadow) config.symbols["SHADOW"] else null
             NamingField.PURIFIED -> if (data.isPurified) config.symbols["PURIFIED"] else null
-            NamingField.SPECIAL_BACKGROUND -> resolveSpecialBackgroundSymbol(data, config)
+            NamingField.SPECIAL_BACKGROUND -> specialBackgroundSymbol(data, config)
             NamingField.ADVENTURE_EFFECT -> if (data.hasAdventureEffect) config.symbols["ADVENTURE_EFFECT"] else null
             NamingField.EVOLVE_MARKER -> if (data.shouldEvolve) config.symbols["EVOLVE"] ?: defaultSymbols()["EVOLVE"] else null
             NamingField.PURIFY_MARKER -> if (data.shouldPurify) config.symbols["PURIFY"] ?: defaultSymbols()["PURIFY"] else null
@@ -206,7 +206,7 @@ class NameGenerator {
             .ifBlank { null }
     }
 
-    private fun resolveSpecialBackgroundSymbol(data: PokemonScreenData, config: NamingConfig): String? {
+    fun specialBackgroundSymbol(data: PokemonScreenData, config: NamingConfig): String? {
         if (!data.hasSpecialBackground) return null
         val type = data.specialBackgroundType ?: SpecialBackgroundType.SPECIAL
         return config.symbols[type.symbolKey]

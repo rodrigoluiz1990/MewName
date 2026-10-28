@@ -44,6 +44,17 @@ Limites: nomes sem correspondência canônica, como FIRE PERSONA, BURN UP e WEAT
 - [Ajuda oficial — Meteorito e Dragon Ascent](https://niantic.helpshift.com/hc/en/6-pokemon-go/faq/3332-how-can-i-mega-evolve-my-pokemon/).
 - [Game Master extraído pelo PokeMiners](https://github.com/PokeMiners/game_masters/blob/master/latest/latest.json), consultado em 2026-09-07. Dados extraídos do jogo, sujeitos a mudanças e sem garantia de disponibilidade histórica completa.
 
+## Atualização pelo Game Master — 28 de outubro de 2026
+
+O Mewtwo não oferecia Counter: o Game Master o traz em `eliteQuickMove`, campo que não tinha sido importado. A comparação de todas as 1.032 entradas de current_moves.json com `quickMoves`, `cinematicMoves`, `eliteQuickMove` e `eliteCinematicMove` do [Game Master do PokeMiners](https://github.com/PokeMiners/game_masters/blob/master/latest/latest.json) (versão de 2026-08-29) encontrou 86 combinações ausentes:
+
+- 1 ataque rápido de Elite: Counter do Mewtwo, marcado como `legacy`.
+- 85 ataques regulares acrescentados ao jogo depois da lista original (por exemplo, Meteor Beam do Glimmora e Surf do Kingdra).
+
+Todos já existiam no catálogo de golpes; as listas foram completadas em ordem alfabética, sem remover ataques. Nidoran♀ e Nidoran♂ foram associados pelos números 29 e 32, e o Game Master referencia alguns golpes novos pelo número. A lista está em [move-update-2026-10-28.csv](source-data/move-update-2026-10-28.csv).
+
+Ataques presentes no app e ausentes do Game Master não foram avaliados nesta atualização.
+
 ## Validação
 
 Testes de idioma PT-BR/EN/ES, aliases das formas, isolamento do cache, ataques especiais por forma e traduções sem ficha estatística. Compilação e validação semântica dos assets executadas pelo Gradle. A janela flutuante ainda precisa de teste visual em aparelho.

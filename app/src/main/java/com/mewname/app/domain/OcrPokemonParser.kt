@@ -330,7 +330,10 @@ class OcrPokemonParser {
         step("Estimando nível")
 
         val displayedMaxHp = OcrNumericReader.extractDisplayedMaxHp(orderedLines, referenceBounds)
-        if (!hasIvContext && name == null && candyFamilyName != null && cp != null && displayedMaxHp != null) {
+        // A nickname can also resolve to the wrong family member ("Porygon-" for a CP 3011 Porygon2).
+        val nameImpossibleForCpHp = !hasIvContext && name != null && cp != null && displayedMaxHp != null &&
+            rankCalculator.resolveIvEvidence(context, name!!, cp, displayedMaxHp, knownLevel = ocrLevel).matches == 0
+        if (!hasIvContext && (name == null || nameImpossibleForCpHp) && candyFamilyName != null && cp != null && displayedMaxHp != null) {
             val compatible = familyMembers.filter { candidate ->
                 (ocrDetectedTypes.isEmpty() || detailPokemonTypes(context, candidate).toSet() == ocrDetectedTypes.toSet()) &&
                     rankCalculator.resolveIvEvidence(context, candidate, cp, displayedMaxHp, knownLevel = ocrLevel).matches > 0
@@ -571,7 +574,19 @@ class OcrPokemonParser {
 
         step("Validando fundo e marcadores")
 
-        val backgroundDetection = visualReader.detectSpecialBackground(context, normUpper, orderedLines, bitmap, referenceBounds, detectedTypes)
+        val purifyAction = Regex("\\b(PURIFICAR|PURIFY|PURIFIER)\\b", RegexOption.IGNORE_CASE).containsMatchIn(normalizedRaw)
+        val powerUpCost = PowerUpCostEvidence.read(orderedLines)
+        val powerUpOrigins = powerUpCost?.let { PowerUpCostEvidence.origins(it, cpIvEvidence?.level) }.orEmpty()
+        val shadowByCost = PowerUpCostEvidence.isShadow(powerUpOrigins)
+        val costExcludesShadow = powerUpOrigins.isNotEmpty() && PowerUpOrigin.SHADOW !in powerUpOrigins
+        val luckyByCost = powerUpOrigins.isNotEmpty() &&
+            powerUpOrigins.all { it == PowerUpOrigin.LUCKY || it == PowerUpOrigin.LUCKY_PURIFIED }
+        val costExcludesLucky = powerUpOrigins.isNotEmpty() &&
+            powerUpOrigins.none { it == PowerUpOrigin.LUCKY || it == PowerUpOrigin.LUCKY_PURIFIED }
+        // Shadow Pokémon show the shadow background instead of their type one, and can never be lucky.
+        val backgroundDetection = visualReader.detectSpecialBackground(context, normUpper, orderedLines, bitmap, referenceBounds,
+            detectedTypes, shadowEvidence = purifyAction || shadowByCost,
+            luckyExcluded = purifyAction || shadowByCost || costExcludesLucky)
         val hasSpecialBackground = backgroundDetection.first
         mark("fundo especial")
         val adventureDetection = detectAdventureEffect(context, name, moves, normUpper, orderedLines, referenceBounds)
@@ -588,9 +603,7 @@ class OcrPokemonParser {
         val isFavorite = favoriteRatio?.let { it >= 0.16 } ?: false
         mark("favorito")
         val purifiedTextMatch = normalizedRaw.lowercase().let { it.contains("purified") || it.contains("purificado") }
-        val purifyAction = Regex("\\b(PURIFICAR|PURIFY|PURIFIER)\\b", RegexOption.IGNORE_CASE).containsMatchIn(normalizedRaw)
-        val purificationGlints = bitmap?.let(PurifiedAuraDetector::glints) ?: 0
-        val purifiedMatch = purifiedTextMatch || (!purifyAction && !backgroundDetection.second.shadowTextMatch && purificationGlints >= 3)
+        val purifiedMatch = purifiedTextMatch || PowerUpCostEvidence.isPurified(powerUpOrigins)
 
         val vivillonDetection = detectVivillonPattern(context, bitmap, name)
         mark("purificado e Vivillon")
@@ -619,6 +632,18 @@ class OcrPokemonParser {
 
         mark("golpes")
         step("Finalizando dados detectados")
+        val background = backgroundDetection.second
+        // One line per read so wrong purified/shadow/background marks can be diagnosed from logcat.
+        android.util.Log.d("MewNameVisual", "name=$name powerUp=${powerUpCost?.stardust}/${powerUpCost?.candy} " +
+            "origins=$powerUpOrigins purifyAction=$purifyAction " +
+            "purifiedText=$purifiedTextMatch shadowText=${background.shadowTextMatch} " +
+            "shadowParticles=${background.shadowParticleMatch} shadowTexture=${background.shadowTextureMatch} " +
+            "lucky=${background.luckyTextMatch}/${background.luckyVisualMatch} shiny=${background.shinyParticleMatch} " +
+            "special=$hasSpecialBackground type=${background.detectedSpecialType} types=$detectedTypes " +
+            "ownTypeDist=${background.ownTypeDistance} shadowDist=${background.shadowBackgroundDistance} " +
+            "normalRef=${background.referenceName}@${background.referenceDistance} " +
+            "specialRef=${background.specialReferenceName}@${background.specialReferenceDistance} " +
+            "badge=${background.eventBadgeVisualMatch} color=${background.colorFallbackMatch}")
 
         return PokemonScreenData(
             pokemonName = name,
@@ -642,7 +667,9 @@ class OcrPokemonParser {
                     if (typeFallbackUsed) add("tipo preenchido pela base local a partir do nome")
                     if (isFavorite) add("estrela superior direita preenchida em amarelo")
                     if (purifiedTextMatch) add("texto de purificado encontrado")
-                    add("brilhos de purificação: $purificationGlints; ação purificar: $purifyAction; purificado: $purifiedMatch")
+                    add("custo de fortalecer: ${powerUpCost?.let { "${it.stardust}/${it.candy ?: "?"}" } ?: "nao lido"}; " +
+                        "origens compativeis: ${powerUpOrigins.joinToString(",").ifEmpty { "-" }}; " +
+                        "ação purificar: $purifyAction; purificado: $purifiedMatch")
                 }.joinToString("; ")
             ),
             legacyDebugInfo = legacyDetection.second,
@@ -691,7 +718,9 @@ class OcrPokemonParser {
             type1 = detectedTypes.firstOrNull(),
             type2 = detectedTypes.getOrNull(1),
             isFavorite = isFavorite,
-            isLucky = backgroundDetection.second.luckyTextMatch || backgroundDetection.second.luckyVisualMatch,
+            // The golden-pixel check also fires on Normal and Dragon type backgrounds; it only keeps
+            // lucky backgrounds from counting as special ones.
+            isLucky = backgroundDetection.second.luckyTextMatch || luckyByCost,
             isShiny = backgroundDetection.second.shinyParticleMatch,
             pvpLeague = league,
             pvpRank = rank,
@@ -712,8 +741,10 @@ class OcrPokemonParser {
             selectedFastMove = recognizedMoves.fast,
             selectedChargedMove = recognizedMoves.charged,
             hasLegacyMove = hasLegacyMove,
-            isShadow = !purifiedMatch && (purifyAction || backgroundDetection.second.shadowTextMatch ||
-                (backgroundDetection.second.shadowParticleMatch && backgroundDetection.second.shadowTextureMatch)),
+            // A visible Purify button is proof; a cost that only fits other origins overrides weaker signs.
+            isShadow = !purifiedMatch && (purifyAction || shadowByCost || (!costExcludesShadow &&
+                (backgroundDetection.second.shadowTextMatch ||
+                    (backgroundDetection.second.shadowParticleMatch && backgroundDetection.second.shadowTextureMatch)))),
             isPurified = purifiedMatch,
             hasSpecialBackground = hasSpecialBackground,
             specialBackgroundType = backgroundDetection.second.detectedSpecialType,
@@ -1522,22 +1553,15 @@ class OcrPokemonParser {
             val stepY = (rect.height() / 80).coerceAtLeast(1)
             var total = 0
 
-            var y = rect.top
-            while (y < rect.bottom) {
-                var x = rect.left
-                while (x < rect.right) {
-                    val color = bitmap.getPixel(x, y)
-                    Color.colorToHSV(color, hsv)
-                    if (hsv[1] >= 0.25f && hsv[2] >= 0.22f) {
-                        saturatedPixels++
-                        if (hsv[0] in 235f..345f) {
-                            maxBadgePixels++
-                        }
+            bitmap.forEachSampledPixel(rect, stepX, stepY) { _, _, color ->
+                colorToHsv(color, hsv)
+                if (hsv[1] >= 0.25f && hsv[2] >= 0.22f) {
+                    saturatedPixels++
+                    if (hsv[0] in 235f..345f) {
+                        maxBadgePixels++
                     }
-                    total++
-                    x += stepX
                 }
-                y += stepY
+                total++
             }
 
             val maxBadgeRatio = maxBadgePixels / total.coerceAtLeast(1).toDouble()

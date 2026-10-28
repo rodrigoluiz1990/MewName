@@ -286,3 +286,21 @@ A refatoração é verificada separadamente pela suíte local, incluindo captura
 - Zapdos com apelido e PC encoberto pela imagem: a versão anterior indicava Altaria ou nenhum nome; após a correção, 20 leituras seguidas resultaram em Zapdos. Quadro da gravação de tela incluído como teste `HiddenCpDetailScreenTest`.
 - Abertura das telas medida por `atrace`; ficha da Pokédex deixou de travar (pior quadro de 1,3–1,8 s para ~150 ms).
 - Suíte local: 574 testes aprovados. Continuam pendentes a regressão física completa de fundos especiais, formas regionais, timeout forçado e memória prolongada.
+
+## R8 e Baseline Profile — 27/10/2026
+
+- POCO X7 Pro, Android 16. Build `benchmark` (release com R8 e perfil, assinado com a chave de debug local) instalado por cima do debug preservando os dados; backup prévio por `run-as` em `MewName-backup-2026-10-27`.
+- Abertura a frio medida por `am start -W` e telas por `atrace`, duas rodadas alternadas por condição: 360 ms sem R8, ~317 ms com R8, ~266 ms com R8 e perfil aplicado na instalação. Pior quadro das telas leves e médias caiu pela metade; Pokédex, Raids e Análise PvP mudaram pouco.
+- 22 leituras reais pela sobreposição no Pokémon GO com o build R8: 16 Pokémon, 3 filtros, 1 catálogo, 1 batalha e 1 treinador, todas `success`, sem falhas no log. Mediana de ~0,9 s nas leituras de Pokémon, igual ao debug. O usuário conferiu que as informações reconhecidas continuam as mesmas de antes.
+- Confirmado no APK que os nomes de enums gravados em preferências e backups continuam intactos com R8.
+- Suíte local: 581 testes aprovados; lint debug/release sem erros. Continua pendente a melhoria do reconhecimento sem barra de IV e a regressão física completa de fundos especiais e formas regionais.
+
+## Purificado, sombroso, fundos especiais e ataques — 27–28/10/2026
+
+- POCO X7 Pro, Android 16, build `benchmark` instalado por cima preservando os dados, por Wi-Fi e depois por USB (cabo com mau contato: a conexão caiu várias vezes). Leituras feitas pelo usuário pela sobreposição; logs `MewNameVisual` e `MewNameLearnedBg` e capturas por `screencap` analisados (só da tela do Pokémon GO).
+- Purificado: o detector visual antigo marcava 207 de 285 capturas; com a origem pelo custo de Fortalecer, Porygon-Z, Machamp, Regigigas, Gallade e Snorlax saíram corretos e custos ambíguos ficaram sem marca.
+- Fundo especial nas capturas com gabarito: 9/41 na v1.0.34, 37/41 agora, com 1 falso positivo antigo (Necrozma). Conferidos ao vivo: Ho-Oh sombroso com o cartão dourado (GO Tour, 12/12 quadros) e com o GO Wild Area 2025 (7/8; o restante era transição), fundo de sombroso como comum (22/22 quadros), Regidrago com Ancients Recovered (9/9) e fundo de Dragão como comum (7/7), Ponyta com Líder Vermelho (7/7, apesar do teste visual de sortudo), Regirock e Groudon sombrosos como comuns.
+- Junção de leituras: Regidragos comuns lidos depois de um especial herdavam o cartão, pois a asa esconde o PC; após exigir mesmo PC (ou PS máximo e IVs), o usuário conferiu a sequência correta.
+- Fundos aprendidos pela cópia do nome com a tag: 13 recortes salvos (GO Fest, Líder, Temporadas) e reaproveitados nas leituras seguintes do mesmo Pokémon com a categoria certa (0,5–1,3); todos mostram o cartão especial (conferido pelos recortes no backup do usuário, que já os incluía). O usuário conferiu a categoria aprendida também em leituras posteriores. A pasta legível pelo cabo e a restauração de backup com recortes não foram conferidas no aparelho, só nos testes.
+- Ataques: Mewtwo com Contra-atacar no ataque rápido, conferido pelo usuário após completar `current_moves.json` com o Game Master (86 combinações).
+- Suíte local: 616 testes aprovados; validação de catálogos, lint debug/release e build de release sem erros. Continua pendente a leitura sem barra de IV, Pokémon sem nome lido (Dragão/Aço), cartões muito parecidos com o fundo do tipo (Gengar) e sombrosos lidos sem prova de sombroso.

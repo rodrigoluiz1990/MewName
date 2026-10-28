@@ -22,6 +22,31 @@ internal class OcrVisualAttributeReader {
     @Volatile
     private var shadowTextureSignatures: List<IntArray>? = null
 
+    // Whole words only: Marshadow and English moves (Shadow Ball, Shadow Claw...) are not shadow Pokémon.
+    private val shadowWord = Regex(
+        "(?<![A-Z])(?:SHADOW(?! (?:BALL|CLAW|SNEAK|PUNCH|BONE|FORCE))|SOMBROS[OA])(?![A-Z])"
+    )
+
+    private companion object {
+        const val SPECIAL_REFERENCE_MAX_DISTANCE = 2.05
+        const val SPECIAL_REFERENCE_MARGIN = 0.35
+        const val OWN_TYPE_MIN_DISTANCE = 3.3
+        // Type-background captures far from their own type never had a special reference under 2.96; missed special
+        // cards (Regice, Moltres, Kyurem) sat at 2.68-2.80.
+        const val OWN_TYPE_SPECIAL_MAX_DISTANCE = 2.85
+        const val LOOSE_NEAR_MARGIN = 0.10
+        const val LOOSE_FAR_MAX_DISTANCE = 2.5
+        const val LOOSE_FAR_MARGIN = 0.30
+        const val SHADOW_LOOSE_MAX_DISTANCE = 2.10
+        const val SHADOW_BACKGROUND_MIN_DISTANCE = 5.0
+        // Panning cards reach 1.99 from their own crops; other cards stayed above 2.17 from every crop.
+        const val CALIBRATION_TYPE_MAX_DISTANCE = 2.0
+        const val CALIBRATION_TYPE_FAR_MAX_DISTANCE = 2.7
+        const val CALIBRATION_TYPE_FAR_MARGIN = 0.4
+        const val STRONG_SPECIAL_MAX_DISTANCE = 1.6
+        const val STRONG_SPECIAL_MARGIN = 0.8
+    }
+
     private val specialBackgroundKeywords = setOf(
         "LONDON", "LONDRES", "NEW YORK", "NOVA YORK", "OSAKA", "MADRID", "SENDAI",
         "INCHEON", "JEJU", "GUAYAQUIL", "JAKARTA", "BALI",
@@ -64,7 +89,9 @@ internal class OcrVisualAttributeReader {
         lines: List<OcrTextLine>,
         bitmap: Bitmap?,
         referenceBounds: Rect?,
-        detectedTypes: List<String>
+        detectedTypes: List<String>,
+        shadowEvidence: Boolean = false,
+        luckyExcluded: Boolean = false
     ): Pair<Boolean, BackgroundDebugInfo> {
         val topVisualLines = normalizedLinesInRegion(lines, 0.0f, 1.0f, 0.00f, 0.22f, referenceBounds)
         val bottomMetaLines = normalizedLinesInRegion(lines, 0.0f, 1.0f, 0.86f, 1.00f, referenceBounds)
@@ -86,10 +113,7 @@ internal class OcrVisualAttributeReader {
         val shadowTextMatch = sequenceOf(normalizedRaw)
             .plus(midInfoLines.asSequence())
             .plus(bottomMetaLines.asSequence())
-            .any { normalized ->
-                normalized.contains("SHADOW") ||
-                    normalized.contains("SOMBROSO")
-            }
+            .any { normalized -> shadowWord.containsMatchIn(normalized) }
         val luckyTextMatch = sequenceOf(normalizedRaw)
             .plus(midInfoLines.asSequence())
             .plus(bottomMetaLines.asSequence())
@@ -101,7 +125,6 @@ internal class OcrVisualAttributeReader {
             }
         val luckyVisualMatch = bitmap?.let(::detectLuckyBackgroundVisual) ?: false
         lap("sortudo")
-        val luckyMatch = luckyTextMatch || luckyVisualMatch
         val shinyParticleMatch = bitmap?.let(::detectShinyParticles) ?: false
         lap("brilhante")
         val shadowParticleMatch = bitmap?.let(::detectShadowParticles) ?: false
@@ -112,6 +135,14 @@ internal class OcrVisualAttributeReader {
         lap("referências de fundo")
         val referenceMatch = referenceDebug?.isSpecial
         val bestNormalDistance = referenceDebug?.bestNormalDistance ?: Double.MAX_VALUE
+        // A special reference this close (Ponyta on the red Team Leader card: 1.43 vs Fire 2.78) outweighs the
+        // golden test; lucky backgrounds stayed at 1.94-2.09 from their closest one (Ho-Oh, Groudon, 2026-10-28).
+        val strongSpecialReference = referenceDebug?.bestSpecialDistance?.let { special ->
+            special <= STRONG_SPECIAL_MAX_DISTANCE && special + STRONG_SPECIAL_MARGIN < bestNormalDistance
+        } ?: false
+        // The golden test also counts red/orange, so a red Pokémon (shadow Ho-Oh's spread wings) or card can trip it;
+        // the power-up cost or shadow evidence rule lucky out.
+        val luckyMatch = luckyTextMatch || (luckyVisualMatch && !luckyExcluded && !strongSpecialReference)
         val typeNormalReferenceMatch = referenceDebug?.bestNormalReferenceName
             ?.let { name -> matchesDetectedTypeBackground(name, detectedTypes) }
             ?: false
@@ -140,12 +171,58 @@ internal class OcrVisualAttributeReader {
             normalReferenceClearlyBetter ||
             normalReferenceCompetitive
         val eventBadgeSpecialMatch = eventBadgeVisualMatch && !normalReferenceBlocksWeakVisual
-        val detected = (
+        // Special cards also sit ~2.2 from some type background, inside the normal threshold. POCO X7 Pro
+        // captures (2026-10-27) separate them by being clearly closer to a special reference instead.
+        val bestSpecialDistance = referenceDebug?.bestSpecialDistance ?: Double.MAX_VALUE
+        val typeDistances = referenceDebug?.typeDistances.orEmpty()
+        // Shadow Pokémon show the shadow background (details_type_bg_shadow_*) instead of their type one, and it
+        // varies more, so its special cards need a closer reference (Ho-Oh 2.04 vs Regirock 2.13, Mewtwo 2.31).
+        val shadowLike = shadowEvidence || shadowTextMatch
+        val shadowBackgroundDistance = typeDistances.filterKeys { it.startsWith("shadow") }.values.minOrNull()
+        val comparableNormalDistance = if (shadowLike && shadowBackgroundDistance != null) {
+            minOf(bestNormalDistance, shadowBackgroundDistance)
+        } else bestNormalDistance
+        val specialReferenceClearlyCloser = bestSpecialDistance <= SPECIAL_REFERENCE_MAX_DISTANCE &&
+            bestSpecialDistance + SPECIAL_REFERENCE_MARGIN < comparableNormalDistance
+        // The game draws the Pokémon's own type background; a special card can still resemble another type's.
+        val ownTypeDistance = detectedTypes.mapNotNull { typeDistances[it.lowercase()] }.minOrNull()
+        val farFromOwnTypeBackground = !shadowLike && ownTypeDistance != null && ownTypeDistance >= OWN_TYPE_MIN_DISTANCE &&
+            bestSpecialDistance <= OWN_TYPE_SPECIAL_MAX_DISTANCE
+        val strictDetected = (
             referenceDebug?.specialType != null || (!luckyMatch &&
-                (textMatch || topRegionMatch || eventBadgeSpecialMatch || referenceSpecialMatch || colorOverrideSpecial))
+                (textMatch || topRegionMatch || eventBadgeSpecialMatch || referenceSpecialMatch || colorOverrideSpecial ||
+                    specialReferenceClearlyCloser))
             )
+        // 27 live reads with special cards on screen (2026-10-27) were half missed by the margins above; in 29
+        // type-background captures a special reference under 2.05 was never closer than the normal one.
+        val looseReferenceMatch = !luckyMatch && if (shadowLike) {
+            bestSpecialDistance <= SHADOW_LOOSE_MAX_DISTANCE && bestSpecialDistance + LOOSE_NEAR_MARGIN < comparableNormalDistance
+        } else {
+            (bestSpecialDistance <= SPECIAL_REFERENCE_MAX_DISTANCE && bestSpecialDistance + LOOSE_NEAR_MARGIN < bestNormalDistance) ||
+                (bestSpecialDistance <= LOOSE_FAR_MAX_DISTANCE && bestSpecialDistance + LOOSE_FAR_MARGIN < bestNormalDistance)
+        }
+        // The shadow Ho-Oh's golden card pans, so most frames sit ~1.9 from the Ground background and 2.1-2.4 from
+        // the special references; its distance to the shadow background (5.4-6.6 vs 2.0-2.8, ~4 mid-fade) is what
+        // tells them apart. Only for proven shadows: the purple Psychic background is ~5 from it too.
+        val farFromShadowBackground = shadowEvidence && shadowBackgroundDistance != null &&
+            shadowBackgroundDistance >= SHADOW_BACKGROUND_MIN_DISTANCE && bestSpecialDistance <= OWN_TYPE_SPECIAL_MAX_DISTANCE
+        // Lucky backgrounds stay near the type one (Groudon 2.5-2.9), while golden and orange special cards (Moltres,
+        // Articuno, Tauros, 2026-10-28) trip the visual lucky test; only the lucky text rules this check out.
+        val detected = strictDetected || (!luckyTextMatch && farFromOwnTypeBackground) ||
+            (!luckyMatch && farFromShadowBackground) || looseReferenceMatch
+        // Capture crops in background_refs/calibration share the screen's framing and tone, so the closest one names
+        // the category even without the strict margin (Regidrago's ruins card reaches 1.34 with the Fire one at 1.83).
+        // Each crop holds its own Pokémon over a panning card, so another Pokémon on the same card sits farther
+        // (learned GO Fest crops: Squirtle 2.32 and Wailmer 2.11, with the closest type background at 3.04 and 3.17).
+        val closeReferenceType = referenceDebug?.bestSpecialReferenceName
+            ?.takeIf {
+                "/calibration/" in it && (bestSpecialDistance <= CALIBRATION_TYPE_MAX_DISTANCE ||
+                    (bestSpecialDistance <= CALIBRATION_TYPE_FAR_MAX_DISTANCE &&
+                        bestSpecialDistance + CALIBRATION_TYPE_FAR_MARGIN < bestNormalDistance))
+            }
+            ?.let(SpecialBackgroundCatalog::type)
         return detected to BackgroundDebugInfo(
-            detectedSpecialType = referenceDebug?.specialType.takeIf { detected },
+            detectedSpecialType = (referenceDebug?.specialType ?: closeReferenceType).takeIf { detected },
             textMatch = textMatch,
             topRegionMatch = topRegionMatch,
             eventBadgeVisualMatch = eventBadgeVisualMatch,
@@ -160,6 +237,8 @@ internal class OcrVisualAttributeReader {
             referenceDistance = referenceDebug?.bestDistance,
             specialReferenceName = referenceDebug?.bestSpecialReferenceName,
             specialReferenceDistance = referenceDebug?.bestSpecialDistance,
+            ownTypeDistance = ownTypeDistance,
+            shadowBackgroundDistance = shadowBackgroundDistance,
             colorFallbackMatch = colorMatch,
             topRegionLines = topVisualLines,
             bottomRegionLines = bottomMetaLines,
@@ -171,6 +250,8 @@ internal class OcrVisualAttributeReader {
                 if (topRegionMatch) append("topo/meta com marcador especial; ")
                 if (eventBadgeVisualMatch) append("selo visual de evento encontrado; ")
                 if (referenceMatch == true) append("matcher de referencia marcou especial; ")
+                if (specialReferenceClearlyCloser) append("referencia especial claramente mais proxima que a normal; ")
+                if (farFromOwnTypeBackground) append("fundo distante do fundo do proprio tipo (${"%.2f".format(ownTypeDistance)}); ")
                 if (referenceMatch == false) append("matcher de referencia marcou normal; ")
                 if (referenceMatch == null && referenceDebug?.bestDistance != null) append("matcher de referencia ficou inconclusivo; ")
                 if (!referenceDebug?.bestSpecialReferenceName.isNullOrBlank()) append("melhor special=${referenceDebug?.bestSpecialReferenceName}; ")
@@ -201,26 +282,19 @@ internal class OcrVisualAttributeReader {
             var saturated = 0
             var darkOutline = 0
             val hueBuckets = mutableSetOf<Int>()
-            var y = region.top
-            while (y < region.bottom) {
-                var x = region.left
-                while (x < region.right) {
-                    val color = bitmap.getPixel(x, y)
-                    Color.colorToHSV(color, hsv)
-                    val sat = hsv[1]
-                    val value = hsv[2]
-                    val brightness = (Color.red(color) + Color.green(color) + Color.blue(color)) / 3f
-                    sampled++
-                    if (sat >= 0.22f && value in 0.18f..0.95f) {
-                        saturated++
-                        hueBuckets += (hsv[0] / 24f).toInt()
-                    }
-                    if (brightness <= 96f && value <= 0.50f) {
-                        darkOutline++
-                    }
-                    x += 2
+            bitmap.forEachSampledPixel(region, 2) { _, _, color ->
+                colorToHsv(color, hsv)
+                val sat = hsv[1]
+                val value = hsv[2]
+                val brightness = (Color.red(color) + Color.green(color) + Color.blue(color)) / 3f
+                sampled++
+                if (sat >= 0.22f && value in 0.18f..0.95f) {
+                    saturated++
+                    hueBuckets += (hsv[0] / 24f).toInt()
                 }
-                y += 2
+                if (brightness <= 96f && value <= 0.50f) {
+                    darkOutline++
+                }
             }
             if (sampled == 0) return false
             val saturatedRatio = saturated.toDouble() / sampled.toDouble()
@@ -248,21 +322,14 @@ internal class OcrVisualAttributeReader {
             val hsv = FloatArray(3)
             var goldenBright = 0
             var sampled = 0
-            var y = region.top
-            while (y < region.bottom) {
-                var x = region.left
-                while (x < region.right) {
-                    val color = bitmap.getPixel(x, y)
-                    Color.colorToHSV(color, hsv)
-                    sampled++
-                    val hue = hsv[0]
-                    val sat = hsv[1]
-                    val value = hsv[2]
-                    val warmGold = ((hue in 28f..62f) || hue < 16f) && sat >= 0.22f && value >= 0.72f
-                    if (warmGold) goldenBright++
-                    x += 6
-                }
-                y += 6
+            bitmap.forEachSampledPixel(region, 6) { _, _, color ->
+                colorToHsv(color, hsv)
+                sampled++
+                val hue = hsv[0]
+                val sat = hsv[1]
+                val value = hsv[2]
+                val warmGold = ((hue in 28f..62f) || hue < 16f) && sat >= 0.22f && value >= 0.72f
+                if (warmGold) goldenBright++
             }
             sampled > 0 && (goldenBright.toDouble() / sampled.toDouble()) >= 0.20
         } catch (_: Exception) {
@@ -276,20 +343,13 @@ internal class OcrVisualAttributeReader {
             val hsv = FloatArray(3)
             var brightWhite = 0
             var sampled = 0
-            var y = region.top
-            while (y < region.bottom) {
-                var x = region.left
-                while (x < region.right) {
-                    if (x < bitmap.width * 0.86f || y > bitmap.height * 0.10f) {
-                        val color = bitmap.getPixel(x, y)
-                        Color.colorToHSV(color, hsv)
-                        sampled++
-                        val nearWhite = hsv[1] <= 0.12f && hsv[2] >= 0.92f
-                        if (nearWhite) brightWhite++
-                    }
-                    x += 8
+            bitmap.forEachSampledPixel(region, 8) { x, y, color ->
+                if (x < bitmap.width * 0.86f || y > bitmap.height * 0.10f) {
+                    colorToHsv(color, hsv)
+                    sampled++
+                    val nearWhite = hsv[1] <= 0.12f && hsv[2] >= 0.92f
+                    if (nearWhite) brightWhite++
                 }
-                y += 8
             }
             sampled > 0 && brightWhite in 12..180
         } catch (_: Exception) {
@@ -308,21 +368,14 @@ internal class OcrVisualAttributeReader {
             candidateRegions.any { region ->
                 var purpleDark = 0
                 var sampled = 0
-                var y = region.top
-                while (y < region.bottom) {
-                    var x = region.left
-                    while (x < region.right) {
-                        val color = bitmap.getPixel(x, y)
-                        Color.colorToHSV(color, hsv)
-                        sampled++
-                        val hue = hsv[0]
-                        val sat = hsv[1]
-                        val value = hsv[2]
-                        val shadowLike = (hue in 250f..330f) && sat >= 0.18f && value in 0.14f..0.78f
-                        if (shadowLike) purpleDark++
-                        x += 5
-                    }
-                    y += 5
+                bitmap.forEachSampledPixel(region, 5) { _, _, color ->
+                    colorToHsv(color, hsv)
+                    sampled++
+                    val hue = hsv[0]
+                    val sat = hsv[1]
+                    val value = hsv[2]
+                    val shadowLike = (hue in 250f..330f) && sat >= 0.18f && value in 0.14f..0.78f
+                    if (shadowLike) purpleDark++
                 }
                 sampled > 0 && (purpleDark.toDouble() / sampled.toDouble()) >= 0.07
             }
@@ -434,23 +487,16 @@ internal class OcrVisualAttributeReader {
         var yellow = 0
         var chromaSampled = 0
         var sampled = 0
-        var y = rect.top
-        while (y < rect.bottom) {
-            var x = rect.left
-            while (x < rect.right) {
-                val color = bitmap.getPixel(x, y)
-                Color.colorToHSV(color, hsv)
-                sampled++
-                val hue = hsv[0]
-                val sat = hsv[1]
-                val value = hsv[2]
-                val isFilledYellow = hue in 35f..66f && sat >= 0.45f && value >= 0.70f
-                val isChromaPixel = sat >= 0.14f || value <= 0.72f
-                if (isFilledYellow) yellow++
-                if (isChromaPixel) chromaSampled++
-                x += 4
-            }
-            y += 4
+        bitmap.forEachSampledPixel(rect, 4) { _, _, color ->
+            colorToHsv(color, hsv)
+            sampled++
+            val hue = hsv[0]
+            val sat = hsv[1]
+            val value = hsv[2]
+            val isFilledYellow = hue in 35f..66f && sat >= 0.45f && value >= 0.70f
+            val isChromaPixel = sat >= 0.14f || value <= 0.72f
+            if (isFilledYellow) yellow++
+            if (isChromaPixel) chromaSampled++
         }
         if (sampled == 0) return 0.0
         val ratioAll = yellow.toDouble() / sampled.toDouble()

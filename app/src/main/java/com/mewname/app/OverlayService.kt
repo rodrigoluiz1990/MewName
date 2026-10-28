@@ -905,6 +905,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 updateLoadingStatus(request, detail = "Montando nomes sugeridos")
                 val merged = sessionMerger.mergeIfSamePokemon(parsed, lastCapturedData)
                 lastCapturedData = merged
+                com.mewname.app.domain.LearnedBackgroundStore.remember(bitmap, parsed, merged)
                 val savedConfigs = loadSavedConfigs()
                 val generatedResults = savedConfigs.mapNotNull { config ->
                     val generatedName = generator.generate(merged, config).trim()
@@ -1105,7 +1106,12 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     ) {
         removeResultsOverlay()
         val presenter = OverlayResultsPresenter(this)
-        val layout = presenter.createView(results, ::copyToClipboard, ::removeResultsOverlay, onOpenReview)
+        val layout = presenter.createView(results, { name ->
+            copyToClipboard(name)
+            lastCapturedData?.let { data ->
+                com.mewname.app.domain.LearnedBackgroundStore.onNameCopied(this, data, name, loadSavedConfigs())
+            }
+        }, ::removeResultsOverlay, onOpenReview)
         if (addOverlayView(layout, presenter.layoutParams())) resultsView = layout
     }
 
@@ -1528,6 +1534,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                                 if (request.fields.isNotEmpty()) exportBubbleLog(request.fields, currentData, request)
                             },
                             onCancel = { removeResultsOverlay() },
+                            onNameCopied = { reviewed, name ->
+                                com.mewname.app.domain.LearnedBackgroundStore.onNameCopied(this@OverlayService, reviewed, name, configs)
+                            },
                             onConfirm = { reviewed ->
                                 lastCapturedData = reviewed
                                 val results = configs.mapNotNull { config ->

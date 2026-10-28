@@ -38,9 +38,13 @@ private fun normalizeRaidSearchName(text: String): String =
 
 private fun normalizeRaidHistoryName(text: String): String =
     normalizeRaidSearchName(text)
-        .replace(Regex("\\([^)]*\\)"), "")
-        .replace(Regex("\\b(mega|primal|shadow|dynamax|gigantamax)\\b"), "")
-        .replace(Regex("\\s+"), " ").trim()
+        .replace(PARENTHESIZED, "")
+        .replace(FORM_WORDS, "")
+        .replace(WHITESPACE_RUNS, " ").trim()
+
+private val PARENTHESIZED = Regex("\\([^)]*\\)")
+private val FORM_WORDS = Regex("\\b(mega|primal|shadow|dynamax|gigantamax)\\b")
+private val WHITESPACE_RUNS = Regex("\\s+")
 /** Publish immutable snapshots so the first bosses are usable before other categories finish. */
 internal suspend fun loadRaidCatalogProgressively(
     context: Context,
@@ -56,20 +60,21 @@ internal suspend fun loadRaidCatalogProgressively(
         GameInfoRepository.loadPokemonDexOrder(context.applicationContext)
     }
     var count = 0
-    catalog.forEachIndexed { index, category ->
-        // Normalize each name once, rather than on every comparator invocation.
-        val sorted = withContext(Dispatchers.Default) {
-            category.items.map { item ->
+    // Snapshot copies are built off the caller's (UI) thread; onProgress may hop back to await frames.
+    withContext(Dispatchers.Default) {
+        catalog.forEachIndexed { index, category ->
+            // Normalize each name once, rather than on every comparator invocation.
+            val sorted = category.items.map { item ->
                 Triple(item, order[normalizeRaidHistoryName(item.name)] ?: Int.MAX_VALUE,
                     normalizeRaidSearchName(item.name))
             }.sortedWith(compareBy({ it.second }, { it.third })).map { it.first }
-        }
-        for (boss in sorted) {
-            kotlinx.coroutines.yield()
-            snapshot = snapshot.mapIndexed { categoryIndex, current ->
-                if (categoryIndex == index) current.copy(items = current.items + boss) else current
+            for (boss in sorted) {
+                kotlinx.coroutines.yield()
+                snapshot = snapshot.mapIndexed { categoryIndex, current ->
+                    if (categoryIndex == index) current.copy(items = current.items + boss) else current
+                }
+                onProgress(snapshot, ++count, total)
             }
-            onProgress(snapshot, ++count, total)
         }
     }
     Result.success(snapshot)

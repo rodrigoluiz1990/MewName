@@ -104,10 +104,20 @@ jobs:
           asset_name="MewName-${tag_name}.apk"
           cp "$apk_path" "dist/$asset_name"
           echo "apk_path=dist/$asset_name" >> "$GITHUB_OUTPUT"
+          # R8 renames classes; this file translates stack traces from the published APK.
+          mapping_path="app/build/outputs/mapping/release/mapping.txt"
+          if [ ! -f "$mapping_path" ]; then
+            echo "mapping.txt do R8 nao encontrado." >&2
+            exit 1
+          fi
+          cp "$mapping_path" "dist/MewName-${tag_name}-mapping.txt"
+          echo "mapping_path=dist/MewName-${tag_name}-mapping.txt" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           body_path: RELEASE_NOTES.md
-          files: ${{ steps.asset.outputs.apk_path }}
+          files: |
+            ${{ steps.asset.outputs.apk_path }}
+            ${{ steps.asset.outputs.mapping_path }}
