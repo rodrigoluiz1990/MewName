@@ -42,7 +42,7 @@ import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
+internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false, initialEventJson: String? = null, onInitialEventConsumed: () -> Unit = {}) {
     val context = LocalContext.current
     val language = appLanguage()
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
@@ -75,6 +75,14 @@ internal fun CalendarScreen(onBack: () -> Unit, compactToday: Boolean = false) {
     var loading by remember { mutableStateOf(true) }
     var failed by remember { mutableStateOf(false) }
     var selectedEvent by remember { mutableStateOf<CalendarEvent?>(null) }
+    LaunchedEffect(initialEventJson) {
+        initialEventJson?.let { value -> runCatching { reminderEvent(org.json.JSONObject(value)) }.getOrNull()?.let {
+            dateText = it.start.toLocalDate().toString()
+            selectedEvent = it
+            revealDate(it.start.toLocalDate())
+            onInitialEventConsumed()
+        } }
+    }
     val repository = remember { CalendarRepository(context.applicationContext) }
     LaunchedEffect(years, retry) {
         loading = true; failed = false; catalog = null
@@ -311,10 +319,37 @@ private fun CalendarEventDetails(event: CalendarEvent, onClose: () -> Unit) {
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
     val locale = when(language) { AppLanguage.PT_BR -> Locale("pt", "BR"); AppLanguage.ES -> Locale("es"); else -> Locale.ENGLISH }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm", locale)
+    val reminders = remember(context) { EventReminders(context.applicationContext) }
+    val payload = remember(event) { event.reminderJson() }
+    val reminderId = payload.getString("id")
+    var reminded by remember(reminderId) { mutableStateOf(reminders.contains(reminderId)) }
+    var eventNow by remember(event) { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(event) {
+        while (true) { eventNow = System.currentTimeMillis(); delay(1_000) }
+    }
+    DisposableEffect(reminders, reminderId) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> reminded = reminders.contains(reminderId) }
+        reminders.preferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { reminders.preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
     AppModalPanel(title = event.title, onClose = onClose, actions = {
-        event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }) {
-            Text(tr("Mais detalhes", "More details", "Más detalles"))
-        } }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            event.link?.let { link -> AppActionButton(onClick = { openExternalUrl(context, link) }) {
+                Text(tr("Mais detalhes", "More details", "Más detalles"))
+            } }
+            AppActionButton(enabled = reminded || eventNow < reminderTime(event.sourceStart), onClick = {
+                if (reminded) reminders.cancel(reminderId)
+                else context.startActivity(android.content.Intent(context, EventReminderPermissionActivity::class.java)
+                    .putExtra("event", payload.toString()).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            }) {
+                Text(when {
+                    reminded -> tr("Cancelar lembrete", "Cancel reminder", "Cancelar recordatorio")
+                    eventNow >= reminderTime(event.sourceEnd) -> tr("Evento encerrado", "Event ended", "Evento finalizado")
+                    eventNow >= reminderTime(event.sourceStart) -> tr("Evento já iniciado", "Event already started", "Evento ya iniciado")
+                    else -> tr("Lembrar do evento", "Remind me", "Recordar evento")
+                })
+            }
+        }
     }) {
         Text(event.categoryLabel, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
             style = MaterialTheme.typography.labelMedium)

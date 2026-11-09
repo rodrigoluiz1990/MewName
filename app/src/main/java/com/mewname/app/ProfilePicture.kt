@@ -59,7 +59,7 @@ internal fun ProfilePicture(qr: Boolean, revision: Int, modifier: Modifier, desc
         val bitmap = picture
         if (bitmap == null) Text(placeholder)
         else Image(bitmap.asImageBitmap(), description,
-            modifier = Modifier.matchParentSize().then(if (qr) Modifier.background(Color.White) else Modifier),
+            modifier = Modifier.matchParentSize(),
             contentScale = if (qr) ContentScale.Fit else ContentScale.Crop)
     }
 }

@@ -195,7 +195,10 @@ internal fun moveDropdownOptions(
                 "${move.localizedName} $legacyMoveSymbol"
             } else {
                 move.localizedName
-            }
+            },
+            type = move.type,
+            pvpPower = move.pvpPower,
+            pvpEnergyDelta = move.pvpEnergyDelta
         )
     }
 }

@@ -44,7 +44,15 @@ internal data class RaidMetadata(val pokemon: Map<String, RaidPokemon>, val move
             else -> null
         }
     }
-    fun move(id: String, owner: RaidPokemon? = null) = RaidMove(id, moves[id].orEmpty(), id in owner?.elite.orEmpty())
+    fun move(id: String, owner: RaidPokemon? = null) = RaidMove(id, moves[id].orEmpty().ifBlank { if (id == "OMINOUS_WIND_PLUS") "Ghost" else "" }, id in owner?.elite.orEmpty())
+}
+/** Enhanced move IDs keep their own identity; only their display name uses the base translation. */
+internal fun raidMoveLabel(id: String, names: Map<String, String>): String {
+    names[raidKey(id)]?.let { return it }
+    if (id.endsWith("_PLUS")) {
+        names[raidKey(id.removeSuffix("_PLUS"))]?.let { return "$it+" }
+    }
+    return raidName(id.removeSuffix("_FAST"))
 }
 internal fun raidKey(value: String) = catalogText(value.replace("_FORM", "").replace("_FAST", ""))
 internal fun raidName(id: String) = id.removeSuffix("_FORM").split('_').joinToString(" ") { it.lowercase().replaceFirstChar(Char::titlecase) }
@@ -87,7 +95,12 @@ internal object RaidJson {
     }
     fun report(raw: JSONObject, id: String, tier: String, level: Int, meta: RaidMetadata): RaidReport {
         val boss = raw.getJSONArray("attackers").getJSONObject(0)
-        require(boss.getString("pokemonId") == id && boss.getString("boss") == tier)
+        // Pokebattler returns GIRATINA for an explicit Altered-form request.
+        // Keep the requested ID in the report/cache; Origin and Shadow are not aliases.
+        fun canonicalBoss(value: String) = if (value == "GIRATINA_ALTERED_FORM") "GIRATINA" else value
+        require(canonicalBoss(boss.getString("pokemonId")) == canonicalBoss(id) && boss.getString("boss") == tier) {
+            "Unexpected raid response: requested $id/$tier, received ${boss.optString("pokemonId")}/${boss.optString("boss")}"
+        }
         val variants = boss.getJSONArray("byMove")
         val counters = boss.getJSONObject("randomMove").getJSONArray("defenders")
         val rows = (0 until counters.length()).mapNotNull { i ->
@@ -230,8 +243,15 @@ internal class RaidCounterRepository(private val context: Context) {
         synchronized(lock) { shared=parsed }
     }
     fun image(id: String): String? = synchronized(lock) {
-        val map=images ?: JSONObject(context.assets.open("raids/images.json").bufferedReader().use { it.readText() }).also { images=it }
-        map.optString(id).takeIf { it.isNotBlank() }?.let { "https://static.pokebattler.com/assets/pokemon/256/$it" }
+        if (resolvedImages.containsKey(id)) return@synchronized resolvedImages[id]
+        val catalog = spriteCatalog ?: PersonalCollectionImages(context.applicationContext).also { spriteCatalog = it }
+        val url = catalog.raidUrl(id) ?: run {
+            val map = images ?: JSONObject(context.assets.open("raids/images.json").bufferedReader().use { it.readText() })
+                .also { images = it }
+            map.optString(id).takeIf { it.isNotBlank() }?.let { "https://static.pokebattler.com/assets/pokemon/256/$it" }
+        }
+        resolvedImages[id] = url
+        url
     }
     private fun write(file: File, data: JSONObject) = synchronized(writeLock) {
         choiceIndexes.remove(directory.absolutePath)
@@ -250,6 +270,8 @@ internal class RaidCounterRepository(private val context: Context) {
         } finally { connection.disconnect() }
     }
     companion object {
+        private var spriteCatalog: PersonalCollectionImages? = null
+        private val resolvedImages = mutableMapOf<String, String?>()
         private val lock = Any(); private val writeLock = Any(); private var shared: RaidMetadata? = null; private var images: JSONObject? = null
         @Volatile private var storedCatalogCache: Pair<Pair<Long, Long>, JSONObject>? = null
         private val choiceIndexes = object : LinkedHashMap<String, Pair<List<Triple<String, Long, Long>>, List<RaidChoice>>>(4, 0.75f, true) {

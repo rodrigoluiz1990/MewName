@@ -45,16 +45,15 @@ internal fun ReviewLogSelectionModal(
     ReviewModalCard(Modifier.widthIn(max = 440.dp).fillMaxWidth().heightIn(max = 560.dp).clickable { }) {
         Column(Modifier.padding(12.dp)) {
             ReviewModalHeader(lt(language, "Exportar log", "Export log", "Exportar registro"), onDismiss)
-            Row {
-                TextButton(onClick = { onSelectionChange(NamingField.entries.toSet()) }) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppActionButton(onClick = { onSelectionChange(NamingField.entries.toSet()) }, secondary = true, modifier = Modifier.weight(1f)) {
                     Text(lt(language, "Selecionar todos", "Select all", "Seleccionar todos"))
                 }
-                TextButton(onClick = { onSelectionChange(emptySet()); onIncludeOcrChange(false); onIncludeNamesChange(false) }) {
+                AppActionButton(onClick = { onSelectionChange(emptySet()); onIncludeOcrChange(false); onIncludeNamesChange(false) }, secondary = true, modifier = Modifier.weight(1f)) {
                     Text(lt(language, "Limpar", "Clear", "Limpiar"))
                 }
             }
-            Text(lt(language, "${selected.size} campos selecionados", "${selected.size} fields selected", "${selected.size} campos seleccionados"),
-                style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(6.dp))
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                 val titles = listOf(
                     lt(language, "Identificação", "Identification", "Identificación"),
@@ -81,6 +80,7 @@ internal fun ReviewLogSelectionModal(
                     LogToggleOption(lt(language, "Composição dos nomes sugeridos", "Suggested name composition", "Composición de nombres sugeridos"), includeNames, onIncludeNamesChange)
                 ))
             }
+            Spacer(Modifier.height(6.dp))
             AppActionButton(onClick = onExport, enabled = selected.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
                 Text(lt(language, "Exportar selecionados", "Export selected", "Exportar seleccionados"))
             }

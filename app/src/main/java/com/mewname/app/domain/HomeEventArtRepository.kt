@@ -114,13 +114,14 @@ internal object HomeEventArtParser {
 }
 
 internal class HomeEventArtRepository(context: Context) {
+    private val artwork = EventArtworkCatalog(context)
     private val directory = File(context.filesDir, "home-event-art-v2")
     private fun cache(locale: String) = AtomicFile(File(directory, "$locale.json"))
     fun cached(locale: String): HomeEventArtCatalog? = runCatching {
         val json = cache(locale).openRead().bufferedReader().use { JSONObject(it.readText()) }
         val rows = json.getJSONArray("events")
         HomeEventArtCatalog((0 until rows.length()).map { i -> rows.getJSONObject(i).let {
-            HomeEventArt(it.getString("title"), it.getString("link"), it.getString("image"),
+            HomeEventArt(it.getString("title"), it.getString("link"), artwork.resolve(it.getString("image"), it.getString("link"))!!,
                 LocalDate.parse(it.getString("start")), LocalDate.parse(it.getString("end")), it.getInt("priority"))
         } }, if (json.optInt("schema") == 4) json.getLong("fetchedAt") else 0L)
     }.getOrNull()
@@ -159,7 +160,7 @@ internal class HomeEventArtRepository(context: Context) {
             listOf(requireNotNull(HomeEventArtParser.season(localized, english, locale)) { "Official season unavailable" })
         }
         check(refreshed) { "Official event sources unavailable" }
-        val events = newsEvents + seasonEvents
+        val events = (newsEvents + seasonEvents).map { it.copy(image = artwork.resolve(it.image, it.link)!!) }
         ensureActive()
         val result = HomeEventArtCatalog(events, System.currentTimeMillis())
         val json = JSONObject().put("schema", 4).put("fetchedAt", result.fetchedAt).put("events", JSONArray(events.map {

@@ -17,7 +17,8 @@ internal const val CALENDAR_BASE_URL = "https://rodrigoluiz1990.github.io/labora
 
 internal data class CalendarEvent(
     val id: String, val title: String, val category: String, val categoryLabel: String,
-    val start: LocalDateTime, val end: LocalDateTime, val image: String?, val link: String?
+    val start: LocalDateTime, val end: LocalDateTime, val image: String?, val link: String?,
+    val sourceStart: String = start.toString(), val sourceEnd: String = end.toString()
 ) {
     fun occursOn(day: LocalDate): Boolean = !start.toLocalDate().isAfter(day) && end.isAfter(day.atStartOfDay())
 }
@@ -65,7 +66,7 @@ internal object CalendarParser {
                         add(CalendarEvent("$category|$title|$start|$end", title, category,
                             categoryMeta?.optString("label")?.takeIf { it.isNotBlank() } ?: when(category) {
                                 "season" -> "Temporada"; "go_pass" -> "Passe GO"; else -> category
-                            }, start, end, url(image), url(event.optString("link").ifBlank { info.optString("link") })))
+                            }, start, end, url(image), url(event.optString("link").ifBlank { info.optString("link") }), event.getString("inicio"), event.getString("fim")))
                     }
                 }
             }
@@ -73,11 +74,12 @@ internal object CalendarParser {
     }
 }
 
-internal class CalendarRepository(context: Context, private val fetch: ((String, Boolean) -> JSONObject)? = null) {
+internal class CalendarRepository(private val context: Context, private val fetch: ((String, Boolean) -> JSONObject)? = null) {
+    private val artwork = EventArtworkCatalog(context)
     private val directory = File(context.filesDir, "calendar")
     private fun file(year: Int) = AtomicFile(File(directory, "$year.json"))
     private fun decode(json: JSONObject) = CalendarCatalog(
-        CalendarParser.parse(json.getJSONObject("years"), json.getJSONObject("references"), json.getJSONObject("meta")),
+        CalendarParser.parse(json.getJSONObject("years"), json.getJSONObject("references"), json.getJSONObject("meta")).map { it.copy(image = artwork.resolve(it.image, it.link)) },
         json.getLong("fetchedAt")
     )
     fun cached(year: Int): CalendarCatalog? = runCatching {
@@ -115,6 +117,7 @@ internal class CalendarRepository(context: Context, private val fetch: ((String,
         val stream = target.startWrite()
         try { stream.write(snapshot.toString().toByteArray(Charsets.UTF_8)); target.finishWrite(stream) }
         catch (error: Exception) { target.failWrite(stream); throw error }
+        com.mewname.app.EventReminders(context).reconcile(catalog.events, year)
         return catalog
     }
 

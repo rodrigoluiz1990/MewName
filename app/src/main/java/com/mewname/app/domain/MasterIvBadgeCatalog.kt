@@ -91,6 +91,19 @@ class MasterIvBadgeCatalog {
         val members = familyMembers.map(::normalize).filter { it.isNotBlank() }.distinct()
         val selected = selectedPokemonName?.let(::normalize)?.takeIf { it.isNotBlank() }
             ?: members.singleOrNull()
+        // Finizen is evaluated for Hero; explicit Palafin forms never share badges.
+        val palafinTarget = when (selected) {
+            "FINIZEN", "PALAFINHERO" -> "PALAFINHERO"
+            "PALAFINZERO" -> "PALAFINZERO"
+            else -> null
+        }
+        if (palafinTarget != null) return listOfNotNull(catalog[palafinTarget])
+        if (selected == null && members.any { it == "FINIZEN" || it.startsWith("PALAFIN") }) return emptyList()
+        // Deoxys Defense has its own approved rule; the other three forms share DEOXYS.
+        if (selected in setOf("DEOXYS", "DEOXYSDEFENSE")) {
+            return listOfNotNull(catalog[selected])
+        }
+        if (selected == null && members.any { it.startsWith("DEOXYS") }) return emptyList()
         // A selected Lycanroc form must not inherit another form's combinations.
         // Rockruff can still consider both evolution rules.
         if (selected in setOf("LYCANROC", "LYCANROCNOTURNO")) {
@@ -98,6 +111,7 @@ class MasterIvBadgeCatalog {
         }
         // Approved form-specific rules must not compete with another form in a candy family.
         val formTarget = when {
+            selected in REVIEWED_FORM_KEYS -> selected
             selected?.startsWith("KYUREM") == true || selected?.startsWith("MINIOR") == true -> selected
             selected?.startsWith("PUMPKABOO") == true -> selected.replaceFirst("PUMPKABOO", "GOURGEIST")
             selected?.startsWith("GOURGEIST") == true -> selected
@@ -122,7 +136,6 @@ class MasterIvBadgeCatalog {
         return buildList {
             catalog[signature]?.let(::add)
             scoped.mapNotNull { catalog[it] }.forEach(::add)
-            relatedFormEntries(catalog, signature, scoped).forEach(::add)
         }.distinctBy { it.signature }
     }
 
@@ -130,6 +143,9 @@ class MasterIvBadgeCatalog {
         // Family assets are ordered by evolution; keep the selected regional branch.
         if (selectedPokemonName?.startsWith("Lycanroc", true) == true) return selectedPokemonName
         val selected = selectedPokemonName?.let(::normalize)
+        if (selected == "FINIZEN" || selected == "PALAFINHERO") return "Palafin (Hero)"
+        if (selected == "PALAFINZERO") return "Palafin (Zero)"
+        if (selected in REVIEWED_FORM_KEYS || selected in setOf("DEOXYS", "DEOXYSDEFENSE")) return selectedPokemonName.orEmpty()
         if (selected?.startsWith("KYUREM") == true || selected?.startsWith("MINIOR") == true ||
             selected?.startsWith("GOURGEIST") == true || selected?.startsWith("SINISTCHA") == true ||
             selected?.startsWith("DARMANITAN") == true) return selectedPokemonName.orEmpty()
@@ -191,25 +207,6 @@ class MasterIvBadgeCatalog {
             .joinToString("|")
     }
 
-    private fun relatedFormEntries(
-        familyMap: Map<String, FamilyEntry>,
-        signature: String,
-        normalizedMembers: List<String>
-    ): List<FamilyEntry> {
-        val hasDeoxys = signature == "DEOXYS" || "DEOXYS" in normalizedMembers
-        // The family catalog groups Zero and Hero under Palafin. Preserve both
-        // spreadsheet rules instead of collapsing them into one species entry.
-        val hasPalafin = "PALAFIN" in normalizedMembers
-        if (!hasDeoxys && !hasPalafin) return emptyList()
-        return familyMap
-            .filterKeys { key ->
-                (hasDeoxys && key.startsWith("DEOXYS") && key != "DEOXYS") ||
-                    (hasPalafin && key in setOf("PALAFINZERO", "PALAFINHERO"))
-            }
-            .values
-            .toList()
-    }
-
     private fun normalize(value: String): String {
         val rawKey = Normalizer.normalize(pokemonDisplayName(value).replace("♀", "F").replace("♂", "M"), Normalizer.Form.NFD)
             .replace(COMBINING_DIACRITICS, "")
@@ -229,6 +226,14 @@ class MasterIvBadgeCatalog {
             "KYUREMPRETO", "BLACKKYUREM" -> "KYUREMBLACK"
             "KYUREMBRANCO", "WHITEKYUREM" -> "KYUREMWHITE"
             "MINIORNUCLEO" -> "MINIORCORE"
+            "PALAFIN", "PALAFINZERO", "PALAFINZEROFORM" -> "PALAFINZERO"
+            "PALAFINHEROI", "PALAFINHEROFORM" -> "PALAFINHERO"
+            "DEOXYSDEFESA", "DEOXYSDEFENSE", "DEOXYSDEFENSEFORME" -> "DEOXYSDEFENSE"
+            "DEOXYSNORMAL", "DEOXYSNORMALFORME", "DEOXYSATAQUE", "DEOXYSATTACK",
+            "DEOXYSATTACKFORME", "DEOXYSVELOCIDADE", "DEOXYSSPEED", "DEOXYSSPEEDFORME" -> "DEOXYS"
+            "MEWTWOARMORED", "MEWTWOA" -> "MEWTWOARMADURA"
+            "BASCULEGIONFEMALE", "BASCULEGIONF" -> "BASCULEGIONFEMEA"
+            "INDEEDEEFEMALE", "INDEEDEEF" -> "INDEEDEEFEMEA"
             "SINISTCHAMASTERPIECEFORM", "SINISTCHAMASTERPIECE" -> "SINISTCHAOBRAPRIMA"
             "SINISTCHAUNREMARKABLEFORM", "SINISTCHAUNREMARKABLE" -> "SINISTCHACOMUM"
             "POLTCHAGEISTARTISANFORM", "POLTCHAGEISTARTISAN" -> "POLTCHAGEISTARTESAO"
@@ -242,6 +247,14 @@ class MasterIvBadgeCatalog {
         // Bundled catalog, identical for every instance; screens create a new instance per read.
         @Volatile var familyMap: Map<String, FamilyEntry>? = null
         val familyMapLock = Any()
+        // Both ordinary and approved alternate forms are scoped, so shared candy families
+        // cannot award a badge using another form's rule. Basculin keeps evolution lookup.
+        val REVIEWED_FORM_KEYS = setOf(
+            "MEWTWO", "MEWTWOARMADURA", "WORMADAMTRASH",
+            "ROTOM", "ROTOMFAN", "ROTOMFROST", "ROTOMHEAT", "ROTOMMOW", "ROTOMWASH",
+            "BASCULEGION", "BASCULEGIONFEMEA", "WISHIWASHI", "WISHIWASHISCHOOL",
+            "EISCUE", "EISCUENOICE", "INDEEDEE", "INDEEDEEFEMEA"
+        )
         val REGIONS = listOf("ALOLA", "GALAR", "HISUI", "PALDEA")
         val REGIONAL_PREFIXES = mapOf("ALOLAN" to "ALOLA", "GALARIAN" to "GALAR",
             "HISUIAN" to "HISUI", "PALDEAN" to "PALDEA")

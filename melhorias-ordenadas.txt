@@ -1,0 +1,125 @@
+﻿MewName - Melhorias da mais fácil para a mais difícil
+
+Lista com 26 tarefas. A otimização da abertura de telas foi removida porque já foi concluída.
+[PRIORIDADE] identifica as prioridades indicadas pelo usuário.
+Dificuldade considera implementação e validação.
+
+01. Atualizar a tela de ajuda
+Dificuldade: baixa.
+Estrutura pronta; revisar textos, organização e recursos novos.
+
+02. Adicionar sprites de formas únicas em Definir nomes
+Dificuldade: baixa.
+Reaproveitar catálogo e carregamento de sprites existentes; conferir formas sem imagem.
+
+03. Melhorar o combobox de ataques no PvP do nome sugerido
+Dificuldade: baixa a média.
+Mostrar ícone do tipo, nome, dano e energia na mesma linha, verificando telas estreitas.
+
+04. Corrigir o combobox de IV Master
+Dificuldade: baixa a média.
+Reproduzir por que a escolha não permanece e separar seleção manual de consulta das combinações.
+
+05. Criar tutoriais para iniciantes
+Dificuldade: baixa a média.
+Começar com passos e imagens. Tutorial interativo apontando controles exige mais trabalho.
+
+06. Melhorar o visual e os dados da Pokédex
+Dificuldade: média.
+Usar os componentes existentes e definir quais blocos e informações precisam mudar.
+
+07. Adicionar relatório da conta e totais das coleções
+Dificuldade: média.
+Usar os dados registrados no MewName, incluindo as informações disponíveis do treinador. Deixar clara a origem dos totais.
+
+08. Adicionar modal com combinações de IV e PC
+Dificuldade: média.
+Abrir ao tocar no campo de IV de Sugerir nome. Reaproveitar o cálculo de possibilidades na captura e considerar origem do encontro, níveis e pisos de IV.
+
+09. Adicionar bloco de notícias na tela principal
+Dificuldade: média.
+Definir fonte, cache, ordenação e comportamento quando a fonte estiver indisponível.
+
+10. Adicionar lembretes de eventos
+Dificuldade: média.
+Implementar notificações, antecedência configurável, fusos e atualização/cancelamento quando o evento mudar.
+
+11. [PRIORIDADE] Revisar pendências do IV Master
+Dificuldade: média.
+Reconciliar planilhas e catálogo atual, formas regionais e decisões ainda não aprovadas.
+
+12. Abrir todos os atalhos da sobreposição em modais
+Dificuldade: média a alta.
+Migrar Missões, Definir nomes, Filtros, Pokédex, Raids, Rocket, Pesquisas, Ovos, Efeitos de Aventura, Ataques legados, Ataques, Códigos promocionais, Tipos e Perfil.
+Validar teclado, gesto Voltar, navegação interna e ciclo de vida sem retornar ao app principal.
+
+13. Diferenciar Super Mega com escudo de Mega sem escudo
+Dificuldade: alta.
+Coletar capturas com e sem escudo e identificar evidência visual confiável, sem depender apenas da espécie.
+
+14. [PRIORIDADE] Melhorar identificação do chefe de raid por estrelas e PC
+Dificuldade: alta.
+Combinar as evidências existentes e testar PC incompleto, animações e chefes semelhantes.
+
+15. [PRIORIDADE] Melhorar identificação de XXS/XXL em diferentes telas
+Dificuldade: alta.
+Validar resoluções, escalas e posições diferentes e controlar falsos positivos.
+
+16. [PRIORIDADE] Melhorar reconhecimento de fundos especiais
+Dificuldade: alta.
+Aprimorar casos parecidos com fundos comuns, animações e sobreposição de efeitos.
+
+17. Adicionar tela de sugestões com votos e status
+Dificuldade: alta.
+Campos: título, descrição, autor, data da solicitação, curtidas, descurtidas e status (em votação/feito).
+Implementar identidade do autor, persistência online, voto único por usuário e controle de alteração do status.
+
+18. Adicionar ranking de treinador por PE
+Dificuldade: alta.
+Considerando ranking entre usuários: servidor, sincronização e validação dos valores.
+Dados digitados ou lidos por OCR não comprovam pontuação legítima.
+
+19. Atualizar sprites Dinamax/sombrosos para aparência semelhante à do jogo
+Dificuldade: alta.
+Compor aura, nuvens, escala e animação. Aproximação visual é mais simples que reprodução fiel; não se resume a trocar PNGs.
+
+20. Adicionar rastreador de Vivillon por cartões postais
+Dificuldade: alta.
+Ler cartões, identificar localização e associar região. O reconhecimento atual de Vivillon oferece reaproveitamento parcial.
+
+21. Adicionar chat com Supabase sem afetar o restante do app
+Dificuldade: alta.
+Implementar autenticação, histórico, acesso às mensagens, reconexão e tratamento de falhas.
+O módulo deve ficar isolado: indisponibilidade do Supabase não pode bloquear a inicialização nem o uso das demais funções.
+
+22. Implementar mensalidade para liberar recursos
+Dificuldade: muito alta.
+Definir distribuição e pagamento, validar assinatura, restaurar acesso e tratar renovação, expiração e cancelamento.
+
+23. Limitar quantidade de sugestões conforme plano pago
+Dificuldade: baixa após a infraestrutura; alta isoladamente.
+Depende de assinatura e identidade confiáveis. Aplicar o limite no servidor.
+Definir cotas e período de renovação para cada plano.
+
+24. [PRIORIDADE] Usar PC/PS/IVs e calibrar o arco de nível
+Dificuldade: muito alta.
+Auxiliar a identificação quando as barras inferiores de IV não estiverem disponíveis ou confiáveis.
+Combinar evidências, considerar múltiplas soluções compatíveis e expressar incerteza.
+Comparar resultados e comportamento observável do Poke Genie para validar fórmulas, sem presumir acesso ao algoritmo interno.
+
+25. [PRIORIDADE] Evoluir a análise de equipe para golpes personalizados
+Dificuldade: muito alta.
+A tela atual usa confrontos publicados; golpes personalizados ficam sem resultado.
+Recalcular confrontos exige motor de combate, energia, turnos e cenários de escudos.
+
+26. Adicionar grid S2 alinhado sobre o mapa do jogo
+Dificuldade: muito alta; viabilidade a confirmar.
+Auxiliar a análise de localização para solicitações de PokéStop.
+Um mapa próprio em janela flutuante é uma primeira alternativa mais viável.
+Alinhar células ao mapa do jogo exige conhecer posição, zoom, rotação e perspectiva da câmera, dados que o app não recebe diretamente.
+
+Observações:
+- Ordem de dificuldade não é ordem de prioridade.
+- Chat, sugestões e ranking podem compartilhar autenticação e servidor.
+- Atualizar a ajuda junto de cada entrega.
+- Esta lista é um planejamento, não uma indicação de tarefas concluídas.

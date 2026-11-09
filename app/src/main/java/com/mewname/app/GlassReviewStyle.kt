@@ -182,31 +182,17 @@ internal fun glassFieldBorder(selected: Boolean) = BorderStroke(
 @Composable
 internal fun ReviewModalCard(
     modifier: Modifier = Modifier,
-    colors: CardColors = CardDefaults.cardColors(),
     content: @Composable ColumnScope.() -> Unit
 ) {
-    if (!LocalGlassReviewStyle.current) {
-        Card(modifier = modifier, colors = colors, content = content)
-        return
-    }
-    Card(modifier = modifier.clickable { }, shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(0.75.dp, LocalAppAppearance.current.border),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent,
-            contentColor = LocalAppAppearance.current.text)) {
-        GlassReviewBackdrop(LocalGlassCapture.current, true) {
-            Column(content = content)
-        }
+    val appearance = LocalAppAppearance.current
+    Surface(modifier = modifier.clickable { }, shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(.75.dp, appearance.border),
+        color = appearance.background.first(), contentColor = appearance.text) {
+        Column(Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(appearance.background)),
+            content = content)
     }
 }
 @Composable
 internal fun ReviewModalHeader(title: String, onDismiss: () -> Unit) {
-    Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
-        Text(title, Modifier.fillMaxWidth().padding(horizontal = 48.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd).size(48.dp)) {
-            Icon(AppIcons.Close, contentDescription = lt(appLanguage(), "Fechar", "Close", "Cerrar"),
-                modifier = Modifier.size(20.dp))
-        }
-    }
+    AppModalHeader(title, onDismiss)
 }

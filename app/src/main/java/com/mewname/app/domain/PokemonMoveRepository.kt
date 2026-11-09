@@ -48,7 +48,10 @@ data class PokemonMove(
     val name: String,
     val localizedName: String,
     val legacy: Boolean,
-    val rating: PokemonMoveRating? = null
+    val rating: PokemonMoveRating? = null,
+    val type: String? = null,
+    val pvpPower: Int? = null,
+    val pvpEnergyDelta: Int? = null
 )
 
 data class PokemonMoveSet(
@@ -169,7 +172,10 @@ object PokemonMoveRepository {
 
     private fun enrichMoves(moves: List<PokemonMove>, category: MoveCategory, names: Map<String, String>, stats: Map<String, MoveCatalogEntry>): List<PokemonMove> {
         val localized = moves.map { move ->
-            move.copy(localizedName = names[normalizeMoveKey(move.name)] ?: move.name)
+            move.copy(localizedName = names[normalizeMoveKey(move.name)] ?: move.name,
+                type = stats[normalizeMoveKey(move.name)]?.type,
+                pvpPower = stats[normalizeMoveKey(move.name)]?.pvpPower,
+                pvpEnergyDelta = stats[normalizeMoveKey(move.name)]?.pvpEnergyDelta)
         }
         val ranked = localized.map { move -> move to score(stats[normalizeMoveKey(move.name)], category) }
             .sortedByDescending { it.second }

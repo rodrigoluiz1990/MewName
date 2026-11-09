@@ -158,6 +158,32 @@ class PokemonMoveRepositoryTest {
         PokemonMoveRepository.load("Eevee", AppLanguage.EN, source)
         assertEquals(2, reads)
     }
+    @Test
+    fun `selector exposes PvP stats rather than PvE and preserves legacy marker`() {
+        val source = FakeMoveDataSource(
+            currentMoves = """[{"name":"Example","fastMoves":[{"name":"Quick Attack"}],"chargedMoves":[{"name":"Test Charge","legacy":true}]}]""",
+            catalog = listOf(
+                MoveCatalogEntry("Quick Attack", namePt = "Ataque Rapido", type = "Normal", power = 999,
+                    energyDelta = 99, pvpPower = 4, pvpEnergyDelta = 8, category = MoveCategory.FAST),
+                MoveCatalogEntry("Test Charge", namePt = "Ataque Teste", type = "Water", power = 888,
+                    energyDelta = -88, pvpPower = 100, pvpEnergyDelta = -50, category = MoveCategory.CHARGED)
+            )
+        )
+        val raw = PokemonMoveRepository.load("Example", AppLanguage.PT_BR, source)
+        assertEquals(null, raw.fastMoves.single().pvpPower)
+        val enriched = PokemonMoveRepository.enrich(raw, AppLanguage.PT_BR, source)
+        val fast = com.mewname.app.moveDropdownOptions(enriched.fastMoves, "*").single()
+        val charged = com.mewname.app.moveDropdownOptions(enriched.chargedMoves, "*").single()
+        assertEquals("Normal", fast.type)
+        assertEquals(4, fast.pvpPower)
+        assertEquals(8, fast.pvpEnergyDelta)
+        assertEquals("Ataque Teste *", charged.label)
+        assertEquals("Test Charge", charged.value)
+        assertEquals("Water", charged.type)
+        assertEquals(100, charged.pvpPower)
+        assertEquals(-50, charged.pvpEnergyDelta)
+    }
+
     private class FakeMoveDataSource(
         private val currentMoves: String,
         private val catalog: List<MoveCatalogEntry> = emptyList()

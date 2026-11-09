@@ -1,5 +1,10 @@
 {
   "aliases": {
+    "[\"LATIAS\",\"GAME_FORM:LATIAS_S\"]": "[\"LATIAS\",\"\"]",
+    "[\"LATIOS\",\"GAME_FORM:LATIOS_S\"]": "[\"LATIOS\",\"\"]",
+    "[\"RAIKOU\",\"GAME_FORM:RAIKOU_S\"]": "[\"RAIKOU\",\"\"]",
+    "[\"ENTEI\",\"GAME_FORM:ENTEI_S\"]": "[\"ENTEI\",\"\"]",
+    "[\"SUICUNE\",\"GAME_FORM:SUICUNE_S\"]": "[\"SUICUNE\",\"\"]",
     "[\"TAUROS\",\"GAME_FORM:TAUROS_PALDEA_COMBAT\"]": "[\"TAUROS (PALDEA)\",\"\"]",
     "[\"CHERRIM\",\"GAME_FORM:CHERRIM_OVERCAST\"]": "[\"CHERRIM\",\"\"]",
     "[\"SHELLOS\",\"GAME_FORM:SHELLOS_WEST_SEA\"]": "[\"SHELLOS\",\"\"]",
@@ -43,6 +48,11 @@
     "[\"DUDUNSPARCE\",\"GAME_FORM:DUDUNSPARCE_THREE\"]": "[\"DUDUNSPARCE THREE-SEGMENT FORM\",\"\"]"
   },
   "labels": {
+    "[\"LATIAS\",\"\"]": "Latias",
+    "[\"LATIOS\",\"\"]": "Latios",
+    "[\"RAIKOU\",\"\"]": "Raikou",
+    "[\"ENTEI\",\"\"]": "Entei",
+    "[\"SUICUNE\",\"\"]": "Suicune",
     "[\"TAUROS (PALDEA)\",\"\"]": "Tauros (Paldea) (Paldea Combat)",
     "[\"CHERRIM\",\"\"]": "Cherrim (Overcast)",
     "[\"SHELLOS\",\"\"]": "Shellos (West Sea)",

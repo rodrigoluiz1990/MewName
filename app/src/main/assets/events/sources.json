@@ -1,5 +1,5 @@
 {
-  "checkedOn": "2026-10-22",
+  "checkedOn": "2026-11-07",
   "events": [
     {
       "id": "dynamax-uxie-mesprit-azelf-max-battle-day-2026",
@@ -10,7 +10,7 @@
       "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-10-24-dynamax-uxie-mesprit-azelf-max-battle-day-2026/dynamax-uxie-mesprit-azelf-max-battle-day.jpg",
       "width": 1920,
       "height": 1080,
-      "sha256": "41dd6fb846d4302a939f022360abdfb1033b5ad20475f14eecbe4b567632bfc4"
+      "sha256": "0c41df87769a282824e400a3ada20830592e91182f038834a758dd1a9e8c622f"
     },
     {
       "id": "halloween-2026-part-1",
@@ -43,7 +43,7 @@
       "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-01-halloween-2026-part-2/halloween-2026-part-2.jpg",
       "width": 1920,
       "height": 1080,
-      "sha256": "7f1d297554e53e8ad0d2a3c3160e2863953a51e80446539027db7bf6f72636bf"
+      "sha256": "5d8a9eb6396b816a1601bf4e284a09e1401b9b093029b72b05ca5aa5c8c06a10"
     },
     {
       "id": "into-the-wild-2026",
@@ -54,7 +54,7 @@
       "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-09-into-the-wild-2026/into-the-wild-2026.jpg",
       "width": 1920,
       "height": 1080,
-      "sha256": "cdf59a0ec1ee404f229bea35c735ab0bc64f996e46e291043a11017436182210"
+      "sha256": "78502e300db69780c9226b24c25a877bfd5dab6fb08264387e5c3d17021eea91"
     },
     {
       "id": "pokemon-go-wild-area-2026-global",
@@ -77,6 +77,83 @@
       "width": 1920,
       "height": 1080,
       "sha256": "a931924494a7f62a4c18968e6c4340acbd23d36bbde0518e379e51efea3e8acf"
+    },
+    {
+      "id": "dynamax-trails-2026",
+      "start": "2026-11-16",
+      "end": "2026-11-23",
+      "file": "dynamax-trails-2026.jpg",
+      "source": "https://leekduck.com/events/dynamax-trails-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-16-dynamax-trails-2026/dynamax-trails-2026.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "8a1f039050f35f565615af96496b4ad3a784d2f4d4bef217745884f71981488a"
+    },
+    {
+      "id": "twilight-wishes-2026",
+      "start": "2026-11-24",
+      "end": "2026-11-30",
+      "file": "twilight-wishes-2026.jpg",
+      "source": "https://leekduck.com/events/twilight-wishes-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/twilight-wishes-2026.jpg?v2",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "f4f36a1c719899cb8d3d5d83daf2856e3d9f647806c93b40e8c20ffb5f222844"
+    },
+    {
+      "id": "go-pass-november-2026",
+      "start": "2026-11-03",
+      "end": "2026-12-01",
+      "file": "go-pass-november-2026.jpg",
+      "source": "https://leekduck.com/events/go-pass-november-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-03-go-pass-november-2026/go-pass-november-2026.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "c6796f2f0a8641ac4c9befe4f88e5e2a40d0a5ef9dbd279bb405441e33c4e1bc"
+    },
+    {
+      "id": "minior-showers-leonids-2026",
+      "start": "2026-11-14",
+      "end": "2026-11-19",
+      "file": "minior-showers-leonids-2026.jpg",
+      "source": "https://leekduck.com/events/minior-showers-leonids-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/minior-showers-2026.jpg",
+      "width": 1600,
+      "height": 900,
+      "sha256": "2f8b09a7a8e476ee8b528aee9b9a46ca5e2ea6fea86a38a6d2e299ec6be354d6"
+    },
+    {
+      "id": "minior-showers-geminids-2026",
+      "start": "2026-12-11",
+      "end": "2026-12-16",
+      "file": "minior-showers-geminids-2026.jpg",
+      "source": "https://leekduck.com/events/minior-showers-geminids-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/minior-showers-2026.jpg",
+      "width": 1600,
+      "height": 900,
+      "sha256": "2f8b09a7a8e476ee8b528aee9b9a46ca5e2ea6fea86a38a6d2e299ec6be354d6"
+    },
+    {
+      "id": "eternamax-eternatus-max-battles-2026",
+      "start": "2026-11-21",
+      "end": "2026-11-21",
+      "file": "eternamax-eternatus-max-battles-2026.jpg",
+      "source": "https://leekduck.com/events/eternamax-eternatus-max-battles-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-16-dynamax-trails-2026/dynamax-trails-2026.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "8a1f039050f35f565615af96496b4ad3a784d2f4d4bef217745884f71981488a"
+    },
+    {
+      "id": "clefable-super-mega-raid-day-2026",
+      "start": "2026-11-28",
+      "end": "2026-11-28",
+      "file": "clefable-super-mega-raid-day-2026.jpg",
+      "source": "https://leekduck.com/events/clefable-super-mega-raid-day-2026/",
+      "imageUrl": "https://cdn.leekduck.com/assets/img/events/clefable-super-mega-raid-day-2026.jpg",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "2990ae38f3b1d375ffea23706216e0f313927d7b6cf7d13428b20e0db4af30e4"
     }
   ]
 }

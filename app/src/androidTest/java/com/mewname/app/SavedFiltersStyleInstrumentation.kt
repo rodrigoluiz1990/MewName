@@ -35,7 +35,7 @@ class SavedFiltersStyleInstrumentation : Instrumentation() {
                                 Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                                     SavedFiltersOverlay(friends, if (empty) emptyList() else filters,
                                         (activity.resources.displayMetrics.heightPixels / activity.resources.displayMetrics.density * .7f).dp,
-                                        onCopy = { copied = it }, onClose = { closed = true })
+                                        onCopy = { copied = it }, onQuickEdit = {}, onClose = { closed = true })
                                 }
                             }
                         }

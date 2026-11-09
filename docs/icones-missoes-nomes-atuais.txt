@@ -1,0 +1,131 @@
+ICONES DE MISSOES E TAGS - NOMES ATUAIS (08/11/2026)
+Fonte: TaskIconCatalog.kt / sharedTaskIcons / filterIconLabel.
+A lista abaixo segue a ordem do seletor. Os textos separados por / sao aliases de busca, nao traducoes selecionadas pelo idioma do app.
+Sem icone (Pikachu sem cor) e a primeira opcao; salva valor vazio.
+[TECNICO] indica nome derivado do arquivo, ainda sem rotulo amigavel definido.
+
+001 | Sem icone | filter_icons/no_icon_pikachu.png | opcao vazia
+002 | Poké Bola / Poké Ball | mission_icons/pokeball_sprite.png
+003 | Grande Bola / Great Ball | mission_icons/greatball_sprite.png
+004 | Ultra Bola / Ultra Ball | mission_icons/ultraball_sprite.png
+005 | Bola Mestra / Master Ball | mission_icons/masterball_sprite.png
+006 | premierball sprite [TECNICO] | mission_icons/premierball_sprite.png
+007 | beastball sprite [TECNICO] | mission_icons/beastball_sprite.png
+008 | wildball sprite [TECNICO] | mission_icons/wildball_sprite.png
+009 | PokéStop / Pokestop / Poképarada | mission_icons/pokestop.png
+010 | Presente / Gift | mission_icons/GiftBox.png
+011 | Caixa de tarefas diárias / Pesquisa / Research box / Investigación | mission_icons/daily_research_box.png
+012 | Álbum de cartões-postais / Cartao postal / Postcard book / Postales | mission_icons/Item_PostcardBook_Inventory.png
+013 | Presente do companheiro / Buddy gift / Regalo del compañero | mission_icons/buddy_gift.png
+014 | Amizade com companheiro / Buddy friendship / Amistad con compañero | mission_icons/buddy_crown_icon.png
+015 | Troca / Dispositivo de troca / Trade device / Intercambio | mission_icons/ic_RTrade_device.png
+016 | Buddy SingleHeart Full [TECNICO] | mission_icons/Buddy_SingleHeart_Full.png
+017 | Batalhar com companheiro / Buddy battle | mission_icons/ic_buddy_battleColor.png
+018 | Incenso diário / Daily incense | mission_icons/dailyWalking_incense.png
+019 | Incense 0 [TECNICO] | mission_icons/Incense_0.png
+020 | Incense 1 [TECNICO] | mission_icons/Incense_1.png
+021 | Baú de moedas / Bau / Coin chest / Cofre de monedas | mission_icons/sparkly_incense.png
+022 | Egg 2km [TECNICO] | mission_icons/Egg_2km.png
+023 | Egg 5km [TECNICO] | mission_icons/Egg_5km.png
+024 | Egg 7km [TECNICO] | mission_icons/Egg_7km.png
+025 | Egg 10km [TECNICO] | mission_icons/Egg_10km.png
+026 | Egg 12km TR [TECNICO] | mission_icons/Egg_12km_TR.png
+027 | Ovo especial / Special egg / Huevo especial | mission_icons/Egg_Special.png
+028 | Incubadora especial / Chocar ovo / Special incubator / Incubadora especial | mission_icons/EggIncubatorSpecial_Activated.png
+029 | EggIncubatorIAP Empty [TECNICO] | mission_icons/EggIncubatorIAP_Empty.png
+030 | EggIncubatorSuper Empty [TECNICO] | mission_icons/EggIncubatorSuper_Empty.png
+031 | EggIncubatorUnlimited Empty [TECNICO] | mission_icons/EggIncubatorUnlimited_Empty.png
+032 | Incubadora temporária vazia / Temporaria / Empty timed incubator / Incubadora temporal vacía | mission_icons/EggIncubatorTimed_Empty.png
+033 | Incubadora temporária ativa / Temporaria / Active timed incubator / Incubadora temporal activa | mission_icons/EggIncubatorTimed_Activated.png
+034 | Incubadora ativa / Active incubator / Incubadora activa | mission_icons/EggIncubatorIAP_Activated.png
+035 | Superincubadora ativa / Active super incubator / Superincubadora activa | mission_icons/EggIncubatorSuper_Activated.png
+036 | Incubadora ilimitada ativa / Active unlimited incubator / Incubadora ilimitada activa | mission_icons/EggIncubatorUnlimited_Activated.png
+037 | Item 0101 [TECNICO] | mission_icons/Item_0101.png
+038 | Item 0102 [TECNICO] | mission_icons/Item_0102.png
+039 | Item 0103 [TECNICO] | mission_icons/Item_0103.png
+040 | Item 0104 [TECNICO] | mission_icons/Item_0104.png
+041 | Item 0201 [TECNICO] | mission_icons/Item_0201.png
+042 | Item 0202 [TECNICO] | mission_icons/Item_0202.png
+043 | Item 0701 [TECNICO] | mission_icons/Item_0701.png
+044 | Item 0702 [TECNICO] | mission_icons/Item_0702.png
+045 | Item 0703 [TECNICO] | mission_icons/Item_0703.png
+046 | Item 0704 [TECNICO] | mission_icons/Item_0704.png
+047 | Item 0705 [TECNICO] | mission_icons/Item_0705.png
+048 | Item 0706 [TECNICO] | mission_icons/Item_0706.png
+049 | Item 1201 [TECNICO] | mission_icons/Item_1201.png
+050 | Item 1202 [TECNICO] | mission_icons/Item_1202.png
+051 | Item 1203 [TECNICO] | mission_icons/Item_1203.png
+052 | Item 1204 [TECNICO] | mission_icons/Item_1204.png
+053 | Item 1301 [TECNICO] | mission_icons/Item_1301.png
+054 | Passe de reide / Raid pass | mission_icons/Item_1401.png
+055 | Passe premium / Premium pass | mission_icons/Item_1402.png
+056 | Passe remoto / Remote pass | mission_icons/Item_1406.png
+057 | Passe especial preto / Black special pass / Pase especial negro | mission_icons/Item_1403.png
+058 | Passe especial roxo / Purple special pass / Pase especial morado | mission_icons/Item_1404.png
+059 | Passe especial azul / Blue special pass / Pase especial azul | mission_icons/Item_1408.png
+060 | Ultracriatura / Ultra Beast / Ultraente | filter_icons/ultra_beast.png
+061 | Item COIN 01 [TECNICO] | mission_icons/Item_COIN_01.png
+062 | Radar Rocket | mission_icons/Item_Leader_MapCompass.png
+063 | Item Giovanni MapCompass [TECNICO] | mission_icons/Item_Giovanni_MapCompass.png
+064 | Item Meteorite [TECNICO] | mission_icons/Item_Meteorite.png
+065 | Item ShadowFragment [TECNICO] | mission_icons/Item_ShadowFragment.png
+066 | Item ShadowGem [TECNICO] | mission_icons/Item_ShadowGem.png
+067 | Célula de Zygarde / Route cell | mission_icons/item_route_cell.png
+068 | route cube [TECNICO] | mission_icons/item_route_cube.png
+069 | Recurso de fusão lunar / Fusao / Lunar fusion resource / Fusión lunar | mission_icons/item_1350.png
+070 | Recurso de fusão solar / Fusao / Solar fusion resource / Fusión solar | mission_icons/item_1351.png
+071 | Recurso de fusão Kyurem Preto / Fusao / Black Kyurem fusion / Fusión Kyurem Negro | mission_icons/item_kyuremBlackFusionResource.png
+072 | Recurso de fusão Kyurem Branco / Fusao / White Kyurem fusion / Fusión Kyurem Blanco | mission_icons/item_kyuremWhiteFusionResource.png
+073 | Recurso de espada / Fusão / Fusao / Zacian / Sword resource / Espada | mission_icons/sword_fusionResource.png
+074 | Recurso de escudo / Fusão / Fusao / Zamazenta / Shield resource / Escudo | mission_icons/shield_fusionResource.png
+075 | candy rgb [TECNICO] | mission_icons/candy_rgb.png
+076 | RareXLCandy PSD [TECNICO] | mission_icons/RareXLCandy_PSD.png
+077 | Poeira Estelar / Stardust | mission_icons/stardust_painted.png
+078 | starpiece [TECNICO] | mission_icons/starpiece.png
+079 | Ovo da Sorte / Lucky Egg | mission_icons/luckyegg.png
+080 | TroyKey [TECNICO] | mission_icons/TroyKey.png
+081 | TroyKey glacial [TECNICO] | mission_icons/TroyKey_glacial.png
+082 | TroyKey magnetic [TECNICO] | mission_icons/TroyKey_magnetic.png
+083 | TroyKey moss [TECNICO] | mission_icons/TroyKey_moss.png
+084 | TroyKey rainy [TECNICO] | mission_icons/TroyKey_rainy.png
+085 | TroyKey sparkly [TECNICO] | mission_icons/TroyKey_sparkly.png
+086 | Bag Dragon Scale Sprite [TECNICO] | mission_icons/Bag_Dragon_Scale_Sprite.png
+087 | Bag King's Rock Sprite [TECNICO] | mission_icons/Bag_King's_Rock_Sprite.png
+088 | Bag Metal Coat Sprite [TECNICO] | mission_icons/Bag_Metal_Coat_Sprite.png
+089 | Bag Sinnoh Stone Sprite [TECNICO] | mission_icons/Bag_Sinnoh_Stone_Sprite.png
+090 | Bag Sun Stone Sprite [TECNICO] | mission_icons/Bag_Sun_Stone_Sprite.png
+091 | Bag Unova Stone Sprite [TECNICO] | mission_icons/Bag_Unova_Stone_Sprite.png
+092 | Bag Up Grade Sprite [TECNICO] | mission_icons/Bag_Up-Grade_Sprite.png
+093 | Moeda de Gimmighoul / Coin / Moneda | mission_icons/Bag_Other_Stone_A_Sprite.png
+094 | Maçã vermelha / Maca / Red apple / Manzana roja | mission_icons/item_maple_a.png
+095 | Maçã verde / Maca / Green apple / Manzana verde | mission_icons/item_maple_b.png
+096 | Maçã dourada / Maca / Golden apple / Manzana dorada | mission_icons/item_maple_c.png
+097 | Expansão da bolsa de itens / Expansao / Armazenamento / Item bag storage / Bolsa de objetos | mission_icons/itemstorageupgrade.1.png
+098 | Expansão de armazenamento Pokémon / Expansao / Pokemon storage / Almacenamiento Pokémon | mission_icons/pokemonstorageupgrade.1.png
+099 | Expansão de cartões-postais / Expansao / Armazenamento / Postcard storage / Almacenamiento de postales | mission_icons/Item_postcardstorageupgrade.1.png
+100 | WonderBox [TECNICO] | mission_icons/WonderBox.png
+101 | mp pack [TECNICO] | mission_icons/mp_pack.png
+102 | lucky friend applicator [TECNICO] | mission_icons/lucky_friend_applicator.png
+103 | Tampinha prateada / Silver bottle cap / Chapa plateada | mission_icons/single_stat_increase.png
+104 | Tampinha dourada / Gold bottle cap / Chapa dorada | mission_icons/triple_stat_increase.png
+105 | mega [TECNICO] | collection/mega.png
+106 | dynamax [TECNICO] | collection/dynamax.png
+107 | gigantamax [TECNICO] | collection/gigantamax.png
+108 | Lendário / Legendary / Legendario | filter_icons/legendary_color.png
+109 | Mítico / Mythical / Singular / Mew | filter_icons/mythical_color.png
+110 | Traje / Fantasia / Costume / Disfraz / Evento | filter_icons/costume_color.png
+111 | Unown | filter_icons/unown.png
+112 | shiny [TECNICO] | collection/shiny.png
+113 | shadow [TECNICO] | collection/shadow.png
+114 | purified [TECNICO] | collection/purified.png
+115 | Favorito / Favorite / Favorita / Estrela / Star | filter_icons/favorite.png
+116 | Favorito desmarcado / Unmarked favorite / Favorito sin marcar | filter_icons/favorite_empty.png
+117 | great [TECNICO] | collection/great.png
+118 | ultra [TECNICO] | collection/ultra.png
+119 | master [TECNICO] | collection/master.png
+120 | Lendário / Legendary / Legendario | filter_icons/legendary.png
+121 | Mítico / Mythical / Singular / Mew | filter_icons/mythical.png
+122 | Traje / Fantasia / Costume / Disfraz / Evento | filter_icons/costume.png
+
+Total: 121 icones + Sem icone.
+Nomes tecnicos ainda para revisar: 65.

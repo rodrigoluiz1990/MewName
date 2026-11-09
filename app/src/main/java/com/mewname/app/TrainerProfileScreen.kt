@@ -127,10 +127,11 @@ internal fun TrainerProfileScreen(
     BackHandler { if (page != "profile") closePage() else onBack() }
     if (showQr) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showQr = false }) {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color.White) {
-                ProfilePicture(true, pictureRevision, Modifier.fillMaxWidth().aspectRatio(1f).padding(16.dp),
-                    "QR Code", lt(language, "QR Code indisponível", "QR code unavailable", "QR no disponible"))
-            }
+            AppModalPanel(title = "QR Code", onClose = { showQr = false }, content = {
+                ProfilePicture(true, pictureRevision, Modifier.fillMaxWidth().aspectRatio(1f)
+                    .clip(RoundedCornerShape(percent = 6)),
+                        "QR Code", lt(language, "QR Code indisponível", "QR code unavailable", "QR no disponible"))
+            })
         }
     }
     AnimatedContent(

@@ -45,7 +45,25 @@ class CostumeNamesTest {
         assertTrue(names.isCostume("https://example.com/pm1.fFALL_2019.icon.png"))
     }
 
+    @Test fun correctedCostumesUseExactSpritesAndAllLanguages() {
+        val file = "pm25.cmay_2019_noevolve.icon.png"
+        assertEquals("Chap\u00e9u de palha",names.label(file,"",AppLanguage.PT_BR))
+        assertEquals("Straw hat",names.label(file,"",AppLanguage.EN))
+        assertEquals("Sombrero de paja",names.label(file,"",AppLanguage.ES))
+        assertEquals("4th anniversary balloons",names.label("pm25.fcostume_2020.icon.png","",AppLanguage.EN))
+        assertEquals("Bufanda",names.label("pm131.fcostume_2020.icon.png","",AppLanguage.ES))
+    }
+    @Test fun collectionTranslationsPreserveKeysAndCollectedIdentity() {
+        val catalogs = AppLanguage.entries.map { CollectionDexCatalog.load(context,language=it) }
+        assertEquals(catalogs[0].flatMap { it.targets }.map { it.key },catalogs[1].flatMap { it.targets }.map { it.key })
+        assertEquals(catalogs[0].flatMap { it.targets }.map { it.key },catalogs[2].flatMap { it.targets }.map { it.key })
+        for ((language,expected) in listOf(AppLanguage.PT_BR to "Cachecol",AppLanguage.EN to "Scarf",AppLanguage.ES to "Bufanda")) {
+            val lapras=CollectionDexCatalog.load(context,language=language).single { it.dex==131 }
+            assertTrue(lapras.targets.any { it.label=="Lapras \u00b7 $expected" })
+        }
+    }
+
     @Test fun filenamesAreCaseInsensitiveAndQueryDoesNotChangeIdentity() {
-        assertEquals("Chapéu de explorador", names.label("https://example.com/pm133.cMay_2023.icon.png?cache=1", "", AppLanguage.PT_BR))
+        assertEquals("Chapéu de safári", names.label("https://example.com/pm133.cMay_2023.icon.png?cache=1", "", AppLanguage.PT_BR))
     }
 }

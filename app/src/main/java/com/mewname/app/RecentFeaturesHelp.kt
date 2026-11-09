@@ -11,6 +11,11 @@ import androidx.compose.ui.unit.dp
 internal fun RecentFeaturesHelp() {
     val language = appLanguage()
     val topics = listOf(
+        lt(language, "Lembretes de eventos", "Event reminders", "Recordatorios de eventos") to
+            lt(language,
+                "No calendário, abra um evento futuro e toque em Lembrar do evento. Autorize notificações e alarmes quando solicitado. O aviso chega no início, mesmo com o app fechado; toque nele para abrir os detalhes. Para desistir, use Cancelar lembrete. Os lembretes são recuperados após reiniciar o celular. Atualize o calendário para acompanhar mudanças de horário. Se o aparelho estiver desligado, o aviso pode chegar ao ligá-lo, até uma hora depois do início, enquanto o evento estiver ativo.",
+                "Open a future calendar event and tap Remind me. Allow notifications and alarms when asked. A notification appears at the start, even when the app is closed; tap it to open details. Use Cancel reminder to stop it. Reminders are restored after restarting the phone. Refresh the calendar to pick up schedule changes. If the phone is off, the notification may arrive on restart, within an hour of the start while the event is still active.",
+                "Abre un evento futuro del calendario y toca Recordar evento. Permite notificaciones y alarmas cuando se solicite. Recibirás un aviso al inicio, incluso con la app cerrada; tócalo para ver los detalles. Usa Cancelar recordatorio para desactivarlo. Los recordatorios se recuperan al reiniciar el teléfono. Actualiza el calendario para recibir cambios de horario. Si el teléfono estaba apagado, el aviso puede llegar al encenderlo, hasta una hora después del inicio mientras el evento siga activo."),
         lt(language, "Navegação e perfil", "Navigation and profile", "Navegación y perfil") to
             lt(language,
                 "A barra inferior acompanha as telas do app. O botão central inicia ou para o modo sobreposição. Perfil abre um painel acima da barra; arraste o traço superior para baixo, toque fora dele, no ícone de perfil ou use Voltar para fechar. O traço também fecha o painel nos submenus. Toque na foto para alterá-la e no lápis para editar os dados. O QR Code abre sozinho em um modal; toque fora ou use Voltar para fechar. O rodapé mostra local nas compilações locais e o número da versão nas releases do GitHub.",

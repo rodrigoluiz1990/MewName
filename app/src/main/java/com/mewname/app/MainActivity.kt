@@ -110,6 +110,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mewname.app.BuildConfig
 import com.mewname.app.domain.AdventureEffectCatalogEntry
@@ -152,7 +154,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    private var calendarEventToOpen by mutableStateOf<String?>(null)
+
     private fun openBubbleDestination(source: Intent?) {
+        source?.getStringExtra("CALENDAR_EVENT")?.let { calendarEventToOpen = it; source.removeExtra("CALENDAR_EVENT") }
         val destination = source?.getStringExtra("BUBBLE_DESTINATION") ?: return
         runCatching { AppScreen.valueOf(destination) }.getOrNull()?.let(viewModel::navigateTo)
         source.removeExtra("BUBBLE_DESTINATION")
@@ -167,6 +172,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         DailyMissionStore(applicationContext).initializeDefaults(defaultDailyMissions(savedAppLanguage(applicationContext)))
         AutomaticBackup.initialize(applicationContext)
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) { EventReminders(applicationContext).restore() }
         openBubbleDestination(intent)
         ContextCompat.registerReceiver(
             this,
@@ -259,7 +265,7 @@ class MainActivity : ComponentActivity() {
                         onCancelProcessing = viewModel::cancelImageProcessing
                     )
 
-                    AppScreen.CALENDAR -> CalendarScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
+                    AppScreen.CALENDAR -> CalendarScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) }, initialEventJson = calendarEventToOpen, onInitialEventConsumed = { calendarEventToOpen = null })
 
                     AppScreen.COLLECTIONS -> {
                         CollectionsScreen(onBack = { viewModel.navigateTo(AppScreen.HOME) })
@@ -2252,7 +2258,6 @@ private fun FieldConfigDialog(
         title = field.localizedLabel(language),
         content = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(fieldDescription(field, language), color = LocalAppAppearance.current.text)
                 if (field == NamingField.UNIQUE_FORM) {
                     UniqueFormFieldConfigContent(
                         onPickSymbol = onPickSymbol,
@@ -2334,57 +2339,51 @@ private fun UniqueFormFieldConfigContent(
                 )
             }
         }
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 320.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            currentSpec.options.forEachIndexed { index, option ->
-                val symbolKey = if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
-                    "UNOWN_${option.code}"
-                } else if (currentSpec.assetFolder.equals("vivillon", ignoreCase = true)) {
-                    "VIVILLON_${option.code}"
-                } else {
-                    UniquePokemonCatalog.symbolKeyForAsset(currentSpec.assetFolder, option.code)
-                }
-                val pokemonLabel = currentSpec.pokemonNames.first().lowercase().replaceFirstChar { it.titlecase() }
-                val displayLabel = if (currentSpec.assetFolder.equals("spinda", ignoreCase = true)) {
-                    "Spinda #${index + 1}: ${currentSymbols[symbolKey] ?: option.code}"
-                } else if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
-                    "Unown ${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
-                } else if (currentSpec.assetFolder.equals("vivillon", ignoreCase = true)) {
-                    "Vivillon ${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
-                } else {
-                    "${option.label}: ${currentSymbols[symbolKey] ?: option.code}"
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(displayLabel)
-                    AppSecondaryButton(
-                        onClick = {
-                            onPickSymbol(
-                                FieldSymbolOption(
-                                    key = symbolKey,
-                                    label = if (currentSpec.assetFolder.equals("spinda", ignoreCase = true)) {
-                                        "Spinda #${index + 1}"
-                                    } else if (currentSpec.assetFolder.equals("unown", ignoreCase = true)) {
-                                        "Unown ${option.label}"
-                                    } else if (currentSpec.assetFolder.equals("vivillon", ignoreCase = true)) {
-                                        "Vivillon ${option.label}"
-                                    } else {
-                                        "$pokemonLabel ${option.label}"
-                                    },
-                                    value = currentSymbols[symbolKey] ?: option.code
-                                )
-                            )
+        val context = LocalContext.current.applicationContext
+        val images by produceState<com.mewname.app.domain.PersonalCollectionImages?>(null, context) {
+            value = withContext(Dispatchers.IO) { com.mewname.app.domain.PersonalCollectionImages(context) }
+        }
+        androidx.compose.runtime.key(currentSpec.assetFolder) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(88.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                gridItems(currentSpec.options, key = { it.code }) { option ->
+                    val symbolKey = when (currentSpec.assetFolder) {
+                        "unown" -> "UNOWN_${option.code}"
+                        "vivillon" -> "VIVILLON_${option.code}"
+                        else -> UniquePokemonCatalog.symbolKeyForAsset(currentSpec.assetFolder, option.code)
+                    }
+                    val pokemon = currentSpec.pokemonNames.first()
+                    val pokemonLabel = pokemon.lowercase().replaceFirstChar { it.titlecase() }
+                    val label = if (currentSpec.assetFolder == "spinda") option.label else "$pokemonLabel ${option.label}"
+                    val symbol = currentSymbols[symbolKey] ?: option.code
+                    val target = remember(pokemon, option) {
+                        val variant = if (currentSpec.assetFolder == "vivillon") option.code else option.label
+                        com.mewname.app.domain.PersonalCollectionTarget(
+                            org.json.JSONArray(listOf(pokemon, variant)).toString(), label
+                        )
+                    }
+                    AppSectionCard {
+                        Column(
+                            Modifier.fillMaxWidth().clickable {
+                                onPickSymbol(FieldSymbolOption(symbolKey, label, symbol))
+                            }.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            PersonalCollectionPortrait(target, images,
+                                com.mewname.app.domain.PersonalCollectionGroup.NORMAL, compact = true)
+                            Text(option.label, Modifier.fillMaxWidth().heightIn(min = 32.dp),
+                                style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center,
+                                maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Text(symbol.ifEmpty { "\u2014" }, Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center, maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         }
-                    ) {
-                        Text("EDITAR")
                     }
                 }
             }

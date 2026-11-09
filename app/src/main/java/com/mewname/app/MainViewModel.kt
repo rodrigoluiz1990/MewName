@@ -653,6 +653,7 @@ fun jsonToNamingConfig(obj: JSONObject): NamingConfig {
     val migratedSymbols = symbols.mapValues { (key, value) ->
         val legacyVivillonValue = legacyVivillonDefaultSymbols[key]
         if ((legacyVivillonValue != null && value == legacyVivillonValue) ||
+            legacyVivillonEmojiSymbols[key] == value ||
             (key == "MASTER_IV_MATCH" && value == "tm")) {
             defaultSymbols[key].orEmpty()
         } else {
@@ -693,4 +694,27 @@ private val legacyVivillonDefaultSymbols = mapOf(
     "VIVILLON_SAVANNA" to "SAV",
     "VIVILLON_SUN" to "SUN",
     "VIVILLON_TUNDRA" to "TUN"
+)
+
+private val legacyVivillonEmojiSymbols = mapOf(
+    "VIVILLON_ARCHIPELAGO" to "🏝️",
+    "VIVILLON_CONTINENTAL" to "🌎",
+    "VIVILLON_ELEGANT" to "🎀",
+    "VIVILLON_FANCY" to "FAN",
+    "VIVILLON_GARDEN" to "💐",
+    "VIVILLON_HIGH_PLAINS" to "🧱",
+    "VIVILLON_ICY_SNOW" to "❄️",
+    "VIVILLON_JUNGLE" to "🐍",
+    "VIVILLON_MARINE" to "⚓️",
+    "VIVILLON_MEADOW" to "🌾",
+    "VIVILLON_MODERN" to "🏙️",
+    "VIVILLON_MONSOON" to "🌧️",
+    "VIVILLON_OCEAN" to "🌊",
+    "VIVILLON_POKE_BALL" to "PB",
+    "VIVILLON_POLAR" to "⛄️",
+    "VIVILLON_RIVER" to "💧",
+    "VIVILLON_SANDSTORM" to "🌪️",
+    "VIVILLON_SAVANNA" to "🦒",
+    "VIVILLON_SUN" to "☀️",
+    "VIVILLON_TUNDRA" to "🏔️"
 )

@@ -9,7 +9,9 @@ import java.util.Locale
 class PokemonFamilySuggester {
 
     fun suggestionsFor(context: Context, candyFamilyName: String?, currentName: String?): List<String> =
-        familyMembersFor(context, candyFamilyName, currentName)
+        familyMembersFor(context, candyFamilyName, currentName).map { name ->
+            if (name.equals("Palafin", ignoreCase = true)) "Palafin (Zero)" else name
+        }
 
     fun familyMembersFor(context: Context, candyFamilyName: String?, currentName: String?): List<String> {
         val mappedFamily = (if (normalize(currentName.orEmpty()).startsWith("NIDOR")) listOfNotNull(currentName, candyFamilyName) else listOfNotNull(candyFamilyName, currentName))

@@ -155,12 +155,17 @@ private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Bool
     val context = LocalContext.current
     val shape = RoundedCornerShape(8.dp)
     val appearance = LocalAppAppearance.current
-    val foreground = if (enabled) appearance.text else appearance.text.copy(alpha = .38f)
+    val selectionColor = MaterialTheme.colorScheme.primary
+    val foreground = when {
+        !enabled -> appearance.text.copy(alpha = .38f)
+        checked -> selectionColor
+        else -> appearance.text
+    }
     val label = "${group.label}: ${if (checked) "já coletado" else "não coletado"}. $pokemon"
     Box(
         Modifier.size(34.dp).clip(shape)
-            .background(if (checked) MaterialTheme.colorScheme.primary.copy(alpha = .20f) else androidx.compose.ui.graphics.Color.Transparent)
-            .border(1.dp,if (checked) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,shape)
+            .background(if (checked) selectionColor.copy(alpha = .20f) else androidx.compose.ui.graphics.Color.Transparent)
+            .border(1.dp,if (checked) selectionColor.copy(alpha = .65f) else androidx.compose.ui.graphics.Color.Transparent,shape)
             .combinedClickable(enabled = enabled,role = Role.Checkbox,onClick = onClick,
                 onLongClickLabel = group.label,
                 onLongClick = { Toast.makeText(context,group.label,Toast.LENGTH_SHORT).show() })
@@ -221,7 +226,7 @@ private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Bool
                     contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                     alpha = if (enabled) 1f else .38f,
                     colorFilter = if (group == PersonalCollectionGroup.BACKGROUND)
-                        androidx.compose.ui.graphics.ColorFilter.tint(appearance.text) else null)
+                        androidx.compose.ui.graphics.ColorFilter.tint(foreground) else null)
             }        } else {
             // Compact emblems, like the level-50 control: no separate captions.
             val emblem = when (group) {
@@ -239,8 +244,6 @@ private fun PersonalCollectionIcon(group: PersonalCollectionGroup, checked: Bool
                 },
                 maxLines = 1)
         }
-        if (checked) Icon(AppIcons.Selected,contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,modifier = Modifier.align(Alignment.BottomEnd).size(9.dp))
     }
 }
 internal data class PersonalCollectionTab(val title: String, val groups: Set<PersonalCollectionGroup>)
@@ -393,6 +396,7 @@ internal fun PersonalCollectionScreen(
 ) {
     val mark = rememberCollectionWriter()
     val context = LocalContext.current
+    val language = appLanguage()
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
     val snapshot = rememberPersonalCollection()
@@ -422,8 +426,8 @@ internal fun PersonalCollectionScreen(
     // Keep its seed stable during the panel session instead of reparsing all assets per tap.
     val initialTargets = remember { snapshot.entries.values.map { it.target } }
     val savedTargets = if (panel) initialTargets else remember(snapshot.entries) { snapshot.entries.values.map { it.target } }
-    val species by produceState<List<com.mewname.app.domain.CollectionSpecies>?>(null, savedTargets) {
-        value = withContext(Dispatchers.IO) { com.mewname.app.domain.CollectionDexCatalog.load(context, savedTargets) }
+    val species by produceState<List<com.mewname.app.domain.CollectionSpecies>?>(null, savedTargets, language) {
+        value = withContext(Dispatchers.IO) { com.mewname.app.domain.CollectionDexCatalog.load(context, savedTargets, language) }
     }
     val images by produceState<com.mewname.app.domain.PersonalCollectionImages?>(null) {
         value = withContext(Dispatchers.IO) { com.mewname.app.domain.PersonalCollectionImages(context.applicationContext) }
@@ -602,6 +606,10 @@ internal fun PersonalCollectionScreen(
                                         if (obtained.isNotEmpty()) Icon(AppIcons.Selected, null,
                                             Modifier.align(Alignment.TopEnd).padding(4.dp).size(16.dp))
                                     }
+                                    Text(target.label.substringAfter(" \u00b7 "),
+                                        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                                        style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+
                                 }
                             }
                         }

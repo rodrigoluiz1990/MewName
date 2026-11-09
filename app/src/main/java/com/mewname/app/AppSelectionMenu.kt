@@ -22,7 +22,9 @@ internal fun <T> AppSelectionMenu(
     options: List<T>,
     selected: T,
     label: (T) -> String,
-    onSelect: (T) -> Unit
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    leadingIcon: (@Composable (T) -> Unit)? = null
 ) {
     val appearance = LocalAppAppearance.current
     val shape = RoundedCornerShape(18.dp)
@@ -31,7 +33,7 @@ internal fun <T> AppSelectionMenu(
             surface = appearance.background.first(), surfaceTint = appearance.background.first()),
         shapes = MaterialTheme.shapes.copy(extraSmall = shape)
     ) {
-    DropdownMenu(expanded, onDismiss, Modifier.heightIn(max = 300.dp)
+    DropdownMenu(expanded, onDismiss, modifier.heightIn(max = 300.dp)
         .clip(shape).background(Brush.verticalGradient(appearance.background))
         .border(.75.dp, appearance.border, shape)) {
         options.forEach { option ->
@@ -42,6 +44,7 @@ internal fun <T> AppSelectionMenu(
                     .background(if (chosen) appControlFill(true) else Color.Transparent)
                     .semantics { this.selected = chosen },
                 text = { Text(label(option), fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal) },
+                leadingIcon = leadingIcon?.let { icon -> { icon(option) } },
                 colors = MenuDefaults.itemColors(textColor = appControlInk(), trailingIconColor = appControlInk()),
                 trailingIcon = { if (chosen) Icon(AppIcons.Selected, null, Modifier.size(20.dp)) else Spacer(Modifier.size(20.dp)) },
                 onClick = { onDismiss(); onSelect(option) }

@@ -141,7 +141,10 @@ internal enum class ReviewIvMode {
 
 internal data class ReviewPokemonMoveOption(
     val value: String,
-    val label: String
+    val label: String,
+    val type: String? = null,
+    val pvpPower: Int? = null,
+    val pvpEnergyDelta: Int? = null
 )
 internal data class ReviewOptionPicker(
     val title: String,
@@ -152,6 +155,7 @@ internal data class ReviewOptionPicker(
     val centeredContent: Boolean = false,
     val anchorBottom: Boolean = false,
     val latestState: (() -> ReviewOptionPicker)? = null,
+    val moveOptions: List<ReviewPokemonMoveOption> = emptyList(),
     val onOptionSelected: (String) -> Unit
 )
 
@@ -1562,6 +1566,7 @@ fun ReviewEditorCard(
                     options = picker.options,
                     selectedValue = picker.selectedValue,
                     message = picker.message,
+                    moveOptions = picker.moveOptions,
                     onDismiss = { activeOptionPicker = null },
                     onOptionSelected = { option ->
                         picker.onOptionSelected(option)
@@ -1652,7 +1657,7 @@ private fun PokemonHelpPanel(
     uniqueFormInfo: com.mewname.app.model.UniqueFormDebugInfo?,
     bitmap: Bitmap?
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1712,7 +1717,7 @@ private fun PokemonHelpPanel(
 
 @Composable
 private fun AdventureEffectHelpPanel(info: AdventureEffectDebugInfo?) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1751,7 +1756,7 @@ private fun AdventureEffectHelpPanel(info: AdventureEffectDebugInfo?) {
 
 @Composable
 private fun LegacyHelpPanel(info: LegacyDebugInfo?) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1792,7 +1797,7 @@ private fun AttributeHelpPanel(
     isShadow: Boolean,
     isPurified: Boolean
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1870,7 +1875,7 @@ private fun PokemonVisualDebugOverlay(
 
 @Composable
 private fun BackgroundHelpPanel(info: BackgroundDebugInfo?) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1907,7 +1912,7 @@ private fun BackgroundHelpPanel(info: BackgroundDebugInfo?) {
 
 @Composable
 private fun EvolutionIconHelpPanel(info: EvolutionIconDebugInfo?) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1972,34 +1977,28 @@ private fun SuggestedNamesBlock(
                 .padding(horizontal = 12.dp, vertical = if (LocalGlassReviewStyle.current) 5.dp else 10.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            var headerActionsWidth by remember { mutableStateOf(0) }
-            val headerSidePadding = with(androidx.compose.ui.platform.LocalDensity.current) {
-                headerActionsWidth.toDp().coerceAtLeast(48.dp)
-            }
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     lt(language, "Nomes sugeridos", "Suggested names", "Nombres sugeridos"),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = headerSidePadding),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Row(
-                    modifier = Modifier.align(Alignment.CenterEnd).onSizeChanged { headerActionsWidth = it.width },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (logOptionsEnabled() && onExportLog != null) {
-                        TextButton(onClick = onExportLog, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
-                            Text(lt(language, "Exportar log", "Export log", "Exportar log"), fontSize = 11.sp)
-                        }
+                if (logOptionsEnabled() && onExportLog != null) {
+                    TextButton(
+                        onClick = onExportLog,
+                        modifier = Modifier.align(Alignment.CenterStart).width(48.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                    ) {
+                        Text("Log", style = MaterialTheme.typography.labelLarge)
                     }
-                    IconButton(onClick = onCancel) {
-                        Icon(AppIcons.Close, contentDescription = lt(language, "Cancelar", "Cancel", "Cancelar"), modifier = Modifier.size(22.dp))
-                    }
+                }
+                IconButton(onClick = onCancel, modifier = Modifier.align(Alignment.CenterEnd)) {
+                    Icon(AppIcons.Close, contentDescription = lt(language, "Cancelar", "Cancel", "Cancelar"), modifier = Modifier.size(22.dp))
                 }
             }
             if (suggestions.isEmpty()) {
@@ -2072,10 +2071,7 @@ private fun IvHelpPanel(
     info: IvDebugInfo?,
     bitmap: Bitmap?
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.54f)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             verticalArrangement = Arrangement.spacedBy(3.dp),
             modifier = Modifier.padding(9.dp)
@@ -2226,7 +2222,7 @@ private fun PvpHelpPanel(
         leagueRanks.firstOrNull { it.league == league }
     }
     val bestBySpecies = speciesRankCardsForLeague(context, speciesRanks, selectedLeague = null)
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2284,7 +2280,7 @@ private fun VivillonHelpPanel(
     info: com.mewname.app.model.VivillonDebugInfo?,
     bitmap: Bitmap?
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2355,7 +2351,7 @@ private fun VivillonDebugOverlay(
 
 @Composable
 private fun SizeHelpPanel(size: PokemonSize, info: com.mewname.app.model.SizeDebugInfo?) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.18f))) {
+    AppSectionCard(Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -93,7 +94,8 @@ internal fun CompactSelectableField(
     active: Boolean,
     struckThrough: Boolean = false,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    content: (@Composable RowScope.() -> Unit)? = null
 ) {
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
     val textColor = MaterialTheme.colorScheme.onSurface
@@ -120,7 +122,7 @@ internal fun CompactSelectableField(
                 .padding(horizontal = 8.dp, vertical = if (LocalGlassFieldGroup.current) 2.5.dp else 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            if (content != null) content() else Text(
                 value,
                 modifier = (if (LocalGlassReviewStyle.current) Modifier.fillMaxWidth() else Modifier)
                     .drawWithContent {
@@ -172,7 +174,7 @@ internal fun IvValueButton(
         ) {
             if (LocalGlassReviewStyle.current) {
                 GlassFieldValue(value?.toString().orEmpty(), small = true, trailing = {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Selecionar $label", modifier = Modifier.size(14.dp))
+                    Icon(AppIcons.Next, contentDescription = "Selecionar $label", modifier = Modifier.size(14.dp))
                 })
             } else Row(
                 modifier = Modifier
@@ -190,9 +192,9 @@ internal fun IvValueButton(
                     style = TextStyle(fontSize = if (LocalGlassFieldGroup.current) 14.sp else 11.sp, color = MaterialTheme.colorScheme.onSurface)
                 )
                 Icon(
-                    Icons.Default.ArrowDropDown,
+                    AppIcons.Next,
                     contentDescription = "Selecionar $label",
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(18.dp).rotate(90f),
                     tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -209,7 +211,6 @@ internal fun IvPickerModal(
     onDismiss: () -> Unit
 ) {
     ReviewModalCard(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)),
         modifier = Modifier
             .widthIn(max = 280.dp)
             .fillMaxWidth()
@@ -218,8 +219,7 @@ internal fun IvPickerModal(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            if (LocalGlassReviewStyle.current) ReviewModalHeader(title, onDismiss)
-            else Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            ReviewModalHeader(title, onDismiss)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 (0..15).chunked(4).forEach { row ->
                     Row(
@@ -238,14 +238,7 @@ internal fun IvPickerModal(
                     }
                 }
             }
-            if (!LocalGlassReviewStyle.current) Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Fechar")
-                }
-            }
+
         }
     }
 }
@@ -260,10 +253,10 @@ internal fun SelectionModalDialog(
     onDismiss: () -> Unit,
     onOptionSelected: (String) -> Unit,
     verticalOptions: Boolean = false,
-    centeredContent: Boolean = false
+    centeredContent: Boolean = false,
+    moveOptions: List<ReviewPokemonMoveOption> = emptyList()
 ) {
     ReviewModalCard(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)),
         modifier = Modifier
             .widthIn(max = 340.dp)
             .fillMaxWidth()
@@ -276,7 +269,8 @@ internal fun SelectionModalDialog(
             ReviewModalHeader(title, onDismiss)
             if (message != null) {
                 Text(message, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium, textAlign = if (centeredContent) TextAlign.Center else TextAlign.Start)
-            } else if (verticalOptions || LocalGlassReviewStyle.current) {
+            }
+            if (options.isNotEmpty() && (verticalOptions || LocalGlassReviewStyle.current)) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -289,11 +283,14 @@ internal fun SelectionModalDialog(
                             value = option,
                             active = option == selectedValue,
                             onClick = { onOptionSelected(option) },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            content = moveOptions.firstOrNull { it.label == option }?.let { move ->
+                                { ReviewMoveOptionRow(move) }
+                            }
                         )
                     }
                 }
-            } else {
+            } else if (options.isNotEmpty()) {
                 FlowRow(
                     modifier = Modifier.widthIn(max = 260.dp).heightIn(max = 200.dp).verticalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -315,7 +312,7 @@ internal fun LevelPickerDialog(context: Context, language: AppLanguage, pokemonN
     val cp = if (pokemonName != null && attack != null && defense != null && stamina != null) rankCalculator.estimateCpAtLevel(context, pokemonName, attack, defense, stamina, previewLevel) else null
     val hp = if (pokemonName != null && stamina != null) rankCalculator.estimateHpAtLevel(context, pokemonName, stamina, previewLevel) else null
     val cost = sourceLevel?.let { powerUpCostBetweenLevels(it, previewLevel, isLucky, isShadow, isPurified, captureLevel) }
-    ReviewModalCard(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)), modifier = Modifier.fillMaxWidth().widthIn(max = 320.dp)) {
+    ReviewModalCard(modifier = Modifier.fillMaxWidth().widthIn(max = 320.dp)) {
             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppModalHeader(lt(language, "Selecionar nível", "Select level", "Seleccionar nivel"), onDismiss)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -468,9 +465,9 @@ internal fun PokemonSuggestionField(
                 trailing = {
                     if (suggestions.isNotEmpty()) {
                         Icon(
-                            Icons.Default.ArrowDropDown,
+                            AppIcons.Next,
                             contentDescription = "Open suggestions",
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(18.dp).rotate(90f),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -578,9 +575,9 @@ internal fun SelectionDropdownField(
                     },
                 trailing = {
                     Icon(
-                        Icons.Default.ArrowDropDown,
+                        AppIcons.Next,
                         contentDescription = "Open options",
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(18.dp).rotate(90f),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -621,18 +618,8 @@ private fun StandardDropdownOptions(
     onDismiss: () -> Unit,
     onSelected: (String) -> Unit
 ) {
-    DropdownMenu(
-        expanded = true,
-        onDismissRequest = onDismiss,
-        modifier = Modifier.widthIn(max = 260.dp).heightIn(max = 200.dp)
-    ) {
-        options.forEach { option ->
-            DropdownMenuItem(
-                text = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                onClick = { onSelected(option) }
-            )
-        }
-    }
+    AppSelectionMenu(true, onDismiss, options, "", { it }, onSelected,
+        modifier = Modifier.widthIn(max = 260.dp))
 }
 
 @Composable
@@ -651,7 +638,7 @@ internal fun MoveDropdownField(
     val modalMessage = statusMessage
     val pickerOptions = if (modalMessage == null) listOf(emptyLabel) + options.map { it.label } else emptyList()
     val currentPicker = rememberUpdatedState(
-        ReviewOptionPicker(label, pickerOptions, selectedLabel, modalMessage, verticalOptions = true) { optionLabel ->
+        ReviewOptionPicker(label, pickerOptions, selectedLabel, modalMessage, verticalOptions = true, moveOptions = options) { optionLabel ->
             onSelected(if (optionLabel == emptyLabel) null else options.firstOrNull { it.label == optionLabel }?.value)
         }
     )
@@ -659,23 +646,16 @@ internal fun MoveDropdownField(
         FieldLabelRow(label = label, trailing = {
             LocalFieldLogMarker.current?.invoke(label)
         })
-        CompactTextInput(
+        CompactSelectableField(
             value = selectedLabel,
-            onValueChange = {},
-            readOnly = true,
             active = expanded,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    optionPicker?.invoke(liveReviewOptionPicker(currentPicker)) ?: run { expanded = !expanded }
-                },
-            trailing = {
-                Icon(
-                    Icons.Default.ArrowDropDown,
-                    contentDescription = "Abrir opções",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            onClick = { optionPicker?.invoke(liveReviewOptionPicker(currentPicker)) ?: run { expanded = !expanded } },
+            modifier = Modifier.fillMaxWidth(),
+            content = {
+                val move = options.firstOrNull { it.value == selectedValue }
+                if (move != null) ReviewMoveOptionRow(move, showStats = false)
+                else Text(selectedLabel, Modifier.weight(1f), maxLines = 1, style = MaterialTheme.typography.bodySmall)
+                Icon(AppIcons.Next, null, Modifier.size(16.dp).rotate(90f))
             }
         )
         if (expanded) {
@@ -684,6 +664,7 @@ internal fun MoveDropdownField(
                 options = pickerOptions,
                 selectedValue = selectedLabel,
                 message = modalMessage,
+                moveOptions = options,
                 verticalOptions = true,
                 onDismiss = { expanded = false },
                 onOptionSelected = { optionLabel ->
@@ -739,5 +720,26 @@ internal fun FieldHeaderSpacer(
             onMarkerClick = onMarkerClick
         )
         Spacer(modifier = Modifier.height(34.dp))
+    }
+}
+
+@Composable
+private fun RowScope.ReviewMoveOptionRow(move: ReviewPokemonMoveOption, showStats: Boolean = true) {
+    val language = appLanguage()
+    move.type?.let {
+        TypeIcon(it, language, Modifier.size(20.dp), framed = false)
+        Spacer(Modifier.width(6.dp))
+    }
+    Text(move.label, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+        style = MaterialTheme.typography.bodySmall)
+    if (showStats) {
+        Spacer(Modifier.width(6.dp))
+        val energy = move.pvpEnergyDelta?.let { if (it > 0) "+$it" else "$it" } ?: "—"
+        Text("D ${move.pvpPower ?: "—"}  E $energy", maxLines = 1,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.semantics {
+                stateDescription = lt(language, "Dano PvP ${move.pvpPower ?: "—"}; energia $energy",
+                    "PvP damage ${move.pvpPower ?: "—"}; energy $energy", "Daño PvP ${move.pvpPower ?: "—"}; energía $energy")
+            })
     }
 }

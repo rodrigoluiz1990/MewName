@@ -24,7 +24,7 @@ import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: CatalogCapture? = null) {
+internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: CatalogCapture? = null, inOverlay: Boolean = capture != null) {
     val context = LocalContext.current
     val language = appLanguage()
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
@@ -156,7 +156,7 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
         LeekSection.CODES -> tr("Códigos promocionais", "Promo codes", "Códigos promocionales") }
     Scaffold(containerColor = Color.Transparent, topBar = {
         AppTopBar(title = { Text(title) }, navigationIcon = {
-            if (capture != null) IconButton(onClick = onBack) { Icon(AppIcons.Close, contentDescription = tr("Fechar", "Close", "Cerrar")) }
+            if (inOverlay) IconButton(onClick = onBack) { Icon(AppIcons.Close, contentDescription = tr("Fechar", "Close", "Cerrar")) }
             else TextButton(onClick = onBack) { Icon(AppIcons.Back, contentDescription = null) }
         }, actions = {
             if (capture == null) IconButton(onClick = { refresh++ }, enabled = !loading) {

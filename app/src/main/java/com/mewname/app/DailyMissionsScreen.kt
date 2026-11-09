@@ -153,22 +153,14 @@ internal fun DailyMissionsScreen(onBack: () -> Unit) {
     }
     if (editor) androidx.compose.ui.window.Dialog(onDismissRequest = { editor = false }) {
         val appearance = LocalAppAppearance.current
-        Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+        Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
             color = androidx.compose.ui.graphics.Color.Transparent,
             contentColor = appearance.text,
             border = androidx.compose.foundation.BorderStroke(.75.dp, appearance.border)) {
-            Column(Modifier.fillMaxWidth().heightIn(max = 580.dp)
+            Column(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .85f).dp).imePadding()
                 .background(Brush.verticalGradient(appearance.background)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(48.dp))
-                    Text(tr("Missão diária", "Daily mission", "Misión diaria"), Modifier.weight(1f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        style = MaterialTheme.typography.titleLarge)
-                    IconButton(onClick = { editor = false }, modifier = Modifier.size(48.dp)) {
-                        Icon(AppIcons.Close, tr("Fechar", "Close", "Cerrar"))
-                    }
-                }
+                AppModalHeader(tr("Missão diária", "Daily mission", "Misión diaria"), { editor = false })
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (icon.isNotBlank()) FilterTagIcon(icon, Modifier.size(40.dp), filterIconLabel(icon))
                     AppGlassTextField(name, { name = it }, Modifier.weight(1f),

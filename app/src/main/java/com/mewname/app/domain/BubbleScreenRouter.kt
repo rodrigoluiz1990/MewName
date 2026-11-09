@@ -8,6 +8,7 @@ internal object BubbleScreenRouter {
     sealed interface Target {
         data object Trainer : Target
         data class Encounter(val reading: EncounterReading) : Target
+        data object Unsupported : Target
         data object Pokemon : Target
         data class Catalog(val capture: CatalogCapture) : Target
         data class Battle(val advice: BattleAdvice) : Target
@@ -53,7 +54,8 @@ internal object BubbleScreenRouter {
         if (advice == null) {
             val quotes = measured("falas Rocket") { AppLanguage.entries.flatMap { GameTextRepository.rocketQuotes(context, it) } }
             measured("catalogo Rocket") { CatalogScreenMatcher.detect(text, quotes) }?.let { return Target.Catalog(it) }
-            return Target.Pokemon
+            return if (measured("ficha Pokemon") { PokemonDetailScreenDetector.matches(text) })
+                Target.Pokemon else Target.Unsupported
         }
         if (com.mewname.app.BuildConfig.DEBUG && advice.mode == BattleMode.RAID) {
             val band = positionedLines.filter { (it.top + it.bottom) / 2f in .16f.. .39f }

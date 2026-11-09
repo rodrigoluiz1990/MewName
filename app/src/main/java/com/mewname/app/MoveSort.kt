@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -86,8 +87,6 @@ internal fun MoveSortControl(order: MoveSort, onOrder: (MoveSort) -> Unit,
     var expanded by remember { mutableStateOf(false) }
     var anchorWidth by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val appearance = LocalAppAppearance.current
-    val menuShape = RoundedCornerShape(20.dp)
     val options = MoveSort.entries.filter { allowNationalDex || it != MoveSort.NATIONAL_DEX }
         .sortedWith(compareBy(java.text.Collator.getInstance(when (language) {
             AppLanguage.PT_BR -> java.util.Locale.forLanguageTag("pt-BR")
@@ -106,38 +105,19 @@ internal fun MoveSortControl(order: MoveSort, onOrder: (MoveSort) -> Unit,
                         Text(lt(language, "Ordenar por", "Sort by", "Ordenar por"), style = MaterialTheme.typography.labelSmall)
                         Text(label(order), style = MaterialTheme.typography.bodyMedium)
                     }
-                    Icon(Icons.Default.ArrowDropDown, null)
+                    Icon(AppIcons.Next, null, Modifier.size(18.dp).rotate(90f))
                 }
             }
-            MaterialTheme(
-                colorScheme = MaterialTheme.colorScheme.copy(surface = Color.Transparent, surfaceTint = Color.Transparent),
-                shapes = MaterialTheme.shapes.copy(extraSmall = menuShape)
-            ) {
-                DropdownMenu(expanded, onDismissRequest = { expanded = false },
-                    modifier = Modifier.width(with(density) { anchorWidth.toDp() })
-                        .clip(menuShape).background(Brush.verticalGradient(appearance.background))
-                        .border(.75.dp, appearance.border, menuShape)) {
-                    options.forEach { option ->
-                        val chosen = order == option
-                        DropdownMenuItem(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (chosen) appControlFill(true) else Color.Transparent)
-                                .semantics { selected = chosen },
-                            text = { Text(label(option), fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal) },
-                            colors = MenuDefaults.itemColors(textColor = appControlInk(), trailingIconColor = appControlInk()),
-                            onClick = { onOrder(option); expanded = false },
-                            trailingIcon = { if (chosen) Icon(AppIcons.Selected, null) else Spacer(Modifier.size(24.dp)) })
-                    }
-                }
-            }
+            AppSelectionMenu(expanded, { expanded = false }, options, order, ::label, onOrder,
+                modifier = Modifier.width(with(density) { anchorWidth.toDp() }))
         }
         Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp), color = appControlFill(),
             contentColor = appControlInk(), border = androidx.compose.foundation.BorderStroke(.75.dp, LocalAppAppearance.current.border)) {
             IconButton(onClick = { onReversed(!reversed) }) {
-                Icon(if (descending) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                Icon(AppIcons.Next,
                     if (descending) lt(language, "Decrescente; inverter ordem", "Descending; reverse order", "Descendente; invertir orden")
-                    else lt(language, "Crescente; inverter ordem", "Ascending; reverse order", "Ascendente; invertir orden"))
+                    else lt(language, "Crescente; inverter ordem", "Ascending; reverse order", "Ascendente; invertir orden"),
+                    modifier = Modifier.size(20.dp).rotate(if (descending) 90f else -90f))
             }
         }
     }

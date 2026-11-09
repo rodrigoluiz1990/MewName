@@ -1,0 +1,179 @@
+{
+  "attackers": [
+    {
+      "pokemonId": "GIRATINA",
+      "boss": "RAID_LEVEL_5",
+      "byMove": [
+        {
+          "move1": "DRAGON_BREATH_FAST",
+          "move2": "DRAGON_CLAW"
+        },
+        {
+          "move1": "DRAGON_BREATH_FAST",
+          "move2": "ANCIENT_POWER"
+        },
+        {
+          "move1": "SHADOW_CLAW_FAST",
+          "move2": "ANCIENT_POWER"
+        },
+        {
+          "move1": "SHADOW_CLAW_FAST",
+          "move2": "DRAGON_CLAW"
+        },
+        {
+          "move1": "DRAGON_BREATH_FAST",
+          "move2": "SHADOW_SNEAK"
+        },
+        {
+          "move1": "SHADOW_CLAW_FAST",
+          "move2": "SHADOW_SNEAK"
+        }
+      ],
+      "randomMove": {
+        "defenders": [
+          {
+            "pokemonId": "LATIOS_MEGA",
+            "byMove": [
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "SOLAR_BEAM",
+                "result": {
+                  "estimator": 3.261
+                }
+              },
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "RETURN",
+                "result": {
+                  "estimator": 3.179
+                }
+              },
+              {
+                "move1": "ZEN_HEADBUTT_FAST",
+                "move2": "DRAGON_CLAW",
+                "result": {
+                  "estimator": 2.638
+                }
+              },
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "PSYCHIC",
+                "result": {
+                  "estimator": 2.619
+                }
+              },
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "LUSTER_PURGE",
+                "result": {
+                  "estimator": 2.522
+                }
+              },
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "DRAGON_CLAW",
+                "result": {
+                  "estimator": 2.149
+                }
+              }
+            ]
+          },
+          {
+            "pokemonId": "BAXCALIBUR",
+            "byMove": [
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "DRAGON_CLAW",
+                "result": {
+                  "estimator": 2.833
+                }
+              },
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "OUTRAGE",
+                "result": {
+                  "estimator": 2.826
+                }
+              },
+              {
+                "move1": "ICE_FANG_FAST",
+                "move2": "AVALANCHE",
+                "result": {
+                  "estimator": 2.794
+                }
+              },
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "AVALANCHE",
+                "result": {
+                  "estimator": 2.682
+                }
+              },
+              {
+                "move1": "DRAGON_BREATH_FAST",
+                "move2": "GLAIVE_RUSH",
+                "result": {
+                  "estimator": 2.192
+                }
+              },
+              {
+                "move1": "ICE_FANG_FAST",
+                "move2": "GLAIVE_RUSH",
+                "result": {
+                  "estimator": 2.149
+                }
+              }
+            ]
+          },
+          {
+            "pokemonId": "GROUDON_PRIMAL",
+            "byMove": [
+              {
+                "move1": "DRAGON_TAIL_FAST",
+                "move2": "SOLAR_BEAM",
+                "result": {
+                  "estimator": 2.946
+                }
+              },
+              {
+                "move1": "DRAGON_TAIL_FAST",
+                "move2": "RETURN",
+                "result": {
+                  "estimator": 2.91
+                }
+              },
+              {
+                "move1": "MUD_SHOT_FAST",
+                "move2": "PRECIPICE_BLADES",
+                "result": {
+                  "estimator": 2.822
+                }
+              },
+              {
+                "move1": "DRAGON_TAIL_FAST",
+                "move2": "FIRE_BLAST",
+                "result": {
+                  "estimator": 2.809
+                }
+              },
+              {
+                "move1": "DRAGON_TAIL_FAST",
+                "move2": "EARTHQUAKE",
+                "result": {
+                  "estimator": 2.335
+                }
+              },
+              {
+                "move1": "DRAGON_TAIL_FAST",
+                "move2": "PRECIPICE_BLADES",
+                "result": {
+                  "estimator": 2.146
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

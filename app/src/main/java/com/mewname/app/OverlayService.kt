@@ -482,6 +482,16 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         showCollectionOverlay()
                         return@action
                     }
+                    val catalogSection = when (shortcut.screen) {
+                        AppScreen.EGGS -> com.mewname.app.domain.LeekSection.EGGS
+                        AppScreen.RESEARCH -> com.mewname.app.domain.LeekSection.RESEARCH
+                        AppScreen.ROCKET -> com.mewname.app.domain.LeekSection.ROCKET
+                        else -> null
+                    }
+                    if (catalogSection != null) {
+                        showCatalogOverlay(catalogSection)
+                        return@action
+                    }
                     val destination = if (shortcut.url != null) {
                         Intent(Intent.ACTION_VIEW, android.net.Uri.parse(shortcut.url))
                     } else {
@@ -864,7 +874,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
                 val catalogCapture = (readTarget as? com.mewname.app.domain.BubbleScreenRouter.Target.Catalog)?.capture
                 if (catalogCapture != null) {
-                    showCatalogOverlay(catalogCapture)
+                    showCatalogOverlay(catalogCapture.section, catalogCapture)
                     return@runCatching
                 }
                 val rawBattleAdvice = (readTarget as? com.mewname.app.domain.BubbleScreenRouter.Target.Battle)?.advice
@@ -881,6 +891,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                 }
                 (readTarget as? com.mewname.app.domain.BubbleScreenRouter.Target.Filters)?.screen?.let { screen ->
                     showSavedFiltersOverlay(screen)
+                    return@runCatching
+                }
+                if (readTarget == com.mewname.app.domain.BubbleScreenRouter.Target.Unsupported) {
+                    lastCapturedData = null
+                    lastBubbleLogSnapshot = null
+                    showUnsupportedBubbleScreenOverlay()
+                    checkpoint("Tela nao reconhecida")
                     return@runCatching
                 }
                 var sizeRetries = 0
@@ -955,7 +972,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
                         advice = battleAdvice
                     )
                     showBattleSuggestionsOverlay(battleAdvice)
-                } else if (!hasIdentifiedPokemon && generatedResults.isEmpty()) {
+                } else if (!hasIdentifiedPokemon) {
                     showUnsupportedBubbleScreenOverlay()
                 } else if (needsReview || generatedResults.isNotEmpty()) {
                     showReviewOverlay(merged, reviewFields, savedConfigs, bitmap)
@@ -1215,83 +1232,31 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             dimAmount = 0.6f
         }
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 34f
-                setColor(Color.argb(232, 255, 255, 255))
-            }
-            setPadding(52, 52, 52, 52)
-            elevation = 40f
-        }
-
-        layout.addView(TextView(this).apply {
-            text = "Tela nao reconhecida"
-            textSize = 18f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.BLACK)
-            setPadding(0, 0, 0, 12)
-        })
-
-        layout.addView(TextView(this).apply {
-            text = "A sobreposição pode ser usada nestas telas:"
-            textSize = 14f
-            setTextColor(Color.rgb(65, 72, 86))
-            setPadding(0, 0, 0, 18)
-        })
-
-        fun supportedScreenRow(title: String, description: String): LinearLayout {
-            return LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(0, 12, 0, 12)
-                addView(TextView(this@OverlayService).apply {
-                    text = title
-                    textSize = 15f
-                    setTypeface(null, Typeface.BOLD)
-                    setTextColor(Color.BLACK)
-                })
-                addView(TextView(this@OverlayService).apply {
-                    text = description
-                    textSize = 13f
-                    setTextColor(Color.rgb(87, 96, 112))
-                    setPadding(0, 4, 0, 0)
-                })
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
+            setContent {
+                val language = rememberSavedAppLanguage(this@OverlayService)
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language) {
+                    AppAppearanceTheme {
+                        Box(Modifier.fillMaxWidth().padding(12.dp)) {
+                            AppModalPanel(
+                                title = lt(language, "Tela não reconhecida", "Screen not recognized", "Pantalla no reconocida"),
+                                onClose = { removeResultsOverlay() },
+                                content = {
+                                    androidx.compose.material3.Text(lt(language,
+                                        "Abra uma tela compatível no Pokémon GO e tente a leitura novamente. Consulte as funções da sobreposição na Ajuda do app.",
+                                        "Open a supported Pokémon GO screen and try reading again. See the overlay features in the app Help.",
+                                        "Abre una pantalla compatible en Pokémon GO e intenta leer de nuevo. Consulta las funciones de superposición en la Ayuda."))
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
-
-        layout.addView(supportedScreenRow("Detalhes do Pokemon", "Gera nomes e permite revisar os dados lidos."))
-        layout.addView(supportedScreenRow("Tela de Raid", "Sugere counters e copia o filtro para busca."))
-        layout.addView(supportedScreenRow("Tela de Dynamax/Gigamax", "Sugere Pokemon validos para a batalha Max."))
-
-        layout.addView(TextView(this).apply {
-            text = "Abra uma dessas telas no Pokemon GO e toque na sobreposição novamente."
-            textSize = 13f
-            setTextColor(Color.rgb(87, 96, 112))
-            setPadding(0, 18, 0, 22)
-        })
-
-        val closeButton = TextView(this).apply {
-            text = "Fechar"
-            gravity = Gravity.CENTER
-            textSize = 13f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.rgb(48, 63, 84))
-            setPadding(18, 24, 18, 24)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 28f
-                setColor(Color.argb(245, 248, 250, 255))
-                setStroke(2, Color.rgb(205, 214, 226))
-            }
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { removeResultsOverlay() }
-        }
-        layout.addView(closeButton)
-
-        // A refused add (service closing, permission lost) must not leave resultsView blocking the bubble menu.
-        val root = closeOnBack(layout, params)
+        val root = closeOnBack(view, params)
         if (addOverlayView(root, params)) resultsView = root
     }
 
@@ -1488,7 +1453,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         }
         closeOnBack(composeView, params).let { root -> if (addOverlayView(root, params)) resultsView = root }
     }
-    private fun showCatalogOverlay(capture: com.mewname.app.domain.CatalogCapture) {
+    private fun showCatalogOverlay(
+        section: com.mewname.app.domain.LeekSection,
+        capture: com.mewname.app.domain.CatalogCapture? = null
+    ) {
         if (closingForPermissionLoss) return
         removeResultsOverlay()
         val params = WindowManager.LayoutParams(
@@ -1503,15 +1471,16 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             setContent {
                 val language = rememberSavedAppLanguage(this@OverlayService)
                 androidx.compose.runtime.CompositionLocalProvider(LocalAppLanguage provides language) {
-                    MaterialTheme {
+                    AppAppearanceTheme {
                         Box(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 28.dp),
                             contentAlignment = androidx.compose.ui.Alignment.Center) {
                             androidx.compose.material3.Surface(
                                 modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-                                color = androidx.compose.ui.graphics.Color(0xFFF0EAF8)
+                                color = LocalAppAppearance.current.background.first(),
+                                contentColor = LocalAppAppearance.current.text
                             ) {
-                                LeekDuckScreen(capture.section, onBack = { removeResultsOverlay() }, capture = capture)
+                                LeekDuckScreen(section, onBack = { removeResultsOverlay() }, capture = capture, inOverlay = true)
                             }
                         }
                     }

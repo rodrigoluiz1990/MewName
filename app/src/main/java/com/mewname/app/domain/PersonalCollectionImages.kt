@@ -37,6 +37,30 @@ internal class PersonalCollectionImages(context: Context) {
     }.toMap()
     private val imageIds = images.keys().asSequence().associateBy { key(it.removeSuffix("_FORM")) }
 
+    private val raidSpecies = species.entries.filter { !it.value.getString("name").contains('(') }
+        .sortedByDescending { it.key.length }
+
+    /** Prefer explicit game forms; ordinary species must not inherit raid-feed costumes. */
+    fun raidUrl(id: String): String? {
+        val normalized = key(id.uppercase(Locale.ROOT).removeSuffix("_SHADOW_FORM")
+            .removeSuffix("_SHADOW").removeSuffix("_FORM"))
+        val base = raidSpecies.firstOrNull { normalized == it.key || normalized.startsWith(it.key + " ") }
+        if (base != null) {
+            val form = normalized.removePrefix(base.key).trim().replace(' ', '_')
+            val dex = base.value.getInt("dex")
+            if (form.isNotBlank()) gameSprite("pm$dex.f$form.icon.png")?.let { return it }
+        }
+        val entry = species[normalized] ?: speciesAliases[normalized]
+        if (entry != null) {
+            val name = entry.getString("name")
+            url(PersonalCollectionTarget(JSONArray(listOf(name.uppercase(Locale.ROOT), "")).toString(), name))
+                ?.let { return it }
+        }
+        val formId = id.uppercase(Locale.ROOT).removeSuffix("_SHADOW_FORM")
+            .removeSuffix("_SHADOW").removeSuffix("_FORM")
+        return formUrl(formId)
+    }
+
     /** Exact form ID lookup; never replaces an unknown form with the ordinary species. */
     fun formUrl(id: String): String? = gameImages[id.uppercase(Locale.ROOT)]
         ?.substringAfterLast('/')?.let { gameSprite(it) }
@@ -58,6 +82,9 @@ internal class PersonalCollectionImages(context: Context) {
         val parts = runCatching { JSONArray(target.key) }.getOrNull() ?: return null
         val name = parts.optString(0)
         val variant = parts.optString(1)
+        if (name in setOf("ROTOM", "GENESECT") && key(variant) == "NORMAL") {
+            return url(PersonalCollectionTarget(JSONArray(listOf(name, "")).toString(), target.label), shiny)
+        }
         if (variant.startsWith("GAME_COSTUME:")) return gameSprite(variant.removePrefix("GAME_COSTUME:"), shiny)
         if (variant.startsWith("GAME_FORM:")) {
             val form = variant.removePrefix("GAME_FORM:")
@@ -83,6 +110,16 @@ internal class PersonalCollectionImages(context: Context) {
                     778 -> gameSprite("pm778.fDISGUISED.icon.png", shiny)
                     else -> null
                 }
+        // Raid-feed numeric form IDs do not match the game's legacy sprite numbering.
+        // Resolve Unown by the explicit letter instead (A was previously drawn as B).
+        if (name == "UNOWN" && variant.isNotBlank()) {
+            val form = when (variant) {
+                "!" -> "EXCLAMATION_POINT"
+                "?" -> "QUESTION_MARK"
+                else -> variant.takeIf { it.length == 1 && it[0] in 'A'..'Z' } ?: return null
+            }
+            return gameSprite("pm201.fUNOWN_$form.icon.png", shiny)
+        }
         val candidates = mutableListOf<String>()
         if (variant.isNotBlank() && name !in setOf("SCATTERBUG", "SPEWPA")) {
             val code = UniquePokemonCatalog.optionsFor(name).firstOrNull { key(it.label) == key(variant) }?.code

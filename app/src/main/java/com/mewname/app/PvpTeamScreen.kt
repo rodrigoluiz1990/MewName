@@ -87,6 +87,7 @@ internal fun PvpTeamScreen(onBack: () -> Unit) {
     val index = remember(candidates) { candidates.associateBy { it.id } }
     fun pokemonName(id: String): String = pvpTeamDisplayName(index[id]?.name ?: raidName(id), language)
     fun moveName(id: String) = data?.moves?.get(pokedexIdentity(id.removeSuffix("_FAST")))?.localizedName(language) ?: raidName(id)
+    fun moveType(id: String) = data?.moves?.get(pokedexIdentity(id.removeSuffix("_FAST")))?.type
     val valid = team.all { index[it.id] != null && it.moves.size >= 2 } && team.map { index[it.id]?.dex ?: it.id }.distinct().size == 3
     val matchups = remember(team, candidates) { pvpTeamMatchups(team, candidates) }
     BackHandler { if (tab == 1) tab = 0 else onBack() }
@@ -127,7 +128,7 @@ internal fun PvpTeamScreen(onBack: () -> Unit) {
                                 val options = (if (moveIndex == 0) candidate.fast else candidate.charged)
                                     .filter { it == selected || it !in slot.moves }
                                 PvpTeamMoveDropdown(when (moveIndex) { 0 -> tr("Rápido", "Fast", "Rápido"); 1 -> tr("Carregado 1", "Charged 1", "Cargado 1"); else -> tr("Carregado 2", "Charged 2", "Cargado 2") },
-                                    selected, if (moveIndex == 2) listOf("") + options else options, ::moveName) { id ->
+                                    selected, if (moveIndex == 2) listOf("") + options else options, ::moveName, ::moveType) { id ->
                                     val moves = List(3) { slot.moves.getOrNull(it).orEmpty() }.toMutableList().also { it[moveIndex] = id }.filter { it.isNotBlank() }
                                     update(position, slot.copy(moves = moves))
                                 }
@@ -209,13 +210,23 @@ internal fun PvpTeamScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun PvpTeamMoveDropdown(label: String, value: String, options: List<String>, name: (String) -> String, onSelect: (String) -> Unit) {
+private fun PvpTeamMoveDropdown(label: String, value: String, options: List<String>, name: (String) -> String, type: (String) -> String?, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val language = appLanguage()
     fun display(id: String) = if (id.isEmpty()) lt(language, "Nenhum", "None", "Ninguno") else name(id)
-    Box {
-        AppActionButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(), secondary = true) { Text("$label: ${display(value)}", Modifier.weight(1f))
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, Modifier.width(78.dp), style = MaterialTheme.typography.bodySmall)
+        Box(Modifier.weight(1f)) {
+        AppActionButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(), secondary = true) {
+            type(value)?.let {
+                TypeIcon(it, language, Modifier.size(22.dp), framed = false)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(display(value), Modifier.weight(1f))
             Icon(AppIcons.Next, null, Modifier.size(18.dp).rotate(90f)) }
-        AppSelectionMenu(expanded, { expanded = false }, options, value, ::display, onSelect)
+        AppSelectionMenu(expanded, { expanded = false }, options, value, ::display, onSelect, leadingIcon = { id ->
+            type(id)?.let { TypeIcon(it, language, Modifier.size(22.dp), framed = false) }
+        })
     }
+}
 }

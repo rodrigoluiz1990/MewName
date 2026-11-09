@@ -165,7 +165,7 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     }
     val variantOptions = raidVariantOptions(formChoices, ::raidLabel, ::name)
     fun variantLabel(choice: RaidChoice) = variantOptions.firstOrNull { it.choice == choice }?.label ?: raidLabel(choice)
-    fun moveLabel(id: String) = moveNames[raidKey(id)] ?: raidName(id.removeSuffix("_FAST"))
+    fun moveLabel(id: String) = raidMoveLabel(id, moveNames)
     val capture = boss?.let { b -> raidCaptureId(b.id)?.let { meta?.pokemon?.get(it) } }
     val background=LocalAppAppearance.current.background
     Column(Modifier.fillMaxSize().background(Brush.verticalGradient(background))) {
@@ -310,18 +310,6 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                         } },style=MaterialTheme.typography.bodySmall)
                     } else Text(tr("Faixa de captura desta forma indisponível.","Catch range unavailable for this form.","Intervalo de captura no disponible para esta forma."))
                 } } }
-                item { Row(verticalAlignment=Alignment.CenterVertically) {
-                    Text(tr("Pokémon sugeridos","Suggested Pokémon","Pokémon sugeridos"),Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
-                    listOf(40,50).forEach { value -> TextButton(onClick={level=value; repository.setPreferredLevel(value)}) { Text(if(level==value) "• $value" else "$value") } }
-                } }
-                if(loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-                if(failed) item { Text(tr("Falha ao atualizar. Os dados salvos foram preservados.","Update failed. Saved data was preserved.","No se pudo actualizar. Se conservaron los datos guardados.")) }
-                if(!loading && report==null) item {
-                    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                        Text(tr("Ainda não há sugestões salvas para este chefe.","There are no saved suggestions for this boss yet.","Todavía no hay sugerencias guardadas para este jefe."))
-
-                    }
-                }
                 run {
                     val trainerRange = raidTrainerRange(trainerReport?.counters.orEmpty().map { it.estimator })
                     item {
@@ -355,13 +343,25 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
                         }
                     }
                 }
+                item { Row(verticalAlignment=Alignment.CenterVertically) {
+                    Text(tr("Pokémon sugeridos","Suggested Pokémon","Pokémon sugeridos"),Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
+                    listOf(40,50).forEach { value -> TextButton(onClick={level=value; repository.setPreferredLevel(value)}) { Text(if(level==value) "• $value" else "$value") } }
+                } }
+                if(loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                if(failed) item { Text(tr("Falha ao atualizar. Os dados salvos foram preservados.","Update failed. Saved data was preserved.","No se pudo actualizar. Se conservaron los datos guardados.")) }
+                if(!loading && report==null) item {
+                    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                        Text(tr("Ainda não há sugestões salvas para este chefe.","There are no saved suggestions for this boss yet.","Todavía no hay sugerencias guardadas para este jefe."))
+
+                    }
+                }
                 items(report?.counters.orEmpty(),key={it.id}) { counter -> AppSectionCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
                         RaidPortrait(counter.id, Modifier.size(64.dp), refreshToken = refresh)
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                             Text(name(counter.id),style=MaterialTheme.typography.titleSmall)
-                            RaidMoveRow(counter.fast,tr("Rápido: ","Fast: ","Rápido: ")+moveLabel(counter.fast.id))
-                            RaidMoveRow(counter.charged,tr("Carregado: ","Charged: ","Cargado: ")+moveLabel(counter.charged.id))
+                            RaidMoveRow(counter.fast,moveLabel(counter.fast.id),tr(" (Rápido)"," (Fast)"," (Rápido)"))
+                            RaidMoveRow(counter.charged,moveLabel(counter.charged.id),tr(" (Carregado)"," (Charged)"," (Cargado)"))
                         }
                     }
                 } }
@@ -396,10 +396,10 @@ internal fun RaidDetailsScreen(bossName: String, initialTier: String = "RAID_LEV
     Row(Modifier.fillMaxWidth()) { Text(label,Modifier.weight(1.7f),style=MaterialTheme.typography.bodySmall)
         Text(low,Modifier.weight(1f)); Text(high,Modifier.weight(1f)) }
 }
-@Composable internal fun RaidMoveRow(move: RaidMove, label: String) {
+@Composable internal fun RaidMoveRow(move: RaidMove, label: String, suffix: String = "") {
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
         if(move.type.isNotBlank()) AsyncImage("file:///android_asset/types/POKEMON_TYPE_${move.type.uppercase()}.png",localizedTypeLabel(move.type,appLanguage()),Modifier.size(20.dp))
-        Text(label + if(move.special) " ${configuredLegacyMoveSymbol()}" else "",style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))
+        Text(label + (if(move.special) " ${configuredLegacyMoveSymbol()}" else "") + suffix,style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1f))
     }
 }
 @Composable internal fun RaidPortrait(id: String, modifier: Modifier, refreshToken: Int = 0) {

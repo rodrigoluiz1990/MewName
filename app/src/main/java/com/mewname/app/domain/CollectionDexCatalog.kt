@@ -12,7 +12,7 @@ internal object CollectionDexCatalog {
         .replace(COMBINING_DIACRITICS, "").uppercase(java.util.Locale.ROOT)
         .replace("GALARIAN_STANDARD", "GALAR").replace("GALARIAN", "GALAR").replace("ALOLAN", "ALOLA").replace("HISUIAN", "HISUI").replace("PALDEAN", "PALDEA")
         .replace(NON_UPPER_ALPHANUMERIC_RUNS, "")
-    fun load(context: Context, saved: Collection<PersonalCollectionTarget> = emptyList()): List<CollectionSpecies> {
+    fun load(context: Context, saved: Collection<PersonalCollectionTarget> = emptyList(), language: AppLanguage? = null): List<CollectionSpecies> {
         val names = JSONArray(context.assets.open("pokemon/names.json").bufferedReader().use { it.readText() })
         val game = JSONArray(context.assets.open("pokemon/collection_game_forms.json").bufferedReader().use { it.readText() })
         val costumeKeys = mutableSetOf<String>()
@@ -80,7 +80,19 @@ internal object CollectionDexCatalog {
             val name = runCatching { JSONArray(target.key).getString(0) }.getOrNull() ?: continue
             dexByName[id(name)]?.let { groups.getOrPut(it) { mutableListOf() }.add(target) }
         }
-        return groups.map { (dex, targets) -> CollectionSpecies(dex, labels.getValue(dex), targets.map { PersonalCollection.canonicalRegionalTarget(context, it) }.distinctBy { it.key }, targets.filter { it.key in costumeKeys }.map { PersonalCollection.canonicalRegionalTarget(context, it).key }.toSet()) }.sortedBy { it.dex }
+        val result = groups.map { (dex, targets) -> CollectionSpecies(dex, labels.getValue(dex), targets.map { PersonalCollection.canonicalRegionalTarget(context, it) }.distinctBy { it.key }, targets.filter { it.key in costumeKeys }.map { PersonalCollection.canonicalRegionalTarget(context, it).key }.toSet()) }.sortedBy { it.dex }
+        if (language == null) return result
+        val images = PersonalCollectionImages(context)
+        val descriptions = CostumeNames(context)
+        return result.map { species ->
+            species.copy(targets = species.targets.map { target ->
+                if (target.key !in species.costumeKeys) target else {
+                    val url = images.url(target)
+                    if (url == null) target else target.copy(label = species.name + " \u00b7 " +
+                        descriptions.label(url, target.label.substringAfter(" \u00b7 "), language))
+                }
+            })
+        }
     }
 }
 

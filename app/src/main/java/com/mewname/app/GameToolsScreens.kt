@@ -3679,14 +3679,11 @@ internal fun CollectionBackgroundsContent(inlinePreview: Boolean = false, showFi
     }
     if (!inlinePreview) preview?.let { entry ->
         Dialog(onDismissRequest = { preview = null }) {
-            AppSectionCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(entry.displayName, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                    BackgroundArtwork(assetPath = entry.assetPath, contentDescription = entry.displayName,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 520.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                    IconButton(onClick = { preview = null }) { Icon(AppIcons.Close, contentDescription = "Fechar") }
-                }
-            }
+            AppModalPanel(title = entry.displayName, onClose = { preview = null }, content = {
+                BackgroundArtwork(assetPath = entry.assetPath, contentDescription = entry.displayName,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 520.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+            })
         }
     }
 }
