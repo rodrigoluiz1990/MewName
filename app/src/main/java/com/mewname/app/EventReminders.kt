@@ -54,75 +54,122 @@ internal class EventReminders(private val context: Context) {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     fun contains(id: String) = preferences.contains(id)
     fun cancel(id: String) {
-        alarms.cancel(pending(id))
-        preferences.edit().remove(id).commit()
-        notifications.cancel(id, 1)
+        synchronized(lock) {
+            alarms.cancel(pending(id))
+            preferences.edit().remove(id).commit()
+            notifications.cancel(id, 1)
+        }
     }
     fun schedule(json: JSONObject, now: Long = System.currentTimeMillis()): Boolean {
-        val time = reminderTime(json.getString("start"))
-        if (time <= now || !exactAllowed() || !notificationsAllowed()) return false
-        val id = json.getString("id")
-        // Save before scheduling so a delivered alarm always has its payload.
-        if (!preferences.edit().putString(id, json.toString()).commit()) return false
-        return try {
-            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time, pending(id))
-            true
-        } catch (_: SecurityException) {
-            preferences.edit().remove(id).commit()
-            false
+        synchronized(lock) {
+            validatePayload(json)
+            val time = reminderTime(json.getString("start"))
+            if (time <= now || !exactAllowed() || !notificationsAllowed()) return false
+            val id = json.getString("id")
+            val previous = preferences.getString(id, null)
+            // Save before scheduling so a delivered alarm always has its payload.
+            if (!preferences.edit().putString(id, json.toString()).commit()) return false
+            return try {
+                alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time, pending(id))
+                true
+            } catch (_: SecurityException) {
+                preferences.edit().apply {
+                    if (previous == null) remove(id) else putString(id, previous)
+                }.commit()
+                false
+            }
         }
     }
     fun restore(now: Long = System.currentTimeMillis()) {
-        preferences.all.values.filterIsInstance<String>().forEach { value ->
-            runCatching {
-                val json = JSONObject(value)
+        synchronized(lock) {
+            preferences.all.forEach { (id, value) ->
+                val json = readPayload(id, value) ?: return@forEach
                 if (reminderTime(json.getString("start")) > now) schedule(json, now)
-                else deliver(json.getString("id"), now)
-            }.onFailure { android.util.Log.w("EventReminders", "Unable to restore reminder", it) }
+                else deliver(id, now)
+            }
         }
     }
-    /** Called only after a successful complete calendar refresh, never for a failed feed. */
-    fun reconcile(events: List<CalendarEvent>, year: Int) {
-        preferences.all.values.filterIsInstance<String>().forEach { value ->
-            val old = runCatching { JSONObject(value) }.getOrNull() ?: return@forEach
-            if (com.mewname.app.domain.CalendarParser.date(old.getString("start")).year != year) return@forEach
-            val same = events.firstOrNull { it.reminderJson().getString("id") == old.getString("id") }
-                ?: events.filter { it.category == old.getString("category") && it.title == old.getString("title") }
-                    .singleOrNull()
-            if (same == null) cancel(old.getString("id"))
-            else if (same.reminderJson().toString() != old.toString()) {
-                cancel(old.getString("id"))
-                schedule(same.reminderJson())
+
+    /** Match the occurrence, never a title alone: weekly events can share titles and links. */
+    fun reconcile(events: List<CalendarEvent>, year: Int, now: Long = System.currentTimeMillis()) {
+        synchronized(lock) {
+            preferences.all.forEach { (id, value) ->
+                val old = readPayload(id, value) ?: return@forEach
+                // Use the source year, not the device timezone (UTC events can cross New Year's Eve).
+                if (old.getString("start").take(4).toInt() != year) return@forEach
+                val same = events.firstOrNull { it.reminderJson().getString("id") == id }
+                if (same == null) cancel(id)
+                else {
+                    val updated = same.reminderJson()
+                    // Retain the user's choice even if Android temporarily denies scheduling.
+                    if (preferences.edit().putString(id, updated.toString()).commit()) {
+                        if (reminderTime(updated.getString("start")) > now) schedule(updated, now)
+                        else deliver(id, now)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun readPayload(id: String, value: Any?): JSONObject? = runCatching {
+        require(value is String)
+        JSONObject(value).also { validatePayload(it, id) }
+    }.getOrElse {
+        android.util.Log.w("EventReminders", "Discarding invalid reminder", it)
+        cancel(id)
+        null
+    }
+
+    /** Backup restore never sends notifications for events that already started. */
+    fun restoreBackup(previousIds: Set<String>, now: Long = System.currentTimeMillis()) {
+        synchronized(lock) {
+            previousIds.forEach { alarms.cancel(pending(it)); notifications.cancel(it, 1) }
+            preferences.all.forEach { (id, value) ->
+                val json = readPayload(id, value) ?: return@forEach
+                if (reminderTime(json.getString("start")) <= now) cancel(id)
+                else schedule(json, now)
             }
         }
     }
     fun deliver(id: String, now: Long = System.currentTimeMillis()) {
-        val value = preferences.getString(id, null) ?: return
-        val json = JSONObject(value)
-        val start = reminderTime(json.getString("start"))
-        if (start > now) { schedule(json, now); return }
-        // Do not deliver stale reminders after a long period with the device off.
-        if (now - start > 60 * 60 * 1000L || reminderTime(json.getString("end")) <= now || !notificationsAllowed()) {
-            cancel(id); return
+        synchronized(lock) {
+            val value = preferences.all[id] ?: return
+            val json = readPayload(id, value) ?: return
+            val start = reminderTime(json.getString("start"))
+            if (start > now) { schedule(json, now); return }
+            // Do not deliver stale reminders after a long period with the device off.
+            if (now - start > 60 * 60 * 1000L || reminderTime(json.getString("end")) <= now) {
+                cancel(id); return
+            }
+            if (!notificationsAllowed()) return // Retain until permissions return or the grace period expires.
+            val language = savedAppLanguage(context)
+            notifications.createNotificationChannel(NotificationChannel(CHANNEL,
+                lt(language, "Eventos do calend\u00e1rio", "Calendar events", "Eventos del calendario"), NotificationManager.IMPORTANCE_DEFAULT))
+            val open = Intent(context, MainActivity::class.java).setAction("com.mewname.app.OPEN_EVENT")
+                .setData(Uri.parse("mewname://calendar/" + Uri.encode(id)))
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra("BUBBLE_DESTINATION", "CALENDAR").putExtra("CALENDAR_EVENT", json.toString())
+            val tap = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val notification = Notification.Builder(context, CHANNEL)
+                .setSmallIcon(R.drawable.ic_event_notification).setContentTitle(json.getString("title"))
+                .setContentText(lt(language, "O evento come\u00e7ou!", "The event has started!", "\u00a1El evento ha comenzado!"))
+                .setContentIntent(tap).setAutoCancel(true).setCategory(Notification.CATEGORY_EVENT).build()
+            try {
+                notifications.notify(id, 1, notification)
+                preferences.edit().remove(id).commit()
+            } catch (_: SecurityException) { /* Keep the choice if permission changed during delivery. */ }
         }
-        val language = savedAppLanguage(context)
-        notifications.createNotificationChannel(NotificationChannel(CHANNEL,
-            lt(language, "Eventos do calend\u00e1rio", "Calendar events", "Eventos del calendario"), NotificationManager.IMPORTANCE_DEFAULT))
-        val open = Intent(context, MainActivity::class.java).setAction("com.mewname.app.OPEN_EVENT")
-            .setData(Uri.parse("mewname://calendar/" + Uri.encode(id)))
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra("BUBBLE_DESTINATION", "CALENDAR").putExtra("CALENDAR_EVENT", json.toString())
-        val tap = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.ic_event_notification).setContentTitle(json.getString("title"))
-            .setContentText(lt(language, "O evento come\u00e7ou!", "The event has started!", "\u00a1El evento ha comenzado!"))
-            .setContentIntent(tap).setAutoCancel(true).setCategory(Notification.CATEGORY_EVENT).build()
-        try {
-            notifications.notify(id, 1, notification)
-            preferences.edit().remove(id).commit()
-        } catch (_: SecurityException) { cancel(id) }
     }
     companion object {
+        // Instances exist in the receiver, calendar, activity and backup worker.
+        internal val lock = Any()
+        internal fun validatePayload(json: JSONObject, expectedId: String = json.getString("id")) {
+            val event = reminderEvent(json)
+            require(event.title.isNotBlank() && event.category.isNotBlank())
+            require(json.getString("id") == expectedId)
+            require(expectedId == event.reminderJson().getString("id"))
+            require(reminderTime(event.sourceEnd) >= reminderTime(event.sourceStart))
+        }
         const val CHANNEL = "calendar_events"
         const val FIRE = "com.mewname.app.EVENT_REMINDER"
     }

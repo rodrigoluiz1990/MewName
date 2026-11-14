@@ -11,7 +11,7 @@ import java.io.File
 internal object UserBackup {
     private val stores = setOf("mewname_prefs", "personal_collection_v1", "daily_missions",
         "promo_code_redemptions", "trainer_profile", "home_layout", "bubble_actions",
-        "pvp_calculation", "raid_counter_preferences")
+        "pvp_calculation", "raid_counter_preferences", "calendar_reminders")
     private val pictures = setOf("profile-avatar.png", "profile-qr.png")
     const val MAX_BYTES = 32 * 1024 * 1024
     private const val LEARNED_BACKGROUNDS = "learnedBackgrounds"
@@ -122,6 +122,10 @@ internal object UserBackup {
                 }
             }
         }
+        prefs["calendar_reminders"]?.forEach { (id, value) ->
+            require(value is String) { "Invalid reminder payload" }
+            EventReminders.validatePayload(JSONObject(value), id)
+        }
         val imageData = root.getJSONObject("pictures")
         val images = imageData.keys().asSequence().associateWith { name ->
             require(name in pictures)
@@ -145,12 +149,17 @@ internal object UserBackup {
     fun validate(text: String) { decode(text) }
 
     @Synchronized fun restore(context: Context, text: String) {
-        val incoming = decode(text) // Fully validate before changing anything.
-        val previous = decode(export(context))
-        try { apply(context, incoming) }
-        catch (error: Exception) {
-            runCatching { apply(context, previous) }.exceptionOrNull()?.let(error::addSuppressed)
-            throw error
+        synchronized(EventReminders.lock) {
+            val incoming = decode(text) // Fully validate before changing anything.
+            val previous = decode(export(context))
+            val reminders = EventReminders(context)
+            val previousIds = reminders.preferences.all.keys.toSet()
+            try { apply(context, incoming) }
+            catch (error: Exception) {
+                runCatching { apply(context, previous) }.exceptionOrNull()?.let(error::addSuppressed)
+                throw error
+            }
+            if ("calendar_reminders" in incoming.preferences) reminders.restoreBackup(previousIds)
         }
     }
 

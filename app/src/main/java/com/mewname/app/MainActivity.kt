@@ -172,7 +172,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         DailyMissionStore(applicationContext).initializeDefaults(defaultDailyMissions(savedAppLanguage(applicationContext)))
         AutomaticBackup.initialize(applicationContext)
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) { EventReminders(applicationContext).restore() }
         openBubbleDestination(intent)
         ContextCompat.registerReceiver(
             this,
@@ -391,6 +390,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) { EventReminders(applicationContext).restore() }
         if (!Settings.canDrawOverlays(this)) {
             viewModel.setBubbleOptionVisible(false)
             stopService(Intent(this, OverlayService::class.java))
