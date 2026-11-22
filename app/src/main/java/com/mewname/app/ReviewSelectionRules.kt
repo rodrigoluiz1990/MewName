@@ -44,7 +44,7 @@ internal fun FieldLabelRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (label.isNotBlank()) {
-            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = if (LocalGlassReviewStyle.current) FontWeight.Normal else FontWeight.SemiBold)
+            ReviewDataLabel(label)
         }
         if (trailing != null) trailing() else LocalFieldLogMarker.current?.invoke(label)
     }
@@ -362,9 +362,17 @@ internal fun ReviewChipSection(
 
 @Composable
 internal fun WeightedToggleRow(items: List<WeightedToggleItem>) {
-    if (LocalGlassReviewStyle.current && items.map { it.label } == listOf("♂", "♀")) {
+    if (LocalGlassReviewStyle.current && LocalReviewLayout.current.segmentedGender && items.map { it.label } == listOf("♂", "♀")) {
         GlassGenderSegments(items)
         return
+    }
+    if (LocalReviewSelectorCustomization.current) {
+        val language = appLanguage()
+        val selectors = items.mapNotNull { ReviewSelector.forLabel(it.label, language) }
+        if (selectors.size == items.size) {
+            ReviewSelectorGrid(items, selectors)
+            return
+        }
     }
     GlassFieldRow(legacySpacing = 2.dp) {
         items.forEach { item ->
@@ -388,6 +396,14 @@ internal fun ToggleChip(
     iconAssetPath: String? = null,
     modifier: Modifier = Modifier
 ) {
+    if (LocalReviewSelectorCustomization.current) {
+        val selector = ReviewSelector.forLabel(label, appLanguage())
+        if (selector != null && !LocalReviewLayout.current.optionVisible(selector)) return
+        if (selector != null && LocalReviewLayout.current.customized(selector)) {
+            ReviewSelectorButton(selector, selector.label(appLanguage()), selected, { onClick() }, modifier)
+            return
+        }
+    }
     val shape = RoundedCornerShape(if (LocalGlassReviewStyle.current) GlassFieldCorner else 10.dp)
     val containerColor = if (LocalGlassReviewStyle.current) glassFieldColor(selected) else if (selected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)

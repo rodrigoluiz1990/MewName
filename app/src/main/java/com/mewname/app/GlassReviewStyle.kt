@@ -20,6 +20,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +35,9 @@ internal val LocalGlassFieldGroup = staticCompositionLocalOf { false }
 internal val GlassBlockInset = 2.dp
 internal val GlassBlockMargin = 1.5.dp
 internal val GlassLabelHeight = 16.dp
-internal val GlassFieldHeight = 28.dp
+internal val LocalReviewControlHeight = staticCompositionLocalOf { 36 }
+internal val GlassFieldHeight: androidx.compose.ui.unit.Dp
+    @Composable get() = (LocalReviewControlHeight.current.toFloat() * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)).dp
 internal val GlassFieldCorner = 6.dp
 
 
@@ -51,8 +55,9 @@ internal fun GlassFieldRow(
         return
     }
     val dividerColor = LocalAppAppearance.current.border
+    val horizontalInset = if (LocalReviewLayout.current.compact) 6.dp else 10.dp
     AppSectionCard(
-        modifier = modifier.fillMaxWidth().padding(vertical = GlassBlockMargin),
+        modifier = modifier.fillMaxWidth().padding(vertical = if (LocalReviewLayout.current.compact) 0.dp else GlassBlockMargin),
         shape = RoundedCornerShape(12.dp)
     ) {
         CompositionLocalProvider(LocalGlassFieldGroup provides true) {
@@ -60,16 +65,16 @@ internal fun GlassFieldRow(
                 Modifier.fillMaxWidth().drawBehind {
                     if (weights.size > 1) {
                         val total = weights.sum()
-                        var x = 10.dp.toPx()
+                        var x = horizontalInset.toPx()
                         val gap = 8.dp.toPx()
-                        val available = size.width - 20.dp.toPx() - gap * (weights.size - 1)
+                        val available = size.width - horizontalInset.toPx() * 2 - gap * (weights.size - 1)
                         weights.dropLast(1).forEach {
                             x += it / total * available + gap / 2
                             drawLine(dividerColor, Offset(x, 10.dp.toPx()), Offset(x, size.height - 10.dp.toPx()), 1.dp.toPx())
                             x += gap / 2
                         }
                     }
-                }.padding(horizontal = 10.dp, vertical = GlassBlockInset),
+                }.padding(horizontal = horizontalInset, vertical = if (LocalReviewLayout.current.compact) 1.dp else GlassBlockInset),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 content = content
@@ -102,17 +107,54 @@ internal fun GlassTabs(labels: List<String>, selected: Int, onSelected: (Int) ->
     }
 }
 
+/** Centre the visible glyph bounds, not the font baseline; retain a small antialiasing margin. */
+@Composable internal fun ReviewGenderGlyph(symbol: String, size: Float, modifier: Modifier = Modifier) {
+    val ink = appControlInk()
+    val paint = androidx.compose.runtime.remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+    } }
+    val bounds = androidx.compose.runtime.remember { android.graphics.Rect() }
+    androidx.compose.foundation.Canvas(modifier.size(size.dp)) {
+        paint.color = ink.toArgb()
+        paint.textSize = size.dp.toPx()
+        paint.getTextBounds(symbol, 0, symbol.length, bounds)
+        if (bounds.width() > 0 && bounds.height() > 0) {
+            val margin = 1.dp.toPx()
+            val fit = minOf((this.size.width - margin * 2).coerceAtLeast(1f) / bounds.width(),
+                (this.size.height - margin * 2).coerceAtLeast(1f) / bounds.height())
+            paint.textSize *= fit
+            paint.getTextBounds(symbol, 0, symbol.length, bounds)
+            drawContext.canvas.nativeCanvas.drawText(symbol,
+                center.x - bounds.exactCenterX(), center.y - bounds.exactCenterY(), paint)
+        }
+    }
+}
+
 @Composable
-internal fun GlassGenderSegments(items: List<WeightedToggleItem>) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(GlassFieldCorner))
+internal fun GlassGenderSegments(items: List<WeightedToggleItem>, modifier: Modifier = Modifier,
+    segmentModifier: (ReviewSelector) -> Modifier = { Modifier }) {
+    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(GlassFieldCorner))
         .background(appControlFill())) {
-        items.forEach { item ->
-            Box(Modifier.weight(1f).height(GlassFieldHeight)
+        val layoutOrder = LocalReviewLayout.current
+        val selectors = items.map { ReviewSelector.forLabel(it.label, appLanguage()) ?: ReviewSelector.MALE }
+        layoutOrder.ordered(selectors).forEach { selector ->
+            val item = items[selectors.indexOf(selector)]
+            val layout = LocalReviewLayout.current
+            val showIcon = layout.style(selector) != ReviewSelectorStyle.TEXT && layout.icon(selector) != null
+            Row(Modifier.weight(1f).then(segmentModifier(selector)).height(GlassFieldHeight)
                 .background(if (item.selected) appControlFill(true) else Color.Transparent)
-                .toggleable(item.selected, role = Role.Checkbox, onValueChange = { item.onClick() }),
-                contentAlignment = Alignment.Center) {
-                Text(item.label, fontSize = 18.sp,
-                    color = appControlInk())
+                .toggleable(item.selected, role = Role.Checkbox, onValueChange = { item.onClick() })
+                .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                if (showIcon) ReviewTagArtwork(selector, layout)
+                if (!showIcon || layout.style(selector) == ReviewSelectorStyle.ICON_TEXT) {
+                    if (showIcon) Spacer(Modifier.width(4.dp))
+                    if (selector == ReviewSelector.MALE || selector == ReviewSelector.FEMALE) {
+                        ReviewGenderGlyph(if (selector == ReviewSelector.MALE) "\u2642" else "\u2640", layout.iconSize(selector).toFloat())
+                    } else Text(item.label, fontSize = (layout.iconSize(selector) * .75f).sp,
+                        color = appControlInk(), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
             }
         }
     }
@@ -146,10 +188,10 @@ internal fun GlassSection(
         Column(modifier, verticalArrangement = verticalArrangement, content = content)
         return
     }
-    AppSectionCard(modifier.fillMaxWidth().padding(vertical = GlassBlockMargin),
+    AppSectionCard(modifier.fillMaxWidth().padding(vertical = if (LocalReviewLayout.current.compact) 0.dp else GlassBlockMargin),
         shape = RoundedCornerShape(12.dp)) {
         CompositionLocalProvider(LocalGlassSectionContent provides true) {
-            Column(Modifier.padding(horizontal = 10.dp, vertical = GlassBlockInset), verticalArrangement = verticalArrangement, content = content)
+            Column(Modifier.padding(horizontal = if (LocalReviewLayout.current.compact) 6.dp else 10.dp, vertical = if (LocalReviewLayout.current.compact) 1.dp else GlassBlockInset), verticalArrangement = verticalArrangement, content = content)
         }
     }
 }

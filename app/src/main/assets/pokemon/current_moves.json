@@ -32604,6 +32604,10 @@
                       ],
         "chargedMoves":  [
                              {
+                                 "name":  "Kowtow Cleave",
+                                 "legacy":  true
+                             },
+                             {
                                  "name":  "Dark Pulse",
                                  "legacy":  false
                              },

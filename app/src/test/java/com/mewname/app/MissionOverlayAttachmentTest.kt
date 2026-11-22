@@ -13,6 +13,30 @@ import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class MissionOverlayAttachmentTest {
+    @Test fun sizeChangesResizeExistingMissionsAndKeepCaptureVisibility() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = context.getSharedPreferences("home_layout", 0)
+        prefs.edit().clear().commit()
+        val store = DailyMissionStore(context)
+        store.preferences.edit().clear().putString(MissionPlacement.KEY, MissionPlacement.FREE.name).commit()
+        store.save(DailyMission(id = "size", name = "Size", icon = ""))
+        val panels = linkedMapOf<View, WindowManager.LayoutParams>()
+        val overlay = DailyMissionOverlay(context,
+            { view, params -> panels[view] = params; true }, { panels.remove(it) },
+            { view, params -> panels[view] = params; true })
+        try {
+            overlay.start()
+            val originalWidth = panels.values.single().width
+            overlay.hideForCapture(true)
+            for (percent in listOf(75, 150, 100)) {
+                prefs.edit().putInt(OverlaySizeSettings.MISSIONS, percent).commit()
+                shadowOf(Looper.getMainLooper()).idle()
+                assertEquals((originalWidth * percent / 100f).toInt(), panels.values.single().width)
+                assertEquals(View.INVISIBLE, panels.keys.single().visibility)
+                assertEquals(1f, OverlaySizeSettings.scale(prefs, OverlaySizeSettings.BUBBLE), 0f)
+            }
+        } finally { overlay.close(); prefs.edit().clear().commit() }
+    }
     @Test fun linkedPanelsFollowBubbleHideDuringCaptureAndDisappearWhenCompleted() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val store = DailyMissionStore(context)

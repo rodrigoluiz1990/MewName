@@ -13,6 +13,15 @@ internal fun pokemonSizeBounds(info: JSONObject?): List<PokemonSizeBounds> {
     return listOf("XXS", "XS", "M", "XL", "XXL").mapIndexed { i, label -> PokemonSizeBounds(label, bounds[i], bounds[i + 1]) }
 }
 
+internal data class PokemonHeightSummary(val standard: Double?, val minimum: Double?, val maximum: Double?)
+
+internal fun pokemonHeightSummary(info: JSONObject?): PokemonHeightSummary {
+    val standard = info?.optDouble("pokedexHeightM", Double.NaN)?.takeIf { it.isFinite() && it > 0 }
+    val bounds = pokemonSizeBounds(info)
+    // Use the explicit physical bounds, never model scale or a universal XXL multiplier.
+    return PokemonHeightSummary(standard, bounds.firstOrNull()?.minimum, bounds.lastOrNull()?.maximum)
+}
+
 internal object PokedexInfoCatalog {
     @Volatile private var catalog: JSONObject? = null
     @Volatile private var releases: JSONObject? = null

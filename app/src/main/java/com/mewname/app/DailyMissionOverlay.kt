@@ -28,7 +28,7 @@ internal class DailyMissionOverlay(
 ) {
     private val store = DailyMissionStore(context)
     private val appearancePreferences = context.getSharedPreferences("home_layout", Context.MODE_PRIVATE)
-    private val appearanceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key -> if (key == "style") render() }
+    private val appearanceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key -> if (key == "style" || key == OverlaySizeSettings.MISSIONS) render() }
     private val handler = Handler(Looper.getMainLooper())
     private data class Panel(val view: View, val params: WindowManager.LayoutParams, val above: Boolean, val count: Int)
     private val windows = mutableListOf<Panel>()
@@ -126,7 +126,7 @@ internal class DailyMissionOverlay(
             render(force = intent?.action == Intent.ACTION_CONFIGURATION_CHANGED); schedule()
         }
     }
-    private fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
+    private fun dp(value: Int) = (value * context.resources.displayMetrics.density * OverlaySizeSettings.scale(appearancePreferences, OverlaySizeSettings.MISSIONS)).toInt().coerceAtLeast(1)
     fun start() {
         if (started) return
         started = true
@@ -172,7 +172,7 @@ internal class DailyMissionOverlay(
         for (mission in pending) {
             val button = if (mission.icon.isBlank()) android.widget.TextView(context).apply {
                 text = mission.name.trim().take(2).uppercase()
-                textSize = 11f
+                textSize = 11f * OverlaySizeSettings.scale(appearancePreferences, OverlaySizeSettings.MISSIONS)
                 gravity = android.view.Gravity.CENTER
                 setTextColor(appearance.text.toArgb())
                 contentDescription = mission.name
@@ -187,11 +187,11 @@ internal class DailyMissionOverlay(
                 setBackgroundColor(Color.TRANSPARENT)
                 setPadding(dp(6), dp(6), dp(6), dp(6))
                 scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-                val bitmap = runCatching { context.assets.open(mission.icon).use {
+                val bitmap = taskSymbolBitmap(mission.icon) ?: runCatching { context.assets.open(mission.icon).use {
                     BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = 2 })
                 } }.getOrNull()
                 if (bitmap != null) setImageBitmap(bitmap) else setImageResource(android.R.drawable.ic_menu_agenda)
-                if (mission.icon in setOf("filter_icons/legendary.png", "filter_icons/mythical.png", "filter_icons/costume.png", "filter_icons/favorite_empty.png"))
+                if (taskIconIsMonochrome(mission.icon))
                     setColorFilter(appearance.text.toArgb())
                 setOnClickListener {
                     store.complete(mission.id, true)

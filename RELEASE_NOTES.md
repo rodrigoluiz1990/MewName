@@ -1,13 +1,16 @@
-Versão 1.0.35
+Versão 1.0.36
 
-- Fundos especiais reconhecidos com muito mais frequência, inclusive em Pokémon sombrosos e em cartões dourados ou vermelhos antes confundidos com sortudo.
-- O app aprende fundos novos: ao copiar um nome com a tag de fundo especial, o recorte é guardado no aparelho e entra no backup.
-- Purificado, sombroso e sortudo identificados pelo custo de Fortalecer, sem marcar purificado em excesso.
-- Um Pokémon não herda mais o fundo especial de outro da mesma família lido antes.
-- Lista de ataques atualizada com os dados do jogo, incluindo Contra-atacar do Mewtwo.
-- Novas siglas padrão de fundo especial: ★AN, ★TP, ★LE e ★ME.
-- APK menor (cerca de 130 MB) e abertura mais rápida.
+- Personalize Sugerir nome: organize abas, campos e blocos por arraste e escolha dimensões, ícones, textos, toggles ou seletores segmentados.
+- Ajuste separadamente o tamanho do botão de leitura e das missões na sobreposição.
+- Novos ícones do jogo para tags e missões, incluindo variantes XXS e XXL com dois sinais.
+- Receba lembretes quando eventos começarem e ative avisos de novos códigos promocionais com consulta diária.
+- Veja os limites de altura de cada espécie e categoria de tamanho na Pokédex.
+- IV Master revisado e configuração de 67% completada nas famílias; melhorias nos seletores de ataques e formas únicas.
+- Sugestões de Giratina Alterada, sprites, nomes de fantasias e traduções de movimentos corrigidos.
+- Ataque legado Humilhação Dividida do Kingambit incluído com dados de PvP e PvE.
+- Correções no fechamento de janelas, arraste, leitura de telas desconhecidas, backup e restauração.
+- Novas imagens de eventos e melhorias de desempenho em coleção, Pokédex, raids e OCR.
 
 Histórico completo em CHANGELOG.md.
 
-O efeito experimental Dinamax do Squirtle permanece fora desta versão. A leitura sem a barra de IV e a regressão física completa do OCR continuam pendentes.
+O efeito experimental Dinamax do Squirtle permanece fora desta versão. A identificação de purificado com a avaliação cobrindo os custos e a validação física completa do OCR continuam pendentes.

@@ -88,7 +88,7 @@ internal fun AppAppearanceTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-internal fun AppearancePreferences() {
+internal fun AppearancePreferences(onReviewLayout: () -> Unit) {
     val appearance = LocalAppAppearance.current
     val language = appLanguage()
     val context = LocalContext.current
@@ -142,12 +142,6 @@ internal fun AppearancePreferences() {
             )
         }
     }
-    if (appearance.homeLayout == HomeLayout.ATMOSPHERIC) {
-        Text(lt(language, "Céu por horário, com atalhos em vidro. O estilo das outras telas é mantido.",
-            "Sky by time of day, with glass shortcuts. Other screens keep their style.",
-            "Cielo según la hora, con accesos de cristal. Las otras pantallas conservan su estilo."),
-            style = MaterialTheme.typography.bodySmall)
-    }
     Text(lt(language, "Imagens dos eventos", "Event images", "Imágenes de eventos"), style = MaterialTheme.typography.titleMedium)
     AppToggleRow(lt(language, "Troca automática", "Automatic rotation", "Cambio automático"),
         appearance.eventAutoRotate, { prefs.edit().putBoolean("event_auto_rotate", it).apply() })
@@ -157,11 +151,14 @@ internal fun AppearancePreferences() {
                 onClick = { prefs.edit().putInt("event_interval", seconds).apply() }, label = { Text("${seconds}s") })
         }
     }
-    Text(lt(language, "Deslize sobre a imagem para trocar. A troca automática pausa por 30 segundos após o gesto.",
-        "Swipe the image to change it. Automatic rotation pauses for 30 seconds after a swipe.",
-        "Desliza sobre la imagen. El cambio automático se pausa 30 segundos después del gesto."), style = MaterialTheme.typography.bodySmall)
     Text(lt(language, "Alterações salvas automaticamente.", "Changes saved automatically.", "Cambios guardados automáticamente."),
         style = MaterialTheme.typography.bodySmall)
+    HorizontalDivider()
+    Text(lt(language, "Layouts das telas", "Screen layouts", "Diseños de las pantallas"),
+        style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+    ProfileMenuRow(lt(language, "Sugerir nome", "Suggest name", "Sugerir nombre"), onClick = onReviewLayout)
+    HorizontalDivider()
+    OverlaySizePreferences()
     HorizontalDivider()
     LogOptionsPreference()
 }

@@ -172,6 +172,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         DailyMissionStore(applicationContext).initializeDefaults(defaultDailyMissions(savedAppLanguage(applicationContext)))
         AutomaticBackup.initialize(applicationContext)
+        PromoCodeNotifications(applicationContext).schedule()
         openBubbleDestination(intent)
         ContextCompat.registerReceiver(
             this,
@@ -2679,6 +2680,7 @@ private fun ReviewDialog(
             configs = configs,
             bitmap = bitmap,
             onConfirm = onConfirm,
+            glassStyle = rememberReviewLayout().let { it.tabs != null || it.compact || it.toggles.isNotEmpty() || it.iconSizes.isNotEmpty() || it.styles.values.any { style -> style != ReviewSelectorStyle.TEXT } },
             onCancel = onDismiss
         )
     }

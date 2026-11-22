@@ -2330,5 +2330,13 @@
             "target_attack_stat_stage_change": -2,
             "activation_chance": 1.0
         }
+    },
+    {
+        "move_id": 615,
+        "name": "Kowtow Cleave",
+        "type": "Dark",
+        "power": 75,
+        "energy_delta": -40,
+        "turn_duration": 1
     }
 ]

@@ -21,7 +21,7 @@ val releaseTag = System.getenv("MEWNAME_RELEASE_TAG")?.takeIf { it.isNotBlank() 
 val releaseVersionName = releaseTag
     .takeIf { it != "dev" }
     ?.removePrefix("v")
-    ?: "1.0.35"
+    ?: "1.0.36"
 val hasReleaseSigning = releaseStoreFilePath != null &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&

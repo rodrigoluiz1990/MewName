@@ -17,7 +17,7 @@ class CurrentMoveCatalogTest {
 
     @Test fun quickMovesHaveBothBattleModesAndCorrectTurns() {
         val moves = moves()
-        assertEquals(328, moves.size)
+        assertEquals(329, moves.size)
         for (id in listOf(401, 402, 403)) {
             val move = requireNotNull(moves[id])
             assertEquals(MoveCategory.FAST, move.category)

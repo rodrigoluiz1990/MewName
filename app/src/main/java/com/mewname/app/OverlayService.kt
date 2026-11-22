@@ -128,6 +128,34 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     )
 
     private lateinit var windowManager: WindowManager
+    private val overlaySizePrefs by lazy { getSharedPreferences("home_layout", Context.MODE_PRIVATE) }
+    private val overlaySizeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == OverlaySizeSettings.BUBBLE) {
+            hideBubbleActions()
+            floatingButton?.let { button ->
+                applyBubbleSize(button)
+                button.post {
+                    if (button === floatingButton) {
+                        (button.layoutParams as? WindowManager.LayoutParams)?.let { params ->
+                            val metrics = resources.displayMetrics
+                            params.x = params.x.coerceIn(0, (metrics.widthPixels - button.width).coerceAtLeast(0))
+                            params.y = params.y.coerceIn(0, (metrics.heightPixels - button.height).coerceAtLeast(0))
+                            updateOverlayViewLayout(button, params)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    private fun applyBubbleSize(button: View) {
+        val scale = OverlaySizeSettings.scale(overlaySizePrefs, OverlaySizeSettings.BUBBLE)
+        val padding = (resources.getDimensionPixelSize(R.dimen.overlay_bubble_padding) * scale).toInt()
+        val size = (resources.getDimensionPixelSize(R.dimen.overlay_bubble_icon_size) * scale).toInt()
+        button.setPadding(padding, padding, padding, padding)
+        button.findViewById<ImageView>(R.id.floating_icon)?.let { icon ->
+            icon.layoutParams = icon.layoutParams.apply { width = size; height = size }
+        }
+    }
     private var floatingButton: View? = null
     private var bubbleMenuView: View? = null
     private var profileFeedbackView: View? = null
@@ -210,6 +238,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
             )
             return
         }
+        overlaySizePrefs.registerOnSharedPreferenceChangeListener(overlaySizeListener)
         showFloatingButton()
         if (!closingForPermissionLoss) dailyMissions.start()
         bubbleActive.value = !closingForPermissionLoss && floatingButton in attachedOverlays
@@ -386,6 +415,13 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         })
 
         floatingButton?.let { button ->
+            applyBubbleSize(button)
+            button.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                if (button === floatingButton &&
+                    (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop)) {
+                    updateOverlayViewLayout(button, params)
+                }
+            }
             addOverlayView(button, params)
             button.post { if (button === floatingButton) updateOverlayViewLayout(button, params) }
         }
@@ -510,8 +546,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
         // Callbacks are declared by feature; visual order always follows the trainer's list.
         actions.sortBy { allSelected.indexOf(it.tag as String) }
         actions.forEach { root.removeView(it); root.addView(it) }
-        val bubbleIconSize = resources.getDimensionPixelSize(R.dimen.overlay_bubble_icon_size)
-        val bubblePadding = resources.getDimensionPixelSize(R.dimen.overlay_bubble_padding)
+        val bubbleScale = OverlaySizeSettings.scale(overlaySizePrefs, OverlaySizeSettings.BUBBLE)
+        val bubbleIconSize = (resources.getDimensionPixelSize(R.dimen.overlay_bubble_icon_size) * bubbleScale).toInt()
+        val bubblePadding = (resources.getDimensionPixelSize(R.dimen.overlay_bubble_padding) * bubbleScale).toInt()
         val center = ImageView(this).apply {
             setImageResource(R.drawable.mewname_logo)
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
@@ -2148,6 +2185,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, ViewM
     private fun shutdownOverlays() {
         closingForPermissionLoss = true
         bubbleActive.value = false
+        overlaySizePrefs.unregisterOnSharedPreferenceChangeListener(overlaySizeListener)
         dailyMissions.close()
         mainHandler.removeCallbacksAndMessages(null)
         captureProcessingTask.cancel()

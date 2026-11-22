@@ -101,6 +101,7 @@ internal fun PokedexSizeCard(info: JSONObject?, sprite: String?) {
     val language = appLanguage()
     fun tr(pt: String, en: String, es: String) = lt(language, pt, en, es)
     val bounds = pokemonSizeBounds(info)
+    val heightSummary = pokemonHeightSummary(info)
     val context = LocalContext.current
     val spriteRequest = remember(context, sprite) {
         ImageRequest.Builder(context).data(sprite).transformations(CollectionSpriteTrim).build()
@@ -108,11 +109,19 @@ internal fun PokedexSizeCard(info: JSONObject?, sprite: String?) {
     AppSectionCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(tr("Tamanhos", "Sizes", "Tamaños"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            heightSummary.standard?.let {
+                InfoRow(tr("Altura padrão", "Standard height", "Altura estándar"), infoNumber(it, language) + " m")
+            }
+            if (heightSummary.minimum != null && heightSummary.maximum != null) {
+                InfoRow(tr("Menor altura", "Minimum height", "Altura mínima"), infoNumber(heightSummary.minimum, language) + " m")
+                InfoRow(tr("Maior altura", "Maximum height", "Altura máxima"), infoNumber(heightSummary.maximum, language) + " m")
+            }
             if (bounds.isEmpty()) {
                 Text(tr("Limites de tamanho indisponíveis para esta forma.", "Size bounds unavailable for this form.", "Límites de tamaño no disponibles para esta forma."))
             } else {
-                val mean = info?.optDouble("pokedexHeightM", Double.NaN)?.takeIf { it.isFinite() && it > 0 }
-                val heights = listOf(bounds[0].minimum, bounds[1].minimum, mean ?: (bounds[2].minimum + bounds[2].maximum) / 2, bounds[3].maximum, bounds[4].maximum)
+                Text(tr("Altura máxima por tamanho", "Maximum height by size", "Altura máxima por tamaño"),
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                val heights = bounds.map { it.maximum }
                 val scale = 100.0 / maxOf(heights.max(), 1.7)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
                     heights.forEachIndexed { index, height ->

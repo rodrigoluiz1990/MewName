@@ -2340,5 +2340,13 @@
         "name": "Gulp Missile Gorging",
         "type": "Normal",
         "duration": 2500
+    },
+    {
+        "move_id": 615,
+        "name": "Kowtow Cleave",
+        "type": "Dark",
+        "duration": 2000,
+        "power": 85,
+        "energy_delta": -50
     }
 ]

@@ -187,6 +187,7 @@ fun ReviewEditorCard(
 ) {
     val context = LocalContext.current
     val language = appLanguage()
+    val reviewLayout = rememberReviewLayout()
     val logsEnabled = logOptionsEnabled()
     val generator = remember { NameGenerator() }
     var pvpOptions by remember(initialData) {
@@ -485,6 +486,9 @@ fun ReviewEditorCard(
     var selectedReviewTab by remember(fields) { mutableStateOf(ReviewTab.BASIC) }
     var activeOptionPicker by remember(language) { mutableStateOf<ReviewOptionPicker?>(null) }
     val activeReviewTab = selectedReviewTab.takeIf { it in reviewTabs } ?: ReviewTab.BASIC
+    val screenTabs = reviewLayout.tabs ?: defaultReviewScreenTabs
+    var selectedScreenTab by remember { mutableStateOf(screenTabs.first().id) }
+    val activeScreenTab = screenTabs.firstOrNull { it.id == selectedScreenTab } ?: screenTabs.first()
     val selectedReviewTabIndex = reviewTabs.indexOf(activeReviewTab).coerceAtLeast(0)
     LaunchedEffect(ivMode, baseAttackIv, baseDefenseIv, baseStaminaIv) {
         val effectiveAttack = effectiveIvForMode(baseAttackIv, ivMode, initialData.isPurified)
@@ -507,6 +511,8 @@ fun ReviewEditorCard(
 
     Box(modifier = modifier.fillMaxSize()) {
         CompositionLocalProvider(
+            LocalReviewLayout provides reviewLayout,
+            LocalReviewSelectorCustomization provides true,
             LocalReviewOptionPicker provides { activeOptionPicker = it },
             LocalHideReviewLogMarkers provides (useLogSelectionModal || !logsEnabled),
             LocalGlassReviewStyle provides glassStyle,
@@ -527,7 +533,7 @@ fun ReviewEditorCard(
         ) {
         Card(
             modifier = Modifier
-                .widthIn(max = 560.dp)
+                .widthIn(max = ReviewScreenMaxWidth)
                 .fillMaxWidth()
                 .heightIn(max = maxCardHeight)
                 .align(Alignment.BottomCenter),
@@ -555,7 +561,11 @@ fun ReviewEditorCard(
                     modifier = Modifier.fillMaxWidth()
                 )
                 PersonalCollectionReview(data = draft)
-                if (glassStyle) {
+                if (reviewLayout.tabs != null) {
+                    Box(Modifier.padding(horizontal = ReviewScreenContentPadding)) {
+                        ReviewScreenTabs(screenTabs.map { it.label(language) }, screenTabs.indexOf(activeScreenTab), { selectedScreenTab = screenTabs[it].id })
+                    }
+                } else if (glassStyle) {
                     GlassTabs(
                         labels = reviewTabs.map { tab -> when (tab) {
                             ReviewTab.BASIC -> lt(language, "Geral", "General", "General")
@@ -601,10 +611,695 @@ fun ReviewEditorCard(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 12.dp, end = 12.dp, top = if (glassStyle) 0.dp else 9.dp, bottom = if (glassStyle) 4.5.dp else 9.dp),
+                    .padding(start = ReviewScreenContentPadding, end = ReviewScreenContentPadding, top = if (glassStyle) 0.dp else 9.dp, bottom = if (glassStyle) 4.5.dp else 9.dp),
                 verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
             ) {
-            if (activeReviewTab == ReviewTab.BASIC) {
+                        if (reviewLayout.tabs != null) {
+                val isVivillonForm = isVivillonReviewFamily(draft.pokemonName)
+                val isUnownForm = draft.pokemonName.equals("Unown", ignoreCase = true)
+                val customKeys = activeScreenTab.fields.filter(reviewLayout::fieldVisible).filter { key -> when (key) {
+                    "UNIQUE_FORM" -> !isVivillonForm && !isUnownForm && uniqueFormOptions.isNotEmpty()
+                    "UNOWN_LETTER" -> isUnownForm
+                    "VIVILLON_PATTERN" -> isVivillonForm
+                    "pvp", "pvp_moves" -> true
+                    else -> true
+                } }
+                if (customKeys.isEmpty()) Text(lt(language, "Nenhum campo disponível nesta aba.", "No fields available in this tab.", "No hay campos disponibles en esta pestaña."))
+                ReviewTabGrid(activeScreenTab, customKeys) { key ->
+                    when (key) {
+                        "POKEMON_NAME" -> {
+PokemonSuggestionField(
+                            label = NamingField.POKEMON_NAME.localizedLabel(language),
+                            value = draft.pokemonName.orEmpty(),
+                            suggestions = pokemonSuggestions,
+                            expanded = pokemonExpanded,
+                            onExpandedChange = { pokemonExpanded = it },
+                            onValueChange = { draft = draft.copy(pokemonName = it.ifBlank { null }) },
+                            useOptionModal = glassStyle,
+                            modifier = Modifier.weight(2f)
+                        )
+                        }
+                        "gender" -> {
+Column(
+                        modifier = Modifier.weight(if (glassStyle) 1.4f else 1f),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        FieldLabelRow(label = NamingField.GENDER.localizedLabel(language), trailing = {
+                            UnownHeaderIcon(
+                                selected = NamingField.GENDER in selectedDebugFields,
+                                onClick = { selectedDebugFields = selectedDebugFields.toggleField(NamingField.GENDER); showPokemonHelp = !showPokemonHelp },
+                                contentDescription = "Log de genero"
+                            )
+                        })
+                        WeightedToggleRow(
+                            items = listOf(
+                                WeightedToggleItem(
+                                    label = "♂",
+                                    selected = draft.gender == Gender.MALE,
+                                    onClick = {
+                                        draft = draft.withSelectedGender(
+                                            if (draft.gender == Gender.MALE) Gender.GENDERLESS else Gender.MALE
+                                        )
+                                    }
+                                ),
+                                WeightedToggleItem(
+                                    label = "♀",
+                                    selected = draft.gender == Gender.FEMALE,
+                                    onClick = {
+                                        draft = draft.withSelectedGender(
+                                            if (draft.gender == Gender.FEMALE) Gender.GENDERLESS else Gender.FEMALE
+                                        )
+                                    }
+                                )
+                            )
+                        )
+                    }
+                        }
+                        "LEVEL" -> {
+CompactField(
+                        label = NamingField.LEVEL.localizedLabel(language),
+                        value = draft.level?.formatLevelDebug().orEmpty(),
+                        onValueChange = { draft = draft.copy(level = it.replace(",", ".").toDoubleOrNull()) },
+                        readOnly = true,
+                        onClick = { showLevelPicker = true },
+                        headerTrailing = {
+                            UnownHeaderIcon(
+                                selected = NamingField.LEVEL in selectedDebugFields,
+                                onClick = {
+                                    selectedDebugFields = selectedDebugFields.toggleField(NamingField.LEVEL)
+                                    showPokemonHelp = !showPokemonHelp
+                                },
+                                contentDescription = "Log do Pokémon"
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                        }
+                        "CP" -> {
+CompactField(
+                                label = NamingField.CP.localizedLabel(language),
+                                value = draft.cp?.toString().orEmpty(),
+                                onValueChange = { draft = draft.copy(cp = it.toIntOrNull()) },
+                                modifier = Modifier.weight(0.9f)
+                            )
+                        }
+                        "UNIQUE_FORM" -> {
+if (isVivillonForm || uniqueFormOptions.isNotEmpty()) {
+                    GlassFieldRow {
+                        SelectionDropdownField(
+                            label = NamingField.UNIQUE_FORM.localizedLabel(language),
+                            value = if (isVivillonForm) draft.vivillonPattern?.label ?: unknownLabel
+                                else draft.uniqueForm ?: "-",
+                            options = if (isVivillonForm) {
+                                listOf(unknownLabel) + VivillonPattern.entries.map { it.label }
+                            } else {
+                                listOf("-") + uniqueFormOptions.map { it.label }
+                            },
+                            onSelected = { value ->
+                                val selected = value.takeUnless { it == "-" }
+                                draft = when {
+                                    isVivillonForm -> draft.copy(
+                                        vivillonPattern = VivillonPattern.entries.firstOrNull { it.label == value }
+                                    )
+                                    draft.pokemonName.equals("Unown", ignoreCase = true) -> draft.copy(
+                                        uniqueForm = selected,
+                                        unownLetter = selected
+                                    )
+                                    else -> draft.copy(uniqueForm = selected)
+                                }
+                            },
+                            headerTrailing = if (isVivillonForm) {
+                                {
+                                    UnownHeaderIcon(
+                                        selected = NamingField.VIVILLON_PATTERN in selectedDebugFields,
+                                        onClick = {
+                                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.VIVILLON_PATTERN)
+                                            showVivillonHelp = !showVivillonHelp
+                                        },
+                                        contentDescription = "Log da forma única"
+                                    )
+                                }
+                            } else null,
+                            useOptionModal = glassStyle,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (isVivillonForm && logsEnabled && showVivillonHelp) {
+                        VivillonHelpPanel(pattern = draft.vivillonPattern, info = draft.vivillonDebugInfo, bitmap = bitmap)
+                    }
+                }
+                        }
+                        "UNOWN_LETTER" -> {
+if (isVivillonForm || uniqueFormOptions.isNotEmpty()) {
+                    GlassFieldRow {
+                        SelectionDropdownField(
+                            label = NamingField.UNOWN_LETTER.localizedLabel(language),
+                            value = if (isVivillonForm) draft.vivillonPattern?.label ?: unknownLabel
+                                else draft.uniqueForm ?: "-",
+                            options = if (isVivillonForm) {
+                                listOf(unknownLabel) + VivillonPattern.entries.map { it.label }
+                            } else {
+                                listOf("-") + uniqueFormOptions.map { it.label }
+                            },
+                            onSelected = { value ->
+                                val selected = value.takeUnless { it == "-" }
+                                draft = when {
+                                    isVivillonForm -> draft.copy(
+                                        vivillonPattern = VivillonPattern.entries.firstOrNull { it.label == value }
+                                    )
+                                    draft.pokemonName.equals("Unown", ignoreCase = true) -> draft.copy(
+                                        uniqueForm = selected,
+                                        unownLetter = selected
+                                    )
+                                    else -> draft.copy(uniqueForm = selected)
+                                }
+                            },
+                            headerTrailing = if (isVivillonForm) {
+                                {
+                                    UnownHeaderIcon(
+                                        selected = NamingField.VIVILLON_PATTERN in selectedDebugFields,
+                                        onClick = {
+                                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.VIVILLON_PATTERN)
+                                            showVivillonHelp = !showVivillonHelp
+                                        },
+                                        contentDescription = "Log da forma única"
+                                    )
+                                }
+                            } else null,
+                            useOptionModal = glassStyle,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (isVivillonForm && logsEnabled && showVivillonHelp) {
+                        VivillonHelpPanel(pattern = draft.vivillonPattern, info = draft.vivillonDebugInfo, bitmap = bitmap)
+                    }
+                }
+                        }
+                        "VIVILLON_PATTERN" -> {
+if (isVivillonForm || uniqueFormOptions.isNotEmpty()) {
+                    GlassFieldRow {
+                        SelectionDropdownField(
+                            label = NamingField.VIVILLON_PATTERN.localizedLabel(language),
+                            value = if (isVivillonForm) draft.vivillonPattern?.label ?: unknownLabel
+                                else draft.uniqueForm ?: "-",
+                            options = if (isVivillonForm) {
+                                listOf(unknownLabel) + VivillonPattern.entries.map { it.label }
+                            } else {
+                                listOf("-") + uniqueFormOptions.map { it.label }
+                            },
+                            onSelected = { value ->
+                                val selected = value.takeUnless { it == "-" }
+                                draft = when {
+                                    isVivillonForm -> draft.copy(
+                                        vivillonPattern = VivillonPattern.entries.firstOrNull { it.label == value }
+                                    )
+                                    draft.pokemonName.equals("Unown", ignoreCase = true) -> draft.copy(
+                                        uniqueForm = selected,
+                                        unownLetter = selected
+                                    )
+                                    else -> draft.copy(uniqueForm = selected)
+                                }
+                            },
+                            headerTrailing = if (isVivillonForm) {
+                                {
+                                    UnownHeaderIcon(
+                                        selected = NamingField.VIVILLON_PATTERN in selectedDebugFields,
+                                        onClick = {
+                                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.VIVILLON_PATTERN)
+                                            showVivillonHelp = !showVivillonHelp
+                                        },
+                                        contentDescription = "Log da forma única"
+                                    )
+                                }
+                            } else null,
+                            useOptionModal = glassStyle,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (isVivillonForm && logsEnabled && showVivillonHelp) {
+                        VivillonHelpPanel(pattern = draft.vivillonPattern, info = draft.vivillonDebugInfo, bitmap = bitmap)
+                    }
+                }
+                        }
+                        "IV_PERCENT" -> {
+CompactField(
+                                label = "IV %",
+                                value = draft.ivPercent?.toString().orEmpty(),
+                                onValueChange = { draft = draft.copy(ivPercent = it.toIntOrNull()?.coerceIn(0, 100)) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        "IV_ATTACK" -> {
+IvValueButton(
+                            label = lt(language, "Atq", "Atk", "Atq"),
+                            value = draft.attIv,
+                            selected = activeIvPicker == "atk",
+                            onClick = { activeIvPicker = if (activeIvPicker == "atk") null else "atk" },
+                            modifier = Modifier.weight(1f)
+                        )
+                        }
+                        "IV_DEFENSE" -> {
+IvValueButton(
+                            label = "Def",
+                            value = draft.defIv,
+                            selected = activeIvPicker == "def",
+                            onClick = { activeIvPicker = if (activeIvPicker == "def") null else "def" },
+                            modifier = Modifier.weight(1f)
+                        )
+                        }
+                        "IV_STAMINA" -> {
+IvValueButton(
+                            label = "HP",
+                            value = draft.staIv,
+                            selected = activeIvPicker == "hp",
+                            onClick = { activeIvPicker = if (activeIvPicker == "hp") null else "hp" },
+                            headerTrailing = {
+                                UnownHeaderIcon(
+                                    selected = NamingField.IV_COMBINATION in selectedDebugFields,
+                                    onClick = {
+                                        selectedDebugFields = selectedDebugFields.toggleField(NamingField.IV_COMBINATION)
+                                        showIvHelp = !showIvHelp
+                                    },
+                                    contentDescription = "Log de IV"
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        }
+                        "MASTER_IV_BADGE" -> {
+
+                    val masterIvCombinations = remember(pvpFamilyCandidates, draft.pokemonName) {
+                        masterIvBadgeCatalog.bestCombinations(context.applicationContext, pvpFamilyCandidates, draft.pokemonName)
+                    }
+                    val masterFamilyName = remember(pvpFamilyCandidates, draft.pokemonName) {
+                        masterIvBadgeCatalog.combinationFamilyName(pvpFamilyCandidates, draft.pokemonName)
+                    }
+                    val masterIvList = listOf(98, 96, 93, 91).joinToString("\n") { percent ->
+                        val combination = masterIvCombinations[percent]
+                        if (combination == null) {
+                            "$percent%: -"
+                        } else {
+                            "$percent%: ${combination.first}/${combination.second}/${combination.third}"
+                        }
+                    }
+                    SelectionDropdownField(
+                        label = "IV Master",
+                        value = when (reviewData.masterIvBadgeMatch) {
+                            true -> bestMasterLabel
+                            false -> otherMasterLabel
+                            null -> "-"
+                        },
+                        options = listOf("-", bestMasterLabel, otherMasterLabel),
+                        onSelected = { value ->
+                            manualMasterSelection = true
+                            draft = draft.copy(
+                                masterIvBadgeMatch = when (value) {
+                                    bestMasterLabel -> true
+                                    otherMasterLabel -> false
+                                    else -> null
+                                }
+                            )
+                        },
+                        headerTrailing = {
+                            UnownHeaderIcon(
+                                selected = NamingField.MASTER_IV_BADGE in selectedDebugFields,
+                                onClick = {
+                                    selectedDebugFields = selectedDebugFields.toggleField(NamingField.MASTER_IV_BADGE)
+                                },
+                                contentDescription = "Selecionar log de IV Master"
+                            )
+                        },
+                        modalMessage = lt(
+                            language,
+                            "Melhores combinações da família $masterFamilyName:\n$masterIvList",
+                            "Best combinations for the $masterFamilyName family:\n$masterIvList",
+                            "Mejores combinaciones de la familia $masterFamilyName:\n$masterIvList"
+                        ),
+                        verticalOptions = true,
+                        centeredContent = true,
+                        anchorBottom = true,
+                        useOptionModal = true,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                        }
+                        "form" -> {
+                            GlassSection(Modifier.weight(1f)) {
+                                FieldLabelRow(reviewScreenLabel("form", language))
+                                ReviewSelectorGrid(listOf(ReviewIvMode.SHADOW, ReviewIvMode.PURIFIED).map { mode ->
+                                    WeightedToggleItem(mode.localizedLabel(language), ivMode == mode) {
+                                        val nextMode = if (ivMode == mode) ReviewIvMode.NORMAL else mode
+                                        if (ivMode != nextMode) derivedLoading = true
+                                        ivMode = nextMode
+                                        draft = draft.copy(isShadow = nextMode == ReviewIvMode.SHADOW, isPurified = nextMode == ReviewIvMode.PURIFIED)
+                                    }
+                                }, listOf(ReviewSelector.SHADOW, ReviewSelector.PURIFIED))
+                            }
+                        }
+                        "EVOLVE" -> {
+ReviewSelectorButton(ReviewSelector.EVOLVE, NamingField.EVOLVE_MARKER.localizedLabel(language), draft.shouldEvolve,
+                            { draft = draft.copy(shouldEvolve = it) }, Modifier.weight(1f))
+                        }
+                        "PURIFY" -> {
+ReviewSelectorButton(ReviewSelector.PURIFY, NamingField.PURIFY_MARKER.localizedLabel(language), draft.shouldPurify,
+                            { draft = draft.copy(shouldPurify = it) }, Modifier.weight(1f))
+                        }
+                        "ADVENTURE" -> {
+ReviewSelectorButton(ReviewSelector.ADVENTURE, NamingField.ADVENTURE_EFFECT.localizedLabel(language),
+                                draft.hasAdventureEffect, { draft = draft.copy(hasAdventureEffect = it) }, Modifier.weight(1f))
+                        }
+                        "LEGACY" -> {
+ReviewSelectorButton(ReviewSelector.LEGACY, NamingField.LEGACY_MOVE.localizedLabel(language),
+                                draft.hasLegacyMove, { draft = draft.copy(hasLegacyMove = it) }, Modifier.weight(1f))
+                        }
+                        "TYPE" -> {
+CompactField(
+                                label = NamingField.TYPE.localizedLabel(language),
+                                value = draft.displayTypes(),
+                                onValueChange = { value ->
+                                    val parsed = parseTypesForReview(value)
+                                    draft = draft.copy(
+                                        type1 = parsed.firstOrNull(),
+                                        type2 = parsed.getOrNull(1)
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        "FAVORITE" -> {
+ToggleChip(
+                                label = NamingField.FAVORITE.localizedLabel(language),
+                                selected = draft.isFavorite,
+                                onClick = { draft = draft.copy(isFavorite = !draft.isFavorite) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        "LUCKY" -> {
+ToggleChip(
+                                label = NamingField.LUCKY.localizedLabel(language),
+                                selected = draft.isLucky,
+                                onClick = { draft = draft.copy(isLucky = !draft.isLucky) },
+                                compact = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        "size" -> {
+GlassSection {
+                    FieldHeaderRow(
+                        label = NamingField.SIZE.localizedLabel(language),
+                        selected = NamingField.SIZE in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.SIZE)
+                            showSizeHelp = !showSizeHelp
+                        }
+                    )
+                    WeightedToggleRow(
+                        items = visibleSizeOptions.map { size ->
+                            val label = when (size) {
+                                PokemonSize.XXS -> "XXS"
+                                PokemonSize.XS -> "XS"
+                                PokemonSize.XL -> "XL"
+                                PokemonSize.XXL -> "XXL"
+                                PokemonSize.NORMAL -> "Normal"
+                            }
+                            WeightedToggleItem(label, draft.size == size) {
+                                draft = draft.copy(size = if (draft.size == size) PokemonSize.NORMAL else size)
+                            }
+                        }
+                    )
+                    if (logsEnabled && (showSizeHelp)) {
+                        SizeHelpPanel(size = draft.size, info = draft.sizeDebugInfo)
+                    }
+                    }
+                        }
+                        "background" -> {
+GlassSection {
+                        FieldHeaderRow(
+                            label = NamingField.SPECIAL_BACKGROUND.localizedLabel(language),
+                            selected = NamingField.SPECIAL_BACKGROUND in selectedDebugFields,
+                            onMarkerClick = {
+                                selectedDebugFields = selectedDebugFields.toggleField(NamingField.SPECIAL_BACKGROUND)
+                                showBackgroundHelp = !showBackgroundHelp
+                            }
+                        )
+                        val backgroundOptions = reviewLayout.ordered(SpecialBackgroundType.entries.map { ReviewSelector.valueOf("BG_${it.name}") }).map { SpecialBackgroundType.valueOf(it.name.removePrefix("BG_")) }
+                            WeightedToggleRow(
+                                items = backgroundOptions.map { type ->
+                                    val selected = draft.hasSpecialBackground &&
+                                        (draft.specialBackgroundType ?: SpecialBackgroundType.SPECIAL) == type
+                                    WeightedToggleItem(
+                                        label = type.localizedLabel(language),
+                                        selected = selected,
+                                        onClick = {
+                                            draft = if (selected) {
+                                                draft.copy(hasSpecialBackground = false, specialBackgroundType = null)
+                                            } else {
+                                                draft.copy(hasSpecialBackground = true, specialBackgroundType = type)
+                                            }
+                                        }
+                                    )
+                                }
+                            )
+                        if (logsEnabled && showBackgroundHelp) {
+                            BackgroundHelpPanel(info = draft.backgroundDebugInfo)
+                        }
+                    }
+                        }
+                        "evolution" -> {
+GlassSection {
+                    FieldHeaderRow(
+                        label = NamingField.EVOLUTION_TYPE.localizedLabel(language),
+                        selected = NamingField.EVOLUTION_TYPE in selectedDebugFields,
+                        onMarkerClick = {
+                            selectedDebugFields = selectedDebugFields.toggleField(NamingField.EVOLUTION_TYPE)
+                            showEvolutionHelp = !showEvolutionHelp
+                        }
+                    )
+                    WeightedToggleRow(
+                        items = listOf(
+                            WeightedToggleItem("Baby", EvolutionFlag.BABY in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.BABY))
+                            },
+                            WeightedToggleItem(lt(language, "Estagio 1", "Stage 1", "Etapa 1"), EvolutionFlag.STAGE1 in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE1))
+                            },
+                            WeightedToggleItem(lt(language, "Estagio 2", "Stage 2", "Etapa 2"), EvolutionFlag.STAGE2 in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggleEvolutionStage(EvolutionFlag.STAGE2))
+                            },
+                            WeightedToggleItem("Mega", EvolutionFlag.MEGA in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.MEGA))
+                            },
+                            WeightedToggleItem("Dynamax", EvolutionFlag.DYNAMAX in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.DYNAMAX))
+                            },
+                            WeightedToggleItem("Gigantamax", EvolutionFlag.GIGANTAMAX in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.GIGANTAMAX))
+                            },
+                            WeightedToggleItem("Terastal", EvolutionFlag.TERASTRAL in draft.evolutionFlags) {
+                                draft = draft.copy(evolutionFlags = draft.evolutionFlags.toggle(EvolutionFlag.TERASTRAL))
+                            }
+                        )
+                    )
+                    }
+                        }
+                        "LEGACY_MOVE_NAME" -> {
+CompactField(
+                            label = NamingField.LEGACY_MOVE_NAME.localizedLabel(language),
+                            value = draft.legacyDebugInfo?.matchedLegacyMove.orEmpty(),
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        }
+                        "POKEDEX_NUMBER" -> {
+CompactField(NamingField.POKEDEX_NUMBER.localizedLabel(language), reviewData.pokedexNumber?.toString().orEmpty(), {}, readOnly = true, modifier = Modifier.fillMaxWidth())
+                        }
+                        "pvp" -> {
+Column(Modifier.fillMaxWidth()) {
+PvpQuickControls(ivMode = ivMode, options = pvpOptions,
+                    onModeChange = { selected ->
+                        derivedLoading = true
+                        ivMode = selected
+                        draft = draft.applyIvMode(selected)
+                    },
+                    onOptionsChange = { selected ->
+                        if (selected != pvpOptions) {
+                            derivedLoading = true
+                            pvpOptions = selected
+                        }
+                    })
+GlassSection(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
+                        if (derivedLoading) {
+                            Text(
+                                lt(language, "Recalculando rankings...", "Recalculating rankings...", "Recalculando rankings..."),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (pvpRankSpecies.isEmpty()) {
+                            if (NamingField.PVP_RANK in fields) {
+                                CompactField(
+                                    label = "",
+                                    value = reviewData.pvpRank?.toString().orEmpty(),
+                                    onValueChange = { draft = draft.copy(pvpRank = it.toIntOrNull()) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        } else {
+                            val leagueRows = listOf(
+                                PvpLeague.LITTLE to "Copinha",
+                                PvpLeague.GREAT to "Great",
+                                PvpLeague.ULTRA to "Ultra",
+                                PvpLeague.MASTER to "Master"
+                            )
+                            val leagueColumnWidth = 68.dp
+                            val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+                            val density = androidx.compose.ui.platform.LocalDensity.current
+                            val speciesColumnWidths = pvpRankSpecies.associateWith { pokemonName ->
+                                val titleWidth = textMeasurer.measure(
+                                    com.mewname.app.domain.pokemonDisplayName(pokemonName),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    softWrap = false
+                                ).size.width
+                                val rankWidth = leagueRows.maxOf { (league, _) ->
+                                    val speciesRank = reviewData.familyPvpRanks.firstOrNull { sameRankSpecies(it.pokemonName, pokemonName) && it.league == league }
+                                    val leagueRank = reviewData.pvpLeagueRanks.firstOrNull { it.league == league && sameRankSpecies(it.pokemonName, pokemonName) }
+                                    val rank = if (speciesRank != null) speciesRank.rank else leagueRank?.rank
+                                    textMeasurer.measure(rank?.toString() ?: "—", style = TextStyle(fontSize = if (glassStyle) 12.sp else 10.sp, fontWeight = if (glassStyle) FontWeight.Bold else FontWeight.Normal)).size.width
+                                }
+                                with(density) { maxOf(titleWidth, rankWidth).toDp() } + 16.dp
+                            }
+                            val tableWidth = speciesColumnWidths.values.fold(leagueColumnWidth) { total, width -> total + width } + (2.dp * pvpRankSpecies.size)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
+                            ) {
+                                Column(
+                                    modifier = Modifier.width(tableWidth),
+                                    verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(
+                                            modifier = Modifier.width(leagueColumnWidth),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            ReviewDataLabel(NamingField.PVP_LEAGUE.localizedLabel(language), Modifier.weight(1f))
+                                            UnownHeaderIcon(
+                                                selected = NamingField.PVP_LEAGUE in selectedDebugFields,
+                                                onClick = {
+                                                    selectedDebugFields = selectedDebugFields.toggleField(NamingField.PVP_LEAGUE)
+                                                    showPvpHelp = !showPvpHelp
+                                                },
+                                                contentDescription = "Logs PvP"
+                                            )
+                                        }
+                                        pvpRankSpecies.forEach { pokemonName ->
+                                            Text(
+                                                text = com.mewname.app.domain.pokemonDisplayName(pokemonName),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                modifier = Modifier.width(speciesColumnWidths.getValue(pokemonName))
+                                            )
+                                        }
+                                    }
+                                    leagueRows.forEach { (league, leagueLabel) ->
+                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            CompactSelectableField(
+                                                value = leagueLabel,
+                                                active = reviewData.pvpLeague == league,
+                                                onClick = { if (!derivedLoading) selectPvpLeague(league) },
+                                                modifier = Modifier.width(leagueColumnWidth)
+                                            )
+                                            pvpRankSpecies.forEach { pokemonName ->
+                                                val speciesRank = reviewData.familyPvpRanks.firstOrNull { sameRankSpecies(it.pokemonName, pokemonName) && it.league == league }
+                                                val leagueRank = reviewData.pvpLeagueRanks.firstOrNull { it.league == league && sameRankSpecies(it.pokemonName, pokemonName) }
+                                                val rank = if (speciesRank != null) speciesRank.rank else leagueRank?.rank
+                                                val eligible = speciesRank?.eligible ?: leagueRank?.eligible ?: false
+                                                val rankedPokemon = speciesRank?.pokemonName ?: leagueRank?.pokemonName ?: pokemonName
+                                                CompactSelectableField(
+                                                    value = rank?.toString() ?: "—",
+                                                    active = reviewData.pvpLeague == league && reviewData.pvpRank == rank && sameRankSpecies(reviewData.pvpPokemonName, rankedPokemon),
+                                                    struckThrough = (speciesRank != null || leagueRank != null) && !eligible,
+                                                    onClick = {
+                                                        if (!derivedLoading && rank != null) {
+                                                            manualPvpSelection = true
+                                                            draft = draft.copy(pvpLeague = league, pvpRank = rank, pvpPokemonName = rankedPokemon)
+                                                        }
+                                                    },
+                                                    modifier = Modifier.width(speciesColumnWidths.getValue(pokemonName))
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        if (logsEnabled && (showPvpHelp)) {
+                            PvpHelpPanel(leagueRanks = reviewData.pvpLeagueRanks, speciesRanks = reviewData.familyPvpRanks)
+                        }
+                    }
+                }
+}
+                        }
+                        "pvp_moves" -> {
+GlassFieldRow(weights = listOf(1f, 1f, .65f), legacySpacing = 2.dp) {
+                    val fastMoveOptions = remember(moveSet.fastMoves, legacyMoveSymbol) {
+                        moveDropdownOptions(moveSet.fastMoves, legacyMoveSymbol)
+                    }
+                    val chargedMoveOptions = remember(moveSet.chargedMoves, legacyMoveSymbol) {
+                        moveDropdownOptions(moveSet.chargedMoves, legacyMoveSymbol)
+                    }
+                    MoveDropdownField(
+                        label = lt(language, "Ataque rapido", "Fast move", "Ataque rapido"),
+                        selectedValue = draft.selectedFastMove,
+                        options = fastMoveOptions,
+                        emptyLabel = unknownLabel,
+                        onSelected = { moveName ->
+                            draft = draft.copy(selectedFastMove = moveName).applySelectedLegacyMove(
+                                selectedMoveName = moveName,
+                                availableMoves = moveSet.fastMoves,
+                                previewUsesLegacyMove = previewUsesLegacyMove
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        statusMessage = moveStatusMessage
+                    )
+                    MoveDropdownField(
+                        label = lt(language, "Ataque carregado", "Charged move", "Ataque cargado"),
+                        selectedValue = draft.selectedChargedMove,
+                        options = chargedMoveOptions,
+                        emptyLabel = unknownLabel,
+                        onSelected = { moveName ->
+                            draft = draft.copy(selectedChargedMove = moveName).applySelectedLegacyMove(
+                                selectedMoveName = moveName,
+                                availableMoves = moveSet.chargedMoves,
+                                previewUsesLegacyMove = previewUsesLegacyMove
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        statusMessage = moveStatusMessage
+                    )
+                    Column(Modifier.weight(.65f)) {
+                        FieldLabelRow(label = lt(language, "PvE (est.)", "PvE (est.)", "PvE (est.)"))
+                        CompactTextInput(value = movesetRating?.label ?: "—", onValueChange = {}, readOnly = true,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                android.widget.Toast.makeText(context, lt(language,
+                                    "Estimativa PvE: compara dano, energia, duração e bônus de tipo com os outros pares desta forma. A ≥90%, B ≥80%, C ≥70%, D ≥60%, E <60%. Não simula o adversário.",
+                                    "PvE estimate: compares damage, energy, duration and STAB with this form's other pairs. A ≥90%, B ≥80%, C ≥70%, D ≥60%, E <60%. No opponent simulation.",
+                                    "Estimación PvE: compara daño, energía, duración y bono de tipo con los pares de esta forma. A ≥90%, B ≥80%, C ≥70%, D ≥60%, E <60%. No simula al rival."), android.widget.Toast.LENGTH_LONG).show()
+                            })
+                    }
+                }
+                        }
+                    }
+                }
+                if (logsEnabled && showPokemonHelp) PokemonHelpPanel(candyInfo = draft.candyDebugInfo, levelInfo = draft.levelDebugInfo,
+                    genderInfo = draft.genderDebugInfo, uniqueFormInfo = draft.uniqueFormDebugInfo, bitmap = bitmap)
+                if (logsEnabled && showIvHelp) IvHelpPanel(info = draft.ivDebugInfo, bitmap = bitmap)
+            } else {
+if (activeReviewTab == ReviewTab.BASIC) {
             Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassFieldGroup.current) 0.dp else 2.dp)) {
                 GlassFieldRow(weights = listOf(2f, 1.4f, 1f), legacyAlignment = Alignment.Bottom) {
                     if (!glassStyle && NamingField.EVOLVE_MARKER in fields) {
@@ -948,14 +1643,12 @@ fun ReviewEditorCard(
                 (NamingField.EVOLVE_MARKER in fields || NamingField.PURIFY_MARKER in fields)) {
                 GlassFieldRow {
                     if (NamingField.EVOLVE_MARKER in fields) {
-                        AppToggleRow(NamingField.EVOLVE_MARKER.localizedLabel(language), draft.shouldEvolve,
-                            { draft = draft.copy(shouldEvolve = it) }, Modifier.weight(1f),
-                            containerColor = Color.Transparent)
+                        ReviewSelectorButton(ReviewSelector.EVOLVE, NamingField.EVOLVE_MARKER.localizedLabel(language), draft.shouldEvolve,
+                            { draft = draft.copy(shouldEvolve = it) }, Modifier.weight(1f))
                     }
                     if (NamingField.PURIFY_MARKER in fields) {
-                        AppToggleRow(NamingField.PURIFY_MARKER.localizedLabel(language), draft.shouldPurify,
-                            { draft = draft.copy(shouldPurify = it) }, Modifier.weight(1f),
-                            containerColor = Color.Transparent)
+                        ReviewSelectorButton(ReviewSelector.PURIFY, NamingField.PURIFY_MARKER.localizedLabel(language), draft.shouldPurify,
+                            { draft = draft.copy(shouldPurify = it) }, Modifier.weight(1f))
                     }
                 }
             }
@@ -1064,7 +1757,10 @@ fun ReviewEditorCard(
                     }
                     }
                     ReviewTextRow {
-                        LabeledToggleChipField(
+                        if (reviewLayout.customized(ReviewSelector.ADVENTURE)) {
+                            ReviewSelectorButton(ReviewSelector.ADVENTURE, NamingField.ADVENTURE_EFFECT.localizedLabel(language),
+                                draft.hasAdventureEffect, { draft = draft.copy(hasAdventureEffect = it) }, Modifier.weight(1f))
+                        } else LabeledToggleChipField(
                             label = lt(language, "Marcadores", "Markers", "Marcadores"),
                             chipLabel = NamingField.ADVENTURE_EFFECT.localizedLabel(language),
                             selected = draft.hasAdventureEffect,
@@ -1076,7 +1772,10 @@ fun ReviewEditorCard(
                             },
                             modifier = Modifier.weight(1f)
                         )
-                        LabeledToggleChipField(
+                        if (reviewLayout.customized(ReviewSelector.LEGACY)) {
+                            ReviewSelectorButton(ReviewSelector.LEGACY, NamingField.LEGACY_MOVE.localizedLabel(language),
+                                draft.hasLegacyMove, { draft = draft.copy(hasLegacyMove = it) }, Modifier.weight(1f))
+                        } else LabeledToggleChipField(
                             label = NamingField.LEGACY_MOVE.localizedLabel(language),
                             chipLabel = draft.legacyDebugInfo?.matchedLegacyMove
                                 ?.takeIf { it.isNotBlank() }
@@ -1273,12 +1972,7 @@ fun ReviewEditorCard(
                                             modifier = Modifier.width(leagueColumnWidth),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = NamingField.PVP_LEAGUE.localizedLabel(language),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = if (glassStyle) FontWeight.Normal else FontWeight.Medium,
-                                                modifier = Modifier.weight(1f)
-                                            )
+                                            ReviewDataLabel(NamingField.PVP_LEAGUE.localizedLabel(language), Modifier.weight(1f))
                                             UnownHeaderIcon(
                                                 selected = NamingField.PVP_LEAGUE in selectedDebugFields,
                                                 onClick = {
@@ -1529,7 +2223,8 @@ fun ReviewEditorCard(
                 }
 
 
-            }
+                        }
+}
         }
         }
         }

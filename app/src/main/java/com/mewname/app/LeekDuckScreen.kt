@@ -72,7 +72,11 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
             val cached = withContext(Dispatchers.IO) { repository.cached(section) }
             data = cached
             if (capture == null && shouldRefreshLeekCatalog(cached?.fetchedAt, bubble = false, manual = refresh > 0)) {
-                data = withContext(Dispatchers.IO) { repository.refresh(section) }
+                data = withContext(Dispatchers.IO) {
+                    repository.refresh(section).also { catalog ->
+                        if (section == LeekSection.CODES) runCatching { PromoCodeNotifications(context.applicationContext).accept(catalog) }
+                    }
+                }
             }
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { error = true }
@@ -164,6 +168,7 @@ internal fun LeekDuckScreen(section: LeekSection, onBack: () -> Unit, capture: C
         } })
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + LocalNavigationContentPadding.current), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (capture == null && section == LeekSection.CODES) item { PromoCodeNotificationOption(onEnabled = { refresh++ }) }
             if (capture == null) item {
                 AppPillTabRow(selectedTabIndex = groups.indexOf(group).coerceAtLeast(0)) {
                     groups.forEach { key ->

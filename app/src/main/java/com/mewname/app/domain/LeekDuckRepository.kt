@@ -111,10 +111,10 @@ internal object LeekDuckParser {
 internal class LeekDuckRepository(context: Context) {
     private val directory = File(context.filesDir, "leekduck").apply { mkdirs() }
     private fun file(section: LeekSection) = AtomicFile(File(directory, "${section.path}.json"))
-    fun cached(section: LeekSection): LeekCatalog? = runCatching {
+    fun cached(section: LeekSection): LeekCatalog? = synchronized(cacheLock) { runCatching {
         val json = JSONObject(file(section).openRead().bufferedReader().use { it.readText() })
         LeekDuckParser.parse(section, json.getString("html"), json.getLong("fetchedAt"))
-    }.getOrNull()
+    }.getOrNull() }
     fun refresh(section: LeekSection): LeekCatalog {
         val connection = URL(section.url).openConnection() as HttpURLConnection
         connection.connectTimeout = 12_000; connection.readTimeout = 15_000
@@ -130,13 +130,14 @@ internal class LeekDuckRepository(context: Context) {
         } finally { connection.disconnect() }
         return storeValidated(section, html, System.currentTimeMillis())
     }
-    internal fun storeValidated(section: LeekSection, html: String, time: Long): LeekCatalog {
+    internal fun storeValidated(section: LeekSection, html: String, time: Long): LeekCatalog = synchronized(cacheLock) {
         val catalog = LeekDuckParser.parse(section, html, time)
         val target = file(section); val stream = target.startWrite()
         try {
             stream.write(JSONObject().put("html", html).put("fetchedAt", time).toString().toByteArray(Charsets.UTF_8))
             target.finishWrite(stream)
         } catch (e: Exception) { target.failWrite(stream); throw e }
-        return catalog
+        catalog
     }
+    companion object { private val cacheLock = Any() }
 }

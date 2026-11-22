@@ -112093,3 +112093,6 @@ TEXT: Disparo Certero
 
 RESOURCE ID: move_name_0593
 TEXT: Buceo
+
+RESOURCE ID: move_name_0615
+TEXT: Genufendiente

@@ -7,7 +7,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 
@@ -52,6 +55,10 @@ private fun rawMissionIconLabel(path: String) = path.substringAfterLast('/').sub
 internal fun missionIconLabel(path: String): String {
     val name = path.substringAfterLast('/').lowercase()
     val labels = mapOf(
+        "item_1201.png" to "MT ataque rápido / Fast TM / MT ataque rápido",
+        "item_1202.png" to "MT ataque carregado / Charged TM / MT ataque cargado",
+        "item_1203.png" to "MT de Elite ataque rápido / Elite Fast TM / MT élite ataque rápido",
+        "item_1204.png" to "MT de Elite ataque carregado / Elite Charged TM / MT élite ataque cargado",
         "item_1350.png" to "Recurso de fusão lunar / Fusao / Lunar fusion resource / Fusión lunar",
         "item_1351.png" to "Recurso de fusão solar / Fusao / Solar fusion resource / Fusión solar",
         "item_kyuremblackfusionresource.png" to "Recurso de fusão Kyurem Preto / Fusao / Black Kyurem fusion / Fusión Kyurem Negro",
@@ -94,7 +101,26 @@ internal fun missionIconLabel(path: String): String {
         "ic_buddy_poffin.png" to "Alimentar companheiro / Feed buddy")
     return labels[name] ?: rawMissionIconLabel(path)
 }
-internal fun filterIconLabel(path: String): String = when (path) {
+// Reuse the exact text symbols rendered by the existing gender selector.
+internal val appGenderSymbols = mapOf("filter_icons/app_gender_male.txt" to "\u2642", "filter_icons/app_gender_female.txt" to "\u2640")
+internal fun taskIconSymbol(path: String): String? = appGenderSymbols[path]
+internal fun taskSymbolBitmap(path: String): android.graphics.Bitmap? {
+    val symbol = taskIconSymbol(path) ?: return null
+    val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        textSize = 72f // 18 within the same 24-unit icon canvas as Compose.
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT
+    }
+    val metrics = paint.fontMetrics
+    android.graphics.Canvas(bitmap).drawText(symbol, 48f, 48f - (metrics.ascent + metrics.descent) / 2, paint)
+    return bitmap
+}
+
+internal fun filterIconLabel(path: String): String = gameSearchIconsByPath[path]?.label ?: when (path) {
+    "filter_icons/app_gender_male.txt" -> "Masculino app compacto / Male app compact / Masculino app compacto"
+    "filter_icons/app_gender_female.txt" -> "Feminino app compacto / Female app compact / Femenino app compacto"
     "filter_icons/legendary.png", "filter_icons/legendary_color.png" -> "Lendário / Legendary / Legendario"
     "filter_icons/mythical.png", "filter_icons/mythical_color.png" -> "Mítico / Mythical / Singular / Mew"
     "filter_icons/ultra_beast.png" -> "Ultracriatura / Ultra Beast / Ultraente"
@@ -102,6 +128,8 @@ internal fun filterIconLabel(path: String): String = when (path) {
     "filter_icons/unown.png" -> "Unown"
     "filter_icons/favorite.png" -> "Favorito / Favorite / Favorita / Estrela / Star"
     "filter_icons/favorite_empty.png" -> "Favorito desmarcado / Unmarked favorite / Favorito sin marcar"
+    "collection/xxs_double.png" -> "Tamanho XXS -- / Size XXS -- / Tamaño XXS --"
+    "collection/xxl_double.png" -> "Tamanho XXL ++ / Size XXL ++ / Tamaño XXL ++"
     else -> missionIconLabel(path)
 }
 internal fun sharedTaskIcons(context: Context): List<String> {
@@ -113,17 +141,27 @@ internal fun sharedTaskIcons(context: Context): List<String> {
         "collection/mega.png", "collection/dynamax.png", "collection/gigantamax.png",
         "filter_icons/legendary_color.png", "filter_icons/mythical_color.png", "filter_icons/costume_color.png", "filter_icons/unown.png",
         "collection/shiny.png", "collection/shadow.png", "collection/purified.png",
+        "collection/xxs.png", "collection/xxs_double.png",
+        "collection/xxl.png", "collection/xxl_double.png",
         "filter_icons/favorite.png", "filter_icons/favorite_empty.png",
         "collection/great.png", "collection/ultra.png", "collection/master.png",
         "filter_icons/legendary.png", "filter_icons/mythical.png", "filter_icons/costume.png"
-    )).distinct()
+    ) + appGenderSymbols.keys + gameSearchIcons.map { it.path }).distinct()
 }
 
 @Composable
-internal fun FilterTagIcon(path: String, modifier: Modifier = Modifier, description: String? = null) {
-    val monochrome = path in setOf("filter_icons/legendary.png", "filter_icons/mythical.png", "filter_icons/costume.png", "filter_icons/favorite_empty.png")
+internal fun FilterTagIcon(path: String, modifier: Modifier = Modifier, description: String? = null,
+    tint: androidx.compose.ui.graphics.Color? = null, symbolSize: androidx.compose.ui.unit.TextUnit = 18.sp) {
+    val symbol = taskIconSymbol(path)
+    if (symbol != null) {
+        Box(modifier.then(if (description == null) Modifier else Modifier.semantics { contentDescription = description }), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Text(symbol, fontSize = symbolSize, color = tint ?: appControlInk(), maxLines = 1, softWrap = false)
+        }
+        return
+    }
+    val monochrome = taskIconIsMonochrome(path)
     AsyncImage("file:///android_asset/$path", description, modifier,
-        colorFilter = if (monochrome) androidx.compose.ui.graphics.ColorFilter.tint(appControlInk()) else null)
+        colorFilter = if (monochrome) androidx.compose.ui.graphics.ColorFilter.tint(tint ?: appControlInk()) else null)
 }
 
 @Composable
@@ -137,11 +175,19 @@ internal fun NoTagIcon(modifier: Modifier = Modifier) {
 internal fun missionIcons(context: Context) = sharedTaskIcons(context)
 internal fun filterTagIcons(context: Context) = sharedTaskIcons(context)
 
+/** Search aliases tolerate omitted accents and words such as "de" between query terms. */
+internal fun taskIconMatchesSearch(path: String, search: String): Boolean {
+    fun normalize(value: String) = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "").lowercase(java.util.Locale.ROOT)
+    val label = normalize(filterIconLabel(path))
+    return normalize(search).trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.all { it in label }
+}
+
 @Composable
 internal fun SharedTaskIconPicker(selected: String?, search: String, onSelect: (String?) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val icons = remember(context) { sharedTaskIcons(context) }
-    val filtered = icons.filter { filterIconLabel(it).contains(search, true) }
+    val filtered = remember(icons, search) { icons.filter { taskIconMatchesSearch(it, search) } }
     AppSectionCard(modifier) {
         LazyVerticalGrid(GridCells.Adaptive(56.dp), Modifier.fillMaxSize(), contentPadding = PaddingValues(8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

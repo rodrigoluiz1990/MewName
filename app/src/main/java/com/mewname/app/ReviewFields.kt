@@ -60,6 +60,29 @@ internal fun CompactField(
     keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
     modifier: Modifier = Modifier
 ) {
+    if (LocalReviewLayout.current.compact && LocalGlassReviewStyle.current) {
+        BoxWithConstraints(modifier) {
+            // Keep stacked labels on narrow IV columns or when accessibility text is enlarged.
+            val inline = maxWidth >= 100.dp && androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.3f
+            if (inline) {
+                Row(Modifier.fillMaxWidth().height(GlassFieldHeight), verticalAlignment = Alignment.CenterVertically) {
+                    ReviewDataLabel(label, Modifier.weight(1f))
+                    Box(Modifier.weight(1f)) {
+                        if (onClick != null) CompactSelectableField(value, active, struckThrough, onClick, Modifier.fillMaxWidth())
+                        else CompactTextInput(value = value, onValueChange = onValueChange, keyboardOptions = keyboardOptions,
+                            readOnly = readOnly, active = active, textDecoration = if (struckThrough) TextDecoration.LineThrough else null,
+                            modifier = Modifier.fillMaxWidth())
+                    }
+                    if (headerTrailing != null) headerTrailing() else LocalFieldLogMarker.current?.invoke(label)
+                }
+            } else {
+                CompositionLocalProvider(LocalReviewLayout provides LocalReviewLayout.current.copy(compact = false)) {
+                    CompactField(label, value, onValueChange, readOnly, active, struckThrough, onClick, headerTrailing, keyboardOptions, Modifier.fillMaxWidth())
+                }
+            }
+        }
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(if (LocalGlassReviewStyle.current) 0.dp else 3.dp), modifier = modifier) {
         FieldLabelRow(label = label, trailing = headerTrailing)
         if (onClick != null) {

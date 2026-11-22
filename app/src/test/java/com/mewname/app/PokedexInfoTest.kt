@@ -55,4 +55,26 @@ class PokedexInfoTest {
         assertFalse(regional.has("shinyReleased"))
     }
 
+    @Test fun explicitMaximumIsNotAUniversalMultiplier() {
+        val bulbasaur = PokedexInfoCatalog.load(context, PokedexCatalogEntry(1, "Bulbasaur"))!!
+        val wailord = PokedexInfoCatalog.load(context, PokedexCatalogEntry(321, "Wailord"))!!
+        assertEquals(1.225, pokemonHeightSummary(bulbasaur).maximum!!, 0.000001)
+        assertEquals(29.0, pokemonHeightSummary(wailord).maximum!!, 0.000001)
+        assertEquals(listOf(0.35, 0.525, 0.875, 1.05, 1.225), pokemonSizeBounds(bulbasaur).map { it.maximum })
+    }
+
+    @Test fun standardHeightRemainsAvailableWithoutSizeBounds() {
+        val summary = pokemonHeightSummary(JSONObject("""{"pokedexHeightM":0.4}"""))
+        assertEquals(0.4, summary.standard!!, 0.0)
+        assertNull(summary.minimum)
+        assertNull(summary.maximum)
+        assertEquals(PokemonHeightSummary(null, null, null), pokemonHeightSummary(null))
+    }
+
+    @Test fun invalidBoundsAndVisualScaleCannotProduceAMaximum() {
+        val info = JSONObject("""{"pokedexHeightM":-1,"modelScaleV2":100,
+            "sizes":{"xxsLowerBound":1,"xsLowerBound":0.5,"mLowerBound":0.75,"mUpperBound":1.25,"xlUpperBound":1.5,"xxlUpperBound":2}}""")
+        assertEquals(PokemonHeightSummary(null, null, null), pokemonHeightSummary(info))
+    }
+
 }

@@ -1,5 +1,54 @@
 # Histórico de alterações
 
+## 1.0.36 - 2026-11-22
+
+Alterações acumuladas desde a release 1.0.35.
+
+### Layout e sobreposição
+
+- Nova configuração de Sugerir nome em Treinador → Layout, com prévia, abas personalizadas, campos ocultos e blocos de tags.
+- Arraste para organizar campos e blocos com indicação visual da posição; edição e exclusão dos blocos preservam seus campos.
+- Largura, altura e tamanho dos ícones ajustáveis; opções de texto, ícone, toggle e seleção segmentada, incluindo gênero e sombroso/purificado.
+- Ícones da busca do jogo para tags e missões, símbolos compactos de gênero e novos XXS/XXL com dois sinais, mantendo os anteriores.
+- Tamanho do botão de leitura e das missões ajustável separadamente de 75% a 150%, com restauração do padrão.
+- Removidas as legendas sobre céu por horário e troca de imagens da configuração de Layout.
+- Corrigidos fechamento pelo botão Voltar, falha ao abrir resultados após leitura e dimensionamento das janelas; coleção aproveita a área até a barra de status.
+- Arraste de filtros, formatos de nome e missões mais previsível; filtros salvos mantêm sua ordem na sobreposição.
+- Padronização de modais, seletores, exportação de logs e cartões; QR do treinador sem borda branca externa duplicada.
+
+### Calendário e notificações
+
+- Lembretes de início de eventos, com permissões, reprogramação e proteção contra avisos duplicados ou vencidos.
+- Opção de lembrar no final dos detalhes, incluindo eventos de raids; notificação abre o calendário.
+- Avisos opcionais de novos códigos promocionais com consulta diária, sem alertar códigos antigos na primeira ativação, expirados ou já resgatados.
+- Novas imagens de eventos e atualização do catálogo exibido na tela principal.
+
+### Pokédex, coleções e nomes
+
+- Aba Tamanho exibe altura padrão, mínima e máxima da espécie e máxima por categoria XXS/XS/M/XL/XXL, usando os limites disponíveis no jogo.
+- Nomes de fantasias revisados nos idiomas do app, ajustes de aliases e sprites de formas e inclusão do Mega Chandelure.
+- Formas únicas com sprites e rótulos corrigidos; novas sugestões padrão para Vivillon.
+- IV Master revisado conforme aprovações: Deoxys Defesa separado, opções para as demais formas e ajustes de Palafin e formas coroadas.
+- Configuração de IV Master de 67% completada para as famílias que estavam sem essa porcentagem.
+- Seletores de IV Master e ataques PvP revisados, com ícones de tipo e informações dos movimentos.
+
+### Raids, ataques e reconhecimento
+
+- Sugestões de Giratina Alterada corrigidas e dados locais priorizados para sprites e movimentos, com tradução e tipo dos ataques.
+- Downloads de imagens ausentes de raids e Max não se repetem após falha até uma atualização explícita.
+- Humilhação Dividida do Kingambit adicionada aos ataques legados e aos dados PvP/PvE; nome de Balanço Violento corrigido.
+- Telas sem evidências de ficha deixam de abrir Sugerir nome com dados aleatórios; aviso informa as telas disponíveis para leitura.
+- Combinação de leituras e tratamento de cancelamento/tempo limite revisados para evitar reaproveitar dados de outro Pokémon.
+
+### Backup, desempenho e manutenção
+
+- Backup e restauração revisados, incluindo filtros de logs, subconjuntos de preferências e restauração atômica dos fundos aprendidos.
+- Caches de catálogos, sprites, coleção, Pokédex e raids reutilizados; recortes e etapas de OCR fora da thread principal.
+- Janelas de missões evitam reconstruções quando o conteúdo não mudou; cache de códigos promocionais protegido contra acesso simultâneo.
+- Ajuda atualizada para lembretes, notificações e configuração de layout.
+
+O efeito experimental Dinamax do Squirtle permanece fora desta release. A identificação de purificado com a avaliação cobrindo os custos e a validação física completa do OCR continuam pendentes.
+
 ## 1.0.35 - 2026-10-28
 
 Alterações acumuladas desde a release 1.0.34.

@@ -88,6 +88,7 @@ internal fun TrainerProfileScreen(
     var showQr by rememberSaveable { mutableStateOf(false) }
     var showCollection by rememberSaveable { mutableStateOf(false) }
     var showPvp by rememberSaveable { mutableStateOf(false) }
+    var showReviewLayout by rememberSaveable { mutableStateOf(false) }
     var showLayout by rememberSaveable { mutableStateOf(false) }
     var showBubbleOptions by rememberSaveable { mutableStateOf(false) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
@@ -111,8 +112,9 @@ internal fun TrainerProfileScreen(
             }
         }
     }
-    fun closePage() { showMissionOverlay = false; showBackup = false; showCollection = false; showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
+    fun closePage() { if (showReviewLayout) { showReviewLayout = false; return }; showMissionOverlay = false; showBackup = false; showCollection = false; showPvp = false; showQr = false; showLayout = false; showBubbleOptions = false; showHelp = false; showUpdate = false; editing = false }
     val page = when {
+        showReviewLayout -> "review_layout"
         showMissionOverlay -> "missions_overlay"
         showBackup -> "backup"
         showCollection -> "collection"
@@ -235,6 +237,7 @@ internal fun TrainerProfileScreen(
             "backup" -> lt(language, "Backup e restauração", "Backup and restore", "Copia y restauración")
             "collection" -> "Coleção pessoal"
             "pvp" -> lt(language, "Cálculo PvP", "PvP calculation", "Cálculo PvP")
+            "review_layout" -> lt(language, "Sugerir nome", "Suggest name", "Sugerir nombre")
             "layout" -> "Layout"
             "bubble" -> lt(language, "Atalhos da sobreposição", "Overlay shortcuts", "Accesos de superposición")
             else -> lt(language, "Editar dados", "Edit details", "Editar datos")
@@ -245,7 +248,7 @@ internal fun TrainerProfileScreen(
             })
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)
-                .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.verticalScroll(rememberScrollState())).padding(20.dp)
+                .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.verticalScroll(rememberScrollState())).padding(if (destination == "review_layout") 0.dp else 20.dp)
                 .then(if (destination in setOf("collection", "bubble")) Modifier else Modifier.padding(bottom = LocalNavigationContentPadding.current)),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (destination) {
@@ -253,7 +256,8 @@ internal fun TrainerProfileScreen(
                     "backup" -> BackupControls()
                     "collection" -> PersonalCollectionPreferences()
                     "pvp" -> PvpCalculationPreferences()
-                    "layout" -> AppearancePreferences()
+                    "review_layout" -> ReviewLayoutPreferences()
+                    "layout" -> AppearancePreferences(onReviewLayout = { showReviewLayout = true })
                     "bubble" -> BubbleActionPreferences()
                     "edit" -> {
             AppGlassTextField(name, { name = it }, label = { Text(lt(language, "Nome do treinador", "Trainer name", "Nombre del entrenador")) },
